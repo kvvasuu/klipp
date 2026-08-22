@@ -1,0 +1,38 @@
+import { PerspectiveCamera, Quaternion, Vector3 } from 'three';
+
+/** A camera's full visual state at one instant — position, rotation, lens. Owns its `Vector3`/
+ *  `Quaternion` (not shared refs) so it can be frozen as an independent blend start point.
+ *
+ *  `out`-parameter style throughout — only `createCameraState()` allocates, never per frame. */
+export type CameraState = {
+  position: Vector3;
+  quaternion: Quaternion;
+  fov: number;
+  near: number;
+  far: number;
+};
+
+/** Allocates a new `CameraState` with default values — call once, not per frame. */
+export function createCameraState(): CameraState {
+  return { position: new Vector3(), quaternion: new Quaternion(), fov: 50, near: 0.1, far: 1000 };
+}
+
+/** Copies `source` into `out` in place — the copy stays valid even if `source` is later mutated. Safe if
+ *  `out === source`. */
+export function copyCameraState(out: CameraState, source: CameraState): CameraState {
+  out.position.copy(source.position);
+  out.quaternion.copy(source.quaternion);
+  out.fov = source.fov;
+  out.near = source.near;
+  out.far = source.far;
+  return out;
+}
+
+export function copyCameraStateFromCamera(out: CameraState, camera: PerspectiveCamera): CameraState {
+  out.position.copy(camera.position);
+  out.quaternion.copy(camera.quaternion);
+  out.fov = camera.fov;
+  out.near = camera.near;
+  out.far = camera.far;
+  return out;
+}

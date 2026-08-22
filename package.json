@@ -1,30 +1,80 @@
 {
-  "name": "example",
+  "name": "klipp",
   "private": true,
   "version": "0.0.0",
-  "type": "module",
-  "scripts": {
-    "dev": "vite",
-    "build": "tsc -b && vite build",
-    "lint": "oxlint",
-    "preview": "vite preview"
+  "description": "Declarative virtual camera library for react-three-fiber, inspired by Unity Cinemachine.",
+  "keywords": [
+    "react-three-fiber",
+    "r3f",
+    "three.js",
+    "camera",
+    "virtual-camera",
+    "cinemachine",
+    "webgl"
+  ],
+  "license": "MIT",
+  "author": "Łukasz Kwas (https://github.com/kvvasuu)",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kvvasuu/klipp.git"
   },
-  "dependencies": {
+  "homepage": "https://github.com/kvvasuu/klipp#readme",
+  "bugs": {
+    "url": "https://github.com/kvvasuu/klipp/issues"
+  },
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./body/orbital-controls": {
+      "types": "./dist/body/OrbitalControls.d.ts",
+      "default": "./dist/body/OrbitalControls.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "packageManager": "pnpm@11.15.1",
+  "scripts": {
+    "clean": "node -e \"require('node:fs').rmSync('dist', { recursive: true, force: true })\"",
+    "prebuild": "pnpm run clean",
+    "build": "tsc",
+    "lint": "oxlint",
+    "test": "vitest run"
+  },
+  "peerDependencies": {
     "@react-three/fiber": "^9.7.0",
     "camera-controls": "^3.1.2",
-    "klipp": "workspace:*",
-    "react": "^19.2.8",
-    "react-dom": "^19.2.8",
-    "three": "^0.185.1"
+    "react": "^19.0",
+    "three": ">=0.185.0"
+  },
+  "peerDependenciesMeta": {
+    "camera-controls": {
+      "optional": true
+    }
   },
   "devDependencies": {
+    "@react-three/fiber": "^9.7.0",
+    "@react-three/test-renderer": "^9.1.1",
+    "@testing-library/react": "^16.3.2",
     "@types/node": "^24.13.3",
     "@types/react": "^19.2.17",
-    "@types/react-dom": "^19.2.3",
+    "@types/react-dom": "^19.2.4",
     "@types/three": "^0.185.4",
-    "@vitejs/plugin-react": "^6.0.4",
+    "camera-controls": "^3.1.2",
+    "jsdom": "^30.0.1",
     "oxlint": "^1.75.0",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "three": "^0.185.1",
     "typescript": "~6.0.2",
-    "vite": "^8.2.0"
+    "vitest": "^4.1.10"
+  },
+  "dependencies": {
+    "maath": "1.0.0-canary-39fbc9bc-20260817"
   }
 }
