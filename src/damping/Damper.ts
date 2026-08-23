@@ -12,10 +12,16 @@ export type DampingConstant = number | { into: number; from: number };
  * Snaps exactly to `target` (and zeroes velocity) once within `epsilon` — SmoothDamp only asymptotically
  * approaches its target, so without this a settled camera keeps accumulating floating-point residue
  * forever instead of truly stopping. Not part of the ported formula, added for numerical correctness.
+ *
+ * The very first `update()` call always snaps hard to `target` too, regardless of `damping` — a fresh
+ * `CameraState` defaults `current` to `(0,0,0)`/identity, a meaningless coordinate the caller never chose;
+ * damping it from there would visibly fly the camera in from world origin on activation instead of
+ * smoothing real, subsequent changes. Damping only ever eases motion AFTER the camera is already in place.
  */
 export class Damper {
   velocity = 0;
   private previousDistance = 0;
+  private hasUpdated = false;
 
   update(
     current: number,
@@ -25,6 +31,11 @@ export class Damper {
     maxSpeed = Infinity,
     epsilon = 1e-4,
   ): number {
+    if (!this.hasUpdated) {
+      this.hasUpdated = true;
+      return target;
+    }
+
     const distance = Math.abs(target - current);
 
     if (distance < epsilon) {

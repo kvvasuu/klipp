@@ -11,10 +11,20 @@ describe('Vector3Damper', () => {
     expect(out.equals(new Vector3(10, -5, 2))).toBe(true);
   });
 
+  it('the very first update() call ever snaps directly to target, even with damping > 0', () => {
+    const damper = new Vector3Damper();
+    const out = new Vector3();
+
+    damper.update(out, new Vector3(10, -5, 2), 0.5, 0.016);
+    expect(out.equals(new Vector3(10, -5, 2))).toBe(true);
+  });
+
   it('damping > 0 catches up gradually instead of snapping in one frame', () => {
     const damper = new Vector3Damper();
     const out = new Vector3();
 
+    damper.update(out, new Vector3(10, 0, 0), 0.5, 0.016); // consume the first-call snap
+    out.set(0, 0, 0); // move back away from target to genuinely exercise gradual convergence below
     damper.update(out, new Vector3(10, 0, 0), 0.5, 0.016);
     expect(out.x).toBeGreaterThan(0);
     expect(out.x).toBeLessThan(10);
@@ -51,6 +61,8 @@ describe('Vector3Damper', () => {
     const damper = new Vector3Damper();
     const out = new Vector3();
 
+    damper.update(out, new Vector3(10, 0, 0), { into: 0.05, from: 2 }, 0.016); // consume the first-call snap
+    out.set(0, 0, 0);
     expect(() => damper.update(out, new Vector3(10, 0, 0), { into: 0.05, from: 2 }, 0.016)).not.toThrow();
     expect(out.x).toBeGreaterThan(0);
     expect(out.x).toBeLessThan(10);

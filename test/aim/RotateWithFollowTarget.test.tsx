@@ -93,11 +93,14 @@ describe('RotateWithFollowTarget (React wrapper)', () => {
     );
 
     const renderer = await create(scene(0.5));
+    await renderer.advanceFrames(1, 0.05); // consume the first-ever-update hard snap
+    target.rotation.set(0, -1.5, 0); // rotate the target so there's a genuine gap for damping to close
+    const newTargetQuaternion = new Quaternion().setFromEuler(target.rotation);
     await renderer.advanceFrames(1, 0.05);
-    expect(core!.activeState!.quaternion.angleTo(targetQuaternion)).toBeGreaterThan(0.01); // still catching up
+    expect(core!.activeState!.quaternion.angleTo(newTargetQuaternion)).toBeGreaterThan(0.01); // still catching up
 
     await renderer.update(scene(0));
     await renderer.advanceFrames(1, 0.05);
-    expectQuaternionsClose(core!.activeState!.quaternion, targetQuaternion); // damping off: snaps instantly
+    expectQuaternionsClose(core!.activeState!.quaternion, newTargetQuaternion); // damping off: snaps instantly
   });
 });

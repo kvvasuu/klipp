@@ -93,10 +93,21 @@ describe('HardLockToTargetBody', () => {
       expect(out.position.x).toBe(10);
     });
 
+    it('the very first update() ever snaps directly to the target, even with damping > 0 — avoids flying in from (0,0,0)', () => {
+      const body = new HardLockToTargetBody(new Vector3(10, 0, 0), 0.5);
+      const out = createCameraState(); // starts at position (0,0,0)
+
+      body.update(out, 0.016);
+
+      expect(out.position.x).toBe(10);
+    });
+
     it('damping > 0 catches up gradually instead of snapping in one frame', () => {
       const body = new HardLockToTargetBody(new Vector3(10, 0, 0), 0.5);
       const out = createCameraState(); // starts at position (0,0,0)
 
+      body.update(out, 0.016); // consume the first-ever-update hard snap
+      out.position.set(0, 0, 0); // move back away from target to genuinely exercise damping below
       body.update(out, 0.016);
 
       expect(out.position.x).toBeGreaterThan(0);
@@ -133,6 +144,8 @@ describe('HardLockToTargetBody', () => {
       const body = new HardLockToTargetBody(new Vector3(10, 0, 0), 0.5);
       const out = createCameraState();
 
+      body.update(out, 0.05); // consume the first-ever-update hard snap
+      out.position.set(0, 0, 0); // move back away from target to genuinely exercise damping below
       body.update(out, 0.05);
       expect(out.position.x).toBeGreaterThan(0);
       expect(out.position.x).toBeLessThan(10);

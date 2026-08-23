@@ -81,6 +81,7 @@ describe('RotateWithFollowTargetAim', () => {
       target.rotation.set(0, Math.PI / 2, 0);
 
       const aim = new RotateWithFollowTargetAim(target, 0.5);
+      aim.update(createCameraState(), 0.016); // consume the first-ever-update hard snap on a throwaway state
       const out = createCameraState();
       aim.update(out, 0.016);
 
@@ -169,6 +170,7 @@ describe('RotateWithFollowTargetAim', () => {
       const targetQuaternion = new Quaternion().setFromEuler(target.rotation);
 
       const aim = new RotateWithFollowTargetAim(target, 0.5);
+      aim.update(createCameraState(), 0.05); // consume the first-ever-update hard snap on a throwaway state
       const out = createCameraState();
       aim.update(out, 0.05);
       expect(out.quaternion.angleTo(targetQuaternion)).toBeGreaterThan(0);

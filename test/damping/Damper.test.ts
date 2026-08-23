@@ -2,8 +2,17 @@ import { describe, expect, it } from 'vitest';
 import { Damper } from '../../src/damping/Damper';
 
 describe('Damper', () => {
-  it('current already at target: returns target unchanged, velocity stays zero', () => {
+  it('the very first update() call ever snaps directly to target, regardless of damping', () => {
     const damper = new Damper();
+    const out = damper.update(0, 10, 0.5, 0.016);
+
+    expect(out).toBe(10);
+    expect(damper.velocity).toBe(0);
+  });
+
+  it('current already at target (on a warmed-up damper): returns target unchanged, velocity stays zero', () => {
+    const damper = new Damper();
+    damper.update(5, 5, 1, 0.1); // consume the first-call snap
     const out = damper.update(5, 5, 1, 0.1);
 
     expect(out).toBe(5);
@@ -12,7 +21,8 @@ describe('Damper', () => {
 
   it('converges to the target over repeated ticks', () => {
     const damper = new Damper();
-    let current = 0;
+    let current = damper.update(0, 10, 0.5, 0.016); // consume the first-call snap
+    current = 0; // move back away from target to genuinely exercise gradual convergence below
 
     for (let i = 0; i < 200; i++) {
       current = damper.update(current, 10, 0.5, 0.016);
@@ -23,6 +33,7 @@ describe('Damper', () => {
 
   it('snaps exactly to target (and zeroes velocity) once within epsilon, instead of approaching forever', () => {
     const damper = new Damper();
+    damper.update(0, 10, 1, 0.016); // consume the first-call snap
     damper.velocity = 3.7; // simulate mid-motion, non-zero velocity
 
     const out = damper.update(10.00005, 10, 1, 0.016, Infinity, 1e-4);
@@ -33,8 +44,9 @@ describe('Damper', () => {
 
   it('never overshoots the target when starting at rest (critically damped, not oscillating)', () => {
     const damper = new Damper();
-    let current = 0;
     const target = 10;
+    damper.update(0, target, 0.3, 0.016); // consume the first-call snap, without building real velocity
+    let current = 0; // move back away from target to genuinely exercise gradual convergence below
 
     for (let i = 0; i < 500; i++) {
       current = damper.update(current, target, 0.3, 0.016);
@@ -43,21 +55,28 @@ describe('Damper', () => {
   });
 
   it('maxSpeed clamps how far a single step can move, for the same gap and dt', () => {
-    const unclamped = new Damper().update(0, 100, 1, 0.05);
-    const clamped = new Damper().update(0, 100, 1, 0.05, 2); // maxSpeed = 2 units/sec
+    const unclampedDamper = new Damper();
+    unclampedDamper.update(0, 100, 1, 0.05); // consume the first-call snap
+    const unclamped = unclampedDamper.update(0, 100, 1, 0.05);
+
+    const clampedDamper = new Damper();
+    clampedDamper.update(0, 100, 1, 0.05, 2); // consume the first-call snap
+    const clamped = clampedDamper.update(0, 100, 1, 0.05, 2); // maxSpeed = 2 units/sec
 
     expect(clamped).toBeLessThan(unclamped);
   });
 
   it('velocity persists across calls — a second call from the same spot differs from a fresh damper (motion has momentum)', () => {
     const warmedUp = new Damper();
-    warmedUp.update(0, 10, 0.5, 0.05); // first step: builds up non-zero velocity
+    warmedUp.update(0, 10, 0.5, 0.05); // consume the first-call snap
+    warmedUp.update(0, 10, 0.5, 0.05); // first real step: builds up non-zero velocity
     const secondStep = warmedUp.update(0, 10, 0.5, 0.05); // same current/target/dt as a fresh call
 
     const fresh = new Damper();
+    fresh.update(0, 10, 0.5, 0.05); // consume the first-call snap
     const freshStep = fresh.update(0, 10, 0.5, 0.05);
 
-    // identical current/target/dt, but the warmed-up damper carries velocity from its first step, so
+    // identical current/target/dt, but the warmed-up damper carries velocity from its extra step, so
     // its output differs from a damper starting completely at rest
     expect(secondStep).not.toBeCloseTo(freshStep, 5);
   });
@@ -66,6 +85,8 @@ describe('Damper', () => {
     it('a plain number behaves exactly as before (no into/from split)', () => {
       const withNumber = new Damper();
       const withEqualObject = new Damper();
+      withNumber.update(0, 10, 0.4, 0.016); // consume the first-call snap
+      withEqualObject.update(0, 10, { into: 0.4, from: 0.4 }, 0.016);
       let a = 0;
       let b = 0;
 
@@ -95,6 +116,7 @@ describe('Damper', () => {
 
     it('switches to "from" once the gap starts narrowing again, even mid-motion', () => {
       const damper = new Damper();
+      damper.update(0, 10, { into: 2, from: 0.05 }, 0.016); // consume the first-call snap
       let current = 0;
 
       // widen the gap first so "into" has been exercised

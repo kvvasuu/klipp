@@ -12,10 +12,22 @@ describe('QuaternionDamper', () => {
     expect(out.angleTo(target)).toBeLessThan(1e-9);
   });
 
-  it('damping > 0 catches up gradually instead of snapping in one frame', () => {
+  it('the very first update() call ever snaps directly to target, even with damping > 0', () => {
     const damper = new QuaternionDamper();
     const target = new Quaternion().setFromAxisAngle(new Vector3(0, 1, 0), Math.PI / 2);
     const out = new Quaternion();
+
+    damper.update(out, target, 0.5, 0.016);
+    expect(out.angleTo(target)).toBeLessThan(1e-9);
+  });
+
+  it('damping > 0 catches up gradually instead of snapping in one frame, once warmed up', () => {
+    const damper = new QuaternionDamper();
+    const target = new Quaternion().setFromAxisAngle(new Vector3(0, 1, 0), Math.PI / 2);
+    const out = new Quaternion();
+
+    damper.update(out, target, 0.5, 0.016); // consume the first-call snap
+    out.identity(); // move back away from target to genuinely exercise gradual convergence below
 
     damper.update(out, target, 0.5, 0.016);
     expect(out.angleTo(new Quaternion())).toBeGreaterThan(0);

@@ -148,13 +148,14 @@ describe('RotationComposerAim', () => {
 
     it('target outside the dead zone with damping > 0: catches up gradually, not instantly', () => {
       const target = new Vector3(20, 0, -20);
-      const out = createCameraState();
 
       // the fully-converged, undamped edge orientation, for reference
       const undamped = createCameraState();
       new RotationComposerAim(target, [0, 0], 1, [0.2, 0.2], 0).update(undamped, 0.016);
 
       const aim = new RotationComposerAim(target, [0, 0], 1, [0.2, 0.2], 0.5);
+      aim.update(createCameraState(), 0.016); // consume the first-ever-update hard snap on a throwaway state
+      const out = createCameraState();
       aim.update(out, 0.016);
 
       expect(out.quaternion.angleTo(new Quaternion())).toBeGreaterThan(0); // moved off identity
@@ -246,6 +247,7 @@ describe('RotationComposerAim', () => {
     it('forces the target back inside hardLimit even when heavy damping alone would leave it outside', () => {
       const target = new Vector3(20, 0, -20); // far outside on X
       const aim = new RotationComposerAim(target, [0, 0], 1, [0.1, 0.1], 5, [0.3, 0.3]);
+      aim.update(createCameraState(), 0.1); // consume the first-ever-update hard snap on a throwaway state
       const out = createCameraState();
 
       aim.update(out, 0.1);
@@ -256,11 +258,16 @@ describe('RotationComposerAim', () => {
 
     it('hardLimit=[0,0] (default): no enforcement, an unclamped damped result can lag past where a hard limit would clamp it', () => {
       const target = new Vector3(20, 0, -20);
-      const withoutLimit = createCameraState();
-      new RotationComposerAim(target, [0, 0], 1, [0.1, 0.1], 5).update(withoutLimit, 0.1);
 
+      const aimWithoutLimit = new RotationComposerAim(target, [0, 0], 1, [0.1, 0.1], 5);
+      aimWithoutLimit.update(createCameraState(), 0.1); // consume the first-ever-update hard snap
+      const withoutLimit = createCameraState();
+      aimWithoutLimit.update(withoutLimit, 0.1);
+
+      const aimWithLimit = new RotationComposerAim(target, [0, 0], 1, [0.1, 0.1], 5, [0.3, 0.3]);
+      aimWithLimit.update(createCameraState(), 0.1); // consume the first-ever-update hard snap
       const withLimit = createCameraState();
-      new RotationComposerAim(target, [0, 0], 1, [0.1, 0.1], 5, [0.3, 0.3]).update(withLimit, 0.1);
+      aimWithLimit.update(withLimit, 0.1);
 
       expect(withoutLimit.quaternion.equals(withLimit.quaternion)).toBe(false);
       const projected = projectToScreen(withoutLimit, 1, target);

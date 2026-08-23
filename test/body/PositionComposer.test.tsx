@@ -157,6 +157,8 @@ describe('PositionComposer (React wrapper)', () => {
     );
 
     const renderer = await create(scene);
+    await renderer.advanceFrames(1, 0.1); // consume the first-ever dead-zone-reaction hard snap
+    target.position.set(100, 0, -20); // move much further away — a genuine gap heavy damping can't close in one step
     await renderer.advanceFrames(1, 0.1);
 
     const state = core!.activeState!;

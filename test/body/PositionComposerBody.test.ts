@@ -177,12 +177,13 @@ describe('PositionComposerBody', () => {
 
     it('target outside the dead zone with damping > 0: catches up gradually, not instantly', () => {
       const target = new Vector3(20, 0, -20);
-      const out = createCameraState();
 
       const undamped = createCameraState();
       new PositionComposerBody(target, 10, [0, 0], 1, [0.2, 0.2], 0).update(undamped, 0.016);
 
       const body = new PositionComposerBody(target, 10, [0, 0], 1, [0.2, 0.2], 0.5);
+      body.update(createCameraState(), 0.016); // consume the first-ever-update hard snap on a throwaway state
+      const out = createCameraState();
       body.update(out, 0.016);
 
       expect(out.position.distanceTo(undamped.position)).toBeGreaterThan(0.01);
@@ -232,6 +233,7 @@ describe('PositionComposerBody', () => {
     it('forces the target back inside hardLimit even when heavy damping alone would leave it outside', () => {
       const target = new Vector3(20, 0, -20); // far outside on X
       const body = new PositionComposerBody(target, 10, [0, 0], 1, [0.1, 0.1], 5, [0.3, 0.3]);
+      body.update(createCameraState(), 0.1); // consume the first-ever-update hard snap on a throwaway state
       const out = createCameraState();
 
       body.update(out, 0.1);
@@ -242,11 +244,16 @@ describe('PositionComposerBody', () => {
 
     it('hardLimit=[0,0] (default): no enforcement, an unclamped damped result can lag past where a hard limit would clamp it', () => {
       const target = new Vector3(20, 0, -20);
-      const withoutLimit = createCameraState();
-      new PositionComposerBody(target, 10, [0, 0], 1, [0.1, 0.1], 5).update(withoutLimit, 0.1);
 
+      const bodyWithoutLimit = new PositionComposerBody(target, 10, [0, 0], 1, [0.1, 0.1], 5);
+      bodyWithoutLimit.update(createCameraState(), 0.1); // consume the first-ever-update hard snap
+      const withoutLimit = createCameraState();
+      bodyWithoutLimit.update(withoutLimit, 0.1);
+
+      const bodyWithLimit = new PositionComposerBody(target, 10, [0, 0], 1, [0.1, 0.1], 5, [0.3, 0.3]);
+      bodyWithLimit.update(createCameraState(), 0.1); // consume the first-ever-update hard snap
       const withLimit = createCameraState();
-      new PositionComposerBody(target, 10, [0, 0], 1, [0.1, 0.1], 5, [0.3, 0.3]).update(withLimit, 0.1);
+      bodyWithLimit.update(withLimit, 0.1);
 
       expect(withoutLimit.position.equals(withLimit.position)).toBe(false);
       const projected = projectToScreen(withoutLimit, 1, target);

@@ -90,12 +90,14 @@ describe('HardLockToTarget (React wrapper)', () => {
     );
 
     const renderer = await create(scene(0.5));
+    await renderer.advanceFrames(1, 0.05); // consume the first-ever-update hard snap
+    target.position.set(20, 0, 0); // move the target so there's a genuine gap for damping to close
     await renderer.advanceFrames(1, 0.05);
-    expect(core!.activeState!.position.x).toBeGreaterThan(0);
-    expect(core!.activeState!.position.x).toBeLessThan(10); // still catching up, damped
+    expect(core!.activeState!.position.x).toBeGreaterThan(10);
+    expect(core!.activeState!.position.x).toBeLessThan(20); // still catching up, damped
 
     await renderer.update(scene(0));
     await renderer.advanceFrames(1, 0.05);
-    expect(core!.activeState!.position.x).toBe(10); // damping off: snaps instantly
+    expect(core!.activeState!.position.x).toBe(20); // damping off: snaps instantly
   });
 });

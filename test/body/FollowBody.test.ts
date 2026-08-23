@@ -98,10 +98,20 @@ describe('FollowBody', () => {
       expect(out.position.x).toBe(10);
     });
 
-    it('damping > 0 catches up gradually instead of snapping in one frame', () => {
+    it('the very first update() ever snaps directly to the desired position, even with damping > 0', () => {
       const body = new FollowBody(new Vector3(0, 0, 0), new Vector3(10, 0, 0), 0.5);
       const out = createCameraState();
 
+      body.update(out, 0.016);
+      expect(out.position.x).toBe(10);
+    });
+
+    it('damping > 0 catches up gradually instead of snapping in one frame, once warmed up', () => {
+      const body = new FollowBody(new Vector3(0, 0, 0), new Vector3(10, 0, 0), 0.5);
+      const out = createCameraState();
+
+      body.update(out, 0.016); // consume the first-ever-update hard snap
+      out.position.set(0, 0, 0); // move back away from target to genuinely exercise damping below
       body.update(out, 0.016);
       expect(out.position.x).toBeGreaterThan(0);
       expect(out.position.x).toBeLessThan(10);
@@ -124,6 +134,8 @@ describe('FollowBody', () => {
       const body = new FollowBody(new Vector3(0, 0, 0), new Vector3(10, 0, 0), { into: 0.05, from: 2 });
       const out = createCameraState();
 
+      body.update(out, 0.016); // consume the first-ever-update hard snap
+      out.position.set(0, 0, 0); // move back away from target to genuinely exercise damping below
       expect(() => body.update(out, 0.016)).not.toThrow();
       expect(out.position.x).toBeGreaterThan(0);
       expect(out.position.x).toBeLessThan(10);
