@@ -1,6 +1,6 @@
 import { useFrame, useThree } from '@react-three/fiber';
 import { createContext, use, useCallback, useMemo, useRef, useState, type ReactNode } from 'react';
-import { PerspectiveCamera } from 'three';
+import { PerspectiveCamera, type Camera } from 'three';
 import { copyCameraState, createCameraState } from './CameraState';
 import { KlippCore, type KlippCoreOptions } from './KlippCore';
 
@@ -16,6 +16,7 @@ const KlippContext = createContext<KlippContextValue | null>(null);
 
 export type KlippProps = KlippCoreOptions & {
   children?: ReactNode;
+  camera?: Camera;
 };
 
 /**
@@ -25,10 +26,11 @@ export type KlippProps = KlippCoreOptions & {
  *
  * `defaultBlend`/`customBlends` are captured once on mount — changing them later has no effect.
  */
-export function Klipp({ children, defaultBlend, customBlends }: KlippProps) {
+export function Klipp({ children, defaultBlend, customBlends, camera: cameraProp }: KlippProps) {
   const [core] = useState(() => new KlippCore({ defaultBlend, customBlends }));
   const [updates] = useState(() => new Set<FrameUpdate>());
-  const camera = useThree((state) => state.camera);
+  const defaultCamera = useThree((state) => state.camera);
+  const camera = cameraProp ?? defaultCamera;
 
   const registerUpdate = useCallback(
     (update: FrameUpdate) => {

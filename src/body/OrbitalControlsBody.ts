@@ -41,11 +41,11 @@ export class OrbitalControlsBody {
 
   private readonly camera: THREE.PerspectiveCamera;
 
-  constructor(target: Target, aspect = 1, initialDistance = 10) {
+  constructor(target: Target, aspect = 1, initialDistance = 10, impl: typeof CameraControls = CameraControls) {
     this.target = target;
     this.aspect = aspect;
     this.camera = new THREE.PerspectiveCamera();
-    this.controls = new CameraControls(this.camera);
+    this.controls = new impl(this.camera);
     // a fresh camera starts at the origin, coincident with the target — a degenerate zero-distance orbit.
     // setPosition (not setLookAt) gives it a real starting distance while still gazing at the target.
     this.controls.setPosition(0, 0, initialDistance, false);

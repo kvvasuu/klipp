@@ -1,7 +1,7 @@
 import { renderHook } from '@testing-library/react';
 import { create } from '@react-three/test-renderer';
 import { useThree } from '@react-three/fiber';
-import type { PerspectiveCamera } from 'three';
+import { PerspectiveCamera } from 'three';
 import { describe, expect, it } from 'vitest';
 import { Klipp, useKlippCore } from '../src/Klipp';
 import { KlippCore } from '../src/KlippCore';
@@ -100,6 +100,37 @@ describe('Klipp / useKlippCore', () => {
     expect(camera!.position.x).toBeCloseTo(3, 10);
     expect(camera!.position.y).toBeCloseTo(4, 10);
     expect(camera!.position.z).toBeCloseTo(5, 10);
+  });
+
+  it('drives an externally-supplied `camera` prop instead of the default r3f camera', async () => {
+    const externalCamera = new PerspectiveCamera();
+    let defaultCamera: PerspectiveCamera | undefined;
+
+    function DefaultCameraReader() {
+      defaultCamera = useThree((state) => state.camera as PerspectiveCamera);
+      return null;
+    }
+
+    function Scene() {
+      const targetRef = useRef<Object3D>(null);
+      return (
+        <Klipp camera={externalCamera}>
+          <DefaultCameraReader />
+          <object3D ref={targetRef} position={[3, 4, 5]} />
+          <VirtualCamera name="a" priority={10}>
+            <HardLockToTarget target={targetRef} />
+          </VirtualCamera>
+        </Klipp>
+      );
+    }
+
+    const renderer = await create(<Scene />);
+    await renderer.advanceFrames(1, 0.1);
+
+    expect(externalCamera.position.x).toBeCloseTo(3, 10);
+    expect(externalCamera.position.y).toBeCloseTo(4, 10);
+    expect(externalCamera.position.z).toBeCloseTo(5, 10);
+    expect(defaultCamera!.position.equals(externalCamera.position)).toBe(false);
   });
 });
 

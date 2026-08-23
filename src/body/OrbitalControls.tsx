@@ -1,4 +1,5 @@
 import { useThree } from '@react-three/fiber';
+import CameraControls from 'camera-controls';
 import { useEffect, useImperativeHandle, useState, type Ref } from 'react';
 import type { Target } from '../resolve/Target';
 import { useIsActiveVirtualCamera, useIsLiveVirtualCamera, useVirtualCameraSlots } from '../VirtualCamera';
@@ -12,6 +13,9 @@ export type OrbitalControlsProps = {
    *  starts the camera coincident with the target (a degenerate zero-distance orbit). Set the actual
    *  live distance afterward via `ref`'s `controls.dollyTo(...)`. Default `10`. */
   initialDistance?: number;
+  /** Custom `CameraControls` subclass to instantiate instead of the base class — e.g. to override input
+   *  handling. Only used once at construction. Default: the base `CameraControls` class. */
+  impl?: typeof CameraControls;
   /** Whether to wait for an in-progress blend INTO this camera to finish before listening to drag/
    *  scroll input. Default `true`: connects once this camera is what `Klipp` is actually showing
    *  (`useIsLiveVirtualCamera`). Set `false` to connect the instant this camera wins priority
@@ -39,14 +43,20 @@ export type OrbitalControlsProps = {
  * — the target keeps being tracked in the background — it just stops listening to drag/scroll, so
  * switching back doesn't reveal a camera that silently moved from unrelated input.
  */
-export function OrbitalControls({ target, initialDistance = 10, waitForBlend = true, ref }: OrbitalControlsProps) {
+export function OrbitalControls({
+  target,
+  initialDistance = 10,
+  impl = CameraControls,
+  waitForBlend = true,
+  ref,
+}: OrbitalControlsProps) {
   const slots = useVirtualCameraSlots();
   const isActive = useIsActiveVirtualCamera();
   const isLive = useIsLiveVirtualCamera();
   const shouldConnect = waitForBlend ? isLive : isActive;
   const aspect = useThree((state) => state.viewport.aspect);
   const domElement = useThree((state) => state.gl.domElement);
-  const [body] = useState(() => new OrbitalControlsBody(target, aspect, initialDistance));
+  const [body] = useState(() => new OrbitalControlsBody(target, aspect, initialDistance, impl));
   body.target = target;
   body.aspect = aspect;
 

@@ -1,4 +1,5 @@
 import { create } from '@react-three/test-renderer';
+import CameraControls from 'camera-controls';
 import { Vector3 } from 'three';
 import { describe, expect, it, vi } from 'vitest';
 import { HardLockToTarget } from '../../src/body/HardLockToTarget';
@@ -34,6 +35,24 @@ describe('OrbitalControls (React wrapper)', () => {
     const forward = new Vector3(0, 0, -1).applyQuaternion(state.quaternion);
     const towardTarget = target.clone().sub(state.position).normalize();
     expect(forward.dot(towardTarget)).toBeGreaterThan(0.99);
+  });
+
+  it('impl threads a custom CameraControls subclass through to the underlying body', async () => {
+    class CustomControls extends CameraControls {}
+    let orbitalBody: OrbitalControlsBody | null = null;
+
+    const scene = (
+      <Klipp>
+        <VirtualCamera name="a" priority={10}>
+          <OrbitalControls target={new Vector3(0, 0, -10)} impl={CustomControls} ref={(b) => (orbitalBody = b)} />
+        </VirtualCamera>
+      </Klipp>
+    );
+
+    const renderer = await create(scene);
+    await renderer.advanceFrames(1, 0.05);
+
+    expect(orbitalBody!.controls).toBeInstanceOf(CustomControls);
   });
 
   it('connecting/disconnecting on mount/unmount does not throw in the test renderer', async () => {

@@ -1,3 +1,4 @@
+import CameraControls from 'camera-controls';
 import { Object3D, PerspectiveCamera, Vector3 } from 'three';
 import { describe, expect, it } from 'vitest';
 import { createCameraState } from '../../src/CameraState';
@@ -8,6 +9,12 @@ describe('OrbitalControlsBody', () => {
     const body = new OrbitalControlsBody(null);
     expect(body.controls).toBeDefined();
     expect(typeof body.controls.update).toBe('function');
+  });
+
+  it('impl lets a custom CameraControls subclass be constructed instead of the base class', () => {
+    class CustomControls extends CameraControls {}
+    const body = new OrbitalControlsBody(null, 1, 10, CustomControls);
+    expect(body.controls).toBeInstanceOf(CustomControls);
   });
 
   it('starts at a real, non-zero distance from the target instead of coincident with it', () => {
