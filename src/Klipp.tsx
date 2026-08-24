@@ -14,9 +14,20 @@ type KlippContextValue = {
 
 const KlippContext = createContext<KlippContextValue | null>(null);
 
+/** Cinemachine's `StandbyUpdate` concept, applied to the whole driver:
+ *  - `'enabled'` (default) — update → tick → write onto the real camera, as normal.
+ *  - `'standby'` — update → tick still run every frame (blends/damping stay warm, so handing control
+ *    back later resumes smoothly) but the real camera is left untouched — for a temporary hand-off to
+ *    some other camera controller sharing the same camera object.
+ *  - `'disabled'` — nothing runs at all, zero cost — for longer stretches where klipp isn't driving
+ *    anything and a smooth resume doesn't matter. */
+export type KlippMode = 'enabled' | 'standby' | 'disabled';
+
 export type KlippProps = KlippCoreOptions & {
   children?: ReactNode;
   camera?: Camera;
+  /** See `KlippMode`. Default `'enabled'`. */
+  mode?: KlippMode;
 };
 
 /**
@@ -26,7 +37,7 @@ export type KlippProps = KlippCoreOptions & {
  *
  * `defaultBlend`/`customBlends` are captured once on mount — changing them later has no effect.
  */
-export function Klipp({ children, defaultBlend, customBlends, camera: cameraProp }: KlippProps) {
+export function Klipp({ children, defaultBlend, customBlends, camera: cameraProp, mode = 'enabled' }: KlippProps) {
   const [core] = useState(() => new KlippCore({ defaultBlend, customBlends }));
   const [updates] = useState(() => new Set<FrameUpdate>());
   const defaultCamera = useThree((state) => state.camera);
@@ -47,8 +58,11 @@ export function Klipp({ children, defaultBlend, customBlends, camera: cameraProp
   const settledRef = useRef(false);
 
   useFrame((state, delta) => {
+    if (mode === 'disabled') return;
+
     for (const update of updates) update(delta);
     const result = core.tick(delta);
+    if (mode === 'standby') return; // stays warm, but never touches the real camera
 
     const transformUnchanged =
       settledRef.current &&

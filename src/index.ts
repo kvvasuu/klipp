@@ -1,4 +1,4 @@
-export { Klipp, useKlippCore, type KlippProps } from './Klipp';
+export { Klipp, useKlippCore, type KlippProps, type KlippMode } from './Klipp';
 export {
   VirtualCamera,
   useVirtualCameraSlots,

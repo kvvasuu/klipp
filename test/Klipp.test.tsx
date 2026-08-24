@@ -132,6 +132,63 @@ describe('Klipp / useKlippCore', () => {
     expect(externalCamera.position.z).toBeCloseTo(5, 10);
     expect(defaultCamera!.position.equals(externalCamera.position)).toBe(false);
   });
+
+  describe('mode', () => {
+    it('"disabled": nothing runs — the real camera stays untouched, KlippCore never ticks', async () => {
+      let core: KlippCore | undefined;
+      let camera: PerspectiveCamera | undefined;
+
+      function Scene() {
+        const ref = useRef<Object3D>(null);
+        camera = useThree((state) => state.camera as PerspectiveCamera);
+        return (
+          <Klipp mode="disabled">
+            <Reader onRead={(c) => (core = c)} />
+            <object3D ref={ref} position={[3, 4, 5]} />
+            <VirtualCamera name="a" priority={10}>
+              <HardLockToTarget target={ref} />
+            </VirtualCamera>
+          </Klipp>
+        );
+      }
+
+      const renderer = await create(<Scene />);
+      const cameraBefore = camera!.position.clone();
+      await renderer.advanceFrames(3, 0.1);
+
+      expect(camera!.position.equals(cameraBefore)).toBe(true);
+      expect(core!.liveCameraId).toBeNull(); // tick() never ran, so arbitration never even settled
+    });
+
+    it('"standby": KlippCore keeps ticking (stays warm) but the real camera is left untouched', async () => {
+      let core: KlippCore | undefined;
+      let camera: PerspectiveCamera | undefined;
+
+      function Scene() {
+        const ref = useRef<Object3D>(null);
+        camera = useThree((state) => state.camera as PerspectiveCamera);
+        return (
+          <Klipp mode="standby">
+            <Reader onRead={(c) => (core = c)} />
+            <object3D ref={ref} position={[3, 4, 5]} />
+            <VirtualCamera name="a" priority={10}>
+              <HardLockToTarget target={ref} />
+            </VirtualCamera>
+          </Klipp>
+        );
+      }
+
+      const renderer = await create(<Scene />);
+      const cameraBefore = camera!.position.clone();
+      await renderer.advanceFrames(1, 0.1);
+
+      // internal state is warm — the winning candidate settled, activeState reflects the real target
+      expect(core!.liveCameraId).toBe('a');
+      expect(core!.activeState!.position.x).toBeCloseTo(3, 10);
+      // ...but the actual r3f camera never got written to
+      expect(camera!.position.equals(cameraBefore)).toBe(true);
+    });
+  });
 });
 
 function Reader({ onRead }: { onRead: (core: KlippCore) => void }) {
