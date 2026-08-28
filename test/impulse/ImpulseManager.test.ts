@@ -186,4 +186,38 @@ describe('ImpulseManager', () => {
     manager.sampleAt(out, new Vector3()); // default now, default channelMask=1
     expect(out.x).toBeGreaterThan(0);
   });
+
+  describe('hasEvents', () => {
+    it('false with no events generated', () => {
+      const manager = new ImpulseManager();
+      expect(manager.hasEvents).toBe(false);
+    });
+
+    it('true right after generate, before any sampleAt call', () => {
+      const manager = new ImpulseManager();
+      manager.generate({ position: [0, 0, 0], direction: [10, 0, 0], sustainTime: 1 }, 0);
+      expect(manager.hasEvents).toBe(true);
+    });
+
+    it('stays true through attack/sustain/decay, false once sampleAt prunes it past its lifetime', () => {
+      const manager = new ImpulseManager();
+      manager.generate(
+        { position: [0, 0, 0], direction: [10, 0, 0], attackTime: 0.1, sustainTime: 0.1, decayTime: 0.1 },
+        0,
+      );
+      const out = new Vector3();
+
+      manager.sampleAt(out, new Vector3(), 1, 0.15); // mid-sustain
+      expect(manager.hasEvents).toBe(true);
+
+      manager.sampleAt(out, new Vector3(), 1, 1); // well past attack+sustain+decay
+      expect(manager.hasEvents).toBe(false);
+    });
+
+    it('true even for a listener whose channelMask does not match — over-inclusive, not under', () => {
+      const manager = new ImpulseManager();
+      manager.generate({ position: [0, 0, 0], direction: [10, 0, 0], sustainTime: 1, channel: 0b10 }, 0);
+      expect(manager.hasEvents).toBe(true); // hasEvents ignores channel entirely, by design
+    });
+  });
 });

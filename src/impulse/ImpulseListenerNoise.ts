@@ -29,9 +29,14 @@ export class ImpulseListenerNoise {
 
   /** `now` (seconds, same clock as `ImpulseManager.generate`/`sampleAt` — real time by default) is a
    *  3rd, optional param, NOT `dt` — `registerNoise` never passes it, so production code gets the real
-   *  clock automatically; tests pass it explicitly for determinism instead of depending on wall time. */
-  update = (out: CameraState, _dt: number, now?: number): void => {
+   *  clock automatically; tests pass it explicitly for determinism instead of depending on wall time.
+   *
+   *  Returns whether `manager` still has an event in flight — an event's constant-amplitude sustain
+   *  phase can hold the exact same offset across several frames without being done, so klipp can't infer
+   *  "settled" from this frame's output alone (see `CameraStateWriter` in `VirtualCameraController.ts`). */
+  update = (out: CameraState, _dt: number, now?: number): boolean => {
     this.manager.sampleAt(scratchOffset, out.position, this.channelMask, now);
     out.position.addScaledVector(scratchOffset, this.gain);
+    return this.manager.hasEvents;
   };
 }

@@ -139,6 +139,14 @@ export class ImpulseManager {
 
     return out;
   }
+
+  /** Whether any event is still within its lifetime, as of the last `sampleAt`/`generate` call — cheap
+   *  enough to check every frame. Doesn't filter by `channelMask`: a listener on a channel with nothing
+   *  happening on it may see `true` because of an event on a DIFFERENT channel, which only costs a few
+   *  extra idle frames, never a missed one. */
+  get hasEvents(): boolean {
+    return this.events.length > 0;
+  }
 }
 
 /** Shared, ready-to-use instance. Construct your own `new ImpulseManager()` instead only if you need

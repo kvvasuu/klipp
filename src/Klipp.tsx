@@ -4,8 +4,13 @@ import { PerspectiveCamera, type Camera } from 'three';
 import { copyCameraState, createCameraState } from './CameraState';
 import { KlippCore, type KlippCoreOptions } from './KlippCore';
 
-/** A per-frame update — used by `<VirtualCamera>` to drive its own Body/Aim/Noise. */
-export type FrameUpdate = (dt: number) => void;
+/** A per-frame update — used by `<VirtualCamera>` to drive its own Body/Aim/Noise. Return `true` if
+ *  there's still work in flight that could change the output on a LATER frame even though this
+ *  particular frame's output happens to match the previous one (e.g. a constant-amplitude envelope
+ *  plateau) — `frameloop="demand"` stops requesting frames once output stops changing, and without this
+ *  it would misread a coincidentally-still frame mid-plateau as "settled forever". Ordinary continuous
+ *  motion doesn't need it: Klipp's own output comparison already keeps requesting frames for that. */
+export type FrameUpdate = (dt: number) => boolean | void;
 
 type KlippContextValue = {
   core: KlippCore;
@@ -13,6 +18,14 @@ type KlippContextValue = {
 };
 
 const KlippContext = createContext<KlippContextValue | null>(null);
+
+/** Cap on the `dt` passed to any update/`tick()` this frame under `frameloop="demand"` — see the
+ *  `useFrame` callback below. Sized so the FIRST frame after an idle gap advances a blend by an
+ *  imperceptible sliver rather than visibly jumping ahead. Only applied under `"demand"`: there, EVERY
+ *  frame can legitimately follow an arbitrarily long gap (that's the point of the mode), whereas under
+ *  `"always"` a large `dt` almost always means a display genuinely running slow — capping it there would
+ *  silently play the whole scene in slow motion instead of protecting against anything. */
+const DEMAND_MODE_MAX_DELTA = 1 / 30;
 
 /** Cinemachine's `StandbyUpdate` concept, applied to the whole driver:
  *  - `'enabled'` (default) — update → tick → write onto the real camera, as normal.
@@ -57,10 +70,19 @@ export function Klipp({ children, defaultBlend, customBlends, camera: cameraProp
   const [previousResult] = useState(() => createCameraState());
   const settledRef = useRef(false);
 
-  useFrame((state, delta) => {
+  useFrame((state, rawDelta) => {
     if (mode === 'disabled') return;
 
-    for (const update of updates) update(delta);
+    // r3f's clock doesn't pause under frameloop="demand" — the first frame after an idle gap (e.g.
+    // waiting for a click) otherwise gets a `delta` spanning the WHOLE gap, blowing through an entire
+    // blend in one tick instead of animating it
+    const delta = state.frameloop === 'demand' ? Math.min(rawDelta, DEMAND_MODE_MAX_DELTA) : rawDelta;
+
+    // `=== true`, not plain truthiness — see the matching comment in VirtualCameraController.update
+    let stillInFlight = false;
+    for (const update of updates) {
+      if (update(delta) === true) stillInFlight = true;
+    }
     const result = core.tick(delta);
     if (mode === 'standby') return; // stays warm, but never touches the real camera
 
@@ -78,7 +100,6 @@ export function Klipp({ children, defaultBlend, customBlends, camera: cameraProp
     if (!transformUnchanged || !lensUnchanged) {
       copyCameraState(previousResult, result);
       settledRef.current = true;
-      state.invalidate();
 
       if (!transformUnchanged) {
         camera.position.copy(result.position);
@@ -90,6 +111,10 @@ export function Klipp({ children, defaultBlend, customBlends, camera: cameraProp
         camera.far = result.far;
         camera.updateProjectionMatrix();
       }
+    }
+
+    if (!transformUnchanged || !lensUnchanged || stillInFlight) {
+      state.invalidate();
     }
   });
 

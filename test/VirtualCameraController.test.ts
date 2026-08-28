@@ -70,6 +70,44 @@ describe('VirtualCameraController', () => {
     expect(out.position.x).toBe(2);
   });
 
+  it('false when no writer reports being active — most Body/Aim/Noise return void, treated as not-active', () => {
+    const controller = new VirtualCameraController('a');
+    controller.registerBody((out) => {
+      out.position.x = 1;
+    });
+    controller.registerAim(() => {});
+    controller.registerNoise(() => {});
+
+    const out = createCameraState();
+    expect(controller.update(out, 0.1)).toBe(false);
+  });
+
+  it('a writer that leaks a non-boolean truthy return (e.g. an expression-bodied assignment arrow like ' +
+    '`(out) => (out.position.x = dt)`) is NOT read as "still active" — only a literal `true` counts', () => {
+    const controller = new VirtualCameraController('a');
+    // deliberately the exact accidental shape this guards against: no braces, so the arrow's value IS
+    // the assignment's result (a number), even though its declared type is `void`
+    controller.registerBody((out, dt) => (out.position.x = dt));
+
+    const out = createCameraState();
+    expect(controller.update(out, 0.1)).toBe(false);
+  });
+
+  it('true if the Body, the Aim, or ANY stacked Noise writer reports still being active', () => {
+    const bodyActive = new VirtualCameraController('body');
+    bodyActive.registerBody(() => true);
+    expect(bodyActive.update(createCameraState(), 0.1)).toBe(true);
+
+    const aimActive = new VirtualCameraController('aim');
+    aimActive.registerAim(() => true);
+    expect(aimActive.update(createCameraState(), 0.1)).toBe(true);
+
+    const noiseActive = new VirtualCameraController('noise');
+    noiseActive.registerNoise(() => false);
+    noiseActive.registerNoise(() => true); // second one reports active — must not be short-circuited away
+    expect(noiseActive.update(createCameraState(), 0.1)).toBe(true);
+  });
+
   describe('double-registration dev warning', () => {
     it('warns when a second Body registers on top of an existing one', () => {
       const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});

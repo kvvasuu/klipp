@@ -2,7 +2,7 @@ import { renderHook } from '@testing-library/react';
 import { create } from '@react-three/test-renderer';
 import { useThree } from '@react-three/fiber';
 import { PerspectiveCamera } from 'three';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { Klipp, useKlippCore } from '../src/Klipp';
 import { KlippCore } from '../src/KlippCore';
 import { VirtualCamera } from '../src/VirtualCamera';
@@ -131,6 +131,48 @@ describe('Klipp / useKlippCore', () => {
     expect(externalCamera.position.y).toBeCloseTo(4, 10);
     expect(externalCamera.position.z).toBeCloseTo(5, 10);
     expect(defaultCamera!.position.equals(externalCamera.position)).toBe(false);
+  });
+
+  describe('dt clamp under frameloop="demand"', () => {
+    it('clamps a huge single-frame dt so a blend animates instead of snapping to completion', async () => {
+      let core: KlippCore | undefined;
+      function Reader() {
+        core = useKlippCore();
+        return null;
+      }
+
+      const renderer = await create(
+        <Klipp>
+          <Reader />
+          <VirtualCamera name="a" priority={10} />
+        </Klipp>,
+        { frameloop: 'demand' },
+      );
+      const tickSpy = vi.spyOn(core!, 'tick');
+
+      await renderer.advanceFrames(1, 2); // simulates waking up after a 2s idle gap
+      const calledDt = tickSpy.mock.calls[0]?.[0];
+      expect(calledDt).toBeLessThan(1 / 29); // clamped — nowhere near the raw 2s
+    });
+
+    it('does NOT clamp under the default frameloop="always" — dt stays accurate even when large', async () => {
+      let core: KlippCore | undefined;
+      function Reader() {
+        core = useKlippCore();
+        return null;
+      }
+
+      const renderer = await create(
+        <Klipp>
+          <Reader />
+          <VirtualCamera name="a" priority={10} />
+        </Klipp>,
+      ); // default frameloop="always"
+      const tickSpy = vi.spyOn(core!, 'tick');
+
+      await renderer.advanceFrames(1, 2);
+      expect(tickSpy).toHaveBeenCalledWith(2);
+    });
   });
 
   describe('mode', () => {

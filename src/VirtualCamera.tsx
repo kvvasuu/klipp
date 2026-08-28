@@ -1,3 +1,4 @@
+import { useThree } from '@react-three/fiber';
 import { createContext, use, useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from 'react';
 import { createCameraState } from './CameraState';
 import { useKlippCore, useKlippUpdateRegistry } from './Klipp';
@@ -52,6 +53,7 @@ export type VirtualCameraProps = {
 export function VirtualCamera({ name, priority, active = true, children }: VirtualCameraProps) {
   const core = useKlippCore();
   const registerUpdate = useKlippUpdateRegistry();
+  const invalidate = useThree((state) => state.invalidate);
   const [state] = useState(() => createCameraState());
   const [controller] = useState(() => new VirtualCameraController(name));
   controller.name = name;
@@ -62,13 +64,21 @@ export function VirtualCamera({ name, priority, active = true, children }: Virtu
   // restart a blend (see `KlippCore.updatePriority`'s doc comment). The effect below keeps it in sync.
   useEffect(() => {
     if (!active) return;
-    return core.registerCamera({ id: name, priority: priorityRef.current, state });
-  }, [core, name, state, active]);
+    // wake frameloop="demand" on both edges — candidacy just changed, and Klipp's own useFrame (which
+    // decides whether that actually moves the composited camera) otherwise never gets a chance to run
+    invalidate();
+    const unregister = core.registerCamera({ id: name, priority: priorityRef.current, state });
+    return () => {
+      unregister();
+      invalidate();
+    };
+  }, [core, name, state, active, invalidate]);
 
   useEffect(() => {
     if (!active) return;
+    invalidate();
     core.updatePriority(name, priority);
-  }, [core, name, priority, active]);
+  }, [core, name, priority, active, invalidate]);
 
   useEffect(() => {
     if (!active) return;

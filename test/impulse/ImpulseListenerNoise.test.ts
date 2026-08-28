@@ -124,4 +124,21 @@ describe('ImpulseListenerNoise', () => {
     const out = createCameraState();
     expect(() => update(out, 0.1)).not.toThrow();
   });
+
+  it('update() returns whether the manager still has an event in flight, even during a constant-amplitude plateau', () => {
+    const manager = new ImpulseManager();
+    manager.generate(
+      { position: [0, 0, 0], direction: [3, 0, 0], attackTime: 0.1, sustainTime: 1, decayTime: 0.1 },
+      0,
+    );
+    const listener = new ImpulseListenerNoise(manager);
+    const out = createCameraState();
+
+    // two samples deep in the flat sustain plateau — out.position.x is identical both times, but the
+    // event is still in flight and klipp must not treat that as "settled forever"
+    expect(listener.update(out, 0.1, 0.4)).toBe(true);
+    expect(listener.update(out, 0.1, 0.5)).toBe(true);
+
+    expect(listener.update(out, 0.1, 5)).toBe(false); // well past the whole envelope
+  });
 });

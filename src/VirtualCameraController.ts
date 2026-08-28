@@ -1,8 +1,10 @@
 import type { CameraState } from './CameraState';
 
 /** Writes into `out` (Body/Aim) or adds on top of it (Noise) — same `out`-parameter convention as the
- *  rest of klipp. */
-export type CameraStateWriter = (out: CameraState, dt: number) => void;
+ *  rest of klipp. Return `true` if there's still work in flight that could change the output on a LATER
+ *  frame even though this call's output happens to match the previous one — see `FrameUpdate` in
+ *  `Klipp.tsx` for why that matters. Most writers can ignore this and return nothing. */
+export type CameraStateWriter = (out: CameraState, dt: number) => boolean | void;
 
 export type VirtualCameraSlots = {
   registerBody: (writer: CameraStateWriter) => () => void;
@@ -61,9 +63,17 @@ export class VirtualCameraController implements VirtualCameraSlots {
     return () => this.noiseWriters.delete(writer);
   };
 
-  update = (out: CameraState, dt: number): void => {
-    this.bodyWriter?.(out, dt);
-    this.aimWriter?.(out, dt);
-    for (const writer of this.noiseWriters) writer(out, dt);
+  update = (out: CameraState, dt: number): boolean => {
+    // `=== true`, not plain truthiness: a writer that's supposed to return `void` but happens to be an
+    // expression-bodied arrow ending in an assignment (e.g. `(out) => (out.position.x = dt)`) returns
+    // that assigned VALUE at runtime regardless of its `: void` type annotation — strict equality is
+    // what actually keeps such a writer from silently pinning "still in flight" forever
+    let stillInFlight = false;
+    if (this.bodyWriter?.(out, dt) === true) stillInFlight = true;
+    if (this.aimWriter?.(out, dt) === true) stillInFlight = true;
+    for (const writer of this.noiseWriters) {
+      if (writer(out, dt) === true) stillInFlight = true;
+    }
+    return stillInFlight;
   };
 }
