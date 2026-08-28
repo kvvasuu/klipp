@@ -9,6 +9,7 @@ export type CameraStateWriter = (out: CameraState, dt: number) => boolean | void
 export type VirtualCameraSlots = {
   registerBody: (writer: CameraStateWriter) => () => void;
   registerAim: (writer: CameraStateWriter) => () => void;
+  registerExtension: (writer: CameraStateWriter) => () => void;
   registerNoise: (writer: CameraStateWriter) => () => void;
 };
 
@@ -25,10 +26,13 @@ function warnDoubleRegistration(slot: 'Body' | 'Aim', name: string): void {
 }
 
 /**
- * Plain class, zero React dependency — the actual logic behind `<VirtualCamera>`'s Body/Aim/Noise slots.
- * Combines whatever's registered into one `update(out, dt)`: Body, then Aim, then every Noise writer (in
- * that order) — Aim reads the position Body just wrote, Noise adds on top of both. At most one Body and
- * one Aim at a time (last registration wins, with a dev-mode warning); Noise deliberately stacks.
+ * Plain class, zero React dependency — the actual logic behind `<VirtualCamera>`'s Body/Aim/Extension/
+ * Noise slots. Combines whatever's registered into one `update(out, dt)`: Body, then Aim, then every
+ * Extension writer, then every Noise writer — Aim reads the position Body just wrote, Extension
+ * (framing/collision-avoidance/...) runs on an already fully-oriented shot so it knows which way is
+ * "back", and Noise adds shake on top of a shot that's already correctly composed, not one an
+ * extension might still adjust out from under it. At most one Body and one Aim at a time (last
+ * registration wins, with a dev-mode warning); Extension and Noise both deliberately stack.
  */
 export class VirtualCameraController implements VirtualCameraSlots {
   /** Used only for the dev-mode double-registration warning message. */
@@ -36,6 +40,7 @@ export class VirtualCameraController implements VirtualCameraSlots {
 
   private bodyWriter: CameraStateWriter | null = null;
   private aimWriter: CameraStateWriter | null = null;
+  private readonly extensionWriters = new Set<CameraStateWriter>();
   private readonly noiseWriters = new Set<CameraStateWriter>();
 
   constructor(name: string) {
@@ -58,6 +63,11 @@ export class VirtualCameraController implements VirtualCameraSlots {
     };
   };
 
+  registerExtension = (writer: CameraStateWriter): (() => void) => {
+    this.extensionWriters.add(writer);
+    return () => this.extensionWriters.delete(writer);
+  };
+
   registerNoise = (writer: CameraStateWriter): (() => void) => {
     this.noiseWriters.add(writer);
     return () => this.noiseWriters.delete(writer);
@@ -71,6 +81,9 @@ export class VirtualCameraController implements VirtualCameraSlots {
     let stillInFlight = false;
     if (this.bodyWriter?.(out, dt) === true) stillInFlight = true;
     if (this.aimWriter?.(out, dt) === true) stillInFlight = true;
+    for (const writer of this.extensionWriters) {
+      if (writer(out, dt) === true) stillInFlight = true;
+    }
     for (const writer of this.noiseWriters) {
       if (writer(out, dt) === true) stillInFlight = true;
     }
