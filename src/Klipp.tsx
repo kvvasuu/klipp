@@ -94,7 +94,13 @@ export function Klipp({ children, defaultBlend, customBlends, camera: cameraProp
       if (update(delta) === true) stillInFlight = true;
     }
     const result = core.tick(delta);
-    if (mode === 'standby') return; // stays warm, but never touches the real camera
+    if (mode === 'standby') {
+      // keeps frameloop="demand" flowing while there's still work to finish, so "stays warm" actually
+      // holds even when nothing else happens to be invalidating — without this, the loop goes idle and
+      // whatever was mid-transition when standby started stays frozen there until something else does
+      if (stillInFlight || core.isBlending) state.invalidate();
+      return; // stays warm, but never touches the real camera
+    }
 
     const transformUnchanged =
       settledRef.current &&

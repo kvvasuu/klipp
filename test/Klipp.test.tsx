@@ -347,6 +347,37 @@ describe('Klipp / useKlippCore', () => {
       // ...but the actual r3f camera never got written to
       expect(camera!.position.equals(cameraBefore)).toBe(true);
     });
+
+    it('"standby": still requests frames while a blend is in flight, so it actually stays warm under frameloop="demand" (real bug: it went idle instead)', async () => {
+      let core: KlippCore | undefined;
+      let invalidateSpy: ReturnType<typeof vi.spyOn> | undefined;
+
+      function Scene({ bPriority }: { bPriority: number }) {
+        const state = useThree();
+        invalidateSpy = vi.spyOn(state, 'invalidate');
+        return (
+          <Klipp mode="standby">
+            <Reader onRead={(c) => (core = c)} />
+            <VirtualCamera name="a" priority={10}>
+              <HardLockToTarget target={[0, 0, 0]} />
+            </VirtualCamera>
+            <VirtualCamera name="b" priority={bPriority}>
+              <HardLockToTarget target={[10, 0, 0]} />
+            </VirtualCamera>
+          </Klipp>
+        );
+      }
+
+      const renderer = await create(<Scene bPriority={5} />);
+      await renderer.advanceFrames(1, 0.1); // 'a' first-ever: snaps live instantly, no blend
+
+      await renderer.update(<Scene bPriority={30} />); // 'b' wins — blend into it starts (default 2s)
+      invalidateSpy!.mockClear();
+      await renderer.advanceFrames(1, 0.1); // mid-blend
+
+      expect(core!.isBlending).toBe(true); // sanity: genuinely still blending
+      expect(invalidateSpy).toHaveBeenCalled();
+    });
   });
 });
 
