@@ -78,6 +78,14 @@ export class StateDrivenCamera {
     this.winnerId = winner?.cameraId ?? null;
   }
 
+  /**
+   * Advances any in-progress blend by `dt` and returns the composited `CameraState` — same scratch
+   * instance every call.
+   *
+   * Before `setState()` has ever been called with a state some candidate's `forState` matches
+   * (`liveCameraId === null`), this is just the untouched default `CameraState` (origin, identity,
+   * fov 50) — check `liveCameraId` first if that distinction matters to the caller.
+   */
   tick(dt: number): CameraState {
     const blendTargetId = this.blend ? this.blend.toId : this.liveId;
 

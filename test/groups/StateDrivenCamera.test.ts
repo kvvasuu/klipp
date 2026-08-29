@@ -14,6 +14,14 @@ describe('StateDrivenCamera', () => {
     expect(() => new StateDrivenCamera([])).toThrow();
   });
 
+  it('before setState() has ever been called, liveCameraId stays null (tick() is just the untouched default CameraState)', () => {
+    const sdc = new StateDrivenCamera([candidateAt('a', 1, 10, 'idle')]);
+    const out = sdc.tick(0);
+
+    expect(sdc.liveCameraId).toBeNull();
+    expect(out.position.x).toBe(0); // default CameraState, not candidate 'a's — caller must check liveCameraId
+  });
+
   it('snaps to the matching candidate on the very first tick', () => {
     const sdc = new StateDrivenCamera([candidateAt('a', 1, 10, 'idle')]);
     sdc.setState('idle');

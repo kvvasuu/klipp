@@ -168,6 +168,10 @@ export class KlippCore {
    *
    * A new blend's "from" is always the CURRENT composited output frozen in place, not the previous
    * blend's original start — that's what makes mid-blend interruption correct.
+   *
+   * Before any candidate has ever won arbitration (`liveCameraId === null`), this is just the untouched
+   * default `CameraState` (origin, identity, fov 50) — check `liveCameraId` first if that distinction
+   * matters to the caller, same as `Klipp.tsx` does before writing this onto the real camera.
    */
   tick(dt: number): CameraState {
     const blendTargetId = this.blend ? this.blend.toId : this.liveId;
