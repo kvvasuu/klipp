@@ -1,8 +1,17 @@
 import { useFrame, useThree } from '@react-three/fiber';
 import { createContext, use, useCallback, useMemo, useRef, useState, type ReactNode } from 'react';
-import { PerspectiveCamera, type Camera } from 'three';
+import type { Camera, PerspectiveCamera } from 'three';
 import { copyCameraState, createCameraState } from './CameraState';
 import { KlippCore, type KlippCoreOptions } from './KlippCore';
+
+/** `instanceof PerspectiveCamera` silently fails whenever two copies of the `three` module end up
+ *  loaded (a real risk in monorepos/certain bundler setups, not just a test-environment quirk) — each
+ *  copy's `PerspectiveCamera` is a DIFFERENT class, so an instance from one never passes `instanceof`
+ *  against the other's constructor. `isPerspectiveCamera` is an own-instance boolean three.js sets in
+ *  the constructor specifically to survive this — a plain property read, no prototype chain involved. */
+function isPerspectiveCamera(camera: Camera): camera is PerspectiveCamera {
+  return (camera as PerspectiveCamera).isPerspectiveCamera === true;
+}
 
 /** A per-frame update — used by `<VirtualCamera>` to drive its own Body/Aim/Noise. Return `true` if
  *  there's still work in flight that could change the output on a LATER frame even though this
@@ -27,7 +36,7 @@ const KlippContext = createContext<KlippContextValue | null>(null);
  *  silently play the whole scene in slow motion instead of protecting against anything. */
 const DEMAND_MODE_MAX_DELTA = 1 / 30;
 
-/** Cinemachine's `StandbyUpdate` concept, applied to the whole driver:
+/** Applies to the whole driver:
  *  - `'enabled'` (default) — update → tick → write onto the real camera, as normal.
  *  - `'standby'` — update → tick still run every frame (blends/damping stay warm, so handing control
  *    back later resumes smoothly) but the real camera is left untouched — for a temporary hand-off to
@@ -55,6 +64,7 @@ export function Klipp({ children, defaultBlend, customBlends, camera: cameraProp
   const [updates] = useState(() => new Set<FrameUpdate>());
   const defaultCamera = useThree((state) => state.camera);
   const camera = cameraProp ?? defaultCamera;
+  const size = useThree((state) => state.size); // for setViewOffset — needs the ACTUAL canvas size
 
   const registerUpdate = useCallback(
     (update: FrameUpdate) => {
@@ -90,12 +100,16 @@ export function Klipp({ children, defaultBlend, customBlends, camera: cameraProp
       settledRef.current &&
       result.position.equals(previousResult.position) &&
       result.quaternion.equals(previousResult.quaternion);
-    // matrixWorld updates regardless of this check — only lens fields need updateProjectionMatrix()
+    // matrixWorld updates regardless of this check — only lens fields need updateProjectionMatrix().
+    // viewOffsetX/Y live here too, not in a separate flag — both setViewOffset/clearViewOffset already
+    // call updateProjectionMatrix() themselves, same as the fov/near/far path needs
     const lensUnchanged =
       settledRef.current &&
       result.fov === previousResult.fov &&
       result.near === previousResult.near &&
-      result.far === previousResult.far;
+      result.far === previousResult.far &&
+      result.viewOffsetX === previousResult.viewOffsetX &&
+      result.viewOffsetY === previousResult.viewOffsetY;
 
     if (!transformUnchanged || !lensUnchanged) {
       copyCameraState(previousResult, result);
@@ -105,11 +119,15 @@ export function Klipp({ children, defaultBlend, customBlends, camera: cameraProp
         camera.position.copy(result.position);
         camera.quaternion.copy(result.quaternion);
       }
-      if (!lensUnchanged && camera instanceof PerspectiveCamera) {
+      if (!lensUnchanged && isPerspectiveCamera(camera)) {
         camera.fov = result.fov;
         camera.near = result.near;
         camera.far = result.far;
-        camera.updateProjectionMatrix();
+        if (result.viewOffsetX !== 0 || result.viewOffsetY !== 0) {
+          camera.setViewOffset(size.width, size.height, result.viewOffsetX, result.viewOffsetY, size.width, size.height);
+        } else {
+          camera.clearViewOffset();
+        }
       }
     }
 

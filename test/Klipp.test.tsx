@@ -5,9 +5,9 @@ import { PerspectiveCamera } from 'three';
 import { describe, expect, it, vi } from 'vitest';
 import { Klipp, useKlippCore } from '../src/Klipp';
 import { KlippCore } from '../src/KlippCore';
-import { VirtualCamera } from '../src/VirtualCamera';
+import { VirtualCamera, useVirtualCameraSlots } from '../src/VirtualCamera';
 import { HardLockToTarget } from '../src/body/HardLockToTarget';
-import { useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import type { Object3D } from 'three';
 
 describe('Klipp / useKlippCore', () => {
@@ -100,6 +100,123 @@ describe('Klipp / useKlippCore', () => {
     expect(camera!.position.x).toBeCloseTo(3, 10);
     expect(camera!.position.y).toBeCloseTo(4, 10);
     expect(camera!.position.z).toBeCloseTo(5, 10);
+  });
+
+  it("writes fov/near/far onto the real r3f camera — the isPerspectiveCamera-gated path actually fires", async () => {
+    let camera: PerspectiveCamera | undefined;
+    function CameraReader() {
+      camera = useThree((state) => state.camera as PerspectiveCamera);
+      return null;
+    }
+    function LensWriter() {
+      const slots = useVirtualCameraSlots();
+      useEffect(
+        () =>
+          slots.registerAim((out) => {
+            out.fov = 35;
+            out.near = 1;
+            out.far = 200;
+          }),
+        [slots],
+      );
+      return null;
+    }
+
+    const renderer = await create(
+      <Klipp>
+        <CameraReader />
+        <VirtualCamera name="a" priority={10}>
+          <LensWriter />
+        </VirtualCamera>
+      </Klipp>,
+    );
+    await renderer.advanceFrames(1, 0.1);
+
+    expect(camera!.fov).toBe(35);
+    expect(camera!.near).toBe(1);
+    expect(camera!.far).toBe(200);
+  });
+
+  describe('viewOffset', () => {
+    function ViewOffsetWriter({ x, y }: { x: number; y: number }) {
+      const slots = useVirtualCameraSlots();
+      useEffect(
+        () =>
+          slots.registerAim((out) => {
+            out.viewOffsetX = x;
+            out.viewOffsetY = y;
+          }),
+        [slots, x, y],
+      );
+      return null;
+    }
+
+    it('a nonzero viewOffsetX/Y calls camera.setViewOffset with it, in canvas pixel size', async () => {
+      let camera: PerspectiveCamera | undefined;
+      function CameraReader() {
+        camera = useThree((state) => state.camera as PerspectiveCamera);
+        return null;
+      }
+
+      const renderer = await create(
+        <Klipp>
+          <CameraReader />
+          <VirtualCamera name="a" priority={10}>
+            <ViewOffsetWriter x={80} y={-30} />
+          </VirtualCamera>
+        </Klipp>,
+      );
+      await renderer.advanceFrames(1, 0.1);
+
+      expect(camera!.view?.enabled).toBe(true);
+      expect(camera!.view?.offsetX).toBe(80);
+      expect(camera!.view?.offsetY).toBe(-30);
+    });
+
+    it('viewOffsetX/Y = 0 (default) never calls setViewOffset at all', async () => {
+      let camera: PerspectiveCamera | undefined;
+      function CameraReader() {
+        camera = useThree((state) => state.camera as PerspectiveCamera);
+        return null;
+      }
+
+      const renderer = await create(
+        <Klipp>
+          <CameraReader />
+          <VirtualCamera name="a" priority={10}>
+            <HardLockToTarget target={[1, 2, 3]} />
+          </VirtualCamera>
+        </Klipp>,
+      );
+      await renderer.advanceFrames(1, 0.1);
+
+      expect(camera!.view).toBeNull();
+    });
+
+    it('going back to 0 after a nonzero offset calls clearViewOffset', async () => {
+      let camera: PerspectiveCamera | undefined;
+      function CameraReader() {
+        camera = useThree((state) => state.camera as PerspectiveCamera);
+        return null;
+      }
+
+      const scene = (x: number) => (
+        <Klipp>
+          <CameraReader />
+          <VirtualCamera name="a" priority={10}>
+            <ViewOffsetWriter x={x} y={0} />
+          </VirtualCamera>
+        </Klipp>
+      );
+
+      const renderer = await create(scene(80));
+      await renderer.advanceFrames(1, 0.1);
+      expect(camera!.view?.enabled).toBe(true);
+
+      await renderer.update(scene(0));
+      await renderer.advanceFrames(1, 0.1);
+      expect(camera!.view?.enabled).toBe(false);
+    });
   });
 
   it('drives an externally-supplied `camera` prop instead of the default r3f camera', async () => {

@@ -10,6 +10,8 @@ describe('copyCameraState', () => {
       fov: 50,
       near: 0.1,
       far: 1000,
+      viewOffsetX: 40,
+      viewOffsetY: -20,
     };
     const out = createCameraState();
     const outPosition = out.position;
@@ -23,6 +25,8 @@ describe('copyCameraState', () => {
     expect(out.position.equals(source.position)).toBe(true);
     expect(out.quaternion.equals(source.quaternion)).toBe(true);
     expect(out.fov).toBe(50);
+    expect(out.viewOffsetX).toBe(40);
+    expect(out.viewOffsetY).toBe(-20);
   });
 
   it('stays unchanged after the source is mutated — the actual "freeze" guarantee', () => {
@@ -32,6 +36,8 @@ describe('copyCameraState', () => {
       fov: 50,
       near: 0.1,
       far: 1000,
+      viewOffsetX: 40,
+      viewOffsetY: -20,
     };
     const out = createCameraState();
     copyCameraState(out, source);
@@ -39,10 +45,12 @@ describe('copyCameraState', () => {
     source.position.set(99, 99, 99);
     source.quaternion.set(0.5, 0.5, 0.5, 0.5);
     source.fov = 10;
+    source.viewOffsetX = 999;
 
     expect(out.position.equals(new Vector3(1, 2, 3))).toBe(true);
     expect(out.quaternion.equals(new Quaternion())).toBe(true);
     expect(out.fov).toBe(50);
+    expect(out.viewOffsetX).toBe(40);
   });
 
   it('is safe when out and source are the same object (no-op)', () => {
@@ -68,6 +76,39 @@ describe('copyCameraStateFromCamera', () => {
     expect(out.fov).toBe(60);
     expect(out.near).toBe(0.5);
     expect(out.far).toBe(500);
+  });
+
+  it('reads an active setViewOffset from the camera, in the SAME sign convention setViewOffset takes', () => {
+    const camera = new PerspectiveCamera(60, 1, 0.5, 500);
+    camera.setViewOffset(800, 600, 40, -20, 800, 600);
+
+    const out = createCameraState();
+    copyCameraStateFromCamera(out, camera);
+
+    expect(out.viewOffsetX).toBe(40);
+    expect(out.viewOffsetY).toBe(-20);
+  });
+
+  it('viewOffsetX/Y default to 0 when no view offset is active', () => {
+    const camera = new PerspectiveCamera(60, 1, 0.5, 500);
+
+    const out = createCameraState();
+    copyCameraStateFromCamera(out, camera);
+
+    expect(out.viewOffsetX).toBe(0);
+    expect(out.viewOffsetY).toBe(0);
+  });
+
+  it('viewOffsetX/Y read as 0 after clearViewOffset, even though camera.view still exists', () => {
+    const camera = new PerspectiveCamera(60, 1, 0.5, 500);
+    camera.setViewOffset(800, 600, 40, -20, 800, 600);
+    camera.clearViewOffset();
+
+    const out = createCameraState();
+    copyCameraStateFromCamera(out, camera);
+
+    expect(out.viewOffsetX).toBe(0);
+    expect(out.viewOffsetY).toBe(0);
   });
 
   it('the snapshot is independent of the camera going on to move — freezable mid-blend', () => {
