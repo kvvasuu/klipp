@@ -27,7 +27,7 @@ const KlippContext = createContext<KlippContextValue | null>(null);
  *  silently play the whole scene in slow motion instead of protecting against anything. */
 const DEMAND_MODE_MAX_DELTA = 1 / 30;
 
-/** Cinemachine's `StandbyUpdate` concept, applied to the whole driver:
+/** Applies to the whole driver:
  *  - `'enabled'` (default) — update → tick → write onto the real camera, as normal.
  *  - `'standby'` — update → tick still run every frame (blends/damping stay warm, so handing control
  *    back later resumes smoothly) but the real camera is left untouched — for a temporary hand-off to
