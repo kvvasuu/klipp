@@ -38,7 +38,7 @@ export { HardLockToTarget, type HardLockToTargetProps } from './body/HardLockToT
 export { HardLockToTargetBody } from './body/HardLockToTargetBody';
 export { Follow, type FollowProps } from './body/Follow';
 export { FollowBody } from './body/FollowBody';
-export { BindingModes, type BindingMode } from './body/BindingMode';
+export { BindingModes, type BindingMode } from './body/BindingModes';
 export { PositionComposer, type PositionComposerProps } from './body/PositionComposer';
 export { PositionComposerBody } from './body/PositionComposerBody';
 export { Body } from './body/Body';

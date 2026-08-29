@@ -1,7 +1,7 @@
 import { Object3D, Quaternion, Vector3 } from 'three';
 import { describe, expect, it } from 'vitest';
 import { createCameraState } from '../../src/CameraState';
-import { BindingModes } from '../../src/body/BindingMode';
+import { BindingModes } from '../../src/body/BindingModes';
 import { FollowBody } from '../../src/body/FollowBody';
 
 describe('FollowBody', () => {

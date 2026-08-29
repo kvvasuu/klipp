@@ -5,7 +5,7 @@ import type { DampingConstant } from '../damping/Damper';
 import type { Target } from '../resolve/Target';
 import { resolveVector3 } from '../resolve/resolveVector3';
 import { useVirtualCameraSlots } from '../VirtualCamera';
-import { BindingModes, type BindingMode } from './BindingMode';
+import { BindingModes, type BindingMode } from './BindingModes';
 import { FollowBody } from './FollowBody';
 
 const defaultOffset: Vector3Like = [0, 0, 10];

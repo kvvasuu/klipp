@@ -3,7 +3,7 @@ import type { CameraState } from '../CameraState';
 import type { DampingConstant } from '../damping/Damper';
 import { Vector3Damper } from '../damping/Vector3Damper';
 import { resolveTargetPosition, resolveTargetRotation, type Target } from '../resolve/Target';
-import { BindingModes, type BindingMode } from './BindingMode';
+import { BindingModes, type BindingMode } from './BindingModes';
 
 const worldUp = new Vector3(0, 1, 0);
 const scratchOrigin = new Vector3();

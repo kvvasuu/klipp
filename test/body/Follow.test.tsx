@@ -1,7 +1,7 @@
 import { create } from '@react-three/test-renderer';
 import { Object3D } from 'three';
 import { describe, expect, it } from 'vitest';
-import { BindingModes } from '../../src/body/BindingMode';
+import { BindingModes } from '../../src/body/BindingModes';
 import { Follow } from '../../src/body/Follow';
 import { Klipp, useKlippCore } from '../../src/Klipp';
 import type { KlippCore } from '../../src/KlippCore';
