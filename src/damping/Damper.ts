@@ -36,6 +36,11 @@ export class Damper {
       return target;
     }
 
+    // a negative dt (clock skew, a caller driving update() with an unvalidated timestamp delta) breaks
+    // the rational e^-x approximation below, which is only valid for x >= 0 — omega*dt going negative can
+    // flip its sign entirely, turning the spring into an amplifier instead of a damper for that step
+    dt = Math.max(0, dt);
+
     const distance = Math.abs(target - current);
 
     if (distance < epsilon) {

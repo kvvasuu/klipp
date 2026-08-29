@@ -66,6 +66,23 @@ describe('Damper', () => {
     expect(clamped).toBeLessThan(unclamped);
   });
 
+  it('a negative dt is clamped to zero instead of breaking the SmoothDamp formula (real bug: it could flip the exponential term negative, amplifying instead of damping)', () => {
+    const negativeDtDamper = new Damper();
+    negativeDtDamper.update(0, 10, 0.5, 0.016); // consume the first-call snap
+    negativeDtDamper.update(0, 10, 0.5, 0.016); // build up real velocity/history
+
+    const zeroDtDamper = new Damper();
+    zeroDtDamper.update(0, 10, 0.5, 0.016);
+    zeroDtDamper.update(0, 10, 0.5, 0.016);
+
+    // both dampers now carry identical internal state — a negative dt should behave exactly like a zero
+    // one (no time passes), not diverge from it
+    const withNegativeDt = negativeDtDamper.update(5, 10, 0.5, -1);
+    const withZeroDt = zeroDtDamper.update(5, 10, 0.5, 0);
+
+    expect(withNegativeDt).toBeCloseTo(withZeroDt, 10);
+  });
+
   it('velocity persists across calls — a second call from the same spot differs from a fresh damper (motion has momentum)', () => {
     const warmedUp = new Damper();
     warmedUp.update(0, 10, 0.5, 0.05); // consume the first-call snap
