@@ -105,13 +105,18 @@ export class ClearShot {
         }
 
         const activateAfterSatisfied = this.pendingElapsed >= this.activateAfter;
-        const minDurationSatisfied = this.blend !== null || this.liveElapsed >= this.minDuration;
+        // liveElapsed tracks time since the LAST commit (an initial swap away from a settled camera, OR
+        // a mid-blend retarget) rather than only time spent fully settled — otherwise `blend !== null`
+        // would exempt every retarget of an already-in-flight blend from minDuration entirely, letting a
+        // flickering evaluator redirect the destination every single frame with no protection at all
+        const minDurationSatisfied = this.liveElapsed >= this.minDuration;
 
         if (activateAfterSatisfied && minDurationSatisfied) {
           copyCameraState(this.blendFromScratch, this.output);
           this.blend = { from: this.blendFromScratch, toId: rawBest, definition: this.defaultBlend, elapsed: 0 };
           this.pendingId = null;
           this.pendingElapsed = 0;
+          this.liveElapsed = 0;
         }
       }
     } else {
@@ -124,10 +129,10 @@ export class ClearShot {
       const t = this.blend.definition.time <= 0 ? 1 : clamp(this.blend.elapsed / this.blend.definition.time, 0, 1);
       const toState = this.candidateState(this.blend.toId);
       lerpCameraState(this.output, this.blend.from, toState, this.blend.definition.curve(t));
+      this.liveElapsed += dt; // keeps counting through the blend — see the minDurationSatisfied comment above
 
       if (t >= 1) {
         this.liveId = this.blend.toId;
-        this.liveElapsed = 0;
         this.blend = null;
       }
     } else if (this.liveId !== null) {
