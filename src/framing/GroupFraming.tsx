@@ -12,9 +12,14 @@ export type GroupFramingProps = {
   positionMode?: TargetGroupPositionMode;
   /** Margin kept clear on every side, in screen pixels. Default `0`. */
   paddingPixels?: number;
-  /** Seconds to catch up to the fitted distance as the group's bounds change. `0` (default) = hard,
-   *  instant fit. */
+  /** Seconds to catch up to the fitted distance (and `centerOffsetX`/`Y`) as they change. `0` (default)
+   *  = hard, instant. */
   damping?: DampingConstant;
+  /** Shifts the frustum, in screen pixels, without moving or rotating the camera — e.g. to keep the
+   *  framed group visually centered in the space left over after reserving room for UI on one side.
+   *  Default `0`. */
+  centerOffsetX?: number;
+  centerOffsetY?: number;
   /** Imperative access to the underlying `GroupFramingExtension`, for reading/writing its fields (or
    *  the `TargetGroup` it owns) directly instead of through props. */
   ref?: Ref<GroupFramingExtension>;
@@ -34,13 +39,15 @@ export function GroupFraming({
   positionMode = 'groupCenter',
   paddingPixels = 0,
   damping = 0,
+  centerOffsetX = 0,
+  centerOffsetY = 0,
   ref,
 }: GroupFramingProps) {
   const slots = useVirtualCameraSlots();
   const size = useThree((state) => state.size);
   const [group] = useState(() => new TargetGroup(members, positionMode));
   const [extension] = useState(
-    () => new GroupFramingExtension(group, paddingPixels, size.width, size.height, damping),
+    () => new GroupFramingExtension(group, paddingPixels, size.width, size.height, damping, centerOffsetX, centerOffsetY),
   );
 
   group.members = members;
@@ -49,6 +56,8 @@ export function GroupFraming({
   extension.viewportWidth = size.width;
   extension.viewportHeight = size.height;
   extension.damping = damping;
+  extension.centerOffsetX = centerOffsetX;
+  extension.centerOffsetY = centerOffsetY;
 
   useImperativeHandle(ref, () => extension, [extension]);
   useEffect(() => slots.registerExtension(extension.update), [slots, extension]);

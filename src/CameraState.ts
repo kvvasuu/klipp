@@ -10,11 +10,25 @@ export type CameraState = {
   fov: number;
   near: number;
   far: number;
+  /** `camera.setViewOffset`'s `offsetX`/`offsetY`, in pixels — shifts the frustum without moving or
+   *  rotating the camera, e.g. to keep a subject visually centered in the space left over after
+   *  reserving room for UI on one side. `0` (default) = no shift, equivalent to
+   *  `camera.clearViewOffset()`. */
+  viewOffsetX: number;
+  viewOffsetY: number;
 };
 
 /** Allocates a new `CameraState` with default values — call once, not per frame. */
 export function createCameraState(): CameraState {
-  return { position: new Vector3(), quaternion: new Quaternion(), fov: 50, near: 0.1, far: 1000 };
+  return {
+    position: new Vector3(),
+    quaternion: new Quaternion(),
+    fov: 50,
+    near: 0.1,
+    far: 1000,
+    viewOffsetX: 0,
+    viewOffsetY: 0,
+  };
 }
 
 /** Copies `source` into `out` in place — the copy stays valid even if `source` is later mutated. Safe if
@@ -25,6 +39,8 @@ export function copyCameraState(out: CameraState, source: CameraState): CameraSt
   out.fov = source.fov;
   out.near = source.near;
   out.far = source.far;
+  out.viewOffsetX = source.viewOffsetX;
+  out.viewOffsetY = source.viewOffsetY;
   return out;
 }
 
@@ -34,5 +50,7 @@ export function copyCameraStateFromCamera(out: CameraState, camera: PerspectiveC
   out.fov = camera.fov;
   out.near = camera.near;
   out.far = camera.far;
+  out.viewOffsetX = camera.view?.enabled ? camera.view.offsetX : 0;
+  out.viewOffsetY = camera.view?.enabled ? camera.view.offsetY : 0;
   return out;
 }

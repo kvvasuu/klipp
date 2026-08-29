@@ -69,5 +69,7 @@ export function lerpCameraState(
   out.fov = lerp(a.fov, b.fov, clamped);
   out.near = lerp(a.near, b.near, clamped);
   out.far = lerp(a.far, b.far, clamped);
+  out.viewOffsetX = lerp(a.viewOffsetX, b.viewOffsetX, clamped);
+  out.viewOffsetY = lerp(a.viewOffsetY, b.viewOffsetY, clamped);
   return out;
 }
