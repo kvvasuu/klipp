@@ -4,12 +4,8 @@ import type { DampingConstant } from '../damping/Damper';
 import { Vector3Damper } from '../damping/Vector3Damper';
 import { resolveTargetPosition, type Target } from '../resolve/Target';
 
-/**
- * Plain class, zero React dependency — the actual logic behind `<HardLockToTarget>`. Position = Tracking
- * Target's world position, 1:1 by default. `damping` optionally smooths the catch-up per axis
- * independently (`Vector3Damper`) — an axis-aligned lag reads as "chasing," not the arcing motion a
- * single radial damper would produce.
- */
+/** `damping` uses `Vector3Damper` (per-axis) rather than a single radial damper — an axis-aligned lag
+ *  reads as "chasing," not the arcing motion a radial one would produce. */
 export class HardLockToTargetBody {
   target: Target;
   damping: DampingConstant;

@@ -60,32 +60,15 @@ function composeQuaternionForScreenPoint(
 }
 
 /**
- * Rotation-only Aim. The core: find the rotation that puts the target at a given screen point (`[x,y]`,
- * 0 = center, ±1 = edge). Starts from a dead-center look-at (same as `HardLookAtAim`), then finds the ONE
- * exact rotation (`Quaternion.setFromUnitVectors`, not separate yaw+pitch — those don't commute) that
- * moves it to the desired point instead.
- *
- * `targetOffset` — translation in the target's own LOCAL space, applied before all composition math (e.g.
- * aim at a character's head instead of its feet/origin). Degrades to world-space for a target with no
- * rotation, same as `Follow`'s `offset`.
- *
- * `deadZone` (`[width, height]`, screen fractions, default `[0,0]` = none) — the target can sit anywhere
- * within this box around `screenPosition` with NO reaction. Once it steps outside, the target orientation
- * is recomputed for the NEAREST point on the dead zone's edge and `damping` eases `out.quaternion` toward
- * it.
- *
- * `hardLimit` (same units as `deadZone`, default `[0,0]` = none) — a SECOND, normally wider box the
- * target may never visually leave, enforced instantly (bypassing `damping`) after the dead zone pass.
- * No-op if `<= deadZone`.
- *
- * No Lookahead/Center On Activate yet.
+ * Rotation-only Aim: finds the ONE exact rotation (`Quaternion.setFromUnitVectors`, not separate yaw+pitch
+ * — those don't commute) that puts the target at `screenPosition` (or the `deadZone`/`hardLimit` edge).
  *
  * Runs AFTER Body, so `out.position` here is already this frame's — unlike `PositionComposerBody`, which
  * reads last frame's `out.quaternion`.
  *
- * **Paired with `PositionComposer` on the same `screenPosition`, BOTH need a non-zero `deadZone`.** With
+ * **Paired with `PositionComposer` on the same `screenPosition`, BOTH need a non-zero `deadZone`** — with
  * either side still hard, that side perfectly compensates every frame, so the other's dead zone check
- * always finds zero error and never reacts — the camera freezes at whatever orientation it started with.
+ * never reacts.
  */
 export class RotationComposerAim {
   target: Target;
@@ -193,7 +176,7 @@ export class RotationComposerAim {
     const halfLimitHeight = this.hardLimit[1] / 2;
     const errorX = screenX - this.screenPosition[0];
     const errorY = screenY - this.screenPosition[1];
-    if (Math.abs(errorX) <= halfLimitWidth && Math.abs(errorY) <= halfLimitHeight) return; // still inside: undamped pass is a no-op
+    if (Math.abs(errorX) <= halfLimitWidth && Math.abs(errorY) <= halfLimitHeight) return;
 
     const clampedX = this.screenPosition[0] + clamp(errorX, -halfLimitWidth, halfLimitWidth);
     const clampedY = this.screenPosition[1] + clamp(errorY, -halfLimitHeight, halfLimitHeight);

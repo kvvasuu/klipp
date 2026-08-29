@@ -5,9 +5,8 @@ import { clamp } from 'maath';
 export type DampingConstant = number | { into: number; from: number };
 
 /**
- * SmoothDamp-style critically-damped spring (Game Programming Gems 4 §1.10) — moves a value toward a
- * target over roughly `smoothTime` seconds, tracking its own velocity across calls
- * so motion accelerates/decelerates naturally instead of jumping in velocity whenever the target moves.
+ * Critically-damped spring (Game Programming Gems 4 §1.10) — tracks its own velocity across calls so
+ * motion accelerates/decelerates naturally instead of jumping whenever the target moves.
  *
  * Snaps exactly to `target` (and zeroes velocity) once within `epsilon` — SmoothDamp only asymptotically
  * approaches its target, so without this a settled camera keeps accumulating floating-point residue

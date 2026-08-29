@@ -12,23 +12,8 @@ const scratchForward = new Vector3();
 const scratchLookMatrix = new Matrix4();
 
 /**
- * Position = Tracking Target's world position + `offset`, rotated by a `bindingMode`-dependent rotation
- * so the camera stays behind as the target turns. 5 Binding Modes ("Lazy Follow" is a structurally
- * different algorithm, not a rotation variant of this one, and isn't built here):
- *
- * - `lockToTarget` (default) — the target's FULL live rotation, every frame. A target with no rotation
- *   (e.g. a fixed point) degrades to plain world space, since identity rotation is a no-op.
- * - `worldSpace` — always identity, regardless of the target's own rotation. The camera's relative
- *   position never changes as the target turns.
- * - `lockToTargetWithWorldUp` — ONLY the target's yaw: its forward vector flattened onto the world XZ
- *   plane, then turned into a roll/pitch-free rotation via `Matrix4.lookAt` (which by construction can't
- *   produce roll). Degenerate when the target looks straight up/down (no yaw is defined there) — falls
- *   back to the target's full rotation for that one frame rather than producing NaN.
- * - `lockToTargetNoRoll` — the target's full 3D forward direction (pitch AND yaw), but still built via
- *   `Matrix4.lookAt` so roll is structurally excluded.
- * - `lockToTargetOnAssign` — the target's rotation is captured ONCE, the first `update()` after `target`
- *   changes identity (a genuinely new object/ref, not just moving/rotating) — held fixed after that,
- *   ignoring all further target rotation, until `target` changes identity again.
+ * Position = target's world position + `offset`, rotated per `bindingMode` (see `BindingModes`) so the
+ * camera stays behind as the target turns.
  *
  * Default offset `(0, 0, 10)` — three.js faces local -Z, so a positive Z offset sits the camera behind
  * the target, not in front of it.

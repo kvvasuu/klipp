@@ -31,31 +31,15 @@ function createChannels(seed: number): Channels {
 }
 
 /**
- * Additive camera shake. Unlike Body/Aim (exclusive, one slot each), Noise writes to BOTH position and
- * rotation and is meant to STACK — `VirtualCameraController` runs every registered Noise writer on top of
- * whatever Body+Aim already computed.
+ * Additive camera shake, position AND rotation, 6 independently-seeded Perlin channels.
  *
- * `positionAmplitude`/`positionFrequency` (per-axis, camera-LOCAL space — X = right/left, Y = up/down,
- * Z = push/pull along the lens) and `rotationAmplitude`/`rotationFrequency` (per-axis DEGREES, camera-
- * local pitch/yaw/roll) drive 6 independent seeded Perlin channels. `amplitudeGain`/`frequencyGain` scale
- * all 6 at once. All amplitudes default to `0` (no shake until dialed in), matching this codebase's
- * "0 disables" convention (`deadZone`/`hardLimit`/`damping`).
+ * `amplitudeDamping` (default `0` = instant) — without it, `amplitudeGain` dropping to `0` cuts the shake
+ * dead on the next frame, since there's no persistent state to ease from (unlike Body/Aim, which converges
+ * toward a moving target every frame). With damping, the EFFECTIVE gain eases toward `amplitudeGain`
+ * instead, so a fade-out reads as the shake calming down, not a hard cut.
  *
- * "Multi channel" here means mounting several `<Noise.BasicMultiChannelPerlin>` with different
- * frequency/amplitude on the same camera — `Noise` already being a STACKING slot gives this for free.
- * `seed` (default: random per instance) decorrelates axes from each other — pass the same `seed` to two
- * instances for reproducible, identical noise.
- *
- * `amplitudeDamping` (default `0` = instant, matching every other damping in this codebase) — without it,
- * dialing `amplitudeGain` down to `0` cuts the shake dead on the very next frame — there's no persistent
- * state to ease from, unlike Body/Aim's damping, which naturally smooths because it's converging toward a
- * moving target every frame. With `amplitudeDamping > 0`, the EFFECTIVE gain eases toward `amplitudeGain`
- * instead of jumping straight to it — the underlying Perlin signal (frequency, character) is untouched,
- * only how loudly it's currently being listened to, so a fade-out reads as the shake naturally calming
- * down, not a hard cut.
- *
- * Deliberately NOT built yet: `pivotOffset` (rotate around a point other than the camera's own origin,
- * coupling position+rotation noise) and a "Constant" (deterministic cosine, not Perlin) channel mode.
+ * Not built yet: `pivotOffset` (rotate around a point other than the camera's own origin) and a
+ * "Constant" (deterministic, not Perlin) channel mode.
  */
 export class BasicMultiChannelPerlinNoise {
   positionAmplitude: Vector3;

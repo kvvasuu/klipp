@@ -21,10 +21,9 @@ const scratchTargetPosition = new THREE.Vector3();
  * `camera-controls` mutates. Must be per-instance, not a shared scratch — `camera-controls` persists its
  * orbit/dolly state ON this camera between frames, so two instances sharing one would fight over it.
  *
- * `update(out, dt)` syncs the scratch camera's lens from `out`/`aspect`, pushes `target` into
- * `controls.moveTo(x, y, z, false)` (deliberately not `setTarget`, which re-aims without moving the
- * camera — useless for a moving target, since the dragged/scrolled offset would silently drift instead of
- * staying glued to it), then `controls.update(dt)` and copies the result into `out`.
+ * Pushes `target` into `controls.moveTo(x, y, z, false)`, deliberately not `setTarget` — that re-aims
+ * without moving the camera, so a dragged/scrolled offset would silently drift instead of staying glued to
+ * a moving target.
  *
  * **Zero damping of klipp's own on top** — `camera-controls` already has its own smoothing (`smoothTime`,
  * `draggingSmoothTime`); wrapping that in another `Damper` would double-smooth. None of its many options

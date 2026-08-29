@@ -82,15 +82,10 @@ function distanceFalloff(distance: number, radius: number, dissipationDistance: 
 
 /**
  * A registry of in-flight impulse events (`generate`) that any number of listeners can sample
- * (`sampleAt`) for the summed position offset they should currently feel, given their own world position
- * and the shared clock. `direction`, not rotation — position-only, no rotational impulse.
+ * (`sampleAt`) for the summed position offset they should currently feel. Position-only, no rotation.
  *
- * One ADSR-lite envelope shape, linear-only dissipation, always-additive combination across overlapping
- * events, no persistent pre-configured source object — `generate()` takes every parameter explicitly each
- * call, since a caller can already keep their own reusable defaults object without a dedicated class for it.
- *
- * Plain, dependency-free registry — construct your own instance, or import the shared `impulseManager`
- * singleton that `ImpulseListenerNoise` defaults to.
+ * Construct your own instance, or import the shared `impulseManager` singleton that `ImpulseListenerNoise`
+ * defaults to.
  */
 export class ImpulseManager {
   private events: ImpulseEvent[] = [];

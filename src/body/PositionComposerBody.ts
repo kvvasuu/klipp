@@ -13,34 +13,15 @@ const scratchRelative = new Vector3();
 const scratchDesiredPosition = new Vector3();
 
 /**
- * Two-stage, position-only Body. (1) Dollies along the camera's own Z axis until the target sits at
- * `cameraDistance` — always exact, no dead zone (that's purely a 2D screen-framing concept here, not a
- * distance one). (2) Shifts laterally (camera's own X/Y) until the target projects onto `screenPosition`
- * (`[x,y]`, 0 = screen center, ±1 = edge — same convention `RotationComposer` uses).
+ * Two-stage, position-only Body: dollies to `cameraDistance`, then shifts laterally to put the target at
+ * `screenPosition` (or the `deadZone`/`hardLimit` edge).
  *
- * `deadZone` (`[width, height]`, screen fractions, default `[0,0]` = none) — stage 2 only reacts once the
- * target's CURRENT screen position (given the camera's position from stage 1 and its existing, pre-this-
- * frame orientation) steps outside this box around `screenPosition`; inside it, the camera doesn't move
- * laterally at all. Once outside, it eases toward the nearest point on the dead zone's edge (not all the
- * way back to `screenPosition`'s center) via `damping` (`Vector3Damper`, same per-axis technique
- * `HardLockToTargetBody`/`FollowBody` use). `deadZone=[0,0]` with `damping<=0` (both defaults) reproduces
- * the original hard, instant, no-dead-zone behavior exactly.
+ * Reads `out.quaternion`/`out.fov` as whatever Aim wrote LAST frame (Body runs before Aim) — one frame
+ * stale.
  *
- * `hardLimit` (`[width, height]`, same units as `deadZone`, default `[0,0]` = none) — a SECOND, normally
- * wider box the target may never visually leave, checked AFTER damping: if a slow `damping` lets the
- * target lag outside `hardLimit` this frame, that excess is corrected instantly (bypassing the damper
- * entirely) — same shape as `RotationComposerAim`'s `hardLimit`.
- *
- * Both stages need a camera ORIENTATION to define "own Z axis"/"own X/Y plane" — but Body always runs
- * BEFORE Aim (`VirtualCameraController`), so this reads `out.quaternion` as whatever Aim wrote LAST
- * frame, one frame stale. Same story for `out.fov`, used for the perspective projection in stage 2.
- *
- * **`screenPosition` off-center only makes sense paired with an Aim that respects it.** `HardLookAt`
- * always re-centers the target — combined with a non-`[0,0]` `screenPosition`, that creates a feedback
- * loop that settles into a persistent orbit instead of a stable shot. A matching `RotationComposer` fixes
- * this, but ONLY if BOTH sides have a non-zero `deadZone` — with either side still hard (`deadZone=[0,0]`),
- * that side perfectly compensates every frame, so the other's dead zone check always finds zero error and
- * never reacts.
+ * A non-center `screenPosition` needs an Aim that respects it too (e.g. `RotationComposer`, with a
+ * matching non-zero `deadZone` on both sides) — `HardLookAt` re-centers every frame, which fights a
+ * non-zero `screenPosition` into a persistent orbit instead of a stable shot.
  */
 export class PositionComposerBody {
   target: Target;
@@ -78,14 +59,12 @@ export class PositionComposerBody {
     scratchRight.set(1, 0, 0).applyQuaternion(out.quaternion);
     scratchUp.set(0, 1, 0).applyQuaternion(out.quaternion);
 
-    // stage 1: dolly along forward until target's depth matches cameraDistance — always exact
+    // stage 1: dolly to cameraDistance
     scratchRelative.copy(scratchTargetPosition).sub(out.position);
     const currentDepth = scratchRelative.dot(scratchForward);
     out.position.addScaledVector(scratchForward, currentDepth - this.cameraDistance);
 
-    // stage 2: shift laterally until target's screen-space projection matches screenPosition (or the
-    // dead zone edge). Depth is exactly cameraDistance now (stage 1), so the frustum's half-extents at
-    // that depth convert screenPosition (-1..1) into world units directly.
+    // stage 2: shift laterally to screenPosition (or the dead zone edge)
     scratchRelative.copy(scratchTargetPosition).sub(out.position);
     const halfHeight = this.cameraDistance * Math.tan((out.fov * Math.PI) / 360);
     const halfWidth = halfHeight * this.aspect;
@@ -129,9 +108,7 @@ export class PositionComposerBody {
 
     if (this.hardLimit[0] <= 0 && this.hardLimit[1] <= 0) return;
 
-    // undamped pass: same stage-2 math again, but against out.position AFTER damping, and clamped to
-    // hardLimit instead of desired-to-dead-zone-edge — forward/right/up and halfWidth/halfHeight are
-    // still valid, neither stage touches out.quaternion or out.fov
+    // undamped pass: same stage-2 math again, clamped to hardLimit instead of the dead zone edge
     scratchRelative.copy(scratchTargetPosition).sub(out.position);
     const afterRight = scratchRelative.dot(scratchRight);
     const afterUp = scratchRelative.dot(scratchUp);
@@ -140,7 +117,7 @@ export class PositionComposerBody {
     const halfLimitHeight = this.hardLimit[1] / 2;
     const limitErrorX = afterRight / halfWidth - this.screenPosition[0];
     const limitErrorY = afterUp / halfHeight - this.screenPosition[1];
-    if (Math.abs(limitErrorX) <= halfLimitWidth && Math.abs(limitErrorY) <= halfLimitHeight) return; // still inside: no-op
+    if (Math.abs(limitErrorX) <= halfLimitWidth && Math.abs(limitErrorY) <= halfLimitHeight) return;
 
     const clampedX = this.screenPosition[0] + clamp(limitErrorX, -halfLimitWidth, halfLimitWidth);
     const clampedY = this.screenPosition[1] + clamp(limitErrorY, -halfLimitHeight, halfLimitHeight);

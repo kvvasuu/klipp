@@ -11,6 +11,8 @@ export type TargetGroupMember = {
   radius?: number;
 };
 
+/** `'groupCenter'` — center of the AABB enclosing every member's own bounding sphere. `'groupAverage'` —
+ *  weighted mean of member positions, ignoring radius. */
 export type TargetGroupPositionMode = 'groupCenter' | 'groupAverage';
 
 const scratchMemberPosition = new Vector3();
@@ -18,13 +20,8 @@ const scratchMin = new Vector3();
 const scratchMax = new Vector3();
 const scratchAccumulator = new Vector3();
 
-/**
- * Treats several targets, each with its own Weight and Radius, as one. `positionMode` picks how the
- * group's own position is derived: `'groupCenter'` (center
- * of the AABB enclosing every member's own bounding sphere) or `'groupAverage'` (weighted mean of member
- * positions, ignoring radius). A member that can't currently resolve (`null`/unmounted ref) is skipped,
- * not treated as sitting at the origin.
- */
+/** Treats several targets, each with its own weight and radius, as one. A member that can't currently
+ *  resolve (`null`/unmounted ref) is skipped, not treated as sitting at the origin. */
 export class TargetGroup {
   members: TargetGroupMember[];
   positionMode: TargetGroupPositionMode;

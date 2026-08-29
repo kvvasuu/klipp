@@ -6,11 +6,7 @@ import { resolveTargetRotation, type Target } from '../resolve/Target';
 
 const scratchTargetRotation = new Quaternion();
 
-/**
- * Rotation = Tracking Target's world rotation, 1:1 — the rotation analog of `HardLockToTargetBody`. A
- * target with no rotation (e.g. a fixed point) has nothing to copy, so this is a no-op for it, same as an
- * unmounted ref. `damping` uses `QuaternionDamper` — see its doc comment for how it stays jump-free.
- */
+/** The rotation analog of `HardLockToTargetBody`. */
 export class RotateWithFollowTargetAim {
   target: Target;
   damping: DampingConstant;

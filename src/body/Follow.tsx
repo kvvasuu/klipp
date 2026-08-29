@@ -15,13 +15,13 @@ export type FollowProps = {
    *  `null`/`undefined`/omitted is a no-op, same as an unmounted ref. */
   target?: Target;
   /** Offset from the target, rotated according to `bindingMode` before being added to its position.
-   *  Default `(0, 0, 10)` (see `FollowBody`'s doc comment for the sign convention). */
+   *  Default `(0, 0, 10)` — a positive Z sits the camera behind the target, not in front of it. */
   offset?: Vector3Like;
   /** Seconds to catch up to the desired position, per axis (or `{into, from}` for asymmetric damping).
    *  `0` (default) = hard, instant follow. */
   damping?: DampingConstant;
   /** Which rotation, if any, `offset` is interpreted in. Default `BindingModes.lockToTarget` (the
-   *  target's full, live rotation). See `FollowBody`'s doc comment for what each of the 5 modes does. */
+   *  target's full, live rotation). */
   bindingMode?: BindingMode;
   /** Imperative access to the underlying `FollowBody`, for reading/writing
    *  `target`/`offset`/`damping`/`bindingMode` directly instead of through props. */

@@ -18,10 +18,6 @@ const scratchBackward = new Vector3();
  * looks straight at `group`'s own position (its sightline is the axis this dollies along); it does
  * nothing on its own to keep the group centered if Aim looks elsewhere.
  *
- * A `group` that currently resolves to a dimensionless point (bounding radius `0`, including "nothing
- * resolves at all") is a no-op for BOTH the distance and the center offset — there's no meaningful
- * distance that "frames" a single point, and no shot to re-center either.
- *
  * `update()` returns whether distance/center offset are still catching up to their targets — see
  * `CameraStateWriter` in `VirtualCameraController.ts` for why that matters, and
  * `useIsVirtualCameraSettled` for reading it.
