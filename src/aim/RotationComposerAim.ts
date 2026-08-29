@@ -127,6 +127,7 @@ export class RotationComposerAim {
 
     let desiredX = this.screenPosition[0];
     let desiredY = this.screenPosition[1];
+    let insideDeadZone = false;
 
     // justActivated skips the dead zone check entirely — it exists to judge whether `out.quaternion`'s
     // CURRENT orientation has drifted from screenPosition, but on a fresh activation that orientation is
@@ -145,28 +146,35 @@ export class RotationComposerAim {
       if (depth > 1e-6) {
         const errorX = screenX - this.screenPosition[0];
         const errorY = screenY - this.screenPosition[1];
+        insideDeadZone = Math.abs(errorX) <= this.deadZone[0] / 2 && Math.abs(errorY) <= this.deadZone[1] / 2;
 
-        if (Math.abs(errorX) <= this.deadZone[0] / 2 && Math.abs(errorY) <= this.deadZone[1] / 2) return; // inside dead zone: no reaction
-
-        const halfWidth = this.deadZone[0] / 2;
-        const halfHeight = this.deadZone[1] / 2;
-        desiredX = this.screenPosition[0] + Math.max(-halfWidth, Math.min(halfWidth, errorX));
-        desiredY = this.screenPosition[1] + Math.max(-halfHeight, Math.min(halfHeight, errorY));
+        if (!insideDeadZone) {
+          const halfWidth = this.deadZone[0] / 2;
+          const halfHeight = this.deadZone[1] / 2;
+          desiredX = this.screenPosition[0] + Math.max(-halfWidth, Math.min(halfWidth, errorX));
+          desiredY = this.screenPosition[1] + Math.max(-halfHeight, Math.min(halfHeight, errorY));
+        }
       }
       // depth <= 0 (target behind camera): degenerate, fall through and correct all the way to screenPosition
     }
 
-    composeQuaternionForScreenPoint(
-      scratchTargetQuaternion,
-      out.position,
-      scratchTargetPosition,
-      desiredX,
-      desiredY,
-      tanHalfFovH,
-      tanHalfFovV,
-    );
-    if (justActivated) this.damper.reset();
-    this.damper.update(out.quaternion, scratchTargetQuaternion, this.damping, dt);
+    // still falls through to the hardLimit pass below even when inside the dead zone (no reaction here)
+    // — hardLimit is a SEPARATE, wider box that must hold regardless of the dead zone, not just when the
+    // dead zone itself happened to react this frame (e.g. a misconfigured hardLimit smaller than
+    // deadZone would otherwise never actually enforce anything)
+    if (!insideDeadZone) {
+      composeQuaternionForScreenPoint(
+        scratchTargetQuaternion,
+        out.position,
+        scratchTargetPosition,
+        desiredX,
+        desiredY,
+        tanHalfFovH,
+        tanHalfFovV,
+      );
+      if (justActivated) this.damper.reset();
+      this.damper.update(out.quaternion, scratchTargetQuaternion, this.damping, dt);
+    }
 
     if (this.hardLimit[0] <= 0 && this.hardLimit[1] <= 0) return;
 

@@ -94,6 +94,7 @@ export class PositionComposerBody {
 
     let desiredScreenX = this.screenPosition[0];
     let desiredScreenY = this.screenPosition[1];
+    let insideDeadZone = false;
 
     // justActivated skips the dead zone check entirely — same reasoning as RotationComposerAim's: it
     // judges drift in out.position, which on a fresh activation is whatever an earlier, unrelated
@@ -101,22 +102,29 @@ export class PositionComposerBody {
     if (!justActivated && (this.deadZone[0] > 0 || this.deadZone[1] > 0)) {
       const errorX = currentRight / halfWidth - this.screenPosition[0];
       const errorY = currentUp / halfHeight - this.screenPosition[1];
+      insideDeadZone = Math.abs(errorX) <= this.deadZone[0] / 2 && Math.abs(errorY) <= this.deadZone[1] / 2;
 
-      if (Math.abs(errorX) <= this.deadZone[0] / 2 && Math.abs(errorY) <= this.deadZone[1] / 2) return; // inside dead zone: no lateral reaction
-
-      const halfDeadWidth = this.deadZone[0] / 2;
-      const halfDeadHeight = this.deadZone[1] / 2;
-      desiredScreenX = this.screenPosition[0] + Math.max(-halfDeadWidth, Math.min(halfDeadWidth, errorX));
-      desiredScreenY = this.screenPosition[1] + Math.max(-halfDeadHeight, Math.min(halfDeadHeight, errorY));
+      if (!insideDeadZone) {
+        const halfDeadWidth = this.deadZone[0] / 2;
+        const halfDeadHeight = this.deadZone[1] / 2;
+        desiredScreenX = this.screenPosition[0] + Math.max(-halfDeadWidth, Math.min(halfDeadWidth, errorX));
+        desiredScreenY = this.screenPosition[1] + Math.max(-halfDeadHeight, Math.min(halfDeadHeight, errorY));
+      }
     }
 
-    scratchDesiredPosition
-      .copy(out.position)
-      .addScaledVector(scratchRight, currentRight - desiredScreenX * halfWidth)
-      .addScaledVector(scratchUp, currentUp - desiredScreenY * halfHeight);
+    // still falls through to the hardLimit pass below even when inside the dead zone (no lateral
+    // reaction here) — hardLimit is a SEPARATE, wider box that must hold regardless of the dead zone, not
+    // just when the dead zone itself happened to react this frame (e.g. a misconfigured hardLimit smaller
+    // than deadZone would otherwise never actually enforce anything)
+    if (!insideDeadZone) {
+      scratchDesiredPosition
+        .copy(out.position)
+        .addScaledVector(scratchRight, currentRight - desiredScreenX * halfWidth)
+        .addScaledVector(scratchUp, currentUp - desiredScreenY * halfHeight);
 
-    if (justActivated) this.damper.reset();
-    this.damper.update(out.position, scratchDesiredPosition, this.damping, dt);
+      if (justActivated) this.damper.reset();
+      this.damper.update(out.position, scratchDesiredPosition, this.damping, dt);
+    }
 
     if (this.hardLimit[0] <= 0 && this.hardLimit[1] <= 0) return;
 

@@ -133,6 +133,21 @@ describe('RotationComposerAim', () => {
       expect(out.quaternion.equals(before)).toBe(true);
     });
 
+    it('hardLimit still enforces when the target sits inside a LARGER deadZone (real bug: the dead zone used to return from the whole update, skipping the hardLimit pass entirely)', () => {
+      const target = new Vector3(0, 0, -20);
+      // hardLimit narrower than deadZone — a plausible misconfiguration (hardLimit is meant to be the
+      // wider, outer box), but hardLimit's guarantee should hold regardless
+      const aim = new RotationComposerAim(target, [0, 0], 1, [0.4, 0.4], 0, [0.05, 0.05]);
+      const out = createCameraState();
+      out.position.set(0, 0, 0);
+
+      target.set(1, 1, -20); // same offset as above — inside deadZone (no reaction there)...
+      const before = out.quaternion.clone();
+      aim.update(out, 0.1); // ...but hardLimit=[0.05,0.05] is narrower, so it must still correct this
+
+      expect(out.quaternion.equals(before)).toBe(false);
+    });
+
     it('target outside the dead zone with damping <= 0: snaps instantly to the dead zone EDGE, not to screenPosition center', () => {
       const target = new Vector3(20, 0, -20); // far outside the dead zone on X
       const aim = new RotationComposerAim(target, [0, 0], 1, [0.2, 0.2], 0);

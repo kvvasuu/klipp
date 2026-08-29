@@ -162,6 +162,21 @@ describe('PositionComposerBody', () => {
       expect(out.position.equals(afterFirstUpdate)).toBe(true);
     });
 
+    it('hardLimit still enforces when the target sits inside a LARGER deadZone (real bug: the dead zone used to return from the whole update, skipping the hardLimit pass entirely)', () => {
+      const target = new Vector3(0, 0, -20);
+      // hardLimit narrower than deadZone — a plausible misconfiguration (hardLimit is meant to be the
+      // wider, outer box), but hardLimit's guarantee should hold regardless
+      const body = new PositionComposerBody(target, 10, [0, 0], 1, [0.4, 0.4], 0, [0.1, 0.1]);
+      const out = createCameraState();
+      body.update(out, 0.1); // establishes stage-1 dolly, target dead-center
+
+      const afterFirstUpdate = out.position.clone();
+      target.set(0.5, 0, -20); // same nudge as above — inside deadZone (no lateral reaction there)...
+      body.update(out, 0.1); // ...but hardLimit=[0.1,0.1] is narrower, so it must still correct this
+
+      expect(out.position.equals(afterFirstUpdate)).toBe(false);
+    });
+
     it('target outside the dead zone with damping <= 0: snaps instantly to the dead zone EDGE, not to screenPosition center', () => {
       const target = new Vector3(20, 0, -20); // far outside the dead zone on X
       const body = new PositionComposerBody(target, 10, [0, 0], 1, [0.2, 0.2], 0);
