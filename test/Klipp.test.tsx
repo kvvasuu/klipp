@@ -1,7 +1,7 @@
 import { renderHook } from '@testing-library/react';
 import { create } from '@react-three/test-renderer';
 import { useThree } from '@react-three/fiber';
-import { PerspectiveCamera } from 'three';
+import { PerspectiveCamera, Vector3 } from 'three';
 import { describe, expect, it, vi } from 'vitest';
 import { Klipp, useKlippCore } from '../src/Klipp';
 import { KlippCore } from '../src/KlippCore';
@@ -377,6 +377,53 @@ describe('Klipp / useKlippCore', () => {
 
       expect(core!.isBlending).toBe(true); // sanity: genuinely still blending
       expect(invalidateSpy).toHaveBeenCalled();
+    });
+  });
+
+  describe('no active camera', () => {
+    it('does not touch the real camera until some VirtualCamera actually goes live (real bug: it snapped to tick()\'s untouched default CameraState on frame 1)', async () => {
+      let camera: PerspectiveCamera | undefined;
+      let core: KlippCore | undefined;
+
+      function Scene() {
+        camera = useThree((state) => state.camera as PerspectiveCamera);
+        return (
+          <Klipp>
+            <Reader onRead={(c) => (core = c)} />
+          </Klipp>
+        );
+      }
+
+      const renderer = await create(<Scene />);
+      // a deliberately non-origin position, as if the scene/user placed the camera themselves
+      camera!.position.set(3, 4, 5);
+      await renderer.advanceFrames(3, 0.1);
+
+      expect(core!.liveCameraId).toBeNull();
+      expect(camera!.position.equals(new Vector3(3, 4, 5))).toBe(true);
+    });
+
+    it('starts writing to the real camera the instant a VirtualCamera goes live, same as before', async () => {
+      let camera: PerspectiveCamera | undefined;
+
+      function Scene({ active }: { active: boolean }) {
+        camera = useThree((state) => state.camera as PerspectiveCamera);
+        return (
+          <Klipp>
+            <VirtualCamera name="a" priority={10} active={active}>
+              <HardLockToTarget target={[3, 4, 5]} />
+            </VirtualCamera>
+          </Klipp>
+        );
+      }
+
+      const renderer = await create(<Scene active={false} />);
+      await renderer.advanceFrames(3, 0.1);
+      expect(camera!.position.equals(new Vector3(3, 4, 5))).toBe(false); // still untouched, nothing live
+
+      await renderer.update(<Scene active={true} />);
+      await renderer.advanceFrames(1, 0.1);
+      expect(camera!.position.equals(new Vector3(3, 4, 5))).toBe(true);
     });
   });
 });
