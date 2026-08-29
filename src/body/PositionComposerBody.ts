@@ -1,3 +1,4 @@
+import { clamp } from 'maath';
 import { Vector3 } from 'three';
 import type { CameraState } from '../CameraState';
 import type { DampingConstant } from '../damping/Damper';
@@ -107,8 +108,8 @@ export class PositionComposerBody {
       if (!insideDeadZone) {
         const halfDeadWidth = this.deadZone[0] / 2;
         const halfDeadHeight = this.deadZone[1] / 2;
-        desiredScreenX = this.screenPosition[0] + Math.max(-halfDeadWidth, Math.min(halfDeadWidth, errorX));
-        desiredScreenY = this.screenPosition[1] + Math.max(-halfDeadHeight, Math.min(halfDeadHeight, errorY));
+        desiredScreenX = this.screenPosition[0] + clamp(errorX, -halfDeadWidth, halfDeadWidth);
+        desiredScreenY = this.screenPosition[1] + clamp(errorY, -halfDeadHeight, halfDeadHeight);
       }
     }
 
@@ -141,8 +142,8 @@ export class PositionComposerBody {
     const limitErrorY = afterUp / halfHeight - this.screenPosition[1];
     if (Math.abs(limitErrorX) <= halfLimitWidth && Math.abs(limitErrorY) <= halfLimitHeight) return; // still inside: no-op
 
-    const clampedX = this.screenPosition[0] + Math.max(-halfLimitWidth, Math.min(halfLimitWidth, limitErrorX));
-    const clampedY = this.screenPosition[1] + Math.max(-halfLimitHeight, Math.min(halfLimitHeight, limitErrorY));
+    const clampedX = this.screenPosition[0] + clamp(limitErrorX, -halfLimitWidth, halfLimitWidth);
+    const clampedY = this.screenPosition[1] + clamp(limitErrorY, -halfLimitHeight, halfLimitHeight);
     out.position
       .addScaledVector(scratchRight, afterRight - clampedX * halfWidth)
       .addScaledVector(scratchUp, afterUp - clampedY * halfHeight);

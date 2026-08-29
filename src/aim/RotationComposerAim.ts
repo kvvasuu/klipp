@@ -1,3 +1,4 @@
+import { clamp } from 'maath';
 import { Matrix4, Quaternion, Vector3 } from 'three';
 import type { CameraState } from '../CameraState';
 import type { DampingConstant } from '../damping/Damper';
@@ -151,8 +152,8 @@ export class RotationComposerAim {
         if (!insideDeadZone) {
           const halfWidth = this.deadZone[0] / 2;
           const halfHeight = this.deadZone[1] / 2;
-          desiredX = this.screenPosition[0] + Math.max(-halfWidth, Math.min(halfWidth, errorX));
-          desiredY = this.screenPosition[1] + Math.max(-halfHeight, Math.min(halfHeight, errorY));
+          desiredX = this.screenPosition[0] + clamp(errorX, -halfWidth, halfWidth);
+          desiredY = this.screenPosition[1] + clamp(errorY, -halfHeight, halfHeight);
         }
       }
       // depth <= 0 (target behind camera): degenerate, fall through and correct all the way to screenPosition
@@ -194,8 +195,8 @@ export class RotationComposerAim {
     const errorY = screenY - this.screenPosition[1];
     if (Math.abs(errorX) <= halfLimitWidth && Math.abs(errorY) <= halfLimitHeight) return; // still inside: undamped pass is a no-op
 
-    const clampedX = this.screenPosition[0] + Math.max(-halfLimitWidth, Math.min(halfLimitWidth, errorX));
-    const clampedY = this.screenPosition[1] + Math.max(-halfLimitHeight, Math.min(halfLimitHeight, errorY));
+    const clampedX = this.screenPosition[0] + clamp(errorX, -halfLimitWidth, halfLimitWidth);
+    const clampedY = this.screenPosition[1] + clamp(errorY, -halfLimitHeight, halfLimitHeight);
     composeQuaternionForScreenPoint(
       scratchHardLimitQuaternion,
       out.position,
