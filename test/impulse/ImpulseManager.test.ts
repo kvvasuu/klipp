@@ -170,6 +170,19 @@ describe('ImpulseManager', () => {
     expect(out.y).toBeCloseTo(5, 5);
   });
 
+  it('pruning an expired event in place does not corrupt a still-live event sitting after it in the list', () => {
+    const manager = new ImpulseManager();
+    // short-lived: fully expired by t=1
+    manager.generate({ position: [0, 0, 0], direction: [10, 0, 0], sustainTime: 0.1, decayTime: 0 }, 0);
+    // long-lived, registered SECOND — exercises the write-index shift when the first slot is pruned
+    manager.generate({ position: [0, 0, 0], direction: [0, 20, 0], sustainTime: 5, decayTime: 0 }, 0);
+
+    const out = new Vector3();
+    manager.sampleAt(out, new Vector3(), 1, 1); // short one is gone, long one is mid-sustain
+    expect(out.x).toBe(0);
+    expect(out.y).toBeCloseTo(20, 5);
+  });
+
   it("a Vector3Like position/direction (r3f's [x,y,z] shorthand) works, not just real Vector3 instances", () => {
     const manager = new ImpulseManager();
     expect(() => manager.generate({ position: [1, 2, 3], direction: [4, 5, 6], sustainTime: 1 }, 0)).not.toThrow();

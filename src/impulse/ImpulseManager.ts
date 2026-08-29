@@ -45,6 +45,11 @@ type ImpulseEvent = {
   dissipationDistance: number;
   propagationSpeed: number;
   channel: number;
+  /** `startTime` + its full envelope/delay duration — computed once at `generate()`, since every input
+   *  it depends on is already fixed by then. Lets pruning in `sampleAt` be a plain comparison against a
+   *  cached number instead of re-deriving the same duration every call, for every still-live event, from
+   *  every listener sampling this frame. */
+  expiresAt: ImpulseClockSeconds;
 };
 
 function defaultNow(): ImpulseClockSeconds {
@@ -75,14 +80,6 @@ function distanceFalloff(distance: number, radius: number, dissipationDistance: 
   return t >= 1 ? 0 : 1 - t;
 }
 
-function totalDuration(event: ImpulseEvent): number {
-  const envelopeDuration = event.attackTime + event.sustainTime + event.decayTime;
-  const maxDelay = Number.isFinite(event.propagationSpeed)
-    ? (event.radius + event.dissipationDistance) / event.propagationSpeed
-    : 0;
-  return envelopeDuration + maxDelay;
-}
-
 /**
  * A registry of in-flight impulse events (`generate`) that any number of listeners can sample
  * (`sampleAt`) for the summed position offset they should currently feel, given their own world position
@@ -101,17 +98,28 @@ export class ImpulseManager {
   /** Registers a new impulse event. `now` defaults to the real clock — pass it explicitly in tests for
    *  determinism. */
   generate(options: GenerateImpulseOptions, now: ImpulseClockSeconds = defaultNow()): void {
+    const attackTime = options.attackTime ?? 0;
+    const sustainTime = options.sustainTime ?? 0.05;
+    const decayTime = options.decayTime ?? 0.2;
+    const radius = options.radius ?? 0;
+    const dissipationDistance = options.dissipationDistance ?? 0;
+    const propagationSpeed = options.propagationSpeed ?? Infinity;
+
+    const envelopeDuration = attackTime + sustainTime + decayTime;
+    const maxDelay = Number.isFinite(propagationSpeed) ? (radius + dissipationDistance) / propagationSpeed : 0;
+
     this.events.push({
       position: resolveVector3(new Vector3(), options.position),
       direction: resolveVector3(new Vector3(), options.direction),
       startTime: now,
-      attackTime: options.attackTime ?? 0,
-      sustainTime: options.sustainTime ?? 0.05,
-      decayTime: options.decayTime ?? 0.2,
-      radius: options.radius ?? 0,
-      dissipationDistance: options.dissipationDistance ?? 0,
-      propagationSpeed: options.propagationSpeed ?? Infinity,
+      attackTime,
+      sustainTime,
+      decayTime,
+      radius,
+      dissipationDistance,
+      propagationSpeed,
       channel: options.channel ?? 1,
+      expiresAt: now + envelopeDuration + maxDelay,
     });
   }
 
@@ -122,7 +130,14 @@ export class ImpulseManager {
     out.set(0, 0, 0);
     if (this.events.length === 0) return out;
 
-    this.events = this.events.filter((event) => now - event.startTime <= totalDuration(event));
+    // prune in place — .filter() would allocate a new array every call, for as long as ANY event is in
+    // flight, from every listener sampling this frame (this runs once per <ImpulseListener> per frame)
+    let writeIndex = 0;
+    for (let readIndex = 0; readIndex < this.events.length; readIndex++) {
+      const event = this.events[readIndex];
+      if (now <= event.expiresAt) this.events[writeIndex++] = event;
+    }
+    this.events.length = writeIndex;
 
     for (const event of this.events) {
       if ((event.channel & channelMask) === 0) continue;
