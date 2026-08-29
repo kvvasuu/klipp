@@ -77,7 +77,7 @@ export class GroupFramingExtension {
     this.centerOffsetY = centerOffsetY;
   }
 
-  update = (out: CameraState, dt: number): boolean => {
+  update = (out: CameraState, dt: number, justActivated: boolean): boolean => {
     const radius = this.group.computeBounds(scratchGroupPosition);
     if (radius <= 0) return false;
 
@@ -103,6 +103,14 @@ export class GroupFramingExtension {
     // Vector3Damper/QuaternionDamper elsewhere in klipp), it would only converge almost-instantly
     // through a tiny clamped smoothTime instead
     const instant = typeof this.damping === 'number' && this.damping <= 0;
+
+    // re-arms each damper's own first-call snap — on reactivation, out was frozen at wherever an
+    // earlier, unrelated activation left it, so easing from there would fly in from a stale distance
+    if (justActivated) {
+      this.distanceDamper.reset();
+      this.centerOffsetXDamper.reset();
+      this.centerOffsetYDamper.reset();
+    }
 
     this.currentDistance = instant
       ? distance

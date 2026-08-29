@@ -296,4 +296,41 @@ describe('GroupFramingExtension', () => {
       expect(extension.update(out, 0.1)).toBe(false);
     });
   });
+
+  describe('justActivated', () => {
+    it('snaps distance straight to the correct value even with a warmed-up damper', () => {
+      const group = new TargetGroup([{ target: new Vector3(0, 0, 0), radius: 1 }]);
+      const extension = new GroupFramingExtension(group, 0, 100, 100, 0.5);
+      const out = createCameraState();
+      out.fov = 90;
+      out.quaternion.identity();
+
+      extension.update(out, 0.1, true); // first-ever session: snaps, warms up the damper
+      extension.update(out, 0.1, false);
+
+      // a later, unrelated session: the group's bounds changed drastically while inactive
+      group.members[0].radius = 10;
+      extension.update(out, 0.1, true);
+
+      const expectedDistance = 10 / Math.sin(Math.PI / 4);
+      expect(out.position.z).toBeCloseTo(expectedDistance, 8); // backward = +Z from an identity quaternion
+    });
+
+    it('without justActivated, the same scenario eases instead of snapping (the bug this fixes)', () => {
+      const group = new TargetGroup([{ target: new Vector3(0, 0, 0), radius: 1 }]);
+      const extension = new GroupFramingExtension(group, 0, 100, 100, 0.5);
+      const out = createCameraState();
+      out.fov = 90;
+      out.quaternion.identity();
+
+      extension.update(out, 0.1, true);
+      extension.update(out, 0.1, false);
+
+      group.members[0].radius = 10;
+      extension.update(out, 0.1, false); // no reactivation signal — damper treats this as a normal retarget
+
+      const expectedDistance = 10 / Math.sin(Math.PI / 4);
+      expect(out.position.z).not.toBeCloseTo(expectedDistance, 1);
+    });
+  });
 });

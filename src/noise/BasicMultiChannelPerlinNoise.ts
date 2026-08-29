@@ -92,8 +92,13 @@ export class BasicMultiChannelPerlinNoise {
     this.channels = createChannels(seed);
   }
 
-  update = (out: CameraState, dt: number): void => {
+  update = (out: CameraState, dt: number, justActivated: boolean): void => {
     this.time += dt * this.frequencyGain;
+
+    // re-arms the damper's own first-call snap — on reactivation, effectiveAmplitudeGain is frozen at
+    // wherever an earlier, unrelated activation left it, so easing from there would resume a fade that
+    // has nothing to do with this activation instead of starting fresh at the current amplitudeGain
+    if (justActivated) this.amplitudeGainDamper.reset();
 
     this.effectiveAmplitudeGain =
       typeof this.amplitudeDamping === 'number' && this.amplitudeDamping <= 0

@@ -209,4 +209,66 @@ describe('BasicMultiChannelPerlinNoise', () => {
       expect(noise.amplitudeDamping).toBe(1);
     });
   });
+
+  describe('justActivated', () => {
+    // effectiveAmplitudeGain is private, so both tests compare against a "ground truth" instant
+    // (amplitudeDamping=0) instance sharing the same seed/frequencyGain and dt sequence — their raw
+    // perlin samples then match at every step, isolating exactly what the damped gain contributes
+    const seed = 3;
+    const amplitude = new Vector3(5, 5, 5);
+
+    it('snaps effectiveAmplitudeGain straight to amplitudeGain even with a warmed-up damper', () => {
+      const reference = new BasicMultiChannelPerlinNoise(amplitude, undefined, undefined, undefined, 1, 1, seed, 0);
+      const damped = new BasicMultiChannelPerlinNoise(amplitude, undefined, undefined, undefined, 1, 1, seed, 0.5);
+      const refOut = createCameraState();
+      const dampedOut = createCameraState();
+
+      reference.update(refOut, 0.1, true); // first-ever session: both snap, damped's damper warms up
+      damped.update(dampedOut, 0.1, true);
+
+      reference.amplitudeGain = 0;
+      damped.amplitudeGain = 0;
+      refOut.position.set(0, 0, 0);
+      dampedOut.position.set(0, 0, 0);
+      reference.update(refOut, 0.016, false);
+      damped.update(dampedOut, 0.016, false); // damped hasn't fully eased down to 0 yet — genuinely mid-ease
+
+      // a later, unrelated session: amplitudeGain is back up, but damped's effective gain is still
+      // frozen near 0 from the earlier session
+      reference.amplitudeGain = 1;
+      damped.amplitudeGain = 1;
+      refOut.position.set(0, 0, 0);
+      dampedOut.position.set(0, 0, 0);
+      reference.update(refOut, 0.016, true);
+      damped.update(dampedOut, 0.016, true);
+
+      expect(dampedOut.position.length()).toBeCloseTo(refOut.position.length(), 5);
+    });
+
+    it('without justActivated, the same scenario eases instead of snapping (the bug this fixes)', () => {
+      const reference = new BasicMultiChannelPerlinNoise(amplitude, undefined, undefined, undefined, 1, 1, seed, 0);
+      const damped = new BasicMultiChannelPerlinNoise(amplitude, undefined, undefined, undefined, 1, 1, seed, 0.5);
+      const refOut = createCameraState();
+      const dampedOut = createCameraState();
+
+      reference.update(refOut, 0.1, true);
+      damped.update(dampedOut, 0.1, true);
+
+      reference.amplitudeGain = 0;
+      damped.amplitudeGain = 0;
+      refOut.position.set(0, 0, 0);
+      dampedOut.position.set(0, 0, 0);
+      reference.update(refOut, 0.016, false);
+      damped.update(dampedOut, 0.016, false);
+
+      reference.amplitudeGain = 1;
+      damped.amplitudeGain = 1;
+      refOut.position.set(0, 0, 0);
+      dampedOut.position.set(0, 0, 0);
+      reference.update(refOut, 0.016, false); // no reactivation signal — resumes easing instead of snapping
+      damped.update(dampedOut, 0.016, false);
+
+      expect(dampedOut.position.length()).toBeLessThan(refOut.position.length());
+    });
+  });
 });
