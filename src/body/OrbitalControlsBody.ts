@@ -58,13 +58,21 @@ export class OrbitalControlsBody {
     this.camera.aspect = this.aspect;
     this.camera.updateProjectionMatrix();
 
-    if (resolveTargetPosition(scratchTargetPosition, this.target)) {
+    // controls.update(dt) still runs even when unresolved (e.g. a RefObject target that hasn't mounted
+    // yet) — keeps the underlying camera-controls simulation warm, same "runs in the background
+    // regardless of arbitration" contract as when this Body is simply losing arbitration. Writing into
+    // `out` is the one thing gated on resolution: a true no-op like every other Body when there's nothing
+    // real to orbit yet, instead of overwriting it with an orbit around whatever this camera defaulted to
+    const resolved = resolveTargetPosition(scratchTargetPosition, this.target);
+    if (resolved) {
       this.controls.moveTo(scratchTargetPosition.x, scratchTargetPosition.y, scratchTargetPosition.z, false);
     }
 
     this.controls.update(dt);
 
-    out.position.copy(this.camera.position);
-    out.quaternion.copy(this.camera.quaternion);
+    if (resolved) {
+      out.position.copy(this.camera.position);
+      out.quaternion.copy(this.camera.quaternion);
+    }
   };
 }

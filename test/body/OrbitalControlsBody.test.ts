@@ -39,10 +39,35 @@ describe('OrbitalControlsBody', () => {
     expect(out.position.distanceTo(target)).toBeCloseTo(20, 3);
   });
 
-  it('a null target is a no-op on the target — update() still runs without throwing', () => {
+  it('a null target is a true no-op on out — update() still runs (keeping the sim warm) without throwing or writing anything (real bug: it used to overwrite out with an orbit around wherever this Body defaulted to)', () => {
     const body = new OrbitalControlsBody(null);
     const out = createCameraState();
+    const positionBefore = out.position.clone();
+    const quaternionBefore = out.quaternion.clone();
+
     expect(() => body.update(out, 0.1)).not.toThrow();
+
+    expect(out.position.equals(positionBefore)).toBe(true);
+    expect(out.quaternion.equals(quaternionBefore)).toBe(true);
+  });
+
+  it('a target that resolves LATE (e.g. a ref that mounts a few frames in) leaves out untouched until then, then picks up normally', () => {
+    const ref: { current: Object3D | null } = { current: null };
+    const body = new OrbitalControlsBody(ref);
+    const out = createCameraState();
+    const positionBefore = out.position.clone();
+
+    for (let i = 0; i < 5; i++) body.update(out, 0.05); // ref still unmounted — must stay a no-op
+    expect(out.position.equals(positionBefore)).toBe(true);
+
+    ref.current = new Object3D();
+    ref.current.position.set(0, 0, -20);
+    for (let i = 0; i < 30; i++) body.update(out, 0.05); // now resolves — orbits normally, no leftover jump
+
+    expect(out.position.distanceTo(ref.current.position)).toBeGreaterThan(0);
+    const forward = new Vector3(0, 0, -1).applyQuaternion(out.quaternion);
+    const towardTarget = ref.current.position.clone().sub(out.position).normalize();
+    expect(forward.dot(towardTarget)).toBeGreaterThan(0.99);
   });
 
   it('orbits so the camera ends up looking roughly toward the target', () => {
