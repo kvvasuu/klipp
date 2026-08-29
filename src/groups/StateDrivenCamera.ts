@@ -1,8 +1,7 @@
-import { clamp } from 'maath';
-import { copyCameraState, createCameraState, type CameraState } from '../CameraState';
+import type { CameraState } from '../CameraState';
 import { BlendCurves } from '../blend/BlendCurves';
 import type { BlendDefinition } from '../blend/BlendDefinition';
-import { lerpCameraState } from '../blend/lerpCameraState';
+import { BlendDriver } from '../blend/BlendDriver';
 
 export type StateDrivenCandidate = {
   cameraId: string;
@@ -17,13 +16,6 @@ export type StateDrivenCameraOptions = {
   defaultBlend?: BlendDefinition;
 };
 
-type ActiveBlend = {
-  from: CameraState;
-  toId: string;
-  definition: BlendDefinition;
-  elapsed: number;
-};
-
 /**
  * Maps an externally-driven state (`setState()`, e.g. mirroring an animator's current state) to a child
  * camera. Several candidates can target the same state — then the highest `priority` wins, and on a
@@ -35,21 +27,16 @@ type ActiveBlend = {
 export class StateDrivenCamera {
   private readonly candidates: StateDrivenCandidate[];
   private readonly defaultBlend: BlendDefinition;
+  private readonly driver: BlendDriver<string>;
 
   private drivingState: string | null = null;
   private winnerId: string | null = null;
-
-  private liveId: string | null = null;
-  private blend: ActiveBlend | null = null;
-  private everActivated = false;
-
-  private readonly output: CameraState = createCameraState();
-  private readonly blendFromScratch: CameraState = createCameraState();
 
   constructor(candidates: StateDrivenCandidate[], options: StateDrivenCameraOptions = {}) {
     if (candidates.length === 0) throw new Error('StateDrivenCamera needs at least one candidate.');
     this.candidates = candidates;
     this.defaultBlend = options.defaultBlend ?? { curve: BlendCurves.easeInOut, time: 2 };
+    this.driver = new BlendDriver((id) => this.candidateState(id));
   }
 
   setState(state: string): void {
@@ -62,11 +49,11 @@ export class StateDrivenCamera {
   }
 
   get liveCameraId(): string | null {
-    return this.liveId;
+    return this.driver.liveId;
   }
 
   get isBlending(): boolean {
-    return this.blend !== null;
+    return this.driver.isBlending;
   }
 
   private recompute(): void {
@@ -87,34 +74,10 @@ export class StateDrivenCamera {
    * fov 50) — check `liveCameraId` first if that distinction matters to the caller.
    */
   tick(dt: number): CameraState {
-    const blendTargetId = this.blend ? this.blend.toId : this.liveId;
-
-    if (this.winnerId !== null && this.winnerId !== blendTargetId) {
-      if (!this.everActivated) {
-        this.everActivated = true;
-        this.liveId = this.winnerId;
-        copyCameraState(this.output, this.candidateState(this.winnerId));
-      } else {
-        copyCameraState(this.blendFromScratch, this.output);
-        this.blend = { from: this.blendFromScratch, toId: this.winnerId, definition: this.defaultBlend, elapsed: 0 };
-      }
+    if (this.winnerId !== null && this.winnerId !== this.driver.blendTargetId) {
+      this.driver.setTarget(this.winnerId, this.defaultBlend);
     }
-
-    if (this.blend) {
-      this.blend.elapsed += dt;
-      const t = this.blend.definition.time <= 0 ? 1 : clamp(this.blend.elapsed / this.blend.definition.time, 0, 1);
-      const toState = this.candidateState(this.blend.toId);
-      lerpCameraState(this.output, this.blend.from, toState, this.blend.definition.curve(t));
-
-      if (t >= 1) {
-        this.liveId = this.blend.toId;
-        this.blend = null;
-      }
-    } else if (this.liveId !== null) {
-      copyCameraState(this.output, this.candidateState(this.liveId));
-    }
-
-    return this.output;
+    return this.driver.tick(dt);
   }
 
   private candidateState(cameraId: string): CameraState {

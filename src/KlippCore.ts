@@ -1,8 +1,7 @@
-import { clamp } from 'maath';
-import { copyCameraState, createCameraState, type CameraState } from './CameraState';
+import type { CameraState } from './CameraState';
 import { BlendCurves } from './blend/BlendCurves';
 import { resolveBlendDefinition, type BlendDefinition, type CustomBlend } from './blend/BlendDefinition';
-import { lerpCameraState } from './blend/lerpCameraState';
+import { BlendDriver } from './blend/BlendDriver';
 
 export type VirtualCameraConfig = {
   id: string;
@@ -13,16 +12,6 @@ export type VirtualCameraConfig = {
 };
 
 type Candidate = VirtualCameraConfig & { activatedAt: number };
-
-/** `from` is a frozen snapshot, stable even if that camera unregisters. `to` stays a live reference
- *  (via `toId`) so a moving target keeps being tracked mid-blend. */
-type ActiveBlend = {
-  from: CameraState;
-  fromId: string | null;
-  toId: string;
-  definition: BlendDefinition;
-  elapsed: number;
-};
 
 let activationCounter = 0;
 
@@ -40,7 +29,9 @@ export type KlippCoreOptions = {
  *
  * `activeCameraId` is the instant priority winner. `tick(dt)` lags behind it on purpose: the outgoing
  * camera keeps feeding the output until its blend finishes. `liveCameraId`/`isBlending` expose that
- * lagging, composited state separately from `activeCameraId`.
+ * lagging, composited state separately from `activeCameraId`. The actual snap/blend/composite mechanics
+ * live in `BlendDriver`, shared with `Sequencer`/`StateDrivenCamera`/`ClearShot` — this class only owns
+ * priority arbitration (`recompute`) and `CustomBlend` resolution, then hands the decided winner to it.
  */
 export class KlippCore {
   private candidates = new Map<string, Candidate>();
@@ -50,19 +41,13 @@ export class KlippCore {
   private readonly defaultBlend: BlendDefinition;
   private readonly customBlends: CustomBlend[];
 
-  private liveId: string | null = null;
+  private readonly driver: BlendDriver<string>;
   private readonly liveIdListeners = new Set<() => void>();
-  private blend: ActiveBlend | null = null;
-  /** Distinguishes "never started" (snap immediately) from "was live, now unregistered" (`liveId` is
-   *  null but `output` still holds a valid frame to blend from). */
-  private everActivated = false;
-
-  private readonly output: CameraState = createCameraState();
-  private readonly blendFromScratch: CameraState = createCameraState();
 
   constructor(options: KlippCoreOptions = {}) {
     this.defaultBlend = options.defaultBlend ?? { curve: BlendCurves.easeInOut, time: 2 };
     this.customBlends = options.customBlends ?? [];
+    this.driver = new BlendDriver((id) => this.candidates.get(id)!.state);
   }
 
   get activeCameraId(): string | null {
@@ -88,11 +73,11 @@ export class KlippCore {
 
   /** Camera `tick()`'s output is currently settled on. Lags behind `activeCameraId` while blending. */
   get liveCameraId(): string | null {
-    return this.liveId;
+    return this.driver.liveId;
   }
 
   isLive(id: string): boolean {
-    return this.liveId === id;
+    return this.driver.liveId === id;
   }
 
   /** Notified whenever `liveCameraId` actually changes — i.e. a blend just finished (or the very first
@@ -102,14 +87,8 @@ export class KlippCore {
     return () => this.liveIdListeners.delete(listener);
   };
 
-  private setLiveId(id: string | null): void {
-    if (id === this.liveId) return;
-    this.liveId = id;
-    for (const listener of this.liveIdListeners) listener();
-  }
-
   get isBlending(): boolean {
-    return this.blend !== null;
+    return this.driver.isBlending;
   }
 
   /** Returns an unregister function. Re-registering an already-known id refreshes its `activatedAt`.
@@ -123,14 +102,10 @@ export class KlippCore {
     return () => {
       if (this.candidates.get(config.id) !== candidate) return;
       this.candidates.delete(config.id);
-      if (this.blend?.toId === config.id) {
-        // target vanished mid-blend — clear liveId too, so tick() blends from the current composited
-        // position toward whatever wins next, instead of snapping back to a stale liveId
-        this.blend = null;
-        this.setLiveId(null);
-      } else if (this.liveId === config.id) {
-        this.setLiveId(null);
-      }
+      // target vanished mid-blend (or while live) — forget it, so tick() blends from the current
+      // composited position toward whatever wins next, instead of snapping back to a stale id whose
+      // state no longer exists
+      this.withLiveIdChangeNotification(() => this.driver.forget(config.id));
       this.recompute();
     };
   }
@@ -162,52 +137,37 @@ export class KlippCore {
     for (const listener of this.activeIdListeners) listener();
   }
 
+  /** Runs `action`, then notifies `liveIdListeners` if it changed `driver.liveId` as a side effect —
+   *  shared between `tick()` and the unregister path above, the two places that can move it. */
+  private withLiveIdChangeNotification(action: () => void): void {
+    const previousLiveId = this.driver.liveId;
+    action();
+    if (this.driver.liveId !== previousLiveId) {
+      for (const listener of this.liveIdListeners) listener();
+    }
+  }
+
   /**
    * Advances any in-progress blend by `dt` and returns the composited `CameraState` — same scratch
    * instance every call, valid only until the next `tick()`.
-   *
-   * A new blend's "from" is always the CURRENT composited output frozen in place, not the previous
-   * blend's original start — that's what makes mid-blend interruption correct.
    *
    * Before any candidate has ever won arbitration (`liveCameraId === null`), this is just the untouched
    * default `CameraState` (origin, identity, fov 50) — check `liveCameraId` first if that distinction
    * matters to the caller, same as `Klipp.tsx` does before writing this onto the real camera.
    */
   tick(dt: number): CameraState {
-    const blendTargetId = this.blend ? this.blend.toId : this.liveId;
-
-    if (this.activeId !== null && this.activeId !== blendTargetId) {
-      if (!this.everActivated) {
-        this.everActivated = true;
-        this.setLiveId(this.activeId);
-        copyCameraState(this.output, this.candidates.get(this.activeId)!.state);
-      } else {
-        const fromId = this.blend ? this.blend.toId : this.liveId;
-        copyCameraState(this.blendFromScratch, this.output);
-        this.blend = {
-          from: this.blendFromScratch,
-          fromId,
-          toId: this.activeId,
-          definition: resolveBlendDefinition(this.customBlends, fromId, this.activeId, this.defaultBlend),
-          elapsed: 0,
-        };
+    let result!: CameraState;
+    // setTarget AND tick both need to be inside the SAME before/after window — setTarget's own first-
+    // ever-activation snap changes driver.liveId synchronously, before tick() even runs, so measuring
+    // "before" only around tick() would already see the post-snap value and never detect the change
+    this.withLiveIdChangeNotification(() => {
+      if (this.activeId !== null && this.activeId !== this.driver.blendTargetId) {
+        const fromId = this.driver.blendTargetId;
+        const definition = resolveBlendDefinition(this.customBlends, fromId, this.activeId, this.defaultBlend);
+        this.driver.setTarget(this.activeId, definition);
       }
-    }
-
-    if (this.blend) {
-      this.blend.elapsed += dt;
-      const t = this.blend.definition.time <= 0 ? 1 : clamp(this.blend.elapsed / this.blend.definition.time, 0, 1);
-      const toState = this.candidates.get(this.blend.toId)!.state;
-      lerpCameraState(this.output, this.blend.from, toState, this.blend.definition.curve(t));
-
-      if (t >= 1) {
-        this.setLiveId(this.blend.toId);
-        this.blend = null;
-      }
-    } else if (this.liveId !== null) {
-      copyCameraState(this.output, this.candidates.get(this.liveId)!.state);
-    }
-
-    return this.output;
+      result = this.driver.tick(dt);
+    });
+    return result;
   }
 }

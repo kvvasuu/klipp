@@ -1,8 +1,7 @@
-import { clamp } from 'maath';
-import { copyCameraState, createCameraState, type CameraState } from '../CameraState';
+import type { CameraState } from '../CameraState';
 import { BlendCurves } from '../blend/BlendCurves';
 import type { BlendDefinition } from '../blend/BlendDefinition';
-import { lerpCameraState } from '../blend/lerpCameraState';
+import { BlendDriver } from '../blend/BlendDriver';
 
 export type ClearShotCandidate = {
   cameraId: string;
@@ -29,13 +28,6 @@ export type ClearShotOptions = {
   random?: () => number;
 };
 
-type ActiveBlend = {
-  from: CameraState;
-  toId: string;
-  definition: BlendDefinition;
-  elapsed: number;
-};
-
 /**
  * Picks the child with the best shot quality (not just priority) — `priority` only breaks quality ties.
  * `activateAfter` debounces the pick (a new best must hold that title continuously before it's committed,
@@ -49,17 +41,12 @@ export class ClearShot {
   private readonly minDuration: number;
   private readonly randomizeChoice: boolean;
   private readonly random: () => number;
+  private readonly driver: BlendDriver<string>;
 
-  private liveId: string | null = null;
   private liveElapsed = 0;
-  private blend: ActiveBlend | null = null;
-  private everActivated = false;
 
   private pendingId: string | null = null;
   private pendingElapsed = 0;
-
-  private readonly output: CameraState = createCameraState();
-  private readonly blendFromScratch: CameraState = createCameraState();
 
   constructor(candidates: ClearShotCandidate[], options: ClearShotOptions) {
     if (candidates.length === 0) throw new Error('ClearShot needs at least one candidate.');
@@ -70,14 +57,15 @@ export class ClearShot {
     this.minDuration = options.minDuration ?? 0;
     this.randomizeChoice = options.randomizeChoice ?? false;
     this.random = options.random ?? Math.random;
+    this.driver = new BlendDriver((id) => this.candidateState(id));
   }
 
   get liveCameraId(): string | null {
-    return this.liveId;
+    return this.driver.liveId;
   }
 
   get isBlending(): boolean {
-    return this.blend !== null;
+    return this.driver.isBlending;
   }
 
   /** The candidate currently being debounced toward (`activateAfter`), before it's committed to. */
@@ -87,13 +75,12 @@ export class ClearShot {
 
   tick(dt: number): CameraState {
     const rawBest = this.pickBest();
-    const target = this.blend ? this.blend.toId : this.liveId;
+    const target = this.driver.blendTargetId;
 
     if (rawBest !== target) {
-      if (!this.everActivated) {
-        this.everActivated = true;
-        this.liveId = rawBest;
-        copyCameraState(this.output, this.candidateState(rawBest));
+      if (target === null) {
+        // first-ever activation: setTarget snaps on its own (nothing to debounce toward yet)
+        this.driver.setTarget(rawBest, this.defaultBlend);
         this.pendingId = null;
         this.pendingElapsed = 0;
       } else {
@@ -106,14 +93,13 @@ export class ClearShot {
 
         const activateAfterSatisfied = this.pendingElapsed >= this.activateAfter;
         // liveElapsed tracks time since the LAST commit (an initial swap away from a settled camera, OR
-        // a mid-blend retarget) rather than only time spent fully settled — otherwise `blend !== null`
-        // would exempt every retarget of an already-in-flight blend from minDuration entirely, letting a
-        // flickering evaluator redirect the destination every single frame with no protection at all
+        // a mid-blend retarget) rather than only time spent fully settled — otherwise a blend already in
+        // flight would exempt every retarget of it from minDuration entirely, letting a flickering
+        // evaluator redirect the destination every single frame with no protection at all
         const minDurationSatisfied = this.liveElapsed >= this.minDuration;
 
         if (activateAfterSatisfied && minDurationSatisfied) {
-          copyCameraState(this.blendFromScratch, this.output);
-          this.blend = { from: this.blendFromScratch, toId: rawBest, definition: this.defaultBlend, elapsed: 0 };
+          this.driver.setTarget(rawBest, this.defaultBlend);
           this.pendingId = null;
           this.pendingElapsed = 0;
           this.liveElapsed = 0;
@@ -124,23 +110,9 @@ export class ClearShot {
       this.pendingElapsed = 0;
     }
 
-    if (this.blend) {
-      this.blend.elapsed += dt;
-      const t = this.blend.definition.time <= 0 ? 1 : clamp(this.blend.elapsed / this.blend.definition.time, 0, 1);
-      const toState = this.candidateState(this.blend.toId);
-      lerpCameraState(this.output, this.blend.from, toState, this.blend.definition.curve(t));
-      this.liveElapsed += dt; // keeps counting through the blend — see the minDurationSatisfied comment above
-
-      if (t >= 1) {
-        this.liveId = this.blend.toId;
-        this.blend = null;
-      }
-    } else if (this.liveId !== null) {
-      copyCameraState(this.output, this.candidateState(this.liveId));
-      this.liveElapsed += dt;
-    }
-
-    return this.output;
+    const result = this.driver.tick(dt);
+    this.liveElapsed += dt; // keeps counting through the blend — see the minDurationSatisfied comment above
+    return result;
   }
 
   /** Highest quality wins; `priority` breaks quality ties; among exact ties, `randomizeChoice` picks
