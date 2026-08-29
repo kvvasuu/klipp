@@ -2,3 +2,5 @@ packages:
   - '.'
   - 'example'
   - 'showcase'
+allowBuilds:
+  esbuild: false

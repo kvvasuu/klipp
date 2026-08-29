@@ -12,6 +12,9 @@ dist
 dist-ssr
 *.local
 
+# @pmndrs/labs benchmark results — machine-specific, not meant to be shared
+.labs
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
