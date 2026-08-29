@@ -41,4 +41,9 @@ export class QuaternionDamper {
     );
     return out.premultiply(scratchStep);
   }
+
+  /** See `Damper.reset` — re-arms the underlying angle-damper's first-call snap. */
+  reset(): void {
+    this.damper.reset();
+  }
 }

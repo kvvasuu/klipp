@@ -16,4 +16,11 @@ export class Vector3Damper {
     out.z = this.z.update(out.z, target.z, damping, dt);
     return out;
   }
+
+  /** See `Damper.reset` — re-arms all three axes' first-call snap. */
+  reset(): void {
+    this.x.reset();
+    this.y.reset();
+    this.z.reset();
+  }
 }

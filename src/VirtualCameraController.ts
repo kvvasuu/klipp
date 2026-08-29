@@ -3,8 +3,17 @@ import type { CameraState } from './CameraState';
 /** Writes into `out` (Body/Aim) or adds on top of it (Noise) — same `out`-parameter convention as the
  *  rest of klipp. Return `true` if there's still work in flight that could change the output on a LATER
  *  frame even though this call's output happens to match the previous one — see `FrameUpdate` in
- *  `Klipp.tsx` for why that matters. Most writers can ignore this and return nothing. */
-export type CameraStateWriter = (out: CameraState, dt: number) => boolean | void;
+ *  `Klipp.tsx` for why that matters. Most writers can ignore this and return nothing.
+ *
+ *  `justActivated` is `true` on the first call after the owning `<VirtualCamera>`'s `active` prop flips
+ *  from `false` to `true` (including its very first-ever activation) — `false` every other call. A
+ *  writer with its own persistent damping state — chasing a target across calls, independent of what's
+ *  currently in `out` — should treat this as a cue to snap straight to the target instead of easing:
+ *  while `active` was `false`, this writer wasn't being called at all (`<VirtualCamera>` only runs
+ *  Body/Aim/Extension/Noise while `active`), so both `out` and any damper's own remembered state are
+ *  frozen at whatever an EARLIER, unrelated activation last left them at. Easing from there reads as
+ *  flying in from a stale position instead of the fresh one this activation actually wants. */
+export type CameraStateWriter = (out: CameraState, dt: number, justActivated: boolean) => boolean | void;
 
 export type VirtualCameraSlots = {
   registerBody: (writer: CameraStateWriter) => () => void;
@@ -73,19 +82,19 @@ export class VirtualCameraController implements VirtualCameraSlots {
     return () => this.noiseWriters.delete(writer);
   };
 
-  update = (out: CameraState, dt: number): boolean => {
+  update = (out: CameraState, dt: number, justActivated: boolean): boolean => {
     // `=== true`, not plain truthiness: a writer that's supposed to return `void` but happens to be an
     // expression-bodied arrow ending in an assignment (e.g. `(out) => (out.position.x = dt)`) returns
     // that assigned VALUE at runtime regardless of its `: void` type annotation — strict equality is
     // what actually keeps such a writer from silently pinning "still in flight" forever
     let stillInFlight = false;
-    if (this.bodyWriter?.(out, dt) === true) stillInFlight = true;
-    if (this.aimWriter?.(out, dt) === true) stillInFlight = true;
+    if (this.bodyWriter?.(out, dt, justActivated) === true) stillInFlight = true;
+    if (this.aimWriter?.(out, dt, justActivated) === true) stillInFlight = true;
     for (const writer of this.extensionWriters) {
-      if (writer(out, dt) === true) stillInFlight = true;
+      if (writer(out, dt, justActivated) === true) stillInFlight = true;
     }
     for (const writer of this.noiseWriters) {
-      if (writer(out, dt) === true) stillInFlight = true;
+      if (writer(out, dt, justActivated) === true) stillInFlight = true;
     }
     return stillInFlight;
   };

@@ -229,6 +229,55 @@ describe('PositionComposerBody', () => {
     });
   });
 
+  describe('justActivated', () => {
+    it('snaps straight to the composed position even with a warmed-up damper and a stale out.position', () => {
+      const target = new Vector3(0, 0, -20);
+      const body = new PositionComposerBody(target, 10, [0, 0], 1, [0, 0], 0.5);
+      const out = createCameraState();
+
+      body.update(out, 0.016, true); // first-ever session: snaps, warms up the damper
+      body.update(out, 0.016, false);
+
+      // a later, unrelated session: out.position is frozen at wherever the FIRST session left it
+      target.set(40, -12, -30);
+      body.update(out, 0.016, true);
+
+      const projected = projectToScreen(out, 1, target);
+      expect(projected.x).toBeCloseTo(0, 4);
+      expect(projected.y).toBeCloseTo(0, 4);
+    });
+
+    it('without justActivated, the same stale-state scenario eases instead of snapping (the bug this fixes)', () => {
+      const target = new Vector3(0, 0, -20);
+      const body = new PositionComposerBody(target, 10, [0, 0], 1, [0, 0], 0.5);
+      const out = createCameraState();
+
+      body.update(out, 0.016, true);
+      body.update(out, 0.016, false);
+
+      target.set(40, -12, -30);
+      body.update(out, 0.016, false); // no reactivation signal — damper treats this as a normal retarget
+
+      const projected = projectToScreen(out, 1, target);
+      expect(Math.abs(projected.x) + Math.abs(projected.y)).toBeGreaterThan(0.01); // not centered yet
+    });
+
+    it('skips the dead zone check — a stale out.position inside the box would otherwise cause no reaction at all', () => {
+      const target = new Vector3(0, 0, -20);
+      const body = new PositionComposerBody(target, 10, [0, 0], 1, [0.9, 0.9], 0); // huge dead zone, instant damping
+      const out = createCameraState();
+      body.update(out, 0.016, true); // centers on target, well inside its own dead zone from here on
+
+      // a later session retargets close by — small enough that, if the dead zone check ran against the
+      // STALE (but numerically nearby) position, it would find "inside the box" and never react
+      target.set(0.5, 0, -20);
+      body.update(out, 0.016, true);
+
+      const projected = projectToScreen(out, 1, target);
+      expect(projected.x).toBeCloseTo(0, 4); // reacted anyway — justActivated bypasses the dead zone
+    });
+  });
+
   describe('hard limit', () => {
     it('forces the target back inside hardLimit even when heavy damping alone would leave it outside', () => {
       const target = new Vector3(20, 0, -20); // far outside on X

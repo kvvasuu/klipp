@@ -70,7 +70,7 @@ export class PositionComposerBody {
     this.hardLimit = hardLimit;
   }
 
-  update = (out: CameraState, dt: number): void => {
+  update = (out: CameraState, dt: number, justActivated: boolean): void => {
     if (!resolveTargetPosition(scratchTargetPosition, this.target)) return;
 
     scratchForward.set(0, 0, -1).applyQuaternion(out.quaternion);
@@ -95,7 +95,10 @@ export class PositionComposerBody {
     let desiredScreenX = this.screenPosition[0];
     let desiredScreenY = this.screenPosition[1];
 
-    if (this.deadZone[0] > 0 || this.deadZone[1] > 0) {
+    // justActivated skips the dead zone check entirely — same reasoning as RotationComposerAim's: it
+    // judges drift in out.position, which on a fresh activation is whatever an earlier, unrelated
+    // activation left behind, not a meaningful "current" to stay near
+    if (!justActivated && (this.deadZone[0] > 0 || this.deadZone[1] > 0)) {
       const errorX = currentRight / halfWidth - this.screenPosition[0];
       const errorY = currentUp / halfHeight - this.screenPosition[1];
 
@@ -112,6 +115,7 @@ export class PositionComposerBody {
       .addScaledVector(scratchRight, currentRight - desiredScreenX * halfWidth)
       .addScaledVector(scratchUp, currentUp - desiredScreenY * halfHeight);
 
+    if (justActivated) this.damper.reset();
     this.damper.update(out.position, scratchDesiredPosition, this.damping, dt);
 
     if (this.hardLimit[0] <= 0 && this.hardLimit[1] <= 0) return;

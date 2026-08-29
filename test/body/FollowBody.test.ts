@@ -142,6 +142,36 @@ describe('FollowBody', () => {
     });
   });
 
+  describe('justActivated', () => {
+    it('snaps straight to the desired position even with a warmed-up damper and a stale out.position', () => {
+      // offset (0,0,0): desired position === target, keeping the expected values simple below
+      const body = new FollowBody(new Vector3(10, 0, 0), new Vector3(0, 0, 0), 0.5);
+      const out = createCameraState();
+
+      body.update(out, 0.016, true); // first-ever session: snaps, warms up the damper
+      body.update(out, 0.016, false);
+
+      // a later, unrelated session: out.position is frozen at wherever the FIRST session left it
+      body.target = new Vector3(-40, 12, 3);
+      body.update(out, 0.016, true);
+
+      expect(out.position.equals(new Vector3(-40, 12, 3))).toBe(true);
+    });
+
+    it('without justActivated, the same stale-state scenario eases instead of snapping (the bug this fixes)', () => {
+      const body = new FollowBody(new Vector3(10, 0, 0), new Vector3(0, 0, 0), 0.5);
+      const out = createCameraState();
+
+      body.update(out, 0.016, true);
+      body.update(out, 0.016, false);
+
+      body.target = new Vector3(-40, 12, 3);
+      body.update(out, 0.016, false); // no reactivation signal — damper treats this as a normal retarget
+
+      expect(out.position.equals(new Vector3(-40, 12, 3))).toBe(false);
+    });
+  });
+
   describe('bindingMode', () => {
     it('defaults to lockToTarget (unchanged behavior from before bindingMode existed)', () => {
       const target = new Object3D();

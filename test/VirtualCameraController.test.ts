@@ -11,7 +11,7 @@ describe('VirtualCameraController', () => {
     controller.registerNoise((out) => (out.fov += 1));
 
     const out = createCameraState();
-    controller.update(out, 0.1);
+    controller.update(out, 0.1, false);
 
     expect(out.fov).toBe(121); // ((10 * 2) + 100) + 1 — only correct if strictly sequential
   });
@@ -21,7 +21,7 @@ describe('VirtualCameraController', () => {
     controller.registerBody((out, dt) => (out.position.x = dt * 10));
 
     const out = createCameraState();
-    controller.update(out, 0.5);
+    controller.update(out, 0.5, false);
 
     expect(out.position.x).toBeCloseTo(5, 10);
   });
@@ -32,7 +32,7 @@ describe('VirtualCameraController', () => {
     controller.registerNoise((out) => (out.position.x += 10));
 
     const out = createCameraState();
-    controller.update(out, 0.1);
+    controller.update(out, 0.1, false);
 
     expect(out.position.x).toBe(11);
   });
@@ -43,7 +43,7 @@ describe('VirtualCameraController', () => {
     controller.registerExtension((out) => (out.position.x += 10));
 
     const out = createCameraState();
-    controller.update(out, 0.1);
+    controller.update(out, 0.1, false);
 
     expect(out.position.x).toBe(11);
   });
@@ -53,11 +53,11 @@ describe('VirtualCameraController', () => {
     const unregister = controller.registerExtension((out) => (out.position.x += 100));
 
     const out = createCameraState();
-    controller.update(out, 0.1);
+    controller.update(out, 0.1, false);
     expect(out.position.x).toBe(100);
 
     unregister();
-    controller.update(out, 0.1);
+    controller.update(out, 0.1, false);
     expect(out.position.x).toBe(100); // unchanged — the extension no longer runs
   });
 
@@ -65,7 +65,7 @@ describe('VirtualCameraController', () => {
     const controller = new VirtualCameraController('a');
     const out = createCameraState();
 
-    expect(() => controller.update(out, 0.1)).not.toThrow();
+    expect(() => controller.update(out, 0.1, false)).not.toThrow();
   });
 
   it('the unregister function returned by registerBody/registerAim/registerNoise stops that writer', () => {
@@ -74,12 +74,12 @@ describe('VirtualCameraController', () => {
     const unregisterNoise = controller.registerNoise((out) => (out.position.x += 100));
 
     const out = createCameraState();
-    controller.update(out, 0.1);
+    controller.update(out, 0.1, false);
     expect(out.position.x).toBe(101);
 
     unregisterBody();
     unregisterNoise();
-    controller.update(out, 0.1);
+    controller.update(out, 0.1, false);
     expect(out.position.x).toBe(101); // unchanged — neither writer runs anymore
   });
 
@@ -91,7 +91,7 @@ describe('VirtualCameraController', () => {
     unregisterFirst(); // stale — the second registration already replaced it
 
     const out = createCameraState();
-    controller.update(out, 0.1);
+    controller.update(out, 0.1, false);
     expect(out.position.x).toBe(2);
   });
 
@@ -104,7 +104,7 @@ describe('VirtualCameraController', () => {
     controller.registerNoise(() => {});
 
     const out = createCameraState();
-    expect(controller.update(out, 0.1)).toBe(false);
+    expect(controller.update(out, 0.1, false)).toBe(false);
   });
 
   it('a writer that leaks a non-boolean truthy return (e.g. an expression-bodied assignment arrow like ' +
@@ -115,27 +115,43 @@ describe('VirtualCameraController', () => {
     controller.registerBody((out, dt) => (out.position.x = dt));
 
     const out = createCameraState();
-    expect(controller.update(out, 0.1)).toBe(false);
+    expect(controller.update(out, 0.1, false)).toBe(false);
   });
 
   it('true if the Body, the Aim, or ANY stacked Extension/Noise writer reports still being active', () => {
     const bodyActive = new VirtualCameraController('body');
     bodyActive.registerBody(() => true);
-    expect(bodyActive.update(createCameraState(), 0.1)).toBe(true);
+    expect(bodyActive.update(createCameraState(), 0.1, false)).toBe(true);
 
     const aimActive = new VirtualCameraController('aim');
     aimActive.registerAim(() => true);
-    expect(aimActive.update(createCameraState(), 0.1)).toBe(true);
+    expect(aimActive.update(createCameraState(), 0.1, false)).toBe(true);
 
     const extensionActive = new VirtualCameraController('extension');
     extensionActive.registerExtension(() => false);
     extensionActive.registerExtension(() => true); // second one active — must not be short-circuited away
-    expect(extensionActive.update(createCameraState(), 0.1)).toBe(true);
+    expect(extensionActive.update(createCameraState(), 0.1, false)).toBe(true);
 
     const noiseActive = new VirtualCameraController('noise');
     noiseActive.registerNoise(() => false);
     noiseActive.registerNoise(() => true); // second one reports active — must not be short-circuited away
-    expect(noiseActive.update(createCameraState(), 0.1)).toBe(true);
+    expect(noiseActive.update(createCameraState(), 0.1, false)).toBe(true);
+  });
+
+  describe('justActivated', () => {
+    it('is forwarded unchanged to Body, Aim, every Extension, and every Noise writer', () => {
+      const controller = new VirtualCameraController('a');
+      const seen: boolean[] = [];
+      controller.registerBody((_out, _dt, justActivated) => void seen.push(justActivated));
+      controller.registerAim((_out, _dt, justActivated) => void seen.push(justActivated));
+      controller.registerExtension((_out, _dt, justActivated) => void seen.push(justActivated));
+      controller.registerNoise((_out, _dt, justActivated) => void seen.push(justActivated));
+
+      controller.update(createCameraState(), 0.1, true);
+      controller.update(createCameraState(), 0.1, false);
+
+      expect(seen).toEqual([true, true, true, true, false, false, false, false]);
+    });
   });
 
   describe('double-registration dev warning', () => {

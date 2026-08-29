@@ -22,8 +22,9 @@ export class HardLockToTargetBody {
     this.damping = damping;
   }
 
-  update = (out: CameraState, dt: number): void => {
+  update = (out: CameraState, dt: number, justActivated: boolean): void => {
     if (!resolveTargetPosition(this.resolvedTarget, this.target)) return;
+    if (justActivated) this.damper.reset();
     this.damper.update(out.position, this.resolvedTarget, this.damping, dt);
   };
 }

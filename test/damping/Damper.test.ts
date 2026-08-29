@@ -81,6 +81,31 @@ describe('Damper', () => {
     expect(secondStep).not.toBeCloseTo(freshStep, 5);
   });
 
+  describe('reset', () => {
+    it('re-arms the first-call snap — the next update() returns target exactly, ignoring current', () => {
+      const damper = new Damper();
+      damper.update(0, 10, 0.5, 0.016); // consume the first-call snap
+      damper.update(0, 10, 0.5, 0.016); // build up real velocity/history
+      damper.reset();
+
+      const out = damper.update(999, -50, 0.5, 0.016); // wildly different current/target than before
+
+      expect(out).toBe(-50);
+      expect(damper.velocity).toBe(0);
+    });
+
+    it('clears velocity and distance history, not just the snap flag', () => {
+      const damper = new Damper();
+      damper.update(0, 10, 0.5, 0.016);
+      damper.update(0, 10, 0.5, 0.016);
+      expect(damper.velocity).not.toBe(0);
+
+      damper.reset();
+
+      expect(damper.velocity).toBe(0);
+    });
+  });
+
   describe('asymmetric into/from damping', () => {
     it('a plain number behaves exactly as before (no into/from split)', () => {
       const withNumber = new Damper();

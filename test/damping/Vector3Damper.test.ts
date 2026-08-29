@@ -75,4 +75,18 @@ describe('Vector3Damper', () => {
     const returned = damper.update(out, new Vector3(1, 2, 3), 0, 0.016);
     expect(returned).toBe(out);
   });
+
+  it('reset() re-arms the first-call snap on all three axes', () => {
+    const damper = new Vector3Damper();
+    const out = new Vector3();
+
+    damper.update(out, new Vector3(10, 0, 0), 0.5, 0.016); // consume the first-call snap
+    damper.update(out, new Vector3(10, 0, 0), 0.5, 0.016); // build up real velocity/history
+    damper.reset();
+
+    out.set(999, -999, 999); // a stale value unrelated to the next target
+    damper.update(out, new Vector3(1, 2, 3), 0.5, 0.016);
+
+    expect(out.equals(new Vector3(1, 2, 3))).toBe(true);
+  });
 });
