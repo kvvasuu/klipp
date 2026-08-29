@@ -247,6 +247,60 @@ describe('VirtualCamera — active prop', () => {
     await renderer.advanceFrames(1, 0.1);
     expect(runs).toBe(1); // the already-mounted writer just starts running, no remount needed
   });
+
+  it('justActivated is true on the first call after mount, then false on every following call', async () => {
+    const seen: boolean[] = [];
+    function Writer() {
+      const slots = useVirtualCameraSlots();
+      useEffect(
+        () => slots.registerBody((_out, _dt, justActivated) => void seen.push(justActivated)),
+        [slots],
+      );
+      return null;
+    }
+
+    const renderer = await create(
+      <Klipp>
+        <VirtualCamera name="a" priority={10}>
+          <Writer />
+        </VirtualCamera>
+      </Klipp>,
+    );
+    await renderer.advanceFrames(3, 0.1);
+
+    expect(seen).toEqual([true, false, false]);
+  });
+
+  it('justActivated is true again on the first call after an active:false→true toggle, not just on mount', async () => {
+    const seen: boolean[] = [];
+    function Writer() {
+      const slots = useVirtualCameraSlots();
+      useEffect(
+        () => slots.registerBody((_out, _dt, justActivated) => void seen.push(justActivated)),
+        [slots],
+      );
+      return null;
+    }
+
+    const scene = (active: boolean) => (
+      <Klipp>
+        <VirtualCamera name="a" priority={10} active={active}>
+          <Writer />
+        </VirtualCamera>
+      </Klipp>
+    );
+
+    const renderer = await create(scene(true));
+    await renderer.advanceFrames(2, 0.1); // first call true, second false
+
+    await renderer.update(scene(false)); // deactivate — Writer stays mounted, just stops being called
+    await renderer.advanceFrames(2, 0.1); // no calls while inactive
+
+    await renderer.update(scene(true)); // reactivate — a NEW "session"
+    await renderer.advanceFrames(2, 0.1);
+
+    expect(seen).toEqual([true, false, true, false]);
+  });
 });
 
 describe('useIsActiveVirtualCamera', () => {

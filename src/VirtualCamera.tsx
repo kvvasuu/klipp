@@ -82,7 +82,15 @@ export function VirtualCamera({ name, priority, active = true, children }: Virtu
 
   useEffect(() => {
     if (!active) return;
-    return registerUpdate((dt) => controller.update(state, dt));
+    // true only for the first call after THIS effect run (i.e. this activation) — re-armed fresh every
+    // time `active` flips false→true, since the effect (and this closure) reruns from scratch then; see
+    // CameraStateWriter's doc comment for why Body/Aim/Extension/Noise care
+    let justActivated = true;
+    return registerUpdate((dt) => {
+      const stillInFlight = controller.update(state, dt, justActivated);
+      justActivated = false;
+      return stillInFlight;
+    });
   }, [registerUpdate, controller, state, active]);
 
   const isActive = useSyncExternalStore(core.subscribeActiveId, () => active && core.isActive(name));

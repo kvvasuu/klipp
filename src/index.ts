@@ -58,3 +58,8 @@ export { Noise } from './noise/Noise';
 export { ImpulseManager, impulseManager, type GenerateImpulseOptions } from './impulse/ImpulseManager';
 export { ImpulseListenerNoise } from './impulse/ImpulseListenerNoise';
 export { ImpulseListener, type ImpulseListenerProps } from './impulse/ImpulseListener';
+
+export { TargetGroup, type TargetGroupMember, type TargetGroupPositionMode } from './framing/TargetGroup';
+export { GroupFramingExtension } from './framing/GroupFramingExtension';
+export { GroupFraming, type GroupFramingProps } from './framing/GroupFraming';
+export { Extension } from './framing/Extension';

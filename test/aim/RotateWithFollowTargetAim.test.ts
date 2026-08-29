@@ -180,4 +180,41 @@ describe('RotateWithFollowTargetAim', () => {
       expectQuaternionsClose(out.quaternion, targetQuaternion);
     });
   });
+
+  describe('justActivated', () => {
+    it('snaps straight to the target rotation even with a warmed-up damper and a stale out.quaternion', () => {
+      const target = new Object3D();
+      target.rotation.set(0, Math.PI / 2, 0); // off-axis, so warm-up below exercises real damping
+
+      const aim = new RotateWithFollowTargetAim(target, 0.5);
+      const out = createCameraState();
+
+      aim.update(out, 0.016, true); // first-ever session: snaps, warms up the damper
+      aim.update(out, 0.016, false);
+
+      // a later, unrelated session: out.quaternion is frozen at wherever the FIRST session left it
+      target.rotation.set(1.2, -0.5, 0.3);
+      const newTargetQuaternion = new Quaternion().setFromEuler(target.rotation);
+      aim.update(out, 0.016, true);
+
+      expectQuaternionsClose(out.quaternion, newTargetQuaternion);
+    });
+
+    it('without justActivated, the same stale-state scenario eases instead of snapping (the bug this fixes)', () => {
+      const target = new Object3D();
+      target.rotation.set(0, Math.PI / 2, 0);
+
+      const aim = new RotateWithFollowTargetAim(target, 0.5);
+      const out = createCameraState();
+
+      aim.update(out, 0.016, true);
+      aim.update(out, 0.016, false);
+
+      target.rotation.set(1.2, -0.5, 0.3);
+      const newTargetQuaternion = new Quaternion().setFromEuler(target.rotation);
+      aim.update(out, 0.016, false); // no reactivation signal — damps from the stale orientation instead
+
+      expect(out.quaternion.angleTo(newTargetQuaternion)).toBeGreaterThan(0.01);
+    });
+  });
 });

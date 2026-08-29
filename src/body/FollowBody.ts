@@ -58,12 +58,13 @@ export class FollowBody {
     this.bindingMode = bindingMode;
   }
 
-  update = (out: CameraState, dt: number): void => {
+  update = (out: CameraState, dt: number, justActivated: boolean): void => {
     if (!resolveTargetPosition(this.targetPosition, this.target)) return;
 
     this.resolveOffsetRotation(scratchRotation);
     this.desiredPosition.copy(this.offset).applyQuaternion(scratchRotation).add(this.targetPosition);
 
+    if (justActivated) this.damper.reset();
     this.damper.update(out.position, this.desiredPosition, this.damping, dt);
   };
 

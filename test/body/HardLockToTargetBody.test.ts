@@ -155,4 +155,35 @@ describe('HardLockToTargetBody', () => {
       expect(out.position.x).toBe(10);
     });
   });
+
+  describe('justActivated', () => {
+    it('snaps straight to target even with a warmed-up damper and a stale out.position', () => {
+      const body = new HardLockToTargetBody(new Vector3(10, 0, 0), 0.5);
+      const out = createCameraState();
+
+      body.update(out, 0.016, true); // first-ever session: snaps, warms up the damper
+      body.update(out, 0.016, false);
+
+      // simulate a DIFFERENT, later session: out.position is frozen at wherever the FIRST session left
+      // it, unrelated to the new target below — same shape as a VirtualCamera reactivating with a brand
+      // new focus point after being inactive for a while
+      body.target = new Vector3(-40, 12, 3);
+      body.update(out, 0.016, true);
+
+      expect(out.position.equals(new Vector3(-40, 12, 3))).toBe(true);
+    });
+
+    it('without justActivated, the same stale-state scenario eases instead of snapping (the bug this fixes)', () => {
+      const body = new HardLockToTargetBody(new Vector3(10, 0, 0), 0.5);
+      const out = createCameraState();
+
+      body.update(out, 0.016, true);
+      body.update(out, 0.016, false);
+
+      body.target = new Vector3(-40, 12, 3);
+      body.update(out, 0.016, false); // no reactivation signal — damper treats this as a normal retarget
+
+      expect(out.position.equals(new Vector3(-40, 12, 3))).toBe(false);
+    });
+  });
 });

@@ -285,4 +285,53 @@ describe('RotationComposerAim', () => {
       expect(withLimit.quaternion.equals(withoutLimit.quaternion)).toBe(true);
     });
   });
+
+  describe('justActivated', () => {
+    it('snaps straight to target even with a warmed-up damper and a stale out.quaternion', () => {
+      // off-axis from identity (unlike straight down -Z) so the warm-up calls below exercise REAL
+      // damping, not the angle~0 shortcut that would leave the underlying Damper looking un-warmed
+      const aim = new RotationComposerAim(new Vector3(10, 0, -10), [0, 0], 1, [0, 0], 0.5);
+      const out = createCameraState();
+
+      aim.update(out, 0.016, true); // first-ever session: snaps, warms up the damper
+      aim.update(out, 0.016, false); // already at target: settles, still genuinely warmed up
+
+      // a later, unrelated session: out.quaternion is frozen at wherever the FIRST session left it
+      aim.target = new Vector3(30, -8, -5);
+      aim.update(out, 0.016, true);
+
+      const projected = projectToScreen(out, 1, aim.target);
+      expect(projected.x).toBeCloseTo(0, 5);
+      expect(projected.y).toBeCloseTo(0, 5);
+    });
+
+    it('without justActivated, the same stale-state scenario eases instead of snapping (the bug this fixes)', () => {
+      const aim = new RotationComposerAim(new Vector3(10, 0, -10), [0, 0], 1, [0, 0], 0.5);
+      const out = createCameraState();
+
+      aim.update(out, 0.016, true);
+      aim.update(out, 0.016, false);
+
+      aim.target = new Vector3(30, -8, -5);
+      aim.update(out, 0.016, false); // no reactivation signal — damps from the stale orientation instead
+
+      const projected = projectToScreen(out, 1, aim.target);
+      expect(Math.abs(projected.x) + Math.abs(projected.y)).toBeGreaterThan(0.01); // not centered yet
+    });
+
+    it('skips the dead zone check — a stale out.quaternion inside the box would otherwise cause no reaction at all', () => {
+      const target = new Vector3(0, 0, -10);
+      const aim = new RotationComposerAim(target, [0, 0], 1, [0.9, 0.9], 0); // huge dead zone, instant damping
+      const out = createCameraState();
+      aim.update(out, 0.016, true); // centers on target, well inside its own dead zone from here on
+
+      // a later session retargets close by — small enough that, if the dead zone check ran against the
+      // STALE (but numerically nearby) orientation, it would find "inside the box" and never react
+      aim.target = new Vector3(0.5, 0, -10);
+      aim.update(out, 0.016, true);
+
+      const projected = projectToScreen(out, 1, aim.target);
+      expect(projected.x).toBeCloseTo(0, 5); // reacted anyway — justActivated bypasses the dead zone
+    });
+  });
 });

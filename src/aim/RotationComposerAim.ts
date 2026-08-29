@@ -115,7 +115,7 @@ export class RotationComposerAim {
     this.targetOffset = targetOffset;
   }
 
-  update = (out: CameraState, dt: number): void => {
+  update = (out: CameraState, dt: number, justActivated: boolean): void => {
     if (!resolveTargetPosition(scratchTargetPosition, this.target)) return;
 
     if (!resolveTargetRotation(scratchTargetRotation, this.target)) scratchTargetRotation.identity();
@@ -128,7 +128,10 @@ export class RotationComposerAim {
     let desiredX = this.screenPosition[0];
     let desiredY = this.screenPosition[1];
 
-    if (this.deadZone[0] > 0 || this.deadZone[1] > 0) {
+    // justActivated skips the dead zone check entirely — it exists to judge whether `out.quaternion`'s
+    // CURRENT orientation has drifted from screenPosition, but on a fresh activation that orientation is
+    // whatever an earlier, unrelated activation left behind, not a meaningful "current" to stay near
+    if (!justActivated && (this.deadZone[0] > 0 || this.deadZone[1] > 0)) {
       // where does the target CURRENTLY appear, given out's existing (pre-this-frame) orientation?
       scratchOutInverse.copy(out.quaternion).invert();
       const [screenX, screenY, depth] = computeScreenPoint(
@@ -162,6 +165,7 @@ export class RotationComposerAim {
       tanHalfFovH,
       tanHalfFovV,
     );
+    if (justActivated) this.damper.reset();
     this.damper.update(out.quaternion, scratchTargetQuaternion, this.damping, dt);
 
     if (this.hardLimit[0] <= 0 && this.hardLimit[1] <= 0) return;

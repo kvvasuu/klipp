@@ -71,4 +71,14 @@ export class Damper {
 
     return output;
   }
+
+  /** Forgets `velocity`/history and re-arms the first-call snap — the NEXT `update()` call returns
+   *  `target` exactly, as if this were a brand new `Damper`. For a caller resuming after a gap where
+   *  `current` wasn't being tracked at all (so it's frozen at a stale, unrelated value): without this,
+   *  that next call would ease FROM that stale value instead of snapping onto the real one. */
+  reset(): void {
+    this.velocity = 0;
+    this.previousDistance = 0;
+    this.hasUpdated = false;
+  }
 }

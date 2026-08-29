@@ -22,8 +22,9 @@ export class RotateWithFollowTargetAim {
     this.damping = damping;
   }
 
-  update = (out: CameraState, dt: number): void => {
+  update = (out: CameraState, dt: number, justActivated: boolean): void => {
     if (!resolveTargetRotation(scratchTargetRotation, this.target)) return;
+    if (justActivated) this.damper.reset();
     this.damper.update(out.quaternion, scratchTargetRotation, this.damping, dt);
   };
 }

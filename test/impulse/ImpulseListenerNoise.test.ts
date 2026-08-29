@@ -13,7 +13,7 @@ describe('ImpulseListenerNoise', () => {
     const out = createCameraState();
     out.position.set(5, 0, 0);
 
-    listener.update(out, 0.1, 0.5); // explicit now — within the event's sustain window
+    listener.update(out, 0.1, false, 0.5); // explicit now — within the event's sustain window
 
     expect(out.position.x).toBeCloseTo(8, 4);
   });
@@ -27,7 +27,7 @@ describe('ImpulseListenerNoise', () => {
     out.quaternion.set(0.1, 0.2, 0.3, 0.9).normalize();
     const before = out.quaternion.clone();
 
-    listener.update(out, 0.1, 0.5);
+    listener.update(out, 0.1, false, 0.5);
 
     expect(out.quaternion.equals(before)).toBe(true);
   });
@@ -39,7 +39,7 @@ describe('ImpulseListenerNoise', () => {
     const listener = new ImpulseListenerNoise(manager, 1, 2); // gain = 2
     const out = createCameraState();
 
-    listener.update(out, 0.1, 0.5);
+    listener.update(out, 0.1, false, 0.5);
 
     expect(out.position.x).toBeCloseTo(6, 4);
   });
@@ -51,7 +51,7 @@ describe('ImpulseListenerNoise', () => {
     const listener = new ImpulseListenerNoise(manager, 0b01); // wrong channel
     const out = createCameraState();
 
-    listener.update(out, 0.1, 0.5);
+    listener.update(out, 0.1, false, 0.5);
 
     expect(out.position.x).toBe(0);
   });
@@ -69,8 +69,8 @@ describe('ImpulseListenerNoise', () => {
     const far = createCameraState();
     far.position.set(90, 0, 0);
 
-    listener.update(near, 0.1, 0.5);
-    listener.update(far, 0.1, 0.5);
+    listener.update(near, 0.1, false, 0.5);
+    listener.update(far, 0.1, false, 0.5);
 
     const nearOffset = near.position.x - 0;
     const farOffset = far.position.x - 90;
@@ -83,7 +83,7 @@ describe('ImpulseListenerNoise', () => {
 
     const listener = new ImpulseListenerNoise(manager);
     const out = createCameraState();
-    listener.update(out, 0.1); // no explicit now — falls back to the real clock, same domain as generate() above
+    listener.update(out, 0.1, false); // no explicit now — falls back to the real clock, same domain as generate() above
 
     expect(out.position.x).toBeCloseTo(7, 4);
   });
@@ -94,7 +94,7 @@ describe('ImpulseListenerNoise', () => {
 
     const listener = new ImpulseListenerNoise();
     const out = createCameraState();
-    listener.update(out, 0.1);
+    listener.update(out, 0.1, false);
 
     expect(out.position.x).toBeCloseTo(7, 4);
   });
@@ -107,12 +107,12 @@ describe('ImpulseListenerNoise', () => {
 
     const listener = new ImpulseListenerNoise(managerA);
     const out = createCameraState();
-    listener.update(out, 0.1, 0.5);
+    listener.update(out, 0.1, false, 0.5);
     expect(out.position.x).toBeCloseTo(3, 4);
 
     listener.manager = managerB;
     out.position.set(0, 0, 0);
-    listener.update(out, 0.1, 0.5);
+    listener.update(out, 0.1, false, 0.5);
     expect(out.position.x).toBeCloseTo(9, 4);
   });
 
@@ -136,9 +136,9 @@ describe('ImpulseListenerNoise', () => {
 
     // two samples deep in the flat sustain plateau — out.position.x is identical both times, but the
     // event is still in flight and klipp must not treat that as "settled forever"
-    expect(listener.update(out, 0.1, 0.4)).toBe(true);
-    expect(listener.update(out, 0.1, 0.5)).toBe(true);
+    expect(listener.update(out, 0.1, false, 0.4)).toBe(true);
+    expect(listener.update(out, 0.1, false, 0.5)).toBe(true);
 
-    expect(listener.update(out, 0.1, 5)).toBe(false); // well past the whole envelope
+    expect(listener.update(out, 0.1, false, 5)).toBe(false); // well past the whole envelope
   });
 });

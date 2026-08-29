@@ -85,4 +85,21 @@ describe('QuaternionDamper', () => {
     const returned = damper.update(out, target, 0, 0.016);
     expect(returned).toBe(out);
   });
+
+  it('reset() re-arms the first-call snap', () => {
+    const damper = new QuaternionDamper();
+    const firstTarget = new Quaternion().setFromAxisAngle(new Vector3(0, 1, 0), Math.PI / 2);
+    const out = new Quaternion();
+
+    damper.update(out, firstTarget, 0.5, 0.016); // consume the first-call snap
+    out.identity();
+    damper.update(out, firstTarget, 0.5, 0.016); // build up real velocity/history
+    damper.reset();
+
+    out.setFromAxisAngle(new Vector3(1, 0, 0), 2); // a stale orientation unrelated to the next target
+    const newTarget = new Quaternion().setFromAxisAngle(new Vector3(0, 0, 1), 0.4);
+    damper.update(out, newTarget, 0.5, 0.016);
+
+    expect(out.angleTo(newTarget)).toBeLessThan(1e-9);
+  });
 });
