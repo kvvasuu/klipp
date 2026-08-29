@@ -143,6 +143,25 @@ describe('ImpulseManager', () => {
     expect(out.x).toBeCloseTo(10, 5);
   });
 
+  it('propagationSpeed=0 degrades to "no delay" instead of Infinity/NaN (real bug: it either leaked the event forever or dropped it before it could ever be felt)', () => {
+    const leakProne = new ImpulseManager(); // radius/dissipationDistance > 0: old code divided by zero -> Infinity -> never expired
+    leakProne.generate(
+      { position: [0, 0, 0], direction: [10, 0, 0], sustainTime: 0.1, decayTime: 0, radius: 5, propagationSpeed: 0 },
+      0,
+    );
+    const out = new Vector3();
+    leakProne.sampleAt(out, new Vector3(), 1, 1000); // long past the envelope
+    expect(leakProne.hasEvents).toBe(false);
+
+    const dropProne = new ImpulseManager(); // radius/dissipationDistance both 0 (default): old code divided 0/0 -> NaN -> pruned instantly
+    dropProne.generate(
+      { position: [0, 0, 0], direction: [10, 0, 0], attackTime: 0, sustainTime: 1, decayTime: 0, propagationSpeed: 0 },
+      0,
+    );
+    dropProne.sampleAt(out, new Vector3(), 1, 0.5); // well within the envelope, at the exact source position
+    expect(out.x).toBeCloseTo(10, 5);
+  });
+
   it('channel: a listener whose mask does not overlap the event channel feels nothing', () => {
     const manager = new ImpulseManager();
     manager.generate(

@@ -106,7 +106,12 @@ export class ImpulseManager {
     const propagationSpeed = options.propagationSpeed ?? Infinity;
 
     const envelopeDuration = attackTime + sustainTime + decayTime;
-    const maxDelay = Number.isFinite(propagationSpeed) ? (radius + dissipationDistance) / propagationSpeed : 0;
+    // propagationSpeed <= 0 (e.g. 0 itself) degrades to the same "no delay" behavior as Infinity, same as
+    // dissipationDistance <= 0 degrading to "no falloff" below — dividing by it directly would otherwise
+    // produce Infinity (radius/dissipationDistance > 0: the event would never expire, a permanent leak)
+    // or NaN (both 0: expiresAt itself becomes NaN, pruned on the very next sampleAt before ever felt)
+    const hasPropagationDelay = Number.isFinite(propagationSpeed) && propagationSpeed > 0;
+    const maxDelay = hasPropagationDelay ? (radius + dissipationDistance) / propagationSpeed : 0;
 
     this.events.push({
       position: resolveVector3(new Vector3(), options.position),
@@ -143,7 +148,8 @@ export class ImpulseManager {
       if ((event.channel & channelMask) === 0) continue;
 
       const distance = position.distanceTo(event.position);
-      const delay = Number.isFinite(event.propagationSpeed) ? distance / event.propagationSpeed : 0;
+      const hasPropagationDelay = Number.isFinite(event.propagationSpeed) && event.propagationSpeed > 0;
+      const delay = hasPropagationDelay ? distance / event.propagationSpeed : 0;
       const localTime = now - event.startTime - delay;
 
       const amplitude =
