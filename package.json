@@ -1,5 +1,5 @@
 {
-  "name": "klipp",
+  "name": "@kvvasu/klipp",
   "version": "0.1.0",
   "description": "Declarative virtual camera library for react-three-fiber, inspired by Unity Cinemachine.",
   "keywords": [
@@ -37,6 +37,9 @@
   "files": [
     "dist"
   ],
+  "publishConfig": {
+    "access": "public"
+  },
   "packageManager": "pnpm@11.15.1",
   "scripts": {
     "clean": "node -e \"require('node:fs').rmSync('dist', { recursive: true, force: true })\"",

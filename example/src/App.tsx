@@ -11,8 +11,8 @@ import {
   VirtualCamera,
   impulseManager,
   type BindingMode,
-} from 'klipp';
-import { OrbitalControls } from 'klipp/body/orbital-controls';
+} from '@kvvasu/klipp';
+import { OrbitalControls } from '@kvvasu/klipp/body/orbital-controls';
 import { useEffect, useRef, useState, type RefObject } from 'react';
 import { Group, Vector3, type Object3D } from 'three';
 import './App.css';
