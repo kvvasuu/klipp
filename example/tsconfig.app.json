@@ -16,7 +16,8 @@
     "noEmit": true,
     "jsx": "react-jsx",
     "paths": {
-      "klipp": ["../src/index.ts"]
+      "klipp": ["../src/index.ts"],
+      "klipp/body/orbital-controls": ["../src/body/OrbitalControls.tsx"]
     },
 
     /* Linting */

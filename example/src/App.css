@@ -22,3 +22,48 @@
   border-color: #aa3bff;
   color: #fff;
 }
+
+.menu-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  background: rgba(0, 0, 0, 0.35);
+  color: #eee;
+  text-align: center;
+  font-family: system-ui, sans-serif;
+}
+
+.menu-overlay h1 {
+  margin: 0;
+  font-size: 32px;
+  letter-spacing: 0.05em;
+}
+
+.menu-overlay button {
+  padding: 10px 28px;
+  border-radius: 6px;
+  border: 1px solid #aa3bff;
+  background: #aa3bff;
+  color: #fff;
+  font-size: 16px;
+  cursor: pointer;
+}
+
+.hint-text {
+  position: absolute;
+  bottom: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 5;
+  color: #ccc;
+  font-family: system-ui, sans-serif;
+  font-size: 13px;
+  background: rgba(0, 0, 0, 0.5);
+  padding: 6px 14px;
+  border-radius: 6px;
+}

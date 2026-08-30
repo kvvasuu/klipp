@@ -1,9 +1,11 @@
-import { Canvas, useFrame } from '@react-three/fiber';
-import { Aim, Body, Klipp, Noise, VirtualCamera, impulseManager } from 'klipp';
+import { Stats } from '@react-three/drei';
+import { Canvas, invalidate, useFrame, useThree, type ThreeEvent } from '@react-three/fiber';
+import { Aim, BlendCurves, Body, Extension, Klipp, Noise, VirtualCamera, impulseManager } from 'klipp';
 import { OrbitalControls } from 'klipp/body/orbital-controls';
-import { useRef, useState, type RefObject } from 'react';
+import { useEffect, useRef, useState, type RefObject } from 'react';
 import { Group, Vector3, type Object3D } from 'three';
 import './App.css';
+import { CapstoneScene } from './CapstoneScene';
 
 const headOffset = new Vector3(0, 1.3, 0);
 
@@ -85,11 +87,14 @@ function TargetOffsetScene({ offsetEnabled }: { offsetEnabled: boolean }) {
 }
 
 function ZigzagTarget({ targetRef }: { targetRef: RefObject<Object3D | null> }) {
-  useFrame(({ clock }) => {
+  useFrame((state) => {
     const target = targetRef.current;
     if (!target) return;
-    const t = clock.elapsedTime;
+    const t = state.clock.elapsedTime;
     target.position.set(Math.sin(t * 2.2) * 15, 2, -6);
+    // imperative position mutation, not a reactive prop — frameloop="demand" won't schedule the next
+    // frame on its own, so this has to ask for it every time it moves
+    state.invalidate();
   });
   return (
     <mesh ref={targetRef}>
@@ -177,6 +182,9 @@ function triggerExplosion() {
     sustainTime: 0.05,
     decayTime: 0.5,
   });
+  // impulseManager is a plain, React-agnostic registry (by design) — generate() alone touches no
+  // reactive state, so frameloop="demand" would never schedule a frame to sample the shake at all
+  invalidate();
 }
 
 /**
@@ -263,7 +271,181 @@ function OrbitalScene({ activeCamera }: { activeCamera: OrbitalActiveCamera }) {
   );
 }
 
-type Demo = 'offset' | 'hardLimit' | 'noise' | 'explosion' | 'orbital';
+const focusBoxCenter: [number, number, number] = [0, 1, 0];
+const focusBoxSize: [number, number, number] = [1, 2, 1];
+
+function FocusBox({ onBoxClick }: { onBoxClick: (point: Vector3) => void }) {
+  return (
+    <mesh
+      position={focusBoxCenter}
+      onClick={(e: ThreeEvent<MouseEvent>) => {
+        e.stopPropagation();
+        onBoxClick(e.point);
+      }}>
+      <boxGeometry args={focusBoxSize} />
+      <meshStandardMaterial color="steelblue" />
+    </mesh>
+  );
+}
+
+const reactivationTargets: Record<'A' | 'B', [number, number, number]> = {
+  A: [-10, 1, -3],
+  B: [10, 1, 6],
+};
+
+/** Marker for one of ReactivationSnapScene's two candidate targets — brighter/larger when it's the one
+ *  currently being tracked, so it's obvious at a glance which target is "live" right now. */
+function ReactivationMarker({ position, active }: { position: [number, number, number]; active: boolean }) {
+  return (
+    <mesh position={position} scale={active ? 1 : 0.6}>
+      <sphereGeometry args={[0.6, 16, 16]} />
+      <meshStandardMaterial color={active ? '#ffcc33' : '#555'} emissive={active ? '#996600' : '#000000'} />
+    </mesh>
+  );
+}
+
+/**
+ * Purpose-built smoke test for `justActivated` (the "snap fresh on active:false→true" fix, see
+ * `CameraStateWriter`'s doc comment) — deliberately adversarial: two targets far enough apart that any
+ * leftover easing from a stale position is obviously visible, damping slow enough (1.5s) to make a
+ * snap-vs-ease difference unmistakable. Position uses `Follow` (a single Vector3Damper end to end) rather
+ * than `PositionComposer` on purpose — the latter's stage-1 dolly is always instant/undamped by design,
+ * which would read as "jump, then only the lateral part eases" for the active-retarget case below,
+ * muddying what this scene is actually testing. `RotationComposer`'s `deadZone` still covers the
+ * dead-zone-skip path on the rotation side — `FocusReproScene`'s `RotationComposer` (`deadZone=[0,0]`
+ * default) never touches it.
+ *
+ * Test procedure: with the camera ACTIVE, switch targets — it EASES (damping working normally, the
+ * regression case that must keep working). Deactivate, switch targets while INACTIVE (the view freezes —
+ * nothing reacts, no wasted work), then reactivate — the camera should SNAP straight onto the new target
+ * instantly, never swinging through wherever it was left off.
+ */
+function ReactivationSnapScene({ targetKey, cameraActive }: { targetKey: 'A' | 'B'; cameraActive: boolean }) {
+  const targetPosition = reactivationTargets[targetKey];
+
+  return (
+    <>
+      <ambientLight intensity={0.6} />
+      <directionalLight position={[5, 8, 3]} intensity={1.2} />
+      <gridHelper args={[40, 40, '#444', '#222']} position={[0, 0.01, 0]} />
+
+      <ReactivationMarker position={reactivationTargets.A} active={targetKey === 'A'} />
+      <ReactivationMarker position={reactivationTargets.B} active={targetKey === 'B'} />
+
+      <Klipp>
+        <VirtualCamera name="reactivation-tester" active={cameraActive} priority={10}>
+          {/* Follow, not PositionComposer: a single Vector3Damper end to end, so an active-camera retarget
+              (the regression case) reads as one clean ease — PositionComposer's stage-1 dolly is always
+              instant/undamped by design, which would show as "jump, then the lateral part eases in",
+              muddying what this scene is actually testing (unrelated to justActivated). */}
+          <Body.Follow target={targetPosition} offset={[0, 5, 16]} damping={1.5} bindingMode="worldSpace" />
+          <Aim.RotationComposer target={targetPosition} deadZone={[0.2, 0.2]} damping={1.5} />
+        </VirtualCamera>
+      </Klipp>
+    </>
+  );
+}
+
+/**
+ * Click-to-zoom repro: clicking the box pulls the camera back 0.5 units from the clicked point along the
+ * (current-camera → point) direction and looks straight at that point, as a second `<VirtualCamera>` that
+ * outranks "manual-orbit" (`Body.OrbitalControls`, the default view). Esc returns to "manual-orbit",
+ * which keeps tracking any drag/scroll input the whole time it wasn't showing.
+ */
+function FocusReproScene() {
+  const { camera, invalidate } = useThree();
+  const [focusActive, setFocusActive] = useState(false);
+  const focusPosition = useRef(new Vector3()).current;
+  const focusLookAt = useRef(new Vector3()).current;
+  const dirScratch = useRef(new Vector3()).current;
+
+  function handleBoxClick(point: Vector3) {
+    dirScratch.subVectors(camera.position, point).normalize();
+    focusPosition.copy(point).addScaledVector(dirScratch, 0.5);
+    focusLookAt.copy(point);
+    setFocusActive(true);
+    // unconditional, not just on the false→true edge: retargeting while ALREADY on "focus" mutates
+    // focusPosition/focusLookAt in place with no prop/active change for VirtualCamera to react to, so
+    // its own invalidate() (on activation) never fires for this click — same rule as ZigzagTarget/
+    // triggerExplosion, just triggered from a click handler instead of useFrame
+    invalidate();
+  }
+
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === 'Escape') setFocusActive(false);
+    }
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
+  return (
+    <>
+      <ambientLight intensity={0.6} />
+      <directionalLight position={[5, 8, 3]} intensity={1.2} />
+      <gridHelper args={[24, 24, '#444', '#222']} position={[0, 0.01, 0]} />
+
+      <FocusBox onBoxClick={handleBoxClick} />
+
+      <Klipp defaultBlend={{ curve: BlendCurves.easeInOut, time: 1 }}>
+        <VirtualCamera name="manual-orbit" active={!focusActive} priority={5}>
+          <OrbitalControls target={focusBoxCenter} initialDistance={10} />
+        </VirtualCamera>
+        <VirtualCamera name="focus" active={focusActive} priority={20}>
+          <Body.HardLockToTarget target={focusPosition} damping={0.5} />
+          <Aim.RotationComposer target={focusLookAt} damping={0.5} />
+        </VirtualCamera>
+      </Klipp>
+    </>
+  );
+}
+
+/**
+ * A box that always stays fully in frame, with a fixed pixel margin, as it grows/shrinks (slider) or the
+ * canvas resizes (browser window) — `Extension.GroupFraming` dollies the camera back/forward along
+ * whatever direction `Body.Follow` + `Aim.HardLookAt` already established, using a `TargetGroup` with
+ * this one box as its only member (radius = the box's own bounding-sphere radius).
+ */
+function GroupFramingScene({ boxSize, paddingPixels }: { boxSize: number; paddingPixels: number }) {
+  const boxRef = useRef<Object3D>(null);
+  const boxRadius = (boxSize * Math.sqrt(3)) / 2; // half-diagonal of a cube = its bounding-sphere radius
+
+  return (
+    <>
+      <ambientLight intensity={0.6} />
+      <directionalLight position={[5, 8, 3]} intensity={1.2} />
+      <gridHelper args={[24, 24, '#444', '#222']} position={[0, 0.01, 0]} />
+
+      <mesh ref={boxRef} position={[0, boxSize / 2, 0]}>
+        <boxGeometry args={[boxSize, boxSize, boxSize]} />
+        <meshStandardMaterial color="steelblue" />
+      </mesh>
+
+      <Klipp>
+        <VirtualCamera name="groupFraming-demo" active={true} priority={10}>
+          <Body.Follow target={boxRef} offset={[0, 2, 5]} damping={0} />
+          <Aim.HardLookAt target={boxRef} />
+          <Extension.GroupFraming
+            members={[{ target: boxRef, radius: boxRadius }]}
+            paddingPixels={paddingPixels}
+            damping={0.5}
+          />
+        </VirtualCamera>
+      </Klipp>
+    </>
+  );
+}
+
+type Demo =
+  | 'offset'
+  | 'hardLimit'
+  | 'noise'
+  | 'explosion'
+  | 'orbital'
+  | 'focusRepro'
+  | 'groupFraming'
+  | 'reactivationSnap'
+  | 'capstone';
 
 function App() {
   const [demo, setDemo] = useState<Demo>('offset');
@@ -271,6 +453,10 @@ function App() {
   const [hardLimitEnabled, setHardLimitEnabled] = useState(false);
   const [noisePreset, setNoisePreset] = useState<NoisePreset>('off');
   const [orbitalActiveCamera, setOrbitalActiveCamera] = useState<OrbitalActiveCamera>('orbital');
+  const [boxSize, setBoxSize] = useState(2);
+  const [paddingPixels, setPaddingPixels] = useState(40);
+  const [reactivationTarget, setReactivationTarget] = useState<'A' | 'B'>('A');
+  const [reactivationCameraActive, setReactivationCameraActive] = useState(true);
 
   return (
     <>
@@ -289,6 +475,18 @@ function App() {
         </button>
         <button data-active={demo === 'orbital'} onClick={() => setDemo('orbital')}>
           Orbital
+        </button>
+        <button data-active={demo === 'focusRepro'} onClick={() => setDemo('focusRepro')}>
+          Focus Repro
+        </button>
+        <button data-active={demo === 'groupFraming'} onClick={() => setDemo('groupFraming')}>
+          Group Framing
+        </button>
+        <button data-active={demo === 'reactivationSnap'} onClick={() => setDemo('reactivationSnap')}>
+          Reactivation Snap
+        </button>
+        <button data-active={demo === 'capstone'} onClick={() => setDemo('capstone')}>
+          Capstone
         </button>
         {demo === 'offset' && (
           <button data-active={offsetEnabled} onClick={() => setOffsetEnabled((v) => !v)}>
@@ -324,14 +522,76 @@ function App() {
             </button>
           </>
         )}
+        {demo === 'groupFraming' && (
+          <>
+            <label>
+              Box size: {boxSize.toFixed(1)}
+              <input
+                type="range"
+                min={0.5}
+                max={8}
+                step={0.1}
+                value={boxSize}
+                onChange={(e) => setBoxSize(Number(e.target.value))}
+              />
+            </label>
+            <label>
+              Padding: {paddingPixels}px
+              <input
+                type="range"
+                min={0}
+                max={150}
+                step={5}
+                value={paddingPixels}
+                onChange={(e) => setPaddingPixels(Number(e.target.value))}
+              />
+            </label>
+          </>
+        )}
+        {demo === 'reactivationSnap' && (
+          <>
+            <button data-active={reactivationCameraActive} onClick={() => setReactivationCameraActive((v) => !v)}>
+              Kamera: {reactivationCameraActive ? 'aktywna' : 'nieaktywna'}
+            </button>
+            <button data-active={reactivationTarget === 'A'} onClick={() => setReactivationTarget('A')}>
+              Target A
+            </button>
+            <button data-active={reactivationTarget === 'B'} onClick={() => setReactivationTarget('B')}>
+              Target B
+            </button>
+          </>
+        )}
       </div>
-      <Canvas camera={{ position: [0, 5, 10], fov: 50 }}>
-        {demo === 'offset' && <TargetOffsetScene offsetEnabled={offsetEnabled} />}
-        {demo === 'hardLimit' && <HardLimitScene hardLimitEnabled={hardLimitEnabled} />}
-        {demo === 'noise' && <NoiseScene preset={noisePreset} />}
-        {demo === 'explosion' && <ExplosionScene />}
-        {demo === 'orbital' && <OrbitalScene activeCamera={orbitalActiveCamera} />}
-      </Canvas>
+      {demo === 'capstone' ? (
+        <CapstoneScene />
+      ) : (
+        <Canvas frameloop="demand" camera={{ position: [0, 5, 10], fov: 50 }}>
+          <Stats />
+
+          {demo === 'offset' && <TargetOffsetScene offsetEnabled={offsetEnabled} />}
+          {demo === 'hardLimit' && <HardLimitScene hardLimitEnabled={hardLimitEnabled} />}
+          {demo === 'noise' && <NoiseScene preset={noisePreset} />}
+          {demo === 'explosion' && <ExplosionScene />}
+          {demo === 'orbital' && <OrbitalScene activeCamera={orbitalActiveCamera} />}
+          {demo === 'focusRepro' && <FocusReproScene />}
+          {demo === 'groupFraming' && <GroupFramingScene boxSize={boxSize} paddingPixels={paddingPixels} />}
+          {demo === 'reactivationSnap' && (
+            <ReactivationSnapScene targetKey={reactivationTarget} cameraActive={reactivationCameraActive} />
+          )}
+        </Canvas>
+      )}
+      {demo === 'focusRepro' && (
+        <p className="hint-text">Kliknij box, aby przybliżyć. Esc — powrót do kamery orbitalnej.</p>
+      )}
+      {demo === 'groupFraming' && (
+        <p className="hint-text">Zmień rozmiar boxa suwakiem albo zmień rozmiar okna przeglądarki.</p>
+      )}
+      {demo === 'reactivationSnap' && (
+        <p className="hint-text">
+          Aktywna: zmień target — kamera się dobłenduje. Wyłącz, zmień target, włącz z powrotem — kamera powinna złapać
+          nowy target od razu, bez przelotu przez stare miejsce.
+        </p>
+      )}
     </>
   );
 }
