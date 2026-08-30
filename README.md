@@ -1,6 +1,6 @@
 # Klipp
 
-[![Version](https://badgen.net/npm/v/klipp)](https://www.npmjs.com/package/klipp)
+[![Version](https://badgen.net/npm/v/@kvvasuu/klipp)](https://www.npmjs.com/package/@kvvasuu/klipp)
 [![license](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 Declarative virtual camera library for [React Three Fiber](https://github.com/pmndrs/react-three-fiber), inspired by Unity Cinemachine.
@@ -26,7 +26,7 @@ Wrap your scene in `<Klipp>` and declare a `<VirtualCamera>` with a Body and an 
 
 ```tsx
 import { Canvas } from '@react-three/fiber';
-import { Klipp, VirtualCamera, Body, Aim } from 'klipp';
+import { Klipp, VirtualCamera, Body, Aim } from '@kvvasuu/klipp';
 
 function Scene({ playerRef }) {
   return (

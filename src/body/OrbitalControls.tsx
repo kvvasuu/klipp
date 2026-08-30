@@ -52,7 +52,7 @@ export type OrbitalControlsProps = {
  * User-input-driven orbit around a target — klipp's adapter for `camera-controls`, see
  * `OrbitalControlsBody`'s doc comment for the algorithm. Thin wrapper — the actual logic lives there.
  *
- * Opt-in subpath (`klipp/body/orbital-controls`) — deliberately NOT exported from klipp's main entry or
+ * Opt-in subpath (`@kvvasuu/klipp/body/orbital-controls`) — deliberately NOT exported from klipp's main entry or
  * the `Body` namespace, so `camera-controls` never ends up in a consumer's bundle unless they import this
  * file directly. `camera-controls` is a peer dependency (optional) for exactly this reason.
  *

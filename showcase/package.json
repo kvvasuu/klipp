@@ -10,8 +10,8 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@kvvasuu/klipp": "workspace:*",
     "@react-three/fiber": "^9.7.0",
-    "klipp": "workspace:*",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "react-router": "^8.3.0",

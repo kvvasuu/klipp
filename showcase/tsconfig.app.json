@@ -16,7 +16,7 @@
     "noEmit": true,
     "jsx": "react-jsx",
     "paths": {
-      "klipp": ["../src/index.ts"]
+      "@kvvasuu/klipp": ["../src/index.ts"]
     },
 
     /* Linting */
