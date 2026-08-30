@@ -91,6 +91,14 @@ export class KlippCore {
     return this.driver.isBlending;
   }
 
+  /** Whether ANY candidate has ever won arbitration — unlike `liveCameraId === null`, stays `true` even
+   *  on a tick where the live candidate was just forgotten mid-blend (e.g. its `<VirtualCamera>`
+   *  unregistering right as a new one takes over) — `tick()`'s output is still a real, meaningful frame
+   *  worth rendering in that case, not the untouched default `CameraState`. See `Klipp.tsx`'s `useFrame`. */
+  get hasEverActivated(): boolean {
+    return this.driver.hasEverActivated;
+  }
+
   /** Returns an unregister function. Re-registering an already-known id refreshes its `activatedAt`.
    *  The unregister function only touches its OWN entry — if another `registerCamera` call already
    *  overwrote this id (e.g. two `<VirtualCamera name="main">` mounted at once), an unmount of the
@@ -151,9 +159,11 @@ export class KlippCore {
    * Advances any in-progress blend by `dt` and returns the composited `CameraState` — same scratch
    * instance every call, valid only until the next `tick()`.
    *
-   * Before any candidate has ever won arbitration (`liveCameraId === null`), this is just the untouched
-   * default `CameraState` (origin, identity, fov 50) — check `liveCameraId` first if that distinction
-   * matters to the caller, same as `Klipp.tsx` does before writing this onto the real camera.
+   * Before any candidate has ever won arbitration (`hasEverActivated === false`), this is just the
+   * untouched default `CameraState` (origin, identity, fov 50) — check `hasEverActivated` first if that
+   * distinction matters to the caller, same as `Klipp.tsx` does before writing this onto the real camera.
+   * NOT `liveCameraId === null` — that's also transiently true right after a live candidate is forgotten
+   * mid-blend, where this IS already a real, meaningful composited frame.
    */
   tick(dt: number): CameraState {
     let result!: CameraState;

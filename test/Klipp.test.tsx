@@ -7,6 +7,7 @@ import { Klipp, useKlippCore } from '../src/Klipp';
 import { KlippCore } from '../src/KlippCore';
 import { VirtualCamera, useVirtualCameraSlots } from '../src/VirtualCamera';
 import { HardLockToTarget } from '../src/body/HardLockToTarget';
+import { BlendCurves } from '../src/blend/BlendCurves';
 import { useEffect, useRef } from 'react';
 import type { Object3D } from 'three';
 
@@ -424,6 +425,35 @@ describe('Klipp / useKlippCore', () => {
       await renderer.update(<Scene active={true} />);
       await renderer.advanceFrames(1, 0.1);
       expect(camera!.position.equals(new Vector3(3, 4, 5))).toBe(true);
+    });
+
+    it('a live camera swapping out for a higher-priority one in the same update keeps writing/blending, not frozen forever (real bug: liveCameraId briefly null from the forget(), indistinguishable from "never activated")', async () => {
+      let camera: PerspectiveCamera | undefined;
+
+      function Scene({ activeName }: { activeName: 'a' | 'b' }) {
+        camera = useThree((state) => state.camera as PerspectiveCamera);
+        return (
+          <Klipp defaultBlend={{ curve: BlendCurves.linear, time: 1 }}>
+            <VirtualCamera name="a" priority={10} active={activeName === 'a'}>
+              <HardLockToTarget target={[0, 0, 0]} />
+            </VirtualCamera>
+            <VirtualCamera name="b" priority={20} active={activeName === 'b'}>
+              <HardLockToTarget target={[10, 0, 0]} />
+            </VirtualCamera>
+          </Klipp>
+        );
+      }
+
+      const renderer = await create(<Scene activeName="a" />);
+      await renderer.advanceFrames(1, 0.1);
+      expect(camera!.position.x).toBeCloseTo(0, 10); // 'a' live
+
+      // 'a' unmounts (forgetting it as liveId) and 'b' mounts as the new winner, same commit — same
+      // pattern as two <VirtualCamera>s trading places via an `active` prop flip
+      await renderer.update(<Scene activeName="b" />);
+      await renderer.advanceFrames(1, 0.1);
+
+      expect(camera!.position.x).toBeGreaterThan(0); // must have actually started blending toward 'b'
     });
   });
 });

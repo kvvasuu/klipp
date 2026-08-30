@@ -16,6 +16,19 @@ describe('KlippCore — registry & priority arbitration', () => {
     expect(core.activeState).toBeNull();
   });
 
+  it('hasEverActivated distinguishes "never activated" from "was live, now forgotten mid-blend" — unlike liveCameraId, it stays true through the latter', () => {
+    const core = new KlippCore({ defaultBlend: { curve: BlendCurves.linear, time: 1 } });
+    expect(core.hasEverActivated).toBe(false);
+
+    const unregisterA = core.registerCamera({ id: 'a', priority: 10, state: createCameraState() });
+    core.tick(0); // 'a' snaps live
+    expect(core.hasEverActivated).toBe(true);
+
+    unregisterA(); // forgotten — liveCameraId goes null, but hasEverActivated must not
+    expect(core.liveCameraId).toBeNull();
+    expect(core.hasEverActivated).toBe(true);
+  });
+
   it('a single registered camera becomes active', () => {
     const core = new KlippCore();
     const state = createCameraState();

@@ -102,11 +102,13 @@ export function Klipp({ children, defaultBlend, customBlends, camera: cameraProp
       return; // stays warm, but never touches the real camera
     }
 
-    if (core.liveCameraId === null) {
-      // no VirtualCamera has ever gone live — tick() is just returning its untouched default CameraState
-      // (origin, identity, fov 50), not a real shot. Writing that onto the real camera would silently
-      // snap it away from wherever the scene/user actually placed it, before any candidate had a chance
-      // to win arbitration.
+    if (!core.hasEverActivated) {
+      // no VirtualCamera has EVER won arbitration — tick() is just returning its untouched default
+      // CameraState (origin, identity, fov 50), not a real shot. Writing that onto the real camera would
+      // silently snap it away from wherever the scene/user actually placed it. Deliberately NOT
+      // `core.liveCameraId === null` — that's also true for one extra tick right after a live camera gets
+      // forgotten mid-transition (its <VirtualCamera> unregistering as a new one takes over), where
+      // tick()'s output IS already a real, in-progress blend worth rendering and continuing to invalidate.
       if (stillInFlight) state.invalidate();
       return;
     }

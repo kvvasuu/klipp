@@ -117,11 +117,11 @@ describe('BlendDriver', () => {
     driver.tick(0);
 
     // 'a' "vanishes" — a caller like KlippCore would null out its own liveId bookkeeping here, but the
-    // driver's own `output` (and `everActivated`) stay exactly as they were — nothing resets them
+    // driver's own `output` (and `hasEverActivated`) stay exactly as they were — nothing resets them
     states.b = stateAt(20);
     driver.setTarget('b', linear2s); // a NEW candidate takes over
 
-    expect(driver.isBlending).toBe(true); // blends, doesn't snap — everActivated was already true
+    expect(driver.isBlending).toBe(true); // blends, doesn't snap — hasEverActivated was already true
     const out = driver.tick(1); // halfway through
     expect(out.position.x).toBeCloseTo(10, 5); // from 0 (frozen output) toward 20, not a snap to 20
   });
@@ -154,7 +154,7 @@ describe('BlendDriver', () => {
       expect(driver.liveId).toBeNull();
     });
 
-    it('a later setTarget after forget blends from the frozen output, not a fresh snap — everActivated survives', () => {
+    it('a later setTarget after forget blends from the frozen output, not a fresh snap — hasEverActivated survives', () => {
       const states: Record<string, ReturnType<typeof stateAt>> = { a: stateAt(0) };
       const driver = new BlendDriver<string>((id) => states[id]);
       driver.setTarget('a', linear2s);
@@ -167,6 +167,18 @@ describe('BlendDriver', () => {
       expect(driver.isBlending).toBe(true); // not a snap
       const out = driver.tick(1); // halfway through 2s
       expect(out.position.x).toBeCloseTo(10, 5); // from the frozen 0, not a snap to 20
+    });
+
+    it('forgetting the live id does NOT clear hasEverActivated — unlike liveId, it stays true (the whole point: a caller can tell "momentarily orphaned" from "arbitration never picked anyone")', () => {
+      const states = { a: stateAt(5) };
+      const driver = new BlendDriver<'a'>((id) => states[id]);
+      driver.setTarget('a', linear2s);
+      driver.tick(0);
+
+      driver.forget('a');
+
+      expect(driver.liveId).toBeNull();
+      expect(driver.hasEverActivated).toBe(true);
     });
 
     it('forgetting an id that is neither live nor the blend target is a no-op', () => {
@@ -195,5 +207,14 @@ describe('BlendDriver', () => {
     expect(driver.liveId).toBeNull();
     expect(driver.blendTargetId).toBeNull();
     expect(driver.isBlending).toBe(false);
+  });
+
+  it('hasEverActivated is false until the first setTarget call, then stays true forever', () => {
+    const states = { a: stateAt(5) };
+    const driver = new BlendDriver<'a'>((id) => states[id]);
+    expect(driver.hasEverActivated).toBe(false);
+
+    driver.setTarget('a', linear2s);
+    expect(driver.hasEverActivated).toBe(true);
   });
 });

@@ -27,7 +27,7 @@ export class BlendDriver<Id> {
   private blend: ActiveBlend<Id> | null = null;
   /** Distinguishes "never activated" (snap immediately) from "was live, now vanished" (`liveId` is null
    *  but `output` still holds a valid frame to blend from) — see `setTarget`'s doc comment. */
-  private everActivated = false;
+  private hasActivatedOnce = false;
 
   private readonly output: CameraState = createCameraState();
   private readonly blendFromScratch: CameraState = createCameraState();
@@ -46,6 +46,16 @@ export class BlendDriver<Id> {
 
   get isBlending(): boolean {
     return this.blend !== null;
+  }
+
+  /** Whether `setTarget` has ever actually run its snap/blend branch — `false` only before the very
+   *  first call. Once `true`, `output` always holds a meaningful composited frame worth reading, even
+   *  on a tick where `liveId` happens to be `null` because the live candidate was just `forget()`-ten
+   *  mid-blend — unlike `liveId === null`, this stays `true` through that, so a caller deciding whether
+   *  there's anything real to render can't mistake "momentarily orphaned mid-transition" for "arbitration
+   *  has never picked a winner". */
+  get hasEverActivated(): boolean {
+    return this.hasActivatedOnce;
   }
 
   /** Whichever id `tick()` is currently heading toward — the in-progress blend's destination, or
@@ -70,8 +80,8 @@ export class BlendDriver<Id> {
   setTarget(toId: Id, definition: BlendDefinition): void {
     if (toId === this.blendTargetId) return;
 
-    if (!this.everActivated) {
-      this.everActivated = true;
+    if (!this.hasActivatedOnce) {
+      this.hasActivatedOnce = true;
       this.liveIdValue = toId;
       copyCameraState(this.output, this.getState(toId));
       return;
@@ -85,8 +95,8 @@ export class BlendDriver<Id> {
    * Tells the driver `id` no longer exists as a valid candidate — if it was `liveId` or the in-progress
    * blend's destination, forgets it (a later `setTarget` blends from the current frozen `output`, not
    * toward/from a stale id whose `getState` would now throw). A no-op if `id` isn't currently tracked at
-   * all (e.g. it lost arbitration a while ago and was already forgotten). Never touches `everActivated` —
-   * a NEW candidate arriving afterward still blends from the frozen `output`, it doesn't re-snap.
+   * all (e.g. it lost arbitration a while ago and was already forgotten). Never touches `hasEverActivated`
+   * — a NEW candidate arriving afterward still blends from the frozen `output`, it doesn't re-snap.
    */
   forget(id: Id): void {
     if (this.blend?.toId === id) {
