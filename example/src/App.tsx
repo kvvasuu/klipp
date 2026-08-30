@@ -1,6 +1,17 @@
 import { Stats } from '@react-three/drei';
 import { Canvas, invalidate, useFrame, useThree, type ThreeEvent } from '@react-three/fiber';
-import { Aim, BlendCurves, Body, Extension, Klipp, Noise, VirtualCamera, impulseManager } from 'klipp';
+import {
+  Aim,
+  BindingModes,
+  BlendCurves,
+  Body,
+  Extension,
+  Klipp,
+  Noise,
+  VirtualCamera,
+  impulseManager,
+  type BindingMode,
+} from 'klipp';
 import { OrbitalControls } from 'klipp/body/orbital-controls';
 import { useEffect, useRef, useState, type RefObject } from 'react';
 import { Group, Vector3, type Object3D } from 'three';
@@ -15,7 +26,11 @@ function SpinningCharacter({ groupRef }: { groupRef: RefObject<Group | null> }) 
     if (!group) return;
     const t = clock.elapsedTime;
     group.position.set(Math.sin(t * 0.5) * 6, 2, Math.cos(t * 0.5) * 6);
-    group.rotation.z = Math.sin(t * 1.2) * 1.0; // roll — sweeps the head offset side to side
+    // yaw — the axis the roll-stripped bindingModes actually track; a pure roll around the local
+    // forward axis alone leaves the forward vector (and so the derived offset rotation) unchanged,
+    // which made every mode but lockToTarget look identical to worldSpace
+    group.rotation.y = t * 0.5;
+    group.rotation.z = Math.sin(t * 1.2) * 1.0; // roll — only lockToTarget (full rotation) follows this
   });
   return (
     <group ref={groupRef}>
@@ -31,33 +46,23 @@ function SpinningCharacter({ groupRef }: { groupRef: RefObject<Group | null> }) 
   );
 }
 
-/** Marker at the EXACT world point RotationComposer is aiming at — computed the same way the Aim itself
- *  does (offset rotated INTO the target's local space), so it visibly follows the roll instead of
- *  staying at a fixed world offset. */
-function LookAtMarker({ targetRef, offsetEnabled }: { targetRef: RefObject<Object3D | null>; offsetEnabled: boolean }) {
-  const markerRef = useRef<Object3D>(null);
-  const worldOffset = useRef(new Vector3()).current;
+type AimMode = 'lookAt' | 'glued';
 
-  useFrame(() => {
-    const target = targetRef.current;
-    const marker = markerRef.current;
-    if (!target || !marker) return;
-    marker.position.copy(target.position);
-    if (offsetEnabled) {
-      worldOffset.copy(headOffset).applyQuaternion(target.quaternion);
-      marker.position.add(worldOffset);
-    }
-  });
-
-  return (
-    <mesh ref={markerRef}>
-      <sphereGeometry args={[0.15, 12, 12]} />
-      <meshBasicMaterial color="lime" />
-    </mesh>
-  );
-}
-
-function TargetOffsetScene({ offsetEnabled }: { offsetEnabled: boolean }) {
+/**
+ * Body and Aim are fully independent — this demo has two orthogonal selectors to make that concrete on
+ * the SAME character/offset. `bindingMode` is entirely `Body.Follow`'s concern: which rotation (if any)
+ * the position OFFSET is rotated by — it never touches the camera's own orientation.
+ *
+ * The Aim toggle controls that separately: `HardLookAt` always independently re-aims at the target from
+ * wherever the camera currently sits (world-up-referenced, so the camera itself stays dead level no
+ * matter what `bindingMode` does to its position). `RotateWithFollowTarget` instead mirrors the target's
+ * rotation directly onto the camera — genuinely "glued like a child" (position AND orientation both
+ * locked to the target's transform) — it doesn't even look at where the camera IS, so with this offset
+ * (in front of the character) the camera ends up facing the SAME way the character faces, i.e. away from
+ * it: a first-person-ish view from just ahead of its head, not a chase cam. That mismatch is the point —
+ * it's what "Aim never checks Body's result" actually means in practice.
+ */
+function TargetOffsetScene({ bindingMode, aimMode }: { bindingMode: BindingMode; aimMode: AimMode }) {
   const groupRef = useRef<Group>(null);
 
   return (
@@ -67,19 +72,15 @@ function TargetOffsetScene({ offsetEnabled }: { offsetEnabled: boolean }) {
       <gridHelper args={[24, 24, '#444', '#222']} position={[0, 0.01, 0]} />
 
       <SpinningCharacter groupRef={groupRef} />
-      <LookAtMarker targetRef={groupRef} offsetEnabled={offsetEnabled} />
 
       <Klipp>
         <VirtualCamera name="targetOffset-demo" active={true} priority={10}>
-          <Body.Follow target={groupRef} offset={[0, 4, 4]} damping={0} bindingMode="lockToTargetWithWorldUp" />
-          <Aim.HardLookAt target={groupRef} />
-          <Noise.BasicMultiChannelPerlin
-            positionAmplitude={1}
-            rotationAmplitude={1}
-            rotationFrequency={10}
-            amplitudeDamping={1}
-            amplitudeGain={1}
-          />
+          <Body.Follow target={groupRef} offset={[0, 4, -4]} damping={0} bindingMode={bindingMode} />
+          {aimMode === 'lookAt' ? (
+            <Aim.HardLookAt target={groupRef} />
+          ) : (
+            <Aim.RotateWithFollowTarget target={groupRef} />
+          )}
         </VirtualCamera>
       </Klipp>
     </>
@@ -121,7 +122,6 @@ function HardLimitScene({ hardLimitEnabled }: { hardLimitEnabled: boolean }) {
             hardLimit forces it back inside its (wider) box every frame it strays past that, undamped. */}
         <VirtualCamera name="hardLimit-demo" active={true} priority={10}>
           <Body.PositionComposer target={targetRef} deadZone={[0.4, 0.4]} damping={0.3} hardLimit={hardLimit} />
-          {/* <Aim.RotationComposer target={targetRef} deadZone={[0.1, 0.1]} damping={4} hardLimit={hardLimit} /> */}
         </VirtualCamera>
       </Klipp>
     </>
@@ -176,7 +176,7 @@ function triggerExplosion() {
   impulseManager.generate({
     position: explosionPosition,
     direction: [0.5, 1.2, 2],
-    radius: 0,
+    radius: 10,
     dissipationDistance: 10,
     attackTime: 0.1,
     sustainTime: 0.05,
@@ -255,12 +255,6 @@ function OrbitalScene({ activeCamera }: { activeCamera: OrbitalActiveCamera }) {
       <Klipp>
         <VirtualCamera name="orbital-cam" active={true} priority={activeCamera === 'orbital' ? 20 : 10}>
           <OrbitalControls target={targetRef} initialDistance={8} />
-          <Noise.BasicMultiChannelPerlin
-            positionAmplitude={0.2}
-            rotationAmplitude={0.2}
-            positionFrequency={2}
-            rotationFrequency={2}
-          />
         </VirtualCamera>
         <VirtualCamera name="overview-cam" active={true} priority={activeCamera === 'overview' ? 20 : 10}>
           <Body.HardLockToTarget target={[10, 8, 10]} />
@@ -449,9 +443,10 @@ type Demo =
 
 function App() {
   const [demo, setDemo] = useState<Demo>('offset');
-  const [offsetEnabled, setOffsetEnabled] = useState(false);
+  const [bindingMode, setBindingMode] = useState<BindingMode>(BindingModes.lockToTargetWithWorldUp);
+  const [aimMode, setAimMode] = useState<AimMode>('lookAt');
   const [hardLimitEnabled, setHardLimitEnabled] = useState(false);
-  const [noisePreset, setNoisePreset] = useState<NoisePreset>('off');
+  const [noisePreset, setNoisePreset] = useState<NoisePreset>('subtle');
   const [orbitalActiveCamera, setOrbitalActiveCamera] = useState<OrbitalActiveCamera>('orbital');
   const [boxSize, setBoxSize] = useState(2);
   const [paddingPixels, setPaddingPixels] = useState(40);
@@ -462,7 +457,7 @@ function App() {
     <>
       <div className="preset-bar">
         <button data-active={demo === 'offset'} onClick={() => setDemo('offset')}>
-          Target Offset
+          Follow Offset
         </button>
         <button data-active={demo === 'hardLimit'} onClick={() => setDemo('hardLimit')}>
           Hard Limit
@@ -474,10 +469,10 @@ function App() {
           Explosion
         </button>
         <button data-active={demo === 'orbital'} onClick={() => setDemo('orbital')}>
-          Orbital
+          Orbital Controls
         </button>
         <button data-active={demo === 'focusRepro'} onClick={() => setDemo('focusRepro')}>
-          Focus Repro
+          Click to Zoom
         </button>
         <button data-active={demo === 'groupFraming'} onClick={() => setDemo('groupFraming')}>
           Group Framing
@@ -485,40 +480,54 @@ function App() {
         <button data-active={demo === 'reactivationSnap'} onClick={() => setDemo('reactivationSnap')}>
           Reactivation Snap
         </button>
-        <button data-active={demo === 'capstone'} onClick={() => setDemo('capstone')}>
-          Capstone
-        </button>
+        {demo === 'offset' &&
+          (
+            [
+              [BindingModes.lockToTarget, 'Lock To Target'],
+              [BindingModes.lockToTargetWithWorldUp, 'World Up'],
+              [BindingModes.worldSpace, 'World Space'],
+            ] as const
+          ).map(([mode, label]) => (
+            <button key={mode} data-active={bindingMode === mode} onClick={() => setBindingMode(mode)}>
+              {label}
+            </button>
+          ))}
         {demo === 'offset' && (
-          <button data-active={offsetEnabled} onClick={() => setOffsetEnabled((v) => !v)}>
-            {offsetEnabled ? 'targetOffset: głowa (zielony marker)' : 'targetOffset: origin (wyłączony)'}
-          </button>
+          <>
+            <button data-active={aimMode === 'lookAt'} onClick={() => setAimMode('lookAt')}>
+              Aim: Look At
+            </button>
+            <button data-active={aimMode === 'glued'} onClick={() => setAimMode('glued')}>
+              Aim: Glued (child-like)
+            </button>
+          </>
         )}
         {demo === 'hardLimit' && (
           <button data-active={hardLimitEnabled} onClick={() => setHardLimitEnabled((v) => !v)}>
-            {hardLimitEnabled ? 'hardLimit: włączony' : 'hardLimit: wyłączony — target ucieka z kadru'}
+            {hardLimitEnabled ? 'hardLimit: on' : 'hardLimit: off — target drifts out of frame'}
           </button>
         )}
         {demo === 'noise' && (
           <>
             <button data-active={noisePreset === 'off'} onClick={() => setNoisePreset('off')}>
-              Noise: wyłączony
+              Noise: off
             </button>
             <button data-active={noisePreset === 'subtle'} onClick={() => setNoisePreset('subtle')}>
-              Noise: subtelny
+              Noise: subtle
             </button>
             <button data-active={noisePreset === 'heavy'} onClick={() => setNoisePreset('heavy')}>
-              Noise: mocny
+              Noise: heavy
             </button>
           </>
         )}
-        {demo === 'explosion' && <button onClick={triggerExplosion}>💥 Wybuch!</button>}
+        {demo === 'explosion' && <button onClick={triggerExplosion}>💥 Explode!</button>}
         {demo === 'orbital' && (
           <>
             <button data-active={orbitalActiveCamera === 'orbital'} onClick={() => setOrbitalActiveCamera('orbital')}>
-              Kamera: Orbital
+              Camera: Orbital
             </button>
             <button data-active={orbitalActiveCamera === 'overview'} onClick={() => setOrbitalActiveCamera('overview')}>
-              Kamera: Overview
+              Camera: Overview
             </button>
           </>
         )}
@@ -530,7 +539,7 @@ function App() {
                 type="range"
                 min={0.5}
                 max={8}
-                step={0.1}
+                step={0.01}
                 value={boxSize}
                 onChange={(e) => setBoxSize(Number(e.target.value))}
               />
@@ -540,7 +549,7 @@ function App() {
               <input
                 type="range"
                 min={0}
-                max={150}
+                max={300}
                 step={5}
                 value={paddingPixels}
                 onChange={(e) => setPaddingPixels(Number(e.target.value))}
@@ -551,7 +560,7 @@ function App() {
         {demo === 'reactivationSnap' && (
           <>
             <button data-active={reactivationCameraActive} onClick={() => setReactivationCameraActive((v) => !v)}>
-              Kamera: {reactivationCameraActive ? 'aktywna' : 'nieaktywna'}
+              Camera: {reactivationCameraActive ? 'active' : 'inactive'}
             </button>
             <button data-active={reactivationTarget === 'A'} onClick={() => setReactivationTarget('A')}>
               Target A
@@ -568,7 +577,7 @@ function App() {
         <Canvas frameloop="demand" camera={{ position: [0, 5, 10], fov: 50 }}>
           <Stats />
 
-          {demo === 'offset' && <TargetOffsetScene offsetEnabled={offsetEnabled} />}
+          {demo === 'offset' && <TargetOffsetScene bindingMode={bindingMode} aimMode={aimMode} />}
           {demo === 'hardLimit' && <HardLimitScene hardLimitEnabled={hardLimitEnabled} />}
           {demo === 'noise' && <NoiseScene preset={noisePreset} />}
           {demo === 'explosion' && <ExplosionScene />}
@@ -580,16 +589,22 @@ function App() {
           )}
         </Canvas>
       )}
+      {demo === 'offset' && (
+        <p className="hint-text">
+          bindingMode (Body) and Aim are independent: bindingMode only moves the camera's orbit position, never its own
+          tilt. Switch Aim to "Glued" to see the camera's ROTATION lock to the target too.
+        </p>
+      )}
       {demo === 'focusRepro' && (
-        <p className="hint-text">Kliknij box, aby przybliżyć. Esc — powrót do kamery orbitalnej.</p>
+        <p className="hint-text">Click the box to zoom in. Esc — back to the orbital camera.</p>
       )}
       {demo === 'groupFraming' && (
-        <p className="hint-text">Zmień rozmiar boxa suwakiem albo zmień rozmiar okna przeglądarki.</p>
+        <p className="hint-text">Resize the box with the slider, or resize the browser window.</p>
       )}
       {demo === 'reactivationSnap' && (
         <p className="hint-text">
-          Aktywna: zmień target — kamera się dobłenduje. Wyłącz, zmień target, włącz z powrotem — kamera powinna złapać
-          nowy target od razu, bez przelotu przez stare miejsce.
+          Active: change target — the camera blends smoothly. Deactivate, change target, reactivate — the camera should
+          snap straight to the new target, with no flythrough of the old spot.
         </p>
       )}
     </>
