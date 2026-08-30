@@ -1,5 +1,7 @@
 # Contributing
 
+This project uses semantic commits and semver.
+
 This repo is the library itself (`src/`, built with `tsc` into `dist/`). [`example/`](example) is a
 separate Vite app used as a live testbed while developing - it resolves `klipp` straight to `src/` via a
 Vite alias, so there's no build step in the loop while iterating.
