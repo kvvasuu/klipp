@@ -1,28 +1,28 @@
-# 📹 klipp
+# Klipp
 
+[![Version](https://badgen.net/npm/v/klipp)](https://www.npmjs.com/package/klipp)
 [![license](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-Declarative virtual camera library for [react-three-fiber](https://github.com/pmndrs/react-three-fiber),
-inspired by Unity Cinemachine.
+Declarative virtual camera library for [React Three Fiber](https://github.com/pmndrs/react-three-fiber), inspired by Unity Cinemachine.
 
-⚠️ Pre-1.0 — the API can still change before a stable release, and klipp isn't published to npm yet. Try
-it today via a workspace/git dependency, or follow along in [`example/`](example).
+⚠️ Early-stage, experimental - API may change in future releases.
 
-## Why
+## Description
 
-Camera code in a react-three-fiber scene usually ends up as a pile of `useFrame` callbacks doing manual
-lerps, look-ats, and ad-hoc shake. klipp replaces that with declarative, composable pieces:
+Camera code in a React Three Fiber scene usually ends up as a pile of `useFrame` callbacks doing manual lerps, look-ats, and ad-hoc shake.
+Klipp replaces that with declarative, composable pieces instead.
+Features include:
 
-- **Body** and **Aim** compute a camera's position and rotation independently, so you mix and match them
-  freely — follow a target with one damping curve while looking at a completely different one.
-- **Noise** and **Impulse** stack additive shake/rumble on top, from ambient handheld wobble to one-shot
-  explosion reactions.
-- Any number of `<VirtualCamera>`s can coexist — klipp picks the highest-priority one and **blends**
-  between them automatically on every switch.
-- An optional [`camera-controls`](https://github.com/yomotsu/camera-controls) adapter adds user-driven
-  orbiting without giving up any of the above.
+- **Body** and **Aim** compute a camera's position and rotation independently, so you mix and match them freely - follow a target with one damping curve while looking at a completely different one
+- **Noise** and **Impulse** stack additive shake/rumble on top, from ambient handheld wobble to one-shot explosion reactions
+- Any number of `<VirtualCamera>`s can coexist - Klipp picks the highest-priority one and **blends** between them automatically on every switch
+- An optional [`camera-controls`](https://github.com/yomotsu/camera-controls) adapter adds user-driven orbiting without giving up any of the above
 
-## Quick look
+## Quickstart
+
+### Basic Setup
+
+Wrap your scene in `<Klipp>` and declare a `<VirtualCamera>` with a Body and an Aim:
 
 ```tsx
 import { Canvas } from '@react-three/fiber';
@@ -43,22 +43,32 @@ function Scene({ playerRef }) {
 }
 ```
 
-Mount a second `<VirtualCamera>` with a higher `priority` and klipp blends into it automatically —
-no manual state machine required.
+### Blending Between Cameras
 
-## Development
+Mount a second `<VirtualCamera>` with a higher `priority` and Klipp blends into it automatically - no manual state machine required:
 
-This repo is the library itself (`src/`, built with `tsc` into `dist/`). [`example/`](example) is a
-separate Vite app used as a live testbed while developing — it resolves `klipp` straight to `src/` via
-a Vite alias, so there's no build step in the loop while iterating.
-
-```bash
-pnpm install
-pnpm --filter example dev
+```tsx
+<Klipp>
+  <VirtualCamera name="follow-cam" priority={10} active={true}>
+    <Body.Follow target={playerRef} offset={[0, 3, 8]} damping={0.5} />
+    <Aim.HardLookAt target={playerRef} />
+  </VirtualCamera>
+  <VirtualCamera name="cutscene-cam" active={isCutscene} priority={20}>
+    <Body.HardLockToTarget target={cutsceneCamPosition} />
+    <Aim.HardLookAt target={playerRef} />
+  </VirtualCamera>
+</Klipp>
 ```
 
-Run `pnpm run build` at the root before relying on `dist/` (e.g. for type-checking the published shape),
-and `pnpm run test` for the unit suite.
+## Documentation & Examples
+
+More examples live in [`example/`](example) - a live testbed covering every Body/Aim/Noise/Extension combination shipped so far.
+
+## Support
+
+If this project helps you, consider supporting development.
+
+- GitHub Sponsors: https://github.com/sponsors/kvvasuu
 
 ## License
 
