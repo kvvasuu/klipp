@@ -1,6 +1,6 @@
 # Klipp
 
-[![Version](https://badgen.net/npm/v/klipp)](https://www.npmjs.com/package/klipp)
+[![Version](https://badgen.net/npm/v/@kvvasuu/klipp)](https://www.npmjs.com/package/@kvvasuu/klipp)
 [![license](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 Declarative virtual camera library for [React Three Fiber](https://github.com/pmndrs/react-three-fiber), inspired by Unity Cinemachine.
