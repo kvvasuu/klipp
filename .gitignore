@@ -11,6 +11,7 @@ node_modules
 dist
 dist-ssr
 *.local
+*.tgz
 
 # @pmndrs/labs benchmark results — machine-specific, not meant to be shared
 .labs
@@ -32,3 +33,4 @@ CINEMACHINE_RESEARCH.md
 TODO.md
 DEMOS.md
 API_NOTES.md
+
