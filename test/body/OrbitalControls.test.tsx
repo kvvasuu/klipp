@@ -1,3 +1,4 @@
+import { useThree } from '@react-three/fiber';
 import { create } from '@react-three/test-renderer';
 import CameraControls from 'camera-controls';
 import { Vector3 } from 'three';
@@ -155,5 +156,171 @@ describe('OrbitalControls (React wrapper)', () => {
 
     await renderer.advanceFrames(1, 2); // pushes elapsed well past the 2s blend duration
     expect(connectSpy).toHaveBeenCalledTimes(1);
+  });
+
+  describe('invalidate() on drag/scroll input', () => {
+    it('calls invalidate() when camera-controls fires controlstart/control/transitionstart/update/wake while connected (real bug: frameloop="demand" never re-rendered on drag)', async () => {
+      let orbitalBody: OrbitalControlsBody | null = null;
+      let invalidateSpy: ReturnType<typeof vi.spyOn> | undefined;
+
+      function InvalidateReader() {
+        const state = useThree();
+        invalidateSpy = vi.spyOn(state, 'invalidate');
+        return null;
+      }
+
+      const scene = (
+        <Klipp>
+          <InvalidateReader />
+          <VirtualCamera name="a" priority={10}>
+            <OrbitalControls target={new Vector3(0, 0, -10)} ref={(b) => (orbitalBody = b)} />
+          </VirtualCamera>
+        </Klipp>
+      );
+
+      const renderer = await create(scene);
+      await renderer.advanceFrames(1, 0.05); // sole/first-ever active camera: connects immediately
+
+      invalidateSpy!.mockClear();
+      orbitalBody!.controls.dispatchEvent({ type: 'controlstart' });
+      expect(invalidateSpy).toHaveBeenCalledTimes(1);
+
+      orbitalBody!.controls.dispatchEvent({ type: 'control' });
+      expect(invalidateSpy).toHaveBeenCalledTimes(2);
+
+      orbitalBody!.controls.dispatchEvent({ type: 'transitionstart' });
+      expect(invalidateSpy).toHaveBeenCalledTimes(3);
+
+      orbitalBody!.controls.dispatchEvent({ type: 'update' });
+      expect(invalidateSpy).toHaveBeenCalledTimes(4);
+
+      orbitalBody!.controls.dispatchEvent({ type: 'wake' });
+      expect(invalidateSpy).toHaveBeenCalledTimes(5);
+    });
+
+    it('does not call invalidate() once disconnected — the listeners are torn down with connect()', async () => {
+      let orbitalBody: OrbitalControlsBody | null = null;
+      let invalidateSpy: ReturnType<typeof vi.spyOn> | undefined;
+
+      function InvalidateReader() {
+        const state = useThree();
+        invalidateSpy = vi.spyOn(state, 'invalidate');
+        return null;
+      }
+
+      const scene = (mounted: boolean) => (
+        <Klipp>
+          <InvalidateReader />
+          <VirtualCamera name="a" priority={10}>
+            {mounted && <OrbitalControls target={new Vector3(0, 0, -10)} ref={(b) => (orbitalBody = b)} />}
+          </VirtualCamera>
+        </Klipp>
+      );
+
+      const renderer = await create(scene(true));
+      await renderer.advanceFrames(1, 0.05);
+      const controls = orbitalBody!.controls;
+
+      await renderer.update(scene(false));
+      invalidateSpy!.mockClear();
+      controls.dispatchEvent({ type: 'control' });
+
+      expect(invalidateSpy).not.toHaveBeenCalled();
+    });
+
+    it('regress=true also calls performance.regress() on the same events invalidate() fires for, but not controlend/rest/sleep', async () => {
+      let orbitalBody: OrbitalControlsBody | null = null;
+      let regressSpy: ReturnType<typeof vi.spyOn> | undefined;
+
+      function RegressReader() {
+        const state = useThree();
+        regressSpy = vi.spyOn(state.performance, 'regress');
+        return null;
+      }
+
+      const scene = (
+        <Klipp>
+          <RegressReader />
+          <VirtualCamera name="a" priority={10}>
+            <OrbitalControls target={new Vector3(0, 0, -10)} regress ref={(b) => (orbitalBody = b)} />
+          </VirtualCamera>
+        </Klipp>
+      );
+
+      const renderer = await create(scene);
+      await renderer.advanceFrames(1, 0.05);
+
+      regressSpy!.mockClear();
+      orbitalBody!.controls.dispatchEvent({ type: 'controlstart' });
+      orbitalBody!.controls.dispatchEvent({ type: 'control' });
+      orbitalBody!.controls.dispatchEvent({ type: 'transitionstart' });
+      orbitalBody!.controls.dispatchEvent({ type: 'update' });
+      orbitalBody!.controls.dispatchEvent({ type: 'wake' });
+      expect(regressSpy).toHaveBeenCalledTimes(5);
+
+      orbitalBody!.controls.dispatchEvent({ type: 'controlend' });
+      orbitalBody!.controls.dispatchEvent({ type: 'rest' });
+      orbitalBody!.controls.dispatchEvent({ type: 'sleep' });
+      expect(regressSpy).toHaveBeenCalledTimes(5); // still 5 — these three never regress
+    });
+
+    it('regress=false (default) never calls performance.regress()', async () => {
+      let orbitalBody: OrbitalControlsBody | null = null;
+      let regressSpy: ReturnType<typeof vi.spyOn> | undefined;
+
+      function RegressReader() {
+        const state = useThree();
+        regressSpy = vi.spyOn(state.performance, 'regress');
+        return null;
+      }
+
+      const scene = (
+        <Klipp>
+          <RegressReader />
+          <VirtualCamera name="a" priority={10}>
+            <OrbitalControls target={new Vector3(0, 0, -10)} ref={(b) => (orbitalBody = b)} />
+          </VirtualCamera>
+        </Klipp>
+      );
+
+      const renderer = await create(scene);
+      await renderer.advanceFrames(1, 0.05);
+
+      regressSpy!.mockClear();
+      orbitalBody!.controls.dispatchEvent({ type: 'control' });
+      expect(regressSpy).not.toHaveBeenCalled();
+    });
+
+    it('forwards every camera-controls lifecycle event to its matching on* prop', async () => {
+      const calls: string[] = [];
+      let orbitalBody: OrbitalControlsBody | null = null;
+
+      const scene = (
+        <Klipp>
+          <VirtualCamera name="a" priority={10}>
+            <OrbitalControls
+              target={new Vector3(0, 0, -10)}
+              ref={(b) => (orbitalBody = b)}
+              onControlStart={() => calls.push('controlstart')}
+              onControl={() => calls.push('control')}
+              onControlEnd={() => calls.push('controlend')}
+              onTransitionStart={() => calls.push('transitionstart')}
+              onUpdate={() => calls.push('update')}
+              onWake={() => calls.push('wake')}
+              onRest={() => calls.push('rest')}
+              onSleep={() => calls.push('sleep')}
+            />
+          </VirtualCamera>
+        </Klipp>
+      );
+
+      const renderer = await create(scene);
+      await renderer.advanceFrames(1, 0.05);
+
+      const allTypes = ['controlstart', 'control', 'controlend', 'transitionstart', 'update', 'wake', 'rest', 'sleep'];
+      for (const type of allTypes) orbitalBody!.controls.dispatchEvent({ type });
+
+      expect(calls).toEqual(allTypes);
+    });
   });
 });

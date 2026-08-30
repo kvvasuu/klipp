@@ -27,6 +27,25 @@ export type OrbitalControlsProps = {
    *  `camera-controls` `CameraControls` instance for configuring anything not exposed as a prop here
    *  (`smoothTime`, `minDistance`/`maxDistance`, `minPolarAngle`/`maxPolarAngle`, ...). */
   ref?: Ref<OrbitalControlsBody>;
+  /** Also lowers r3f's render quality (`performance.regress()`) while dragging/transitioning, alongside
+   *  `invalidate()`. Default `false`. */
+  regress?: boolean;
+  /** User starts dragging/touching. */
+  onControlStart?: (event: { type: 'controlstart' }) => void;
+  /** User is dragging (fires continuously). */
+  onControl?: (event: { type: 'control' }) => void;
+  /** User stops dragging/touching. */
+  onControlEnd?: (event: { type: 'controlend' }) => void;
+  /** Any transition starts — user control, or a `controls` method called with `enableTransition: true`. */
+  onTransitionStart?: (event: { type: 'transitionstart' }) => void;
+  /** The camera's transform actually changed this tick. */
+  onUpdate?: (event: { type: 'update' }) => void;
+  /** Was settled, just started moving again. */
+  onWake?: (event: { type: 'wake' }) => void;
+  /** Motion settled below `controls.restThreshold`. */
+  onRest?: (event: { type: 'rest' }) => void;
+  /** Was moving, just stopped. */
+  onSleep?: (event: { type: 'sleep' }) => void;
 };
 
 /**
@@ -49,6 +68,15 @@ export function OrbitalControls({
   impl = CameraControls,
   waitForBlend = true,
   ref,
+  regress = false,
+  onControlStart,
+  onControl,
+  onControlEnd,
+  onTransitionStart,
+  onUpdate,
+  onWake,
+  onRest,
+  onSleep,
 }: OrbitalControlsProps) {
   const slots = useVirtualCameraSlots();
   const isActive = useIsActiveVirtualCamera();
@@ -56,6 +84,8 @@ export function OrbitalControls({
   const shouldConnect = waitForBlend ? isLive : isActive;
   const aspect = useThree((state) => state.viewport.aspect);
   const domElement = useThree((state) => state.gl.domElement);
+  const invalidate = useThree((state) => state.invalidate);
+  const performance = useThree((state) => state.performance);
   const [body] = useState(() => new OrbitalControlsBody(target, aspect, initialDistance, impl));
   body.target = target;
   body.aspect = aspect;
@@ -65,8 +95,70 @@ export function OrbitalControls({
   useEffect(() => {
     if (!shouldConnect) return;
     body.controls.connect(domElement);
-    return () => body.controls.disconnect();
-  }, [body, domElement, shouldConnect]);
+
+    const invalidateAndRegress = (): void => {
+      invalidate();
+      if (regress) performance.regress();
+    };
+    const handleControlStart = (e: { type: 'controlstart' }): void => {
+      invalidateAndRegress();
+      onControlStart?.(e);
+    };
+    const handleControl = (e: { type: 'control' }): void => {
+      invalidateAndRegress();
+      onControl?.(e);
+    };
+    const handleControlEnd = (e: { type: 'controlend' }): void => onControlEnd?.(e);
+    const handleTransitionStart = (e: { type: 'transitionstart' }): void => {
+      invalidateAndRegress();
+      onTransitionStart?.(e);
+    };
+    const handleUpdate = (e: { type: 'update' }): void => {
+      invalidateAndRegress();
+      onUpdate?.(e);
+    };
+    const handleWake = (e: { type: 'wake' }): void => {
+      invalidateAndRegress();
+      onWake?.(e);
+    };
+    const handleRest = (e: { type: 'rest' }): void => onRest?.(e);
+    const handleSleep = (e: { type: 'sleep' }): void => onSleep?.(e);
+
+    body.controls.addEventListener('controlstart', handleControlStart);
+    body.controls.addEventListener('control', handleControl);
+    body.controls.addEventListener('controlend', handleControlEnd);
+    body.controls.addEventListener('transitionstart', handleTransitionStart);
+    body.controls.addEventListener('update', handleUpdate);
+    body.controls.addEventListener('wake', handleWake);
+    body.controls.addEventListener('rest', handleRest);
+    body.controls.addEventListener('sleep', handleSleep);
+    return () => {
+      body.controls.disconnect();
+      body.controls.removeEventListener('controlstart', handleControlStart);
+      body.controls.removeEventListener('control', handleControl);
+      body.controls.removeEventListener('controlend', handleControlEnd);
+      body.controls.removeEventListener('transitionstart', handleTransitionStart);
+      body.controls.removeEventListener('update', handleUpdate);
+      body.controls.removeEventListener('wake', handleWake);
+      body.controls.removeEventListener('rest', handleRest);
+      body.controls.removeEventListener('sleep', handleSleep);
+    };
+  }, [
+    body,
+    domElement,
+    shouldConnect,
+    invalidate,
+    regress,
+    performance,
+    onControlStart,
+    onControl,
+    onControlEnd,
+    onTransitionStart,
+    onUpdate,
+    onWake,
+    onRest,
+    onSleep,
+  ]);
 
   return null;
 }
