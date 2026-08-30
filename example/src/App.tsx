@@ -75,7 +75,7 @@ function TargetOffsetScene({ bindingMode, aimMode }: { bindingMode: BindingMode;
 
       <Klipp>
         <VirtualCamera name="targetOffset-demo" active={true} priority={10}>
-          <Body.Follow target={groupRef} offset={[0, 4, -4]} damping={0} bindingMode={bindingMode} />
+          <Body.Follow target={groupRef} offset={[0, 1, 5]} damping={0} bindingMode={bindingMode} />
           {aimMode === 'lookAt' ? (
             <Aim.HardLookAt target={groupRef} />
           ) : (
@@ -266,7 +266,7 @@ function OrbitalScene({ activeCamera }: { activeCamera: OrbitalActiveCamera }) {
 }
 
 const focusBoxCenter: [number, number, number] = [0, 1, 0];
-const focusBoxSize: [number, number, number] = [1, 2, 1];
+const focusBoxSize: [number, number, number] = [2, 2, 2];
 
 function FocusBox({ onBoxClick }: { onBoxClick: (point: Vector3) => void }) {
   return (
@@ -383,7 +383,7 @@ function FocusReproScene() {
 
       <Klipp defaultBlend={{ curve: BlendCurves.easeInOut, time: 1 }}>
         <VirtualCamera name="manual-orbit" active={!focusActive} priority={5}>
-          <OrbitalControls target={focusBoxCenter} initialDistance={10} />
+          <OrbitalControls target={focusBoxCenter} initialDistance={8} />
         </VirtualCamera>
         <VirtualCamera name="focus" active={focusActive} priority={20}>
           <Body.HardLockToTarget target={focusPosition} damping={0.5} />
