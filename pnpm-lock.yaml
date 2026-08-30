@@ -63,9 +63,6 @@ importers:
 
   example:
     dependencies:
-      '@kvvasu/klipp':
-        specifier: workspace:*
-        version: link:..
       '@react-three/drei':
         specifier: ^10.7.8
         version: 10.7.8(@react-three/fiber@9.7.0(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(three@0.185.1))(@types/react@19.2.18)(@types/three@0.185.4)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(three@0.185.1)
@@ -75,6 +72,9 @@ importers:
       camera-controls:
         specifier: ^3.1.2
         version: 3.1.2(three@0.185.1)
+      klipp:
+        specifier: workspace:*
+        version: link:..
       react:
         specifier: ^19.2.8
         version: 19.2.8
@@ -112,12 +112,12 @@ importers:
 
   showcase:
     dependencies:
-      '@kvvasu/klipp':
-        specifier: workspace:*
-        version: link:..
       '@react-three/fiber':
         specifier: ^9.7.0
         version: 9.7.0(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(three@0.185.1)
+      klipp:
+        specifier: workspace:*
+        version: link:..
       react:
         specifier: ^19.2.8
         version: 19.2.8

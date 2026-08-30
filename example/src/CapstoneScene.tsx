@@ -1,5 +1,5 @@
 import { Canvas, useFrame, type ThreeEvent } from '@react-three/fiber';
-import { Aim, Body, Extension, Klipp, VirtualCamera } from '@kvvasu/klipp';
+import { Aim, Body, Extension, Klipp, VirtualCamera } from 'klipp';
 import { useRef, useState, type RefObject } from 'react';
 import { Vector3, type Object3D } from 'three';
 

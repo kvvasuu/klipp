@@ -10,10 +10,10 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@kvvasu/klipp": "workspace:*",
     "@react-three/drei": "^10.7.8",
     "@react-three/fiber": "^9.7.0",
     "camera-controls": "^3.1.2",
+    "klipp": "workspace:*",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "three": "^0.185.1"
