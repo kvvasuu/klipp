@@ -3,7 +3,9 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 
 // https://vite.dev/config/
-export default defineConfig({
+export default defineConfig(({ command }) => ({
+  // GitHub Pages serves a repo (non-user/org) site under /<repo>/, not /
+  base: command === 'build' ? '/klipp/' : '/',
   plugins: [react()],
   resolve: {
     alias: {
@@ -13,4 +15,4 @@ export default defineConfig({
       '@kvvasuu/klipp': fileURLToPath(new URL('../src/index.ts', import.meta.url)),
     },
   },
-});
+}));
