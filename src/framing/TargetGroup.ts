@@ -1,14 +1,20 @@
-import { Vector3 } from 'three';
+import type { Vector3 as Vector3Like } from '@react-three/fiber';
+import { Vector3, type Mesh, type Object3D } from 'three';
+import { isVector3Like, resolveVector3 } from '../resolve/resolveVector3';
 import { resolveTargetPosition, type Target } from '../resolve/Target';
 
 export type TargetGroupMember = {
   target: Target;
   /** Influence on the group's position in `'groupAverage'` mode — non-negative, default `1`. Unused in
-   *  `'groupCenter'` mode (that mode only cares about the member's extent, via `radius`). */
+   *  `'groupCenter'` mode (that mode only cares about the member's extent, via `radius`/`size`). */
   weight?: number;
   /** This member's own bounding-sphere radius, folded into the GROUP's bounds — non-negative, default
-   *  `0` (a dimensionless point). */
+   *  `0` (a dimensionless point). Ignored if `size` is given. */
   radius?: number;
+  /** Full box dimensions (width/height/depth) for a non-spherical member — takes priority over `radius`.
+   *  Auto-detected from `target.geometry.boundingBox` when `target` is a `Mesh` and neither `size` nor
+   *  `radius` is given. */
+  size?: Vector3Like;
 };
 
 /** `'groupCenter'` — center of the AABB enclosing every member's own bounding sphere. `'groupAverage'` —
@@ -19,8 +25,14 @@ const scratchMemberPosition = new Vector3();
 const scratchMin = new Vector3();
 const scratchMax = new Vector3();
 const scratchAccumulator = new Vector3();
+const scratchSize = new Vector3();
 
-/** Treats several targets, each with its own weight and radius, as one. A member that can't currently
+function resolveObject3D(target: Target): Object3D | null {
+  if (target == null || isVector3Like(target)) return null;
+  return ('current' in target ? target.current : target) ?? null;
+}
+
+/** Treats several targets, each with its own weight and radius/size, as one. A member that can't currently
  *  resolve (`null`/unmounted ref) is skipped, not treated as sitting at the origin. */
 export class TargetGroup {
   members: TargetGroupMember[];
@@ -31,10 +43,30 @@ export class TargetGroup {
     this.positionMode = positionMode;
   }
 
+  /** Resolves one member's full box dimensions — explicit `size`, or auto-detected from a `Mesh` target's
+   *  own local geometry bounds when neither `size` nor `radius` is set. Returns `false`
+   *  (`outSize` untouched) for a member that should be treated as a sphere/point via `radius` instead. */
+  resolveMemberSize = (outSize: Vector3, member: TargetGroupMember): boolean => {
+    if (member.size) {
+      resolveVector3(outSize, member.size);
+      return true;
+    }
+    if (member.radius !== undefined) return false;
+
+    const object = resolveObject3D(member.target);
+    const mesh = object as Mesh | null;
+    if (!mesh?.isMesh) return false;
+    if (!mesh.geometry.boundingBox) mesh.geometry.computeBoundingBox();
+    if (!mesh.geometry.boundingBox) return false;
+    mesh.geometry.boundingBox.getSize(outSize);
+    return true;
+  };
+
   /** Writes the group's world position into `outPosition` and returns the radius of the smallest sphere,
-   *  centered there, that encloses every resolvable member's own bounding sphere — the shape
-   *  `GroupFraming` fits to screen space. Returns `0` (leaving `outPosition` untouched) if no member
-   *  currently resolves, mirroring `resolveTargetPosition`'s "not ready" convention. */
+   *  centered there, that encloses every resolvable member's own bounding sphere — a conservative
+   *  fallback extent (box members contribute their bounding sphere here, not their tight silhouette; see
+   *  `GroupFraming` for the camera-aware box fit). Returns `0` (leaving `outPosition` untouched) if no
+   *  member currently resolves, mirroring `resolveTargetPosition`'s "not ready" convention. */
   computeBounds = (outPosition: Vector3): number => {
     const resolved =
       this.positionMode === 'groupAverage'
@@ -42,23 +74,25 @@ export class TargetGroup {
         : this.computeCenterPosition(outPosition);
     if (!resolved) return 0;
 
-    // regardless of how the center was chosen, the enclosing radius is always "how far this member's
-    // own sphere reaches past it" — an AABB corner-to-corner distance is NOT the same thing (a sphere
-    // doesn't need to cover a box's corners, only each member's actual surface)
     let radius = 0;
     for (const member of this.members) {
       if (!resolveTargetPosition(scratchMemberPosition, member.target)) continue;
-      const reach = scratchMemberPosition.distanceTo(outPosition) + (member.radius ?? 0);
+      const reach = scratchMemberPosition.distanceTo(outPosition) + this.resolveFallbackRadius(member);
       if (reach > radius) radius = reach;
     }
     return radius;
+  };
+
+  private resolveFallbackRadius = (member: TargetGroupMember): number => {
+    if (this.resolveMemberSize(scratchSize, member)) return scratchSize.length() / 2; // box's own half-diagonal
+    return member.radius ?? 0;
   };
 
   private computeCenterPosition = (outPosition: Vector3): boolean => {
     let any = false;
     for (const member of this.members) {
       if (!resolveTargetPosition(scratchMemberPosition, member.target)) continue;
-      const radius = member.radius ?? 0;
+      const radius = this.resolveFallbackRadius(member);
       if (!any) {
         scratchMin.copy(scratchMemberPosition).subScalar(radius);
         scratchMax.copy(scratchMemberPosition).addScalar(radius);

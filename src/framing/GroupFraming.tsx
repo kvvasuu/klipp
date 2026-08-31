@@ -6,13 +6,13 @@ import { GroupFramingExtension } from './GroupFramingExtension';
 import { TargetGroup, type TargetGroupMember, type TargetGroupPositionMode } from './TargetGroup';
 
 export type GroupFramingProps = {
-  /** Targets to keep framed, each with its own Weight/Radius — see `TargetGroupMember`. */
+  /** Targets to keep framed, each with its own Weight/Radius/Size — see `TargetGroupMember`. */
   members: TargetGroupMember[];
   /** See `TargetGroupPositionMode`. Default `'groupCenter'`. */
   positionMode?: TargetGroupPositionMode;
-  /** Margin kept clear on every side, in screen pixels. Default `0`. */
-  paddingPixels?: number;
-  /** Seconds to catch up to the fitted distance (and `centerOffsetX`/`Y`) as they change. `0` (default)
+  /** Margin kept clear around the group's members, in world units. Default `0`. */
+  padding?: number;
+  /** Seconds to catch up to the distance ceiling (and `centerOffsetX`/`Y`) as they change. `0` (default)
    *  = hard, instant. */
   damping?: DampingConstant;
   /** Shifts the frustum, in screen pixels, without moving or rotating the camera — e.g. to keep the
@@ -26,18 +26,14 @@ export type GroupFramingProps = {
 };
 
 /**
- * Thin wrapper — the actual logic lives in `GroupFramingExtension` (dolly-only distance fit) and
- * `TargetGroup` (position/bounds from `members`). Owns its own `TargetGroup` instance built from
- * `members`/`positionMode`; pass the same array reference across renders if you want to mutate members
- * in place instead of replacing the whole array.
- *
- * Only works correctly when this `VirtualCamera`'s Aim already looks straight at the SAME group's
- * position (dolly-only framing moves along the existing sightline — it doesn't establish one).
+ * Thin wrapper — the actual logic lives in `GroupFramingExtension` (dolly-only distance ceiling) and
+ * `TargetGroup` (position/bounds from `members`). Only works correctly when this `VirtualCamera`'s Aim
+ * already looks straight at the same group's position.
  */
 export function GroupFraming({
   members,
   positionMode = 'groupCenter',
-  paddingPixels = 0,
+  padding = 0,
   damping = 0,
   centerOffsetX = 0,
   centerOffsetY = 0,
@@ -47,12 +43,12 @@ export function GroupFraming({
   const size = useThree((state) => state.size);
   const [group] = useState(() => new TargetGroup(members, positionMode));
   const [extension] = useState(
-    () => new GroupFramingExtension(group, paddingPixels, size.width, size.height, damping, centerOffsetX, centerOffsetY),
+    () => new GroupFramingExtension(group, padding, size.width, size.height, damping, centerOffsetX, centerOffsetY),
   );
 
   group.members = members;
   group.positionMode = positionMode;
-  extension.paddingPixels = paddingPixels;
+  extension.padding = padding;
   extension.viewportWidth = size.width;
   extension.viewportHeight = size.height;
   extension.damping = damping;

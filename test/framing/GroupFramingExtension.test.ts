@@ -1,4 +1,4 @@
-import { Vector3 } from 'three';
+import { BoxGeometry, Mesh, Vector3 } from 'three';
 import { describe, expect, it } from 'vitest';
 import { createCameraState } from '../../src/CameraState';
 import { GroupFramingExtension } from '../../src/framing/GroupFramingExtension';
@@ -70,6 +70,160 @@ describe('GroupFramingExtension', () => {
     new GroupFramingExtension(group, 20, 100, 100).update(withPadding, 0.1);
 
     expect(withPadding.position.z).toBeGreaterThan(noPadding.position.z);
+  });
+
+  describe('ceiling behavior (does not override Body/Aim unless the padded group would not fit)', () => {
+    it('leaves out.position untouched in DISTANCE when Body already placed the camera farther than required', () => {
+      const group = new TargetGroup([{ target: new Vector3(0, 0, 0), radius: 1 }]);
+      const extension = new GroupFramingExtension(group, 0, 100, 100);
+      const out = createCameraState();
+      out.fov = 90;
+      out.quaternion.identity();
+      out.position.set(0, 0, 50); // Body already put the camera way farther than the fit requires
+
+      extension.update(out, 0.1);
+
+      // required fit distance for radius 1 at 90° vertical FOV is ~1.41 — Body's own 50 must win
+      expect(out.position.z).toBeCloseTo(50, 10);
+    });
+
+    it('dollies back to the required distance when Body placed the camera CLOSER than the padded group needs', () => {
+      const group = new TargetGroup([{ target: new Vector3(0, 0, 0), radius: 1 }]);
+      const extension = new GroupFramingExtension(group, 0, 100, 100);
+      const out = createCameraState();
+      out.fov = 90;
+      out.quaternion.identity();
+      out.position.set(0, 0, 0.5); // Body put the camera too close for the group to fit in frame
+
+      extension.update(out, 0.1);
+
+      const expectedDistance = 1 / Math.sin(Math.PI / 4);
+      expect(out.position.z).toBeCloseTo(expectedDistance, 10);
+    });
+
+    it("tracks Body's own distance 1:1 once it exceeds the required fit distance (real bug this fixes: used to always snap to the rigid fit distance, ignoring Body entirely)", () => {
+      const group = new TargetGroup([{ target: new Vector3(0, 0, 0), radius: 1 }]);
+      const extension = new GroupFramingExtension(group, 0, 100, 100);
+      const out = createCameraState();
+      out.fov = 90;
+      out.quaternion.identity();
+
+      out.position.set(0, 0, 10);
+      extension.update(out, 0.1);
+      expect(out.position.z).toBeCloseTo(10, 10);
+
+      out.position.set(0, 0, 25);
+      extension.update(out, 0.1);
+      expect(out.position.z).toBeCloseTo(25, 10);
+    });
+  });
+
+  describe('box members (size)', () => {
+    it('fits a face-on box to its actual width/height, not the corner-to-corner sphere (real bug this fixes)', () => {
+      const group = new TargetGroup([{ target: new Vector3(0, 0, 0), size: [2, 2, 2] }]);
+      const out = createCameraState();
+      out.fov = 90;
+      out.quaternion.identity();
+
+      new GroupFramingExtension(group, 0, 100, 100).update(out, 0.1);
+
+      // face-on, a 2x2x2 box needs half-width 1 to fit, plus half its own depth (1) so the NEAR face —
+      // not the center — lands at the fit distance (matches camera-controls' own `+ depth * 0.5`)
+      const expectedDistance = 1 / Math.tan(Math.PI / 4) + 1;
+      expect(out.position.z).toBeCloseTo(expectedDistance, 10);
+
+      // the OLD sphere-based (half-diagonal) fit would have required sqrt(3)/sin(45°) ≈ 2.45 — farther still
+      const oldSphereDistance = Math.sqrt(3) / Math.sin(Math.PI / 4);
+      expect(out.position.z).toBeLessThan(oldSphereDistance);
+    });
+
+    it('a box seen from a pitched camera needs less distance than naively summing half-height and half-depth (real bug this fixes: the tallest corner and the nearest corner are not always the same one)', () => {
+      const theta = Math.PI / 6;
+      const group = new TargetGroup([{ target: new Vector3(0, 0, 0), size: [2, 2, 2] }]);
+      const out = createCameraState();
+      out.fov = 90;
+      out.quaternion.setFromAxisAngle(new Vector3(1, 0, 0), theta);
+
+      new GroupFramingExtension(group, 0, 100, 100).update(out, 0.1);
+      const actualDistance = out.position.length();
+
+      const tanHalf = Math.tan(Math.PI / 4);
+      const cos = Math.cos(theta);
+      const sin = Math.sin(theta);
+      // old (buggy) formula: treats the box's full projected half-height and half-depth as if the SAME
+      // corner were simultaneously tallest AND nearest — it isn't, so this over-estimates the distance
+      const oldOverConservativeDistance = (cos + sin) / tanHalf + (sin + cos);
+      // exact per-corner distance: here the width axis (half-extent 1, unaffected by pitch) combined
+      // with the nearest corner's depth is the true binding constraint
+      const exactDistance = 1 / tanHalf + (sin + cos);
+
+      expect(actualDistance).toBeCloseTo(exactDistance, 10);
+      expect(actualDistance).toBeLessThan(oldOverConservativeDistance);
+    });
+
+    it('a box rotated 45° needs MORE distance than face-on (more of its silhouette is exposed)', () => {
+      const faceOnGroup = new TargetGroup([{ target: new Vector3(0, 0, 0), size: [2, 2, 2] }]);
+      const faceOnOut = createCameraState();
+      faceOnOut.fov = 90;
+      faceOnOut.quaternion.identity();
+      new GroupFramingExtension(faceOnGroup, 0, 100, 100).update(faceOnOut, 0.1);
+
+      const rotatedBox = new Mesh(new BoxGeometry(2, 2, 2));
+      rotatedBox.quaternion.setFromAxisAngle(new Vector3(0, 1, 0), Math.PI / 4);
+      const rotatedGroup = new TargetGroup([{ target: rotatedBox, size: [2, 2, 2] }]);
+      const rotatedOut = createCameraState();
+      rotatedOut.fov = 90;
+      rotatedOut.quaternion.identity();
+      new GroupFramingExtension(rotatedGroup, 0, 100, 100).update(rotatedOut, 0.1);
+
+      expect(rotatedOut.position.z).toBeGreaterThan(faceOnOut.position.z);
+    });
+
+    it('auto-detects size from a Mesh target end-to-end (no explicit size/radius)', () => {
+      const mesh = new Mesh(new BoxGeometry(2, 2, 2));
+      const group = new TargetGroup([{ target: mesh }]);
+      const out = createCameraState();
+      out.fov = 90;
+      out.quaternion.identity();
+
+      new GroupFramingExtension(group, 0, 100, 100).update(out, 0.1);
+
+      const expectedDistance = 1 / Math.tan(Math.PI / 4) + 1;
+      expect(out.position.z).toBeCloseTo(expectedDistance, 10);
+    });
+
+    it('a mixed group (sphere + box) takes whichever member actually requires more distance', () => {
+      const group = new TargetGroup([
+        { target: new Vector3(0, 0, 0), radius: 1 }, // needs 1/sin(45°) ≈ 1.41
+        { target: new Vector3(0, 0, 0), size: [1, 1, 1] }, // needs 0.5/tan(45°) = 0.5 — much less
+      ]);
+      const out = createCameraState();
+      out.fov = 90;
+      out.quaternion.identity();
+
+      new GroupFramingExtension(group, 0, 100, 100).update(out, 0.1);
+
+      const expectedFromSphere = 1 / Math.sin(Math.PI / 4);
+      expect(out.position.z).toBeCloseTo(expectedFromSphere, 10);
+    });
+
+    it('padding adds a flat world-unit margin to a box, same as it does for a sphere', () => {
+      const group = new TargetGroup([{ target: new Vector3(0, 0, 0), size: [2, 2, 2] }]);
+
+      const noPadding = createCameraState();
+      noPadding.fov = 90;
+      noPadding.quaternion.identity();
+      new GroupFramingExtension(group, 0, 100, 100).update(noPadding, 0.1);
+
+      const withPadding = createCameraState();
+      withPadding.fov = 90;
+      withPadding.quaternion.identity();
+      new GroupFramingExtension(group, 1, 100, 100).update(withPadding, 0.1);
+
+      const expectedWithPadding = (1 + 1) / Math.tan(Math.PI / 4) + 1; // half-width 1 + padding 1, plus depth
+      expect(withPadding.position.z).toBeCloseTo(expectedWithPadding, 10);
+      expect(withPadding.position.z).toBeGreaterThan(noPadding.position.z);
+    });
   });
 
   it('a non-square viewport picks the more restrictive of the two axes', () => {

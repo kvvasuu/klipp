@@ -1,53 +1,48 @@
 import { degreesToRadians } from 'maath';
-import { Vector3 } from 'three';
+import { Quaternion, Vector3 } from 'three';
 import type { CameraState } from '../CameraState';
 import { Damper, type DampingConstant } from '../damping/Damper';
+import { resolveTargetPosition, resolveTargetRotation } from '../resolve/Target';
 import type { TargetGroup } from './TargetGroup';
 
 const scratchGroupPosition = new Vector3();
-/** THREE cameras look down their own local -Z — this rotated into world space is "away from what
- *  the camera is looking at", i.e. the direction to dolly back along. */
-const scratchBackward = new Vector3();
+const scratchBackward = new Vector3(); // three.js cameras face local -Z, so this is "away from view"
+const scratchRight = new Vector3();
+const scratchUp = new Vector3();
+const scratchForward = new Vector3();
+const scratchMemberPosition = new Vector3();
+const scratchOffset = new Vector3();
+const scratchSize = new Vector3();
+const scratchHalfSize = new Vector3();
+const scratchMemberQuaternion = new Quaternion();
+const scratchAxisX = new Vector3();
+const scratchAxisY = new Vector3();
+const scratchAxisZ = new Vector3();
+const CORNER_SIGNS = [-1, 1] as const;
 
 /**
- * Camera extension: dollies `out.position` straight back along the camera's OWN current view axis so
- * `group`'s bounding sphere stays fully framed with `paddingPixels` of margin on every side, at the
- * current `viewportWidth`/`viewportHeight`; separately, `centerOffsetX`/`Y` shift `out.viewOffsetX`/`Y`
- * (screen pixels, via `camera.setViewOffset` — a frustum shift, not a move). Never touches
- * `out.quaternion`/`out.fov` — this is "Dolly Only" framing, so it only works correctly when Aim already
- * looks straight at `group`'s own position (its sightline is the axis this dollies along); it does
- * nothing on its own to keep the group centered if Aim looks elsewhere.
- *
- * `update()` returns whether distance/center offset are still catching up to their targets — see
- * `CameraStateWriter` in `VirtualCameraController.ts` for why that matters, and
- * `useIsVirtualCameraSettled` for reading it.
+ * Camera extension: a CEILING on distance, not a rigid fit — dollies `out.position` back along the
+ * camera's current view axis only as far as needed to keep `group`'s members (plus `padding`, world
+ * units) inside the frame, never closer than Body/Aim already placed it. Spheres (`radius`) use the exact
+ * tangent formula (`sin`); boxes (`size`) check all 8 corners against the camera's current axes and take
+ * the worst case (`tan`) — a corner's own depth affects how close it can get, so height/width and depth
+ * can't just be added. "Dolly Only": never touches `out.quaternion`/`out.fov`, so it needs Aim already
+ * looking at `group`. `centerOffsetX`/`Y` shift `out.viewOffsetX`/`Y` separately.
  */
 export class GroupFramingExtension {
   group: TargetGroup;
-  /** Margin kept clear on every side, in screen pixels — same on all four edges. */
-  paddingPixels: number;
-  /** Current canvas size in pixels — the React wrapper feeds this from `useThree(state => state.size)`,
-   *  since converting a PIXEL padding into an angular one needs to know the actual viewport. */
+  /** Margin kept clear around the group's members, in world units. */
+  padding: number;
+  /** Current canvas size in pixels, for the viewport's aspect ratio. */
   viewportWidth: number;
   viewportHeight: number;
-  /** Seconds to catch up to the fitted distance as `group`'s bounds change (or `{into, from}` for
-   *  asymmetric damping — see `DampingConstant`). `0` (default) = hard, instant fit. Also governs
-   *  `centerOffsetX`/`centerOffsetY`'s transitions — one shared knob, since a discontinuous offset jump
-   *  while distance eases in would read as inconsistent. */
+  /** Seconds to catch up to the distance ceiling (and `centerOffsetX`/`Y`) as they change. `0` (default)
+   *  = hard, instant. */
   damping: DampingConstant;
-  /** Shifts the frustum (`out.viewOffsetX`/`Y`, screen pixels) without moving or rotating the camera,
-   *  e.g. to keep the framed group visually centered in the space left over after reserving room for UI
-   *  on one side. `0` (default) = no shift. */
+  /** Shifts the frustum (screen pixels) without moving or rotating the camera. `0` (default) = none. */
   centerOffsetX: number;
   centerOffsetY: number;
 
-  // damps the SCALAR distance, never the 3D position — dollying always lands exactly on
-  // groupPosition + backward(out.quaternion)*currentDistance using THIS frame's rotation, so the target
-  // stays perfectly centered throughout a transition no matter how far the distance still has to travel.
-  // Damping full position (like a Body would) instead breaks that: if the camera's rotation is ALSO
-  // transitioning (e.g. an OrbitalFollow azimuth blend), the position damper chases a target that moves
-  // every frame and lags behind it, landing off the "look straight at group" ray — briefly aimed
-  // somewhere else entirely before catching up, not just closer/farther along the correct line.
   private readonly distanceDamper = new Damper();
   private currentDistance = 0;
   private readonly centerOffsetXDamper = new Damper();
@@ -57,7 +52,7 @@ export class GroupFramingExtension {
 
   constructor(
     group: TargetGroup,
-    paddingPixels = 0,
+    padding = 0,
     viewportWidth = 1,
     viewportHeight = 1,
     damping: DampingConstant = 0,
@@ -65,7 +60,7 @@ export class GroupFramingExtension {
     centerOffsetY = 0,
   ) {
     this.group = group;
-    this.paddingPixels = paddingPixels;
+    this.padding = padding;
     this.viewportWidth = viewportWidth;
     this.viewportHeight = viewportHeight;
     this.damping = damping;
@@ -74,34 +69,86 @@ export class GroupFramingExtension {
   }
 
   update = (out: CameraState, dt: number, justActivated: boolean): boolean => {
-    const radius = this.group.computeBounds(scratchGroupPosition);
-    if (radius <= 0) return false;
+    const boundsRadius = this.group.computeBounds(scratchGroupPosition);
+    if (boundsRadius <= 0) return false;
 
     const verticalHalfFov = degreesToRadians(out.fov) / 2;
     const aspect = this.viewportWidth / this.viewportHeight;
     const horizontalHalfFov = Math.atan(Math.tan(verticalHalfFov) * aspect);
 
-    // a pixel margin is a FRACTION of the viewport on each side — scale the corresponding half-FOV's
-    // tangent by "how much of that axis is left after both margins" to get the narrower, effective FOV
-    // the group actually has to fit inside
-    const availableVertical = Math.max(0, 1 - (2 * this.paddingPixels) / this.viewportHeight);
-    const availableHorizontal = Math.max(0, 1 - (2 * this.paddingPixels) / this.viewportWidth);
-    const effectiveVerticalHalfFov = Math.atan(Math.tan(verticalHalfFov) * availableVertical);
-    const effectiveHorizontalHalfFov = Math.atan(Math.tan(horizontalHalfFov) * availableHorizontal);
+    scratchRight.set(1, 0, 0).applyQuaternion(out.quaternion);
+    scratchUp.set(0, 1, 0).applyQuaternion(out.quaternion);
+    scratchForward.set(0, 0, -1).applyQuaternion(out.quaternion);
 
-    // distance at which a sphere of this radius exactly touches the edges of a given half-FOV — the
-    // larger of the two axes' requirement wins, so BOTH stay within their padding, not just one
-    const distanceForVertical = radius / Math.sin(effectiveVerticalHalfFov);
-    const distanceForHorizontal = radius / Math.sin(effectiveHorizontalHalfFov);
-    const distance = Math.max(distanceForVertical, distanceForHorizontal);
+    const padding = Math.max(0, this.padding);
+    const tanVertical = Math.tan(verticalHalfFov);
+    const tanHorizontal = Math.tan(horizontalHalfFov);
 
-    // exact, instant snap for damping <= 0 — the raw Damper has no such shortcut (unlike
-    // Vector3Damper/QuaternionDamper elsewhere in klipp), it would only converge almost-instantly
-    // through a tiny clamped smoothTime instead
+    let sphereReach = 0;
+    let hasBoxMember = false;
+    let boxRequiredDistance = Number.NEGATIVE_INFINITY;
+
+    for (const member of this.group.members) {
+      if (!resolveTargetPosition(scratchMemberPosition, member.target)) continue;
+      scratchOffset.subVectors(scratchMemberPosition, scratchGroupPosition);
+
+      if (this.group.resolveMemberSize(scratchSize, member)) {
+        hasBoxMember = true;
+        if (!resolveTargetRotation(scratchMemberQuaternion, member.target)) scratchMemberQuaternion.identity();
+        scratchHalfSize.copy(scratchSize).multiplyScalar(0.5);
+        scratchAxisX.set(scratchHalfSize.x, 0, 0).applyQuaternion(scratchMemberQuaternion);
+        scratchAxisY.set(0, scratchHalfSize.y, 0).applyQuaternion(scratchMemberQuaternion);
+        scratchAxisZ.set(0, 0, scratchHalfSize.z).applyQuaternion(scratchMemberQuaternion);
+
+        const axisXUp = scratchAxisX.dot(scratchUp);
+        const axisYUp = scratchAxisY.dot(scratchUp);
+        const axisZUp = scratchAxisZ.dot(scratchUp);
+        const axisXRight = scratchAxisX.dot(scratchRight);
+        const axisYRight = scratchAxisY.dot(scratchRight);
+        const axisZRight = scratchAxisZ.dot(scratchRight);
+        const axisXForward = scratchAxisX.dot(scratchForward);
+        const axisYForward = scratchAxisY.dot(scratchForward);
+        const axisZForward = scratchAxisZ.dot(scratchForward);
+        const offsetUp = scratchOffset.dot(scratchUp);
+        const offsetRight = scratchOffset.dot(scratchRight);
+        const offsetForward = scratchOffset.dot(scratchForward);
+
+        // A corner's own depth affects how close it can get before clipping, so height/width and depth
+        // aren't independent worst cases — check all 8 corners directly and take the true max.
+        for (const sx of CORNER_SIGNS) {
+          for (const sy of CORNER_SIGNS) {
+            for (const sz of CORNER_SIGNS) {
+              const cornerUp = offsetUp + sx * axisXUp + sy * axisYUp + sz * axisZUp;
+              const cornerRight = offsetRight + sx * axisXRight + sy * axisYRight + sz * axisZRight;
+              const cornerForward = offsetForward + sx * axisXForward + sy * axisYForward + sz * axisZForward;
+              const vertical = (Math.abs(cornerUp) + padding) / tanVertical - cornerForward;
+              const horizontal = (Math.abs(cornerRight) + padding) / tanHorizontal - cornerForward;
+              boxRequiredDistance = Math.max(boxRequiredDistance, vertical, horizontal);
+            }
+          }
+        }
+      } else {
+        const reach = scratchOffset.length() + (member.radius ?? 0);
+        if (reach > sphereReach) sphereReach = reach;
+      }
+    }
+
+    let requiredDistance = 0;
+    if (sphereReach > 0) {
+      const effectiveRadius = sphereReach + padding;
+      requiredDistance = Math.max(
+        requiredDistance,
+        effectiveRadius / Math.sin(verticalHalfFov),
+        effectiveRadius / Math.sin(horizontalHalfFov),
+      );
+    }
+    if (hasBoxMember) requiredDistance = Math.max(requiredDistance, boxRequiredDistance);
+
+    const bodyDistance = out.position.distanceTo(scratchGroupPosition);
+    const distance = Math.max(bodyDistance, requiredDistance);
+
     const instant = typeof this.damping === 'number' && this.damping <= 0;
 
-    // re-arms each damper's own first-call snap — on reactivation, out was frozen at wherever an
-    // earlier, unrelated activation left it, so easing from there would fly in from a stale distance
     if (justActivated) {
       this.distanceDamper.reset();
       this.centerOffsetXDamper.reset();
@@ -112,8 +159,6 @@ export class GroupFramingExtension {
       ? distance
       : this.distanceDamper.update(this.currentDistance, distance, this.damping, dt);
 
-    // always exactly on the CURRENT rotation's sightline — see the field doc comment above for why this
-    // has to stay undamped (only currentDistance itself eases)
     scratchBackward.set(0, 0, 1).applyQuaternion(out.quaternion);
     out.position.copy(scratchGroupPosition).addScaledVector(scratchBackward, this.currentDistance);
 

@@ -1,5 +1,3 @@
-import { Stats } from '@react-three/drei';
-import { Canvas, invalidate, useFrame, useThree, type ThreeEvent } from '@react-three/fiber';
 import {
   Aim,
   BindingModes,
@@ -13,8 +11,10 @@ import {
   type BindingMode,
 } from '@kvvasuu/klipp';
 import { OrbitalControls } from '@kvvasuu/klipp/body/orbital-controls';
+import { Stats } from '@react-three/drei';
+import { Canvas, invalidate, useFrame, useThree, type ThreeEvent } from '@react-three/fiber';
 import { useEffect, useRef, useState, type RefObject } from 'react';
-import { Group, Vector3, type Object3D } from 'three';
+import { Group, Mesh, Vector3, type Object3D } from 'three';
 import './App.css';
 import { CapstoneScene } from './CapstoneScene';
 
@@ -395,14 +395,11 @@ function FocusReproScene() {
 }
 
 /**
- * A box that always stays fully in frame, with a fixed pixel margin, as it grows/shrinks (slider) or the
- * canvas resizes (browser window) — `Extension.GroupFraming` dollies the camera back/forward along
- * whatever direction `Body.Follow` + `Aim.HardLookAt` already established, using a `TargetGroup` with
- * this one box as its only member (radius = the box's own bounding-sphere radius).
+ * A box that never overflows the frame as it grows (slider) or the canvas resizes — `Extension.GroupFraming`
+ * dollies back only as far as needed, so shrinking the box doesn't pull the camera back in.
  */
-function GroupFramingScene({ boxSize, paddingPixels }: { boxSize: number; paddingPixels: number }) {
-  const boxRef = useRef<Object3D>(null);
-  const boxRadius = (boxSize * Math.sqrt(3)) / 2; // half-diagonal of a cube = its bounding-sphere radius
+function GroupFramingScene({ boxSize, padding }: { boxSize: number; padding: number }) {
+  const boxRef = useRef<Mesh>(null);
 
   return (
     <>
@@ -419,11 +416,7 @@ function GroupFramingScene({ boxSize, paddingPixels }: { boxSize: number; paddin
         <VirtualCamera name="groupFraming-demo" active={true} priority={10}>
           <Body.Follow target={boxRef} offset={[0, 2, 5]} damping={0} />
           <Aim.HardLookAt target={boxRef} />
-          <Extension.GroupFraming
-            members={[{ target: boxRef, radius: boxRadius }]}
-            paddingPixels={paddingPixels}
-            damping={0.5}
-          />
+          <Extension.GroupFraming members={[{ target: boxRef }]} padding={padding} damping={0.5} />
         </VirtualCamera>
       </Klipp>
     </>
@@ -449,7 +442,7 @@ function App() {
   const [noisePreset, setNoisePreset] = useState<NoisePreset>('subtle');
   const [orbitalActiveCamera, setOrbitalActiveCamera] = useState<OrbitalActiveCamera>('orbital');
   const [boxSize, setBoxSize] = useState(2);
-  const [paddingPixels, setPaddingPixels] = useState(40);
+  const [padding, setPadding] = useState(0.5);
   const [reactivationTarget, setReactivationTarget] = useState<'A' | 'B'>('A');
   const [reactivationCameraActive, setReactivationCameraActive] = useState(true);
 
@@ -545,14 +538,14 @@ function App() {
               />
             </label>
             <label>
-              Padding: {paddingPixels}px
+              Padding: {padding.toFixed(2)} units
               <input
                 type="range"
                 min={0}
-                max={300}
-                step={5}
-                value={paddingPixels}
-                onChange={(e) => setPaddingPixels(Number(e.target.value))}
+                max={4}
+                step={0.05}
+                value={padding}
+                onChange={(e) => setPadding(Number(e.target.value))}
               />
             </label>
           </>
@@ -583,7 +576,7 @@ function App() {
           {demo === 'explosion' && <ExplosionScene />}
           {demo === 'orbital' && <OrbitalScene activeCamera={orbitalActiveCamera} />}
           {demo === 'focusRepro' && <FocusReproScene />}
-          {demo === 'groupFraming' && <GroupFramingScene boxSize={boxSize} paddingPixels={paddingPixels} />}
+          {demo === 'groupFraming' && <GroupFramingScene boxSize={boxSize} padding={padding} />}
           {demo === 'reactivationSnap' && (
             <ReactivationSnapScene targetKey={reactivationTarget} cameraActive={reactivationCameraActive} />
           )}

@@ -1,4 +1,4 @@
-import { Vector3 } from 'three';
+import { BoxGeometry, Mesh, MeshBasicMaterial, Vector3 } from 'three';
 import { describe, expect, it } from 'vitest';
 import { TargetGroup } from '../../src/framing/TargetGroup';
 
@@ -176,6 +176,75 @@ describe('TargetGroup', () => {
 
       expect(radius).toBe(0);
       expect(out.equals(new Vector3(9, 9, 9))).toBe(true);
+    });
+  });
+
+  describe('resolveMemberSize', () => {
+    it('an explicit size wins, in full width/height/depth', () => {
+      const group = new TargetGroup();
+      const out = new Vector3();
+
+      const resolved = group.resolveMemberSize(out, { target: new Vector3(), size: [2, 4, 6] });
+
+      expect(resolved).toBe(true);
+      expect(out.equals(new Vector3(2, 4, 6))).toBe(true);
+    });
+
+    it('an explicit radius wins over auto-detection — no size resolved', () => {
+      const group = new TargetGroup();
+      const mesh = new Mesh(new BoxGeometry(2, 2, 2));
+
+      const resolved = group.resolveMemberSize(new Vector3(), { target: mesh, radius: 1 });
+
+      expect(resolved).toBe(false);
+    });
+
+    it('auto-detects from a Mesh target\'s own geometry bounds when neither size nor radius is given', () => {
+      const group = new TargetGroup();
+      const mesh = new Mesh(new BoxGeometry(2, 4, 6), new MeshBasicMaterial());
+      const out = new Vector3();
+
+      const resolved = group.resolveMemberSize(out, { target: mesh });
+
+      expect(resolved).toBe(true);
+      expect(out.x).toBeCloseTo(2, 10);
+      expect(out.y).toBeCloseTo(4, 10);
+      expect(out.z).toBeCloseTo(6, 10);
+    });
+
+    it('does not auto-detect for a non-Mesh Object3D (e.g. a plain Group)', () => {
+      const group = new TargetGroup();
+      const notAMesh = { isMesh: false } as unknown as Mesh;
+
+      expect(group.resolveMemberSize(new Vector3(), { target: notAMesh })).toBe(false);
+    });
+
+    it('a bare point (Vector3Like target, no size/radius) does not auto-detect', () => {
+      const group = new TargetGroup();
+
+      expect(group.resolveMemberSize(new Vector3(), { target: new Vector3(1, 2, 3) })).toBe(false);
+    });
+  });
+
+  describe('size in computeBounds', () => {
+    it('a box member contributes its own bounding-sphere (half-diagonal) as the fallback reach', () => {
+      const group = new TargetGroup([{ target: new Vector3(0, 0, 0), size: [2, 2, 2] }]);
+      const out = new Vector3();
+
+      const radius = group.computeBounds(out);
+
+      // half-diagonal of a 2x2x2 box = sqrt(1^2+1^2+1^2) = sqrt(3)
+      expect(radius).toBeCloseTo(Math.sqrt(3), 10);
+    });
+
+    it('auto-detected Mesh size also contributes to computeBounds, not just explicit size', () => {
+      const mesh = new Mesh(new BoxGeometry(2, 2, 2));
+      const group = new TargetGroup([{ target: mesh }]);
+      const out = new Vector3();
+
+      const radius = group.computeBounds(out);
+
+      expect(radius).toBeCloseTo(Math.sqrt(3), 10);
     });
   });
 });

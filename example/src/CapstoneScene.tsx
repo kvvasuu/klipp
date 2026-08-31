@@ -87,12 +87,10 @@ export function CapstoneScene() {
           <VirtualCamera name="menu-shot" active={gameState === 'menu'} priority={10}>
             <Body.HardLockToTarget target={[0, 1.6, 6]} />
             <Aim.HardLookAt target={characterRef} />
-            {/* the fixed [0, 1.6, 6] above only sets the VIEWING ANGLE now — GroupFraming replaces its
-                implied distance with one that actually fits the character with padding, robust to
-                whatever size window this menu shot happens to render at */}
+            {/* [0, 1.6, 6] sets the viewing angle; GroupFraming dollies back further if the window is too narrow to fit */}
             <Extension.GroupFraming
               members={[{ target: characterRef, radius: characterBoundingRadius }]}
-              paddingPixels={80}
+              padding={1}
               damping={0.5}
             />
           </VirtualCamera>
