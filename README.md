@@ -1,4 +1,4 @@
-# Klipp
+# Klipp 📹
 
 [![Version](https://badgen.net/npm/v/@kvvasuu/klipp)](https://www.npmjs.com/package/@kvvasuu/klipp)
 [![license](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
