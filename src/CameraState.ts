@@ -54,3 +54,26 @@ export function copyCameraStateFromCamera(out: CameraState, camera: PerspectiveC
   out.viewOffsetY = camera.view?.enabled ? camera.view.offsetY : 0;
   return out;
 }
+
+/** The reverse of `copyCameraStateFromCamera` — writes `state` onto a real `PerspectiveCamera`.
+ *  `viewportWidth`/`viewportHeight` are only needed to convert `viewOffsetX`/`Y` into
+ *  `camera.setViewOffset`'s pixel arguments — pass the canvas's actual size. */
+export function applyCameraState(
+  camera: PerspectiveCamera,
+  state: CameraState,
+  viewportWidth: number,
+  viewportHeight: number,
+): void {
+  camera.position.copy(state.position);
+  camera.quaternion.copy(state.quaternion);
+  camera.fov = state.fov;
+  camera.near = state.near;
+  camera.far = state.far;
+  // setViewOffset/clearViewOffset call updateProjectionMatrix() themselves, which also picks up the
+  // fov/near/far just set above
+  if (state.viewOffsetX !== 0 || state.viewOffsetY !== 0) {
+    camera.setViewOffset(viewportWidth, viewportHeight, state.viewOffsetX, state.viewOffsetY, viewportWidth, viewportHeight);
+  } else {
+    camera.clearViewOffset();
+  }
+}

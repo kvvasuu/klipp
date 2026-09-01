@@ -29,7 +29,11 @@
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
     },
-    "./body/orbital-controls": {
+    "./react": {
+      "types": "./dist/react.d.ts",
+      "default": "./dist/react.js"
+    },
+    "./react/body/orbital-controls": {
       "types": "./dist/body/OrbitalControls.d.ts",
       "default": "./dist/body/OrbitalControls.js"
     }
@@ -56,6 +60,12 @@
     "three": ">=0.185.0"
   },
   "peerDependenciesMeta": {
+    "react": {
+      "optional": true
+    },
+    "@react-three/fiber": {
+      "optional": true
+    },
     "camera-controls": {
       "optional": true
     }

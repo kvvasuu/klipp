@@ -42,6 +42,8 @@ Klipp replaces that with declarative, composable pieces instead.
 - Zero-allocation core: every per-frame path (`update`, blending, damping) reuses scratch objects instead of allocating, safe to run every frame without generating garbage.
 - SmoothDamp-style damping (`Damper`, `Vector3Damper`, `QuaternionDamper`) shared across Body/Aim/GroupFraming wherever a value needs to catch up smoothly instead of snapping.
 
+The base `@kvvasuu/klipp` entry is the framework-agnostic engine (no React/R3F required) - the React bindings (`<Klipp>`, `<VirtualCamera>`, `Body`, `Aim`, `Noise`, `Extension`, ...) live under `@kvvasuu/klipp/react`.
+
 ## Quickstart
 
 ### Basic Setup
@@ -50,7 +52,7 @@ Wrap your scene in `<Klipp>` and declare a `<VirtualCamera>` with a Body and an 
 
 ```tsx
 import { Canvas } from '@react-three/fiber';
-import { Klipp, VirtualCamera, Body, Aim } from '@kvvasuu/klipp';
+import { Klipp, VirtualCamera, Body, Aim } from '@kvvasuu/klipp/react';
 
 function Scene({ playerRef }) {
   return (

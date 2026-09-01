@@ -1,6 +1,12 @@
 import { PerspectiveCamera, Quaternion, Vector3 } from 'three';
 import { describe, expect, it } from 'vitest';
-import { copyCameraState, copyCameraStateFromCamera, createCameraState, type CameraState } from '../src/CameraState';
+import {
+  applyCameraState,
+  copyCameraState,
+  copyCameraStateFromCamera,
+  createCameraState,
+  type CameraState,
+} from '../src/CameraState';
 
 describe('copyCameraState', () => {
   it('copies values into "out" without replacing its Vector3/Quaternion instances', () => {
@@ -122,5 +128,70 @@ describe('copyCameraStateFromCamera', () => {
 
     expect(out.position.equals(new Vector3(1, 1, 1))).toBe(true);
     expect(out.fov).toBe(50);
+  });
+});
+
+describe('applyCameraState', () => {
+  it('writes position/quaternion/fov/near/far from "state" onto a real camera', () => {
+    const state: CameraState = {
+      position: new Vector3(3, 4, 5),
+      quaternion: new Quaternion(0.1, 0.2, 0.3, 0.9).normalize(),
+      fov: 60,
+      near: 0.5,
+      far: 500,
+      viewOffsetX: 0,
+      viewOffsetY: 0,
+    };
+    const camera = new PerspectiveCamera();
+
+    applyCameraState(camera, state, 800, 600);
+
+    expect(camera.position.equals(state.position)).toBe(true);
+    expect(camera.quaternion.equals(state.quaternion)).toBe(true);
+    expect(camera.fov).toBe(60);
+    expect(camera.near).toBe(0.5);
+    expect(camera.far).toBe(500);
+  });
+
+  it('round-trips through copyCameraStateFromCamera unchanged', () => {
+    const state = createCameraState();
+    state.position.set(1, 2, 3);
+    state.quaternion.set(0.1, 0.2, 0.3, 0.9).normalize();
+    state.fov = 70;
+    state.viewOffsetX = 40;
+    state.viewOffsetY = -20;
+
+    const camera = new PerspectiveCamera();
+    applyCameraState(camera, state, 800, 600);
+
+    const readBack = createCameraState();
+    copyCameraStateFromCamera(readBack, camera);
+
+    expect(readBack.position.equals(state.position)).toBe(true);
+    expect(readBack.quaternion.equals(state.quaternion)).toBe(true);
+    expect(readBack.fov).toBe(70);
+    expect(readBack.viewOffsetX).toBe(40);
+    expect(readBack.viewOffsetY).toBe(-20);
+  });
+
+  it('calls clearViewOffset when viewOffsetX/Y are both 0, even if a previous call had set one', () => {
+    const state = createCameraState();
+    const camera = new PerspectiveCamera();
+    camera.setViewOffset(800, 600, 40, -20, 800, 600);
+
+    applyCameraState(camera, state, 800, 600);
+
+    expect(camera.view?.enabled).toBe(false);
+  });
+
+  it('updates the projection matrix so fov changes take effect immediately', () => {
+    const camera = new PerspectiveCamera(50, 1, 0.1, 1000);
+    const before = camera.projectionMatrix.clone();
+
+    const state = createCameraState();
+    state.fov = 90;
+    applyCameraState(camera, state, 800, 600);
+
+    expect(camera.projectionMatrix.equals(before)).toBe(false);
   });
 });

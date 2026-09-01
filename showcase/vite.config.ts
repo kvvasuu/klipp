@@ -8,8 +8,8 @@ export default defineConfig({
   resolve: {
     alias: {
       // Read the library straight from source during development — no build step in the loop.
-      // The orbital-controls subpath needs its own entry: it's an opt-in export, not part of index.ts.
-      '@kvvasuu/klipp/body/orbital-controls': fileURLToPath(new URL('../src/body/OrbitalControls.tsx', import.meta.url)),
+      '@kvvasuu/klipp/react/body/orbital-controls': fileURLToPath(new URL('../src/body/OrbitalControls.tsx', import.meta.url)),
+      '@kvvasuu/klipp/react': fileURLToPath(new URL('../src/react.ts', import.meta.url)),
       '@kvvasuu/klipp': fileURLToPath(new URL('../src/index.ts', import.meta.url)),
     },
   },

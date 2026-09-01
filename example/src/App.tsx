@@ -1,16 +1,6 @@
-import {
-  Aim,
-  BindingModes,
-  BlendCurves,
-  Body,
-  Extension,
-  Klipp,
-  Noise,
-  VirtualCamera,
-  impulseManager,
-  type BindingMode,
-} from '@kvvasuu/klipp';
-import { OrbitalControls } from '@kvvasuu/klipp/body/orbital-controls';
+import { BindingModes, BlendCurves, impulseManager, type BindingMode } from '@kvvasuu/klipp';
+import { Aim, Body, Extension, Klipp, Noise, VirtualCamera } from '@kvvasuu/klipp/react';
+import { OrbitalControls } from '@kvvasuu/klipp/react/body/orbital-controls';
 import { Stats } from '@react-three/drei';
 import { Canvas, invalidate, useFrame, useThree, type ThreeEvent } from '@react-three/fiber';
 import { useEffect, useRef, useState, type RefObject } from 'react';
