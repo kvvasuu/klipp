@@ -438,6 +438,22 @@ function App() {
 
   return (
     <>
+      <a
+        href="vanilla/"
+        style={{
+          position: 'fixed',
+          top: 12,
+          right: 12,
+          zIndex: 10,
+          color: '#fff',
+          font: '14px sans-serif',
+          background: 'rgba(0, 0, 0, 0.5)',
+          padding: '6px 10px',
+          borderRadius: 4,
+        }}
+      >
+        Vanilla (no React) example →
+      </a>
       <div className="preset-bar">
         <button data-active={demo === 'offset'} onClick={() => setDemo('offset')}>
           Follow Offset

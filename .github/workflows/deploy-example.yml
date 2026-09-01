@@ -31,6 +31,10 @@ jobs:
 
       - run: pnpm --filter example run build
 
+      - run: pnpm --filter vanilla-example run build
+
+      - run: mkdir -p example/dist/vanilla && cp -r vanilla-example/dist/. example/dist/vanilla/
+
       - uses: actions/configure-pages@v5
 
       - uses: actions/upload-pages-artifact@v3

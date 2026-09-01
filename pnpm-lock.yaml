@@ -156,6 +156,31 @@ importers:
         specifier: ^8.2.0
         version: 8.2.1(@types/node@24.13.3)(esbuild@0.28.2)(tsx@4.23.12)
 
+  vanilla-example:
+    dependencies:
+      '@kvvasuu/klipp':
+        specifier: workspace:*
+        version: link:..
+      three:
+        specifier: ^0.185.1
+        version: 0.185.1
+    devDependencies:
+      '@types/node':
+        specifier: ^24.13.3
+        version: 24.13.3
+      '@types/three':
+        specifier: ^0.185.4
+        version: 0.185.4
+      oxlint:
+        specifier: ^1.75.0
+        version: 1.78.0
+      typescript:
+        specifier: ~6.0.2
+        version: 6.0.3
+      vite:
+        specifier: ^8.2.0
+        version: 8.2.1(@types/node@24.13.3)(esbuild@0.28.2)(tsx@4.23.12)
+
 packages:
 
   '@asamuzakjp/css-color@6.0.7':

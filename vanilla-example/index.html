@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>klipp - vanilla</title>
+    <style>
+      html, body { margin: 0; height: 100%; }
+      canvas { display: block; width: 100%; height: 100%; }
+      #hint {
+        position: fixed;
+        top: 12px;
+        left: 12px;
+        color: #fff;
+        font: 14px sans-serif;
+        background: rgba(0, 0, 0, 0.5);
+        padding: 6px 10px;
+        border-radius: 4px;
+        pointer-events: none;
+      }
+      #back-link {
+        position: fixed;
+        top: 12px;
+        right: 12px;
+        color: #fff;
+        font: 14px sans-serif;
+        background: rgba(0, 0, 0, 0.5);
+        padding: 6px 10px;
+        border-radius: 4px;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="canvas"></canvas>
+    <div id="hint">Click to switch camera</div>
+    <a id="back-link" href="../">← React example</a>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
