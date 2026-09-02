@@ -82,7 +82,7 @@ function ZigzagTarget({ targetRef }: { targetRef: RefObject<Object3D | null> }) 
     const target = targetRef.current;
     if (!target) return;
     const t = state.clock.elapsedTime;
-    target.position.set(Math.sin(t * 2.2) * 15, 2, -6);
+    target.position.set(Math.sin(t * 1.5) * 15, 2, -6);
     // imperative position mutation, not a reactive prop — frameloop="demand" won't schedule the next
     // frame on its own, so this has to ask for it every time it moves
     state.invalidate();
@@ -111,7 +111,7 @@ function HardLimitScene({ hardLimitEnabled }: { hardLimitEnabled: boolean }) {
         {/* Heavy damping alone would let a fast zigzagging target lag arbitrarily far off-center;
             hardLimit forces it back inside its (wider) box every frame it strays past that, undamped. */}
         <VirtualCamera name="hardLimit-demo" active={true} priority={10}>
-          <Body.PositionComposer target={targetRef} deadZone={[0.4, 0.4]} damping={0.3} hardLimit={hardLimit} />
+          <Body.PositionComposer target={targetRef} deadZone={[0.4, 0.4]} damping={0.2} hardLimit={hardLimit} />
         </VirtualCamera>
       </Klipp>
     </>
@@ -574,7 +574,7 @@ function App() {
       {demo === 'capstone' ? (
         <CapstoneScene />
       ) : (
-        <Canvas frameloop="demand" camera={{ position: [0, 5, 10], fov: 50 }}>
+        <Canvas frameloop="demand" camera={{ position: [0, 1, 10], fov: 50 }}>
           <Stats />
 
           {demo === 'offset' && <TargetOffsetScene bindingMode={bindingMode} aimMode={aimMode} />}

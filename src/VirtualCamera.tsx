@@ -1,7 +1,7 @@
 import { useThree } from '@react-three/fiber';
 import { createContext, use, useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from 'react';
-import { createCameraState, type CameraState } from './CameraState';
-import { useKlippCore, useKlippUpdateRegistry } from './Klipp';
+import { copyCameraState, createCameraState, type CameraState } from './CameraState';
+import { useKlippCore, useKlippInitialCameraState, useKlippUpdateRegistry } from './Klipp';
 import { VirtualCameraController, type VirtualCameraSlots } from './VirtualCameraController';
 
 const VirtualCameraSlotsContext = createContext<VirtualCameraSlots | null>(null);
@@ -64,8 +64,11 @@ export type VirtualCameraProps = {
 export function VirtualCamera({ name, priority, active = true, children }: VirtualCameraProps) {
   const core = useKlippCore();
   const registerUpdate = useKlippUpdateRegistry();
+  const initialCameraState = useKlippInitialCameraState();
   const invalidate = useThree((state) => state.invalidate);
-  const [state] = useState(() => createCameraState());
+  // seeded from the real camera's own properties, not blank defaults — a Body/Aim chain that never
+  // touches fov/near/far leaves whatever the camera was already configured as alone
+  const [state] = useState(() => copyCameraState(createCameraState(), initialCameraState));
   const [controller] = useState(() => new VirtualCameraController(name));
   controller.name = name;
   const priorityRef = useRef(priority);

@@ -251,6 +251,66 @@ describe('Klipp / useKlippCore', () => {
     expect(defaultCamera!.position.equals(externalCamera.position)).toBe(false);
   });
 
+  it("preserves fov/near/far already configured on the camera before mount, when nothing ever writes them (real bug: they got silently reset to createCameraState()'s generic defaults)", async () => {
+    const externalCamera = new PerspectiveCamera(75, 1, 1, 5000);
+
+    const renderer = await create(
+      <Klipp camera={externalCamera}>
+        <VirtualCamera name="a" priority={10}>
+          <HardLockToTarget target={[0, 0, 0]} />
+        </VirtualCamera>
+      </Klipp>,
+    );
+    await renderer.advanceFrames(1, 0.1);
+
+    expect(externalCamera.fov).toBe(75);
+    expect(externalCamera.near).toBe(1);
+    expect(externalCamera.far).toBe(5000);
+  });
+
+  it("a NEW <Klipp> mounted later (e.g. switching demo scenes under one <Canvas>) starts from the camera's ORIGINAL pristine config, not wherever a PREVIOUS <Klipp> using the same camera last left it (real bug: switching scenes carried position over)", async () => {
+    let camera: PerspectiveCamera | undefined;
+    function CameraReader() {
+      camera = useThree((state) => state.camera as PerspectiveCamera);
+      return null;
+    }
+
+    function SceneA() {
+      return (
+        <>
+          <CameraReader />
+          <Klipp>
+            <VirtualCamera name="a" priority={10}>
+              <HardLockToTarget target={[10, 20, 30]} />
+            </VirtualCamera>
+          </Klipp>
+        </>
+      );
+    }
+    function SceneB() {
+      return (
+        <>
+          <CameraReader />
+          <Klipp>
+            <VirtualCamera name="b" priority={10} />
+          </Klipp>
+        </>
+      );
+    }
+
+    const renderer = await create(<SceneA />);
+    const pristinePosition = camera!.position.clone();
+
+    await renderer.advanceFrames(1, 0.1);
+    expect(camera!.position.equals(pristinePosition)).toBe(false); // SceneA's HardLockToTarget moved it
+
+    await renderer.update(<SceneB />);
+    await renderer.advanceFrames(1, 0.1);
+
+    // SceneB has no Body — if it inherited SceneA's leftover position, this would still read (10,20,30)
+    expect(camera!.position.equals(pristinePosition)).toBe(true);
+  });
+
   describe('dt clamp under frameloop="demand"', () => {
     it('clamps a huge single-frame dt so a blend animates instead of snapping to completion', async () => {
       let core: KlippCore | undefined;

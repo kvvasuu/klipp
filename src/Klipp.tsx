@@ -1,7 +1,7 @@
 import { useFrame, useThree } from '@react-three/fiber';
 import { createContext, use, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import type { Camera, PerspectiveCamera } from 'three';
-import { copyCameraState, createCameraState } from './CameraState';
+import { copyCameraState, copyCameraStateFromCamera, createCameraState, type CameraState } from './CameraState';
 import { KlippCore, type KlippCoreOptions } from './KlippCore';
 
 /** `instanceof PerspectiveCamera` silently fails whenever two copies of the `three` module end up
@@ -24,9 +24,17 @@ export type FrameUpdate = (dt: number) => boolean | void;
 type KlippContextValue = {
   core: KlippCore;
   registerUpdate: (update: FrameUpdate) => () => void;
+  initialCameraState: CameraState;
 };
 
 const KlippContext = createContext<KlippContextValue | null>(null);
+
+/** The real camera's OWN properties, from before any `<Klipp>` ever touched it — captured once per
+ *  camera object, the first time any `<Klipp>` mounts for it, and reused by every later mount/remount
+ *  sharing that same camera (e.g. switching between sibling `<Klipp>` trees under one `<Canvas>`).
+ *  Capturing fresh on every mount instead would pick up wherever the PREVIOUS `<Klipp>` last left the
+ *  camera, not its true original config. */
+const pristineCameraStates = new WeakMap<Camera, CameraState>();
 
 /** Cap on the `dt` passed to any update/`tick()` this frame under `frameloop="demand"` — see the
  *  `useFrame` callback below. Sized so the FIRST frame after an idle gap advances a blend by an
@@ -79,7 +87,22 @@ export function Klipp({ children, defaultBlend, customBlends, camera: cameraProp
   useEffect(() => core.setDefaultBlend(defaultBlend), [core, defaultBlend]);
   useEffect(() => core.setCustomBlends(customBlends), [core, customBlends]);
 
-  const value = useMemo<KlippContextValue>(() => ({ core, registerUpdate }), [core, registerUpdate]);
+  // seeds every <VirtualCamera>'s own state (see VirtualCamera.tsx) with whatever the real camera was
+  // already configured as (e.g. <Canvas camera={{ fov: 75 }}>)
+  const [initialCameraState] = useState(() => {
+    let pristine = pristineCameraStates.get(camera);
+    if (!pristine) {
+      pristine = createCameraState();
+      if (isPerspectiveCamera(camera)) copyCameraStateFromCamera(pristine, camera);
+      pristineCameraStates.set(camera, pristine);
+    }
+    return pristine;
+  });
+
+  const value = useMemo<KlippContextValue>(
+    () => ({ core, registerUpdate, initialCameraState }),
+    [core, registerUpdate, initialCameraState],
+  );
 
   // tracks last frame's result to detect actual movement — frameloop="demand" needs invalidate() calls
   const [previousResult] = useState(() => createCameraState());
@@ -182,4 +205,10 @@ export function useKlippCore(): KlippCore {
 /** Registers a per-frame update, run every frame before `core.tick(dt)`. Returns an unregister function. */
 export function useKlippUpdateRegistry(): (update: FrameUpdate) => () => void {
   return useKlippContext().registerUpdate;
+}
+
+/** The real camera's pristine, pre-`<Klipp>` properties (see `pristineCameraStates`) — the seed every
+ *  `<VirtualCamera>`'s own state starts from. */
+export function useKlippInitialCameraState(): CameraState {
+  return useKlippContext().initialCameraState;
 }

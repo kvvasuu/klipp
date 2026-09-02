@@ -43,11 +43,11 @@ describe('BasicMultiChannelPerlin (React wrapper)', () => {
 
     const renderer = await create(scene([0, 0, 0]));
     await renderer.advanceFrames(1, 0.1);
-    expect(core!.activeState!.position.length()).toBe(0);
+    const quietPosition = core!.activeState!.position.clone();
 
     await renderer.update(scene([5, 5, 5]));
     await renderer.advanceFrames(1, 0.1);
-    expect(core!.activeState!.position.length()).toBeGreaterThan(0);
+    expect(core!.activeState!.position.equals(quietPosition)).toBe(false);
   });
 
   it('unmounting stops the noise from running', async () => {
