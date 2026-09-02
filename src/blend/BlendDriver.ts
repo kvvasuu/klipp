@@ -1,5 +1,6 @@
 import { clamp } from 'maath';
 import { copyCameraState, createCameraState, type CameraState } from '../CameraState';
+import { Damper } from '../damping/Damper';
 import type { BlendDefinition } from './BlendDefinition';
 import { lerpCameraState } from './lerpCameraState';
 
@@ -8,6 +9,9 @@ type ActiveBlend<Id> = {
   toId: Id;
   definition: BlendDefinition;
   elapsed: number;
+  progress: number;
+  /** Only for a `damping`-shaped `definition` - see `setTarget`. */
+  damper: Damper | null;
 };
 
 /**
@@ -88,7 +92,14 @@ export class BlendDriver<Id> {
     }
 
     copyCameraState(this.blendFromScratch, this.output);
-    this.blend = { from: this.blendFromScratch, toId, definition, elapsed: 0 };
+    let damper: Damper | null = null;
+    if ('damping' in definition) {
+      damper = new Damper();
+      // consumes Damper's snap-on-first-call quirk (meant for a meaningless initial Body/Aim position)
+      // with a no-op update, so the real blend below damps progress from 0 instead of jumping to 1
+      damper.update(0, 0, definition.damping, 0);
+    }
+    this.blend = { from: this.blendFromScratch, toId, definition, elapsed: 0, progress: 0, damper };
   }
 
   /**
@@ -113,10 +124,19 @@ export class BlendDriver<Id> {
    */
   tick(dt: number): CameraState {
     if (this.blend) {
-      this.blend.elapsed += dt;
-      const t = this.blend.definition.time <= 0 ? 1 : clamp(this.blend.elapsed / this.blend.definition.time, 0, 1);
+      const { definition } = this.blend;
+      let t: number;
+      if ('damping' in definition) {
+        this.blend.progress = this.blend.damper!.update(this.blend.progress, 1, definition.damping, dt);
+        t = this.blend.progress;
+      } else {
+        this.blend.elapsed += dt;
+        const rawT = definition.time <= 0 ? 1 : clamp(this.blend.elapsed / definition.time, 0, 1);
+        t = definition.curve(rawT);
+      }
+
       const toState = this.getState(this.blend.toId);
-      lerpCameraState(this.output, this.blend.from, toState, this.blend.definition.curve(t));
+      lerpCameraState(this.output, this.blend.from, toState, t);
 
       if (t >= 1) {
         this.liveIdValue = this.blend.toId;

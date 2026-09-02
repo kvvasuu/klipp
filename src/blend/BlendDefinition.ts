@@ -1,10 +1,8 @@
 import type { Ease } from './BlendCurves';
 
-/** A blend's curve + duration. */
-export type BlendDefinition = {
-  curve: Ease;
-  time: number;
-};
+/** A blend's shape - a `curve` over a fixed `time`, or `damping` (seconds, same spring as `Damper`),
+ *  which approaches the target asymptotically instead of finishing at a fixed pace. */
+export type BlendDefinition = { curve: Ease; time: number } | { damping: number };
 
 /**
  * One entry of a Custom Blends list — an explicit From→To blend override. `from`/`to` omitted = matches

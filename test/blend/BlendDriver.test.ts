@@ -217,4 +217,52 @@ describe('BlendDriver', () => {
     driver.setTarget('a', linear2s);
     expect(driver.hasEverActivated).toBe(true);
   });
+
+  describe('damping-based blend', () => {
+    const damped = { damping: 0.3 };
+
+    it('a damping definition starts a real blend (not a snap), progress moving monotonically toward the target', () => {
+      const states = { a: stateAt(0), b: stateAt(10) };
+      const driver = new BlendDriver<'a' | 'b'>((id) => states[id]);
+      driver.setTarget('a', damped);
+      driver.tick(0);
+
+      driver.setTarget('b', damped);
+      expect(driver.isBlending).toBe(true);
+
+      const first = driver.tick(0.05).position.x;
+      expect(first).toBeGreaterThan(0);
+      expect(first).toBeLessThan(10);
+
+      const second = driver.tick(0.05).position.x;
+      expect(second).toBeGreaterThan(first);
+      expect(second).toBeLessThan(10);
+    });
+
+    it('a damping blend eventually settles on the destination — asymptotic convergence, not a fixed duration', () => {
+      const states = { a: stateAt(0), b: stateAt(10) };
+      const driver = new BlendDriver<'a' | 'b'>((id) => states[id]);
+      driver.setTarget('a', damped);
+      driver.tick(0);
+      driver.setTarget('b', damped);
+
+      for (let i = 0; i < 500 && driver.isBlending; i++) driver.tick(0.016);
+
+      expect(driver.isBlending).toBe(false);
+      expect(driver.liveId).toBe('b');
+    });
+
+    it('a damping blend never overshoots past the destination', () => {
+      const states = { a: stateAt(0), b: stateAt(10) };
+      const driver = new BlendDriver<'a' | 'b'>((id) => states[id]);
+      driver.setTarget('a', damped);
+      driver.tick(0);
+      driver.setTarget('b', damped);
+
+      for (let i = 0; i < 500 && driver.isBlending; i++) {
+        const out = driver.tick(0.016);
+        expect(out.position.x).toBeLessThanOrEqual(10 + 1e-6);
+      }
+    });
+  });
 });

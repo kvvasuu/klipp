@@ -63,7 +63,7 @@ function TargetOffsetScene({ bindingMode, aimMode }: { bindingMode: BindingMode;
 
       <SpinningCharacter groupRef={groupRef} />
 
-      <Klipp>
+      <Klipp defaultBlend={{ damping: 0.8 }}>
         <VirtualCamera name="targetOffset-demo" active={true} priority={10}>
           <Body.Follow target={groupRef} offset={[0, 1, 5]} damping={0} bindingMode={bindingMode} />
           {aimMode === 'lookAt' ? (
@@ -242,7 +242,7 @@ function OrbitalScene({ activeCamera }: { activeCamera: OrbitalActiveCamera }) {
 
       <OrbitingBall targetRef={targetRef} />
 
-      <Klipp>
+      <Klipp defaultBlend={{ damping: 0.8 }}>
         <VirtualCamera name="orbital-cam" active={true} priority={activeCamera === 'orbital' ? 20 : 10}>
           <OrbitalControls target={targetRef} initialDistance={8} />
           <CameraFrustumHelper color="lime" />
@@ -373,7 +373,11 @@ function FocusReproScene() {
 
       <FocusBox onBoxClick={handleBoxClick} />
 
-      <Klipp defaultBlend={{ curve: BlendCurves.easeInOut, time: 1 }}>
+      <Klipp
+        customBlends={[
+          { from: 'manual-orbit', to: 'focus', blend: { damping: 0.5 } },
+          { from: 'focus', to: 'manual-orbit', blend: { curve: BlendCurves.easeInOut, time: 1 } },
+        ]}>
         <VirtualCamera name="manual-orbit" active={!focusActive} priority={5}>
           <OrbitalControls target={focusBoxCenter} initialDistance={8} />
         </VirtualCamera>
@@ -404,7 +408,7 @@ function GroupFramingScene({ boxSize, padding }: { boxSize: number; padding: num
         <meshStandardMaterial color="steelblue" />
       </mesh>
 
-      <Klipp>
+      <Klipp defaultBlend={{ damping: 0.8 }}>
         <VirtualCamera name="groupFraming-demo" active={true} priority={10}>
           <Body.Follow target={boxRef} offset={[0, 2, 5]} damping={0} />
           <Aim.HardLookAt target={boxRef} />
