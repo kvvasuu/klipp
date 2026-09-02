@@ -46,6 +46,9 @@ export class KlippCore {
   private readonly driver: BlendDriver<string>;
   private readonly liveIdListeners = new Set<() => void>();
 
+  /** Unlike `driver.blendTargetId`, survives the outgoing camera unregistering mid-transition. */
+  private customBlendFromId: string | null = null;
+
   constructor(options: KlippCoreOptions = {}) {
     this.defaultBlend = options.defaultBlend ?? DEFAULT_BLEND;
     this.customBlends = options.customBlends ?? [];
@@ -182,9 +185,14 @@ export class KlippCore {
     // "before" only around tick() would already see the post-snap value and never detect the change
     this.withLiveIdChangeNotification(() => {
       if (this.activeId !== null && this.activeId !== this.driver.blendTargetId) {
-        const fromId = this.driver.blendTargetId;
-        const definition = resolveBlendDefinition(this.customBlends, fromId, this.activeId, this.defaultBlend);
+        const definition = resolveBlendDefinition(
+          this.customBlends,
+          this.customBlendFromId,
+          this.activeId,
+          this.defaultBlend,
+        );
         this.driver.setTarget(this.activeId, definition);
+        this.customBlendFromId = this.activeId;
       }
       result = this.driver.tick(dt);
     });

@@ -29,11 +29,8 @@ type KlippContextValue = {
 
 const KlippContext = createContext<KlippContextValue | null>(null);
 
-/** The real camera's OWN properties, from before any `<Klipp>` ever touched it — captured once per
- *  camera object, the first time any `<Klipp>` mounts for it, and reused by every later mount/remount
- *  sharing that same camera (e.g. switching between sibling `<Klipp>` trees under one `<Canvas>`).
- *  Capturing fresh on every mount instead would pick up wherever the PREVIOUS `<Klipp>` last left the
- *  camera, not its true original config. */
+/** Keyed by camera object, not `<Klipp>` mount - a fresh capture per mount would inherit wherever a
+ *  PREVIOUS `<Klipp>` sharing this camera last left it, not the camera's true original config. */
 const pristineCameraStates = new WeakMap<Camera, CameraState>();
 
 /** Cap on the `dt` passed to any update/`tick()` this frame under `frameloop="demand"` — see the
@@ -207,7 +204,7 @@ export function useKlippUpdateRegistry(): (update: FrameUpdate) => () => void {
   return useKlippContext().registerUpdate;
 }
 
-/** The real camera's pristine, pre-`<Klipp>` properties (see `pristineCameraStates`) — the seed every
+/** The real camera's pristine, pre-`<Klipp>` properties (see `pristineCameraStates`) - the seed every
  *  `<VirtualCamera>`'s own state starts from. */
 export function useKlippInitialCameraState(): CameraState {
   return useKlippContext().initialCameraState;

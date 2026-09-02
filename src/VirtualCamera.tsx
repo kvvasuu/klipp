@@ -66,7 +66,7 @@ export function VirtualCamera({ name, priority, active = true, children }: Virtu
   const registerUpdate = useKlippUpdateRegistry();
   const initialCameraState = useKlippInitialCameraState();
   const invalidate = useThree((state) => state.invalidate);
-  // seeded from the real camera's own properties, not blank defaults — a Body/Aim chain that never
+  // seeded from the real camera's own properties, not blank defaults - a Body/Aim chain that never
   // touches fov/near/far leaves whatever the camera was already configured as alone
   const [state] = useState(() => copyCameraState(createCameraState(), initialCameraState));
   const [controller] = useState(() => new VirtualCameraController(name));

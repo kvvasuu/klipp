@@ -364,6 +364,22 @@ describe('KlippCore — tick(dt): blend lifecycle', () => {
     expect(out.position.x).toBeCloseTo(6, 10); // blends from a's last known position (3), not from 0
   });
 
+  it('a Custom Blend keyed by `from` still matches after the outgoing camera unregisters first (the `active`-prop toggle pattern — real bug: unregistering nulled the id customBlends resolved "from" against, silently falling back to defaultBlend)', () => {
+    const core = new KlippCore({
+      defaultBlend: { curve: BlendCurves.linear, time: 1 },
+      customBlends: [{ from: 'a', to: 'b', blend: { curve: BlendCurves.cut, time: 0 } }],
+    });
+    const unregisterA = core.registerCamera({ id: 'a', priority: 10, state: stateAt(0) });
+    core.tick(0);
+
+    unregisterA();
+    core.registerCamera({ id: 'b', priority: 5, state: stateAt(10) });
+
+    const out = core.tick(0.016);
+    expect(core.isBlending).toBe(false);
+    expect(out.position.x).toBeCloseTo(10, 10); // cut, not a sliver of the 1s default linear blend
+  });
+
   it('unregistering the blend TARGET mid-flight re-blends from the current composited position — even if the recomputed winner happens to equal the stale liveId (real bug: it snapped instead)', () => {
     const core = new KlippCore({ defaultBlend: { curve: BlendCurves.linear, time: 1 } });
     const a = stateAt(0);
