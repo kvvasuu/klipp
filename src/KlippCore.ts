@@ -15,6 +15,8 @@ type Candidate = VirtualCameraConfig & { activatedAt: number };
 
 let activationCounter = 0;
 
+const DEFAULT_BLEND: BlendDefinition = { curve: BlendCurves.easeInOut, time: 2 };
+
 export type KlippCoreOptions = {
   /** Used when no `customBlends` entry matches a from→to transition. Default: Ease In Out over 2s. */
   defaultBlend?: BlendDefinition;
@@ -38,16 +40,24 @@ export class KlippCore {
   private activeId: string | null = null;
   private readonly activeIdListeners = new Set<() => void>();
 
-  private readonly defaultBlend: BlendDefinition;
-  private readonly customBlends: CustomBlend[];
+  private defaultBlend: BlendDefinition;
+  private customBlends: CustomBlend[];
 
   private readonly driver: BlendDriver<string>;
   private readonly liveIdListeners = new Set<() => void>();
 
   constructor(options: KlippCoreOptions = {}) {
-    this.defaultBlend = options.defaultBlend ?? { curve: BlendCurves.easeInOut, time: 2 };
+    this.defaultBlend = options.defaultBlend ?? DEFAULT_BLEND;
     this.customBlends = options.customBlends ?? [];
     this.driver = new BlendDriver((id) => this.candidates.get(id)!.state);
+  }
+
+  setDefaultBlend(defaultBlend?: BlendDefinition): void {
+    this.defaultBlend = defaultBlend ?? DEFAULT_BLEND;
+  }
+
+  setCustomBlends(customBlends?: CustomBlend[]): void {
+    this.customBlends = customBlends ?? [];
   }
 
   get activeCameraId(): string | null {

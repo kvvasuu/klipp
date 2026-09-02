@@ -458,6 +458,40 @@ describe('Klipp / useKlippCore', () => {
   });
 });
 
+describe('Klipp — reactive defaultBlend/customBlends props', () => {
+  it('a defaultBlend prop change after mount reaches core.setDefaultBlend', async () => {
+    let core: KlippCore | undefined;
+    const scene = (time: number) => (
+      <Klipp defaultBlend={{ curve: BlendCurves.linear, time }}>
+        <Reader onRead={(c) => (core = c)} />
+      </Klipp>
+    );
+
+    const renderer = await create(scene(1));
+    const setDefaultBlendSpy = vi.spyOn(core!, 'setDefaultBlend');
+
+    await renderer.update(scene(5));
+
+    expect(setDefaultBlendSpy).toHaveBeenCalledWith({ curve: BlendCurves.linear, time: 5 });
+  });
+
+  it('a customBlends prop change after mount reaches core.setCustomBlends', async () => {
+    let core: KlippCore | undefined;
+    const scene = (to: string) => (
+      <Klipp customBlends={[{ from: 'a', to, blend: { curve: BlendCurves.cut, time: 0 } }]}>
+        <Reader onRead={(c) => (core = c)} />
+      </Klipp>
+    );
+
+    const renderer = await create(scene('b'));
+    const setCustomBlendsSpy = vi.spyOn(core!, 'setCustomBlends');
+
+    await renderer.update(scene('c'));
+
+    expect(setCustomBlendsSpy).toHaveBeenCalledWith([{ from: 'a', to: 'c', blend: { curve: BlendCurves.cut, time: 0 } }]);
+  });
+});
+
 function Reader({ onRead }: { onRead: (core: KlippCore) => void }) {
   onRead(useKlippCore());
   return null;

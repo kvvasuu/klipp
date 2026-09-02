@@ -1,5 +1,5 @@
 import { useFrame, useThree } from '@react-three/fiber';
-import { createContext, use, useCallback, useMemo, useRef, useState, type ReactNode } from 'react';
+import { createContext, use, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import type { Camera, PerspectiveCamera } from 'three';
 import { copyCameraState, createCameraState } from './CameraState';
 import { KlippCore, type KlippCoreOptions } from './KlippCore';
@@ -57,14 +57,16 @@ export type KlippProps = KlippCoreOptions & {
  * `VirtualCamera`'s update, then `core.tick(dt)`, then copies the composited result onto the real r3f
  * camera. Must be rendered inside a `<Canvas>`, since it drives itself via `useFrame`.
  *
- * `defaultBlend`/`customBlends` are captured once on mount — changing them later has no effect.
+ * `defaultBlend`/`customBlends` are reactive — editing either prop takes effect on the next blend,
+ * no remount needed.
  */
 export function Klipp({ children, defaultBlend, customBlends, camera: cameraProp, mode = 'enabled' }: KlippProps) {
   const [core] = useState(() => new KlippCore({ defaultBlend, customBlends }));
   const [updates] = useState(() => new Set<FrameUpdate>());
+
   const defaultCamera = useThree((state) => state.camera);
-  const camera = cameraProp ?? defaultCamera;
   const size = useThree((state) => state.size); // for setViewOffset — needs the ACTUAL canvas size
+  const camera = cameraProp ?? defaultCamera;
 
   const registerUpdate = useCallback(
     (update: FrameUpdate) => {
@@ -73,6 +75,9 @@ export function Klipp({ children, defaultBlend, customBlends, camera: cameraProp
     },
     [updates],
   );
+
+  useEffect(() => core.setDefaultBlend(defaultBlend), [core, defaultBlend]);
+  useEffect(() => core.setCustomBlends(customBlends), [core, customBlends]);
 
   const value = useMemo<KlippContextValue>(() => ({ core, registerUpdate }), [core, registerUpdate]);
 
@@ -141,7 +146,14 @@ export function Klipp({ children, defaultBlend, customBlends, camera: cameraProp
         camera.near = result.near;
         camera.far = result.far;
         if (result.viewOffsetX !== 0 || result.viewOffsetY !== 0) {
-          camera.setViewOffset(size.width, size.height, result.viewOffsetX, result.viewOffsetY, size.width, size.height);
+          camera.setViewOffset(
+            size.width,
+            size.height,
+            result.viewOffsetX,
+            result.viewOffsetY,
+            size.width,
+            size.height,
+          );
         } else {
           camera.clearViewOffset();
         }

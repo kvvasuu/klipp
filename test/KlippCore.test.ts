@@ -405,3 +405,66 @@ describe('KlippCore — tick(dt): blend lifecycle', () => {
     expect(core.isBlending).toBe(true);
   });
 });
+
+describe('KlippCore — setDefaultBlend/setCustomBlends', () => {
+  it('setDefaultBlend takes effect on the NEXT transition, without touching an already in-progress blend', () => {
+    const core = new KlippCore({ defaultBlend: { curve: BlendCurves.linear, time: 10 } });
+    core.registerCamera({ id: 'a', priority: 10, state: stateAt(0) });
+    core.tick(0); // 'a' snaps live
+
+    core.registerCamera({ id: 'b', priority: 20, state: stateAt(10) });
+    core.tick(1); // 1s into a 10s linear blend — barely moved
+
+    core.setDefaultBlend({ curve: BlendCurves.cut, time: 0 });
+    const midBlend = core.tick(0.1);
+    expect(core.isBlending).toBe(true); // still using the ORIGINAL 10s blend, unaffected
+    expect(midBlend.position.x).toBeCloseTo(1.1, 10);
+
+    core.registerCamera({ id: 'c', priority: 30, state: stateAt(100) });
+    const out = core.tick(0); // a NEW transition — this one uses the updated (instant cut) default
+    expect(core.isBlending).toBe(false);
+    expect(core.liveCameraId).toBe('c');
+    expect(out.position.x).toBeCloseTo(100, 10);
+  });
+
+  it('setDefaultBlend() with no argument resets to the built-in default (ease in/out, 2s)', () => {
+    const core = new KlippCore({ defaultBlend: { curve: BlendCurves.cut, time: 0 } });
+    core.setDefaultBlend();
+    core.registerCamera({ id: 'a', priority: 10, state: stateAt(0) });
+    core.tick(0);
+    core.registerCamera({ id: 'b', priority: 20, state: stateAt(10) });
+
+    const out = core.tick(0); // 0s into the (now 2s) blend — should NOT have cut instantly
+    expect(core.isBlending).toBe(true);
+    expect(out.position.x).toBeCloseTo(0, 10);
+  });
+
+  it('setCustomBlends replaces the list — a from/to pair resolves against the NEW list on the next transition', () => {
+    const core = new KlippCore({ defaultBlend: { curve: BlendCurves.linear, time: 10 } });
+    core.registerCamera({ id: 'a', priority: 10, state: stateAt(0) });
+    core.tick(0);
+
+    core.setCustomBlends([{ from: 'a', to: 'b', blend: { curve: BlendCurves.cut, time: 0 } }]);
+    core.registerCamera({ id: 'b', priority: 20, state: stateAt(10) });
+    const out = core.tick(0); // custom blend applies: instant cut, not the 10s default
+
+    expect(core.isBlending).toBe(false);
+    expect(out.position.x).toBeCloseTo(10, 10);
+  });
+
+  it('setCustomBlends() with no argument clears the list, falling back to defaultBlend', () => {
+    const core = new KlippCore({
+      defaultBlend: { curve: BlendCurves.linear, time: 10 },
+      customBlends: [{ from: 'a', to: 'b', blend: { curve: BlendCurves.cut, time: 0 } }],
+    });
+    core.registerCamera({ id: 'a', priority: 10, state: stateAt(0) });
+    core.tick(0);
+
+    core.setCustomBlends();
+    core.registerCamera({ id: 'b', priority: 20, state: stateAt(10) });
+    const out = core.tick(0); // no more custom blend — falls back to the 10s linear default
+
+    expect(core.isBlending).toBe(true);
+    expect(out.position.x).toBeCloseTo(0, 10);
+  });
+});
