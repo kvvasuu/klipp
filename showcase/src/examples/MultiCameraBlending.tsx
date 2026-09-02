@@ -1,5 +1,5 @@
 import { Canvas, useFrame } from '@react-three/fiber';
-import { Aim, Body, Klipp, VirtualCamera } from '@kvvasuu/klipp/react';
+import { Aim, Body, CameraFrustumHelper, Klipp, VirtualCamera } from '@kvvasuu/klipp/react';
 import { useRef, useState, type RefObject } from 'react';
 import type { Object3D } from 'three';
 
@@ -38,17 +38,22 @@ function Scene({ activeCamera }: { activeCamera: CameraId }) {
       <OrbitingTarget targetRef={targetRef} />
 
       <Klipp>
-        <VirtualCamera name="close-follow" active={activeCamera === 'close-follow'} priority={10}>
+        {/* all three stay active={true} (the default) — priority alone picks the winner, so every
+            camera's Body/Aim keeps tracking the target live, not just the one currently on screen */}
+        <VirtualCamera name="close-follow" priority={activeCamera === 'close-follow' ? 100 : 0}>
           <Body.Follow target={targetRef} offset={[0, 1, 3]} damping={0.3} />
           <Aim.HardLookAt target={targetRef} />
+          <CameraFrustumHelper color="deepskyblue" />
         </VirtualCamera>
-        <VirtualCamera name="wide-overview" active={activeCamera === 'wide-overview'} priority={20}>
+        <VirtualCamera name="wide-overview" priority={activeCamera === 'wide-overview' ? 100 : 0}>
           <Body.HardLockToTarget target={[14, 10, 14]} damping={0.3} />
           <Aim.HardLookAt target={targetRef} />
+          <CameraFrustumHelper color="orange" />
         </VirtualCamera>
-        <VirtualCamera name="low-angle" active={activeCamera === 'low-angle'} priority={30}>
+        <VirtualCamera name="low-angle" priority={activeCamera === 'low-angle' ? 100 : 0}>
           <Body.Follow target={targetRef} offset={[3, -0.3, 1]} damping={0.3} />
           <Aim.HardLookAt target={targetRef} />
+          <CameraFrustumHelper color="magenta" />
         </VirtualCamera>
       </Klipp>
     </>

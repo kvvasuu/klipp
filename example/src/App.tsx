@@ -1,5 +1,5 @@
 import { BindingModes, BlendCurves, impulseManager, type BindingMode } from '@kvvasuu/klipp';
-import { Aim, Body, Extension, Klipp, Noise, VirtualCamera } from '@kvvasuu/klipp/react';
+import { Aim, Body, CameraFrustumHelper, Extension, Klipp, Noise, VirtualCamera } from '@kvvasuu/klipp/react';
 import { OrbitalControls } from '@kvvasuu/klipp/react/body/orbital-controls';
 import { Stats } from '@react-three/drei';
 import { Canvas, invalidate, useFrame, useThree, type ThreeEvent } from '@react-three/fiber';
@@ -245,10 +245,12 @@ function OrbitalScene({ activeCamera }: { activeCamera: OrbitalActiveCamera }) {
       <Klipp>
         <VirtualCamera name="orbital-cam" active={true} priority={activeCamera === 'orbital' ? 20 : 10}>
           <OrbitalControls target={targetRef} initialDistance={8} />
+          <CameraFrustumHelper color="lime" />
         </VirtualCamera>
         <VirtualCamera name="overview-cam" active={true} priority={activeCamera === 'overview' ? 20 : 10}>
           <Body.HardLockToTarget target={[10, 8, 10]} />
           <Aim.HardLookAt target={targetRef} />
+          <CameraFrustumHelper color="lime" />
         </VirtualCamera>
       </Klipp>
     </>
@@ -450,8 +452,7 @@ function App() {
           background: 'rgba(0, 0, 0, 0.5)',
           padding: '6px 10px',
           borderRadius: 4,
-        }}
-      >
+        }}>
         Vanilla (no React) example →
       </a>
       <div className="preset-bar">

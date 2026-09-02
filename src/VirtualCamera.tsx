@@ -1,13 +1,14 @@
 import { useThree } from '@react-three/fiber';
 import { createContext, use, useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from 'react';
-import { createCameraState } from './CameraState';
+import { createCameraState, type CameraState } from './CameraState';
 import { useKlippCore, useKlippUpdateRegistry } from './Klipp';
 import { VirtualCameraController, type VirtualCameraSlots } from './VirtualCameraController';
 
 const VirtualCameraSlotsContext = createContext<VirtualCameraSlots | null>(null);
-/** Separate contexts on purpose — each changes at a different cadence (slots: never, active: the instant
- *  arbitration picks a winner, live: once that winner's blend finishes), so a Body/Aim/Noise that only
- *  cares about one never re-renders because of the other two. */
+const VirtualCameraStateContext = createContext<CameraState | null>(null);
+/** Separate contexts on purpose — each changes at a different cadence (slots/state: never, active: the
+ *  instant arbitration picks a winner, live: once that winner's blend finishes), so a Body/Aim/Noise that
+ *  only cares about one never re-renders because of the other two. */
 const VirtualCameraActiveContext = createContext<boolean>(false);
 const VirtualCameraLiveContext = createContext<boolean>(false);
 
@@ -16,6 +17,16 @@ export function useVirtualCameraSlots(): VirtualCameraSlots {
   const slots = use(VirtualCameraSlotsContext);
   if (!slots) throw new Error('useVirtualCameraSlots must be used within a <VirtualCamera>.');
   return slots;
+}
+
+/** The nearest `<VirtualCamera>`'s own `CameraState` — its raw, un-blended output, updated in place every
+ *  frame regardless of whether this camera is currently active/live. Throws outside one. Mainly for debug
+ *  visualization (e.g. `CameraFrustumHelper`) or other read-only inspection — Body/Aim/Extension/Noise
+ *  should use their `CameraStateWriter`'s own `out` parameter instead, not this. */
+export function useVirtualCameraState(): CameraState {
+  const state = use(VirtualCameraStateContext);
+  if (!state) throw new Error('useVirtualCameraState must be used within a <VirtualCamera>.');
+  return state;
 }
 
 /** Whether the nearest `<VirtualCamera>` is `KlippCore`'s current priority winner — reactive, updates
@@ -98,9 +109,11 @@ export function VirtualCamera({ name, priority, active = true, children }: Virtu
 
   return (
     <VirtualCameraSlotsContext.Provider value={controller}>
-      <VirtualCameraActiveContext.Provider value={isActive}>
-        <VirtualCameraLiveContext.Provider value={isLive}>{children}</VirtualCameraLiveContext.Provider>
-      </VirtualCameraActiveContext.Provider>
+      <VirtualCameraStateContext.Provider value={state}>
+        <VirtualCameraActiveContext.Provider value={isActive}>
+          <VirtualCameraLiveContext.Provider value={isLive}>{children}</VirtualCameraLiveContext.Provider>
+        </VirtualCameraActiveContext.Provider>
+      </VirtualCameraStateContext.Provider>
     </VirtualCameraSlotsContext.Provider>
   );
 }

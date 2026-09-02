@@ -2,12 +2,14 @@ import { renderHook } from '@testing-library/react';
 import { create } from '@react-three/test-renderer';
 import { useEffect } from 'react';
 import { describe, expect, it, vi } from 'vitest';
+import type { CameraState } from '../src/CameraState';
 import { Klipp, useKlippCore } from '../src/Klipp';
 import type { KlippCore } from '../src/KlippCore';
 import {
   useIsActiveVirtualCamera,
   useIsLiveVirtualCamera,
   useVirtualCameraSlots,
+  useVirtualCameraState,
   VirtualCamera,
 } from '../src/VirtualCamera';
 import { BlendCurves } from '../src/blend/BlendCurves';
@@ -300,6 +302,57 @@ describe('VirtualCamera — active prop', () => {
     await renderer.advanceFrames(2, 0.1);
 
     expect(seen).toEqual([true, false, true, false]);
+  });
+});
+
+describe('useVirtualCameraState', () => {
+  it('throws outside a <VirtualCamera>', () => {
+    expect(() => renderHook(() => useVirtualCameraState())).toThrow(/within a <VirtualCamera>/);
+  });
+
+  it("is the SAME instance registered as the camera's own CameraState (matches core.activeState)", async () => {
+    let core: KlippCore | undefined;
+    let stateFromHook: CameraState | undefined;
+    function StateReader({ onRead }: { onRead: (state: CameraState) => void }) {
+      onRead(useVirtualCameraState());
+      return null;
+    }
+
+    await create(
+      <Klipp>
+        <CoreReader onRead={(c) => (core = c)} />
+        <VirtualCamera name="a" priority={10}>
+          <StateReader onRead={(s) => (stateFromHook = s)} />
+        </VirtualCamera>
+      </Klipp>,
+    );
+
+    expect(stateFromHook).toBe(core!.activeState);
+  });
+
+  it('updates in place as Body writes into it, visible through the hook without a re-render', async () => {
+    let capturedState: CameraState | undefined;
+    function StateReader({ onRead }: { onRead: (state: CameraState) => void }) {
+      onRead(useVirtualCameraState());
+      return null;
+    }
+    function Writer() {
+      const slots = useVirtualCameraSlots();
+      useEffect(() => slots.registerBody((out) => (out.position.x = 7)), [slots]);
+      return null;
+    }
+
+    const renderer = await create(
+      <Klipp>
+        <VirtualCamera name="a" priority={10}>
+          <StateReader onRead={(s) => (capturedState = s)} />
+          <Writer />
+        </VirtualCamera>
+      </Klipp>,
+    );
+
+    await renderer.advanceFrames(1, 0.1);
+    expect(capturedState!.position.x).toBe(7);
   });
 });
 

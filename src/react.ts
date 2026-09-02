@@ -2,10 +2,12 @@ export { Klipp, useKlippCore, type KlippProps, type KlippMode } from './Klipp';
 export {
   VirtualCamera,
   useVirtualCameraSlots,
+  useVirtualCameraState,
   useIsActiveVirtualCamera,
   useIsLiveVirtualCamera,
   type VirtualCameraProps,
 } from './VirtualCamera';
+export { CameraFrustumHelper, type CameraFrustumHelperProps } from './CameraFrustumHelper';
 
 export { HardLockToTarget, type HardLockToTargetProps } from './body/HardLockToTarget';
 export { Follow, type FollowProps } from './body/Follow';
