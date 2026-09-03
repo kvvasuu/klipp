@@ -26,5 +26,7 @@ export class HardLookAtAim {
     if (!resolveTargetPosition(this.scratchTargetPosition, this.target)) return;
     this.scratchMatrix.lookAt(out.position, this.scratchTargetPosition, worldUp);
     out.quaternion.setFromRotationMatrix(this.scratchMatrix);
+    out.lookAtTarget.copy(this.scratchTargetPosition);
+    out.hasLookAtTarget = true;
   };
 }

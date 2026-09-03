@@ -16,6 +16,10 @@ export type CameraState = {
    *  `camera.clearViewOffset()`. */
   viewOffsetX: number;
   viewOffsetY: number;
+  /** The Aim's Look At target world position, if it has one. Always allocated; `hasLookAtTarget` says
+   *  whether it's meaningful. */
+  lookAtTarget: Vector3;
+  hasLookAtTarget: boolean;
 };
 
 /** Allocates a new `CameraState` with default values — call once, not per frame. */
@@ -28,6 +32,8 @@ export function createCameraState(): CameraState {
     far: 1000,
     viewOffsetX: 0,
     viewOffsetY: 0,
+    lookAtTarget: new Vector3(),
+    hasLookAtTarget: false,
   };
 }
 
@@ -41,6 +47,8 @@ export function copyCameraState(out: CameraState, source: CameraState): CameraSt
   out.far = source.far;
   out.viewOffsetX = source.viewOffsetX;
   out.viewOffsetY = source.viewOffsetY;
+  out.lookAtTarget.copy(source.lookAtTarget);
+  out.hasLookAtTarget = source.hasLookAtTarget;
   return out;
 }
 
@@ -52,6 +60,7 @@ export function copyCameraStateFromCamera(out: CameraState, camera: PerspectiveC
   out.far = camera.far;
   out.viewOffsetX = camera.view?.enabled ? camera.view.offsetX : 0;
   out.viewOffsetY = camera.view?.enabled ? camera.view.offsetY : 0;
+  out.hasLookAtTarget = false;
   return out;
 }
 

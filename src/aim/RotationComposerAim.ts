@@ -104,6 +104,8 @@ export class RotationComposerAim {
 
     if (!resolveTargetRotation(scratchTargetRotation, this.target)) scratchTargetRotation.identity();
     scratchTargetPosition.add(scratchOffset.copy(this.targetOffset).applyQuaternion(scratchTargetRotation));
+    out.lookAtTarget.copy(scratchTargetPosition);
+    out.hasLookAtTarget = true;
 
     const halfFovV = (out.fov * Math.PI) / 360;
     const tanHalfFovV = Math.tan(halfFovV);
