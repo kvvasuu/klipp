@@ -52,8 +52,8 @@ export class KlippCore {
 
   /** Unlike `driver.blendTargetId`, survives the outgoing camera unregistering mid-transition. */
   private customBlendFromId: string | null = null;
-  /** The `customBlendFromId` camera's `hints` as of when it BECAME the outgoing camera - captured then,
-   *  not re-read later, since its candidate entry (and `hints`) may be gone by the next transition. */
+  /** Fallback for `customBlendFromId`'s `hints` once its candidate entry is gone (`tick()` prefers the
+   *  live value when the candidate still exists, since `hints` can change while a camera stays active). */
   private customBlendFromHints: BlendHints = BlendHints.none;
 
   constructor(options: KlippCoreOptions = {}) {
@@ -149,10 +149,14 @@ export class KlippCore {
   }
 
   /** Updates an already-registered candidate's `hints` in place - no re-arbitration needed, `hints` are
-   *  only consulted lazily when a NEW blend into/out of this candidate starts. */
+   *  only consulted lazily when a NEW blend into/out of this candidate starts. Also refreshes
+   *  `customBlendFromHints` when `id` is the camera it was captured from - otherwise a live camera's
+   *  hints changing (e.g. a toggle) while it's NOT mid-transition would go stale: it may already have
+   *  unregistered (the `active`-prop toggle pattern) by the time a future transition needs its hints. */
   updateHints(id: string, hints: BlendHints): void {
     const candidate = this.candidates.get(id);
     if (candidate) candidate.hints = hints;
+    if (id === this.customBlendFromId) this.customBlendFromHints = hints;
   }
 
   private recompute(): void {
@@ -206,7 +210,11 @@ export class KlippCore {
           this.defaultBlend,
         );
         const toHints = this.candidates.get(this.activeId)?.hints ?? BlendHints.none;
-        this.driver.setTarget(this.activeId, definition, this.customBlendFromHints | toHints);
+        // prefer the outgoing camera's CURRENT hints (it may have changed since it went live) - the
+        // captured customBlendFromHints is only a fallback for when it already unregistered mid-transition
+        const fromCandidate = this.customBlendFromId !== null ? this.candidates.get(this.customBlendFromId) : undefined;
+        const fromHints = fromCandidate?.hints ?? this.customBlendFromHints;
+        this.driver.setTarget(this.activeId, definition, fromHints | toHints);
         this.customBlendFromId = this.activeId;
         this.customBlendFromHints = toHints;
       }

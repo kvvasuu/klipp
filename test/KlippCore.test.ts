@@ -543,6 +543,41 @@ describe('KlippCore — BlendHints', () => {
     expect(out.position.length()).toBeCloseTo((radiusA + radiusB) / 2, 5);
   });
 
+  it("updating the LIVE outgoing camera's hints takes effect on its NEXT transition - real bug: the captured customBlendFromHints stayed stale one transition behind, since it was only refreshed at transition time, not when a live camera's hints changed", () => {
+    const core = new KlippCore({ defaultBlend: { curve: BlendCurves.linear, time: 1 } });
+    const a = orbitingStateAt(new Vector3(5, 5, 5));
+    const b = orbitingStateAt(new Vector3(0, 0, 5));
+    core.registerCamera({ id: 'a', priority: 10, state: a, hints: BlendHints.sphericalPosition });
+    core.tick(0); // 'a' goes live with sphericalPosition - captures customBlendFromHints
+
+    core.updateHints('a', BlendHints.none); // toggled off while 'a' is still live, no transition yet
+    core.registerCamera({ id: 'b', priority: 20, state: b });
+
+    const out = core.tick(0.5);
+
+    const radiusA = a.position.length();
+    const radiusB = b.position.length();
+    expect(out.position.length()).not.toBeCloseTo((radiusA + radiusB) / 2, 1);
+  });
+
+  it("updating the LIVE outgoing camera's hints ALSO takes effect when it unregisters before the incoming one registers (the `active`-prop toggle pattern combined with a hints toggle - real bug: the stale snapshot was the ONLY hints source left once the candidate itself was gone)", () => {
+    const core = new KlippCore({ defaultBlend: { curve: BlendCurves.linear, time: 1 } });
+    const a = orbitingStateAt(new Vector3(5, 5, 5));
+    const b = orbitingStateAt(new Vector3(0, 0, 5));
+    const unregisterA = core.registerCamera({ id: 'a', priority: 10, state: a, hints: BlendHints.sphericalPosition });
+    core.tick(0); // 'a' goes live with sphericalPosition - captures customBlendFromHints
+
+    core.updateHints('a', BlendHints.none); // toggled off while 'a' is still live, no transition yet
+    unregisterA(); // then 'a' unregisters BEFORE 'b' registers, same as the `active`-prop toggle pattern
+    core.registerCamera({ id: 'b', priority: 20, state: b });
+
+    const out = core.tick(0.5);
+
+    const radiusA = a.position.length();
+    const radiusB = b.position.length();
+    expect(out.position.length()).not.toBeCloseTo((radiusA + radiusB) / 2, 1);
+  });
+
   it('without any hint, the same two cameras blend along a straight cartesian line instead', () => {
     const core = new KlippCore({ defaultBlend: { curve: BlendCurves.linear, time: 1 } });
     const a = orbitingStateAt(new Vector3(5, 5, 5));
