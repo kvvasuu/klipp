@@ -287,13 +287,13 @@ function BlendHintsScene({
 
       <Klipp defaultBlend={{ curve: BlendCurves.linear, time: 2 }}>
         <VirtualCamera name="blendHints-a" active={activeCamera === 'a'} priority={10} hints={hints}>
-          <Body.HardLockToTarget target={[5, 5, 5]} />
+          <Body.Follow target={[5, 5, 5]} offset={[3, 0, 0]} />
           <Aim.HardLookAt target={[0, 0, 0]} />
           <CameraFrustumHelper color="lime" hideWhenLive={false} />
         </VirtualCamera>
         <VirtualCamera name="blendHints-b" active={activeCamera === 'b'} priority={20} hints={hints}>
-          <Body.HardLockToTarget target={[1, 0, 2]} />
-          <Aim.RotationComposer target={[2, 0, 0]} damping={0.4} />
+          <Body.Follow target={[5, 5, 5]} offset={[-10, 0, -5]} />
+          <Aim.RotationComposer target={[0, 0, 0]} damping={0.4} />
           <CameraFrustumHelper color="orange" hideWhenLive={false} />
         </VirtualCamera>
       </Klipp>
