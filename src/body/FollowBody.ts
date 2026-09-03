@@ -51,6 +51,8 @@ export class FollowBody {
 
     if (justActivated) this.damper.reset();
     this.damper.update(out.position, this.desiredPosition, this.damping, dt);
+    out.target.copy(this.targetPosition);
+    out.hasTarget = true;
   };
 
   private resolveOffsetRotation(out: Quaternion): void {

@@ -15,6 +15,17 @@ function projectToScreen(out: ReturnType<typeof createCameraState>, aspect: numb
 }
 
 describe('PositionComposerBody', () => {
+  it("writes the target's world position and hasTarget onto out, for BlendHints' sphericalPosition", () => {
+    const target = new Vector3(0, 0, -20);
+    const body = new PositionComposerBody(target, 10, [0, 0], 1);
+    const out = createCameraState();
+
+    body.update(out, 0.1);
+
+    expect(out.hasTarget).toBe(true);
+    expect(out.target.equals(target)).toBe(true);
+  });
+
   it('dollies along the camera forward axis until the target is at cameraDistance', () => {
     const target = new Vector3(0, 0, -20); // straight ahead, camera at identity rotation faces -Z
     const body = new PositionComposerBody(target, 10, [0, 0], 1);

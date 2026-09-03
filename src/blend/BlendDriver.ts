@@ -1,6 +1,7 @@
 import { clamp } from 'math';
 import { copyCameraState, createCameraState, type CameraState } from '../CameraState';
 import { Damper } from '../damping/Damper';
+import { BlendHints } from './BlendHints';
 import type { BlendDefinition } from './BlendDefinition';
 import { lerpCameraState } from './lerpCameraState';
 
@@ -12,6 +13,7 @@ type ActiveBlend<Id> = {
   progress: number;
   /** Only for a `damping`-shaped `definition` - see `setTarget`. */
   damper: Damper | null;
+  hints: BlendHints;
 };
 
 /**
@@ -81,7 +83,7 @@ export class BlendDriver<Id> {
    * correct: retargeting mid-transition continues smoothly from wherever the shot visually is, not from
    * further back.
    */
-  setTarget(toId: Id, definition: BlendDefinition): void {
+  setTarget(toId: Id, definition: BlendDefinition, hints: BlendHints = BlendHints.none): void {
     if (toId === this.blendTargetId) return;
 
     if (!this.hasActivatedOnce) {
@@ -99,7 +101,7 @@ export class BlendDriver<Id> {
       // with a no-op update, so the real blend below damps progress from 0 instead of jumping to 1
       damper.update(0, 0, definition.damping, 0);
     }
-    this.blend = { from: this.blendFromScratch, toId, definition, elapsed: 0, progress: 0, damper };
+    this.blend = { from: this.blendFromScratch, toId, definition, elapsed: 0, progress: 0, damper, hints };
   }
 
   /**
@@ -136,7 +138,7 @@ export class BlendDriver<Id> {
       }
 
       const toState = this.getState(this.blend.toId);
-      lerpCameraState(this.output, this.blend.from, toState, t);
+      lerpCameraState(this.output, this.blend.from, toState, t, this.blend.hints);
 
       if (t >= 1) {
         this.liveIdValue = this.blend.toId;

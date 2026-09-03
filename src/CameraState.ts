@@ -16,8 +16,12 @@ export type CameraState = {
    *  `camera.clearViewOffset()`. */
   viewOffsetX: number;
   viewOffsetY: number;
-  /** The Aim's Look At target world position, if it has one. Always allocated; `hasLookAtTarget` says
-   *  whether it's meaningful. */
+  /** The Body's tracking target world position, if it has one - e.g. for `BlendHints.sphericalPosition`.
+   *  Always allocated; `hasTarget` says whether it's meaningful. */
+  target: Vector3;
+  hasTarget: boolean;
+  /** The Aim's Look At target world position, if it has one - distinct from `target` (Body's own
+   *  tracking point, e.g. equal to `position` itself for `HardLockToTarget`). */
   lookAtTarget: Vector3;
   hasLookAtTarget: boolean;
 };
@@ -32,6 +36,8 @@ export function createCameraState(): CameraState {
     far: 1000,
     viewOffsetX: 0,
     viewOffsetY: 0,
+    target: new Vector3(),
+    hasTarget: false,
     lookAtTarget: new Vector3(),
     hasLookAtTarget: false,
   };
@@ -47,6 +53,8 @@ export function copyCameraState(out: CameraState, source: CameraState): CameraSt
   out.far = source.far;
   out.viewOffsetX = source.viewOffsetX;
   out.viewOffsetY = source.viewOffsetY;
+  out.target.copy(source.target);
+  out.hasTarget = source.hasTarget;
   out.lookAtTarget.copy(source.lookAtTarget);
   out.hasLookAtTarget = source.hasLookAtTarget;
   return out;
@@ -60,6 +68,7 @@ export function copyCameraStateFromCamera(out: CameraState, camera: PerspectiveC
   out.far = camera.far;
   out.viewOffsetX = camera.view?.enabled ? camera.view.offsetX : 0;
   out.viewOffsetY = camera.view?.enabled ? camera.view.offsetY : 0;
+  out.hasTarget = false;
   out.hasLookAtTarget = false;
   return out;
 }

@@ -13,6 +13,16 @@ describe('FollowBody', () => {
     expect(out.position.equals(new Vector3(1, 2, 3))).toBe(true);
   });
 
+  it("writes the target's world position and hasTarget onto out, for BlendHints' sphericalPosition", () => {
+    const body = new FollowBody(new Vector3(2, 3, 4), new Vector3(1, 0, 0));
+    const out = createCameraState();
+
+    body.update(out, 0.1);
+
+    expect(out.hasTarget).toBe(true);
+    expect(out.target.equals(new Vector3(2, 3, 4))).toBe(true);
+  });
+
   it("accounts for the target's WORLD position (parent transform included)", () => {
     const parent = new Object3D();
     parent.position.set(5, 0, 0);

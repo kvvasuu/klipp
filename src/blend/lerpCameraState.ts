@@ -1,10 +1,15 @@
 import { clamp, lerp } from 'math';
-import { Matrix4, Quaternion, Vector3 } from 'three';
+import { Matrix4, Quaternion, Spherical, Vector3 } from 'three';
 import type { CameraState } from '../CameraState';
+import { BlendHints, hasBlendHint } from './BlendHints';
 
 /** Scratch for the negated-`b` case below — module-level is safe, this is a synchronous leaf call. */
 const negatedB = new Quaternion();
 
+const scratchOffsetA = new Vector3();
+const scratchOffsetB = new Vector3();
+const scratchSphericalA = new Spherical();
+const scratchSphericalB = new Spherical();
 const scratchLookMatrix = new Matrix4();
 const worldUp = new Vector3(0, 1, 0);
 const scratchLookAtCurrent = new Quaternion();
@@ -27,6 +32,46 @@ function lerpLookAtRotation(out: Quaternion, a: CameraState, b: CameraState, pos
   scratchLookMatrix.lookAt(position, lookAtTarget, worldUp);
   scratchLookAtCurrent.setFromRotationMatrix(scratchLookMatrix);
   out.slerpQuaternions(scratchDeltaA, scratchDeltaB, t).premultiply(scratchLookAtCurrent);
+}
+
+/** Shortest signed angular distance from `from` to `to`, in (-π, π] — a raw `to - from` would take the
+ *  long way around whenever the two angles straddle the ±π wraparound. */
+function shortestAngleDelta(from: number, to: number): number {
+  const delta = (to - from) % (Math.PI * 2);
+  if (delta > Math.PI) return delta - Math.PI * 2;
+  if (delta < -Math.PI) return delta + Math.PI * 2;
+  return delta;
+}
+
+/** `BlendHints.sphericalPosition`/`cylindricalPosition`: interpolates the camera's offset from its
+ *  tracking target in spherical/cylindrical coordinates instead of a straight cartesian lerp. */
+function lerpPositionAroundTarget(
+  out: Vector3,
+  a: CameraState,
+  b: CameraState,
+  t: number,
+  cylindrical: boolean,
+): void {
+  scratchOffsetA.copy(a.position).sub(a.target);
+  scratchOffsetB.copy(b.position).sub(b.target);
+
+  if (cylindrical) {
+    const radiusA = Math.hypot(scratchOffsetA.x, scratchOffsetA.z);
+    const radiusB = Math.hypot(scratchOffsetB.x, scratchOffsetB.z);
+    const angleA = Math.atan2(scratchOffsetA.x, scratchOffsetA.z);
+    const angle = angleA + shortestAngleDelta(angleA, Math.atan2(scratchOffsetB.x, scratchOffsetB.z)) * t;
+    const radius = lerp(radiusA, radiusB, t);
+    out.set(radius * Math.sin(angle), lerp(scratchOffsetA.y, scratchOffsetB.y, t), radius * Math.cos(angle));
+  } else {
+    scratchSphericalA.setFromVector3(scratchOffsetA);
+    scratchSphericalB.setFromVector3(scratchOffsetB);
+    const theta = scratchSphericalA.theta + shortestAngleDelta(scratchSphericalA.theta, scratchSphericalB.theta) * t;
+    out.setFromSphericalCoords(lerp(scratchSphericalA.radius, scratchSphericalB.radius, t), lerp(scratchSphericalA.phi, scratchSphericalB.phi, t), theta);
+  }
+
+  out.x += lerp(a.target.x, b.target.x, t);
+  out.y += lerp(a.target.y, b.target.y, t);
+  out.z += lerp(a.target.z, b.target.z, t);
 }
 
 /**
@@ -64,18 +109,35 @@ function slerpWithContinuity(out: Quaternion, from: Quaternion, to: Quaternion, 
  * Interpolates a WHOLE `CameraState` (position + rotation + lens) at one shared progress `t`, not three
  * independent lerps. `t` is clamped to [0, 1]. Writes into `out` and returns it.
  *
- * Rotation: a shared `lookAtTarget` keeps the camera looking at it exactly throughout - see
- * `lerpLookAtRotation`. Otherwise falls back to a plain slerp, with continuity: a plain slerp takes the
- * shortest path between `a` and `b`, but `b` is often a LIVE rotation (e.g. Aim tracking an orbiting
- * target) while `a` stays frozen for the whole blend — once `b` sweeps past ~180° from `a`, "shortest
- * from `a`" flips sides, jerking the camera. Comparing `b` against `out`'s pre-write value instead (last
- * frame's result, since `out` is reused every tick) keeps the path continuous.
+ * Rotation ignores `hints` (those only shape POSITION, see `BlendHints`) - a shared `lookAtTarget`
+ * (Aim's, distinct from Body's `target`) always drives it via `lerpLookAtRotation` instead. Otherwise
+ * falls back to a plain slerp, with continuity: a plain slerp takes the shortest path between `a` and
+ * `b`, but `b` is often a LIVE rotation (e.g. Aim tracking an orbiting target) while `a` stays frozen for
+ * the whole blend — once `b` sweeps past ~180° from `a`, "shortest from `a`" flips sides, jerking the
+ * camera. Comparing `b` against `out`'s pre-write value instead (last frame's result, since `out` is
+ * reused every tick) keeps the path continuous.
  */
-export function lerpCameraState(out: CameraState, a: CameraState, b: CameraState, t: number): CameraState {
+export function lerpCameraState(
+  out: CameraState,
+  a: CameraState,
+  b: CameraState,
+  t: number,
+  hints: BlendHints = BlendHints.none,
+): CameraState {
   const clamped = clamp(t, 0, 1);
-  out.position.lerpVectors(a.position, b.position, clamped);
-
+  const hasTarget = a.hasTarget && b.hasTarget;
   const hasLookAtTarget = a.hasLookAtTarget && b.hasLookAtTarget;
+  const spherical = hasTarget && hasBlendHint(hints, BlendHints.sphericalPosition);
+  const cylindrical = hasTarget && !spherical && hasBlendHint(hints, BlendHints.cylindricalPosition);
+
+  if (spherical || cylindrical) {
+    lerpPositionAroundTarget(out.position, a, b, clamped, cylindrical);
+  } else {
+    out.position.lerpVectors(a.position, b.position, clamped);
+  }
+
+  if (hasTarget) out.target.lerpVectors(a.target, b.target, clamped);
+  out.hasTarget = hasTarget;
   if (hasLookAtTarget) out.lookAtTarget.lerpVectors(a.lookAtTarget, b.lookAtTarget, clamped);
   out.hasLookAtTarget = hasLookAtTarget;
 

@@ -2,6 +2,7 @@ import type { CameraState } from './CameraState';
 import { BlendCurves } from './blend/BlendCurves';
 import { resolveBlendDefinition, type BlendDefinition, type CustomBlend } from './blend/BlendDefinition';
 import { BlendDriver } from './blend/BlendDriver';
+import { BlendHints } from './blend/BlendHints';
 
 export type VirtualCameraConfig = {
   id: string;
@@ -9,6 +10,9 @@ export type VirtualCameraConfig = {
   /** Reference to this camera's live state — `KlippCore` reads it directly. Whoever registers it is
    *  responsible for keeping it updated in place (zero-allocation convention, see CLAUDE.md). */
   state: CameraState;
+  /** Combined (OR'd) with whichever OTHER camera is on the other end of a transition into/out of this
+   *  one - see `BlendHints`. Default `BlendHints.none`. */
+  hints?: BlendHints;
 };
 
 type Candidate = VirtualCameraConfig & { activatedAt: number };
@@ -48,6 +52,9 @@ export class KlippCore {
 
   /** Unlike `driver.blendTargetId`, survives the outgoing camera unregistering mid-transition. */
   private customBlendFromId: string | null = null;
+  /** The `customBlendFromId` camera's `hints` as of when it BECAME the outgoing camera - captured then,
+   *  not re-read later, since its candidate entry (and `hints`) may be gone by the next transition. */
+  private customBlendFromHints: BlendHints = BlendHints.none;
 
   constructor(options: KlippCoreOptions = {}) {
     this.defaultBlend = options.defaultBlend ?? DEFAULT_BLEND;
@@ -141,6 +148,13 @@ export class KlippCore {
     this.recompute();
   }
 
+  /** Updates an already-registered candidate's `hints` in place - no re-arbitration needed, `hints` are
+   *  only consulted lazily when a NEW blend into/out of this candidate starts. */
+  updateHints(id: string, hints: BlendHints): void {
+    const candidate = this.candidates.get(id);
+    if (candidate) candidate.hints = hints;
+  }
+
   private recompute(): void {
     let winner: Candidate | null = null;
     for (const candidate of this.candidates.values()) {
@@ -191,8 +205,10 @@ export class KlippCore {
           this.activeId,
           this.defaultBlend,
         );
-        this.driver.setTarget(this.activeId, definition);
+        const toHints = this.candidates.get(this.activeId)?.hints ?? BlendHints.none;
+        this.driver.setTarget(this.activeId, definition, this.customBlendFromHints | toHints);
         this.customBlendFromId = this.activeId;
+        this.customBlendFromHints = toHints;
       }
       result = this.driver.tick(dt);
     });

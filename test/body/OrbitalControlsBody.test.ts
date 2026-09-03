@@ -17,6 +17,16 @@ describe('OrbitalControlsBody', () => {
     expect(body.controls).toBeInstanceOf(CustomControls);
   });
 
+  it("writes the target position and hasTarget onto out, for BlendHints' sphericalPosition", () => {
+    const target = new Vector3(1, 2, 3);
+    const body = new OrbitalControlsBody(target, 1, 10);
+    const out = createCameraState();
+    body.update(out, 0.05);
+
+    expect(out.hasTarget).toBe(true);
+    expect(out.target.equals(target)).toBe(true);
+  });
+
   it('starts at a real, non-zero distance from the target instead of coincident with it', () => {
     // regression: a fresh THREE.Camera starts at the origin, same as an unset target — without an
     // explicit initial distance, orbiting starts fully degenerate (camera AT the target, nothing visible)

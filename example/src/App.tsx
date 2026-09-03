@@ -1,4 +1,4 @@
-import { BindingModes, BlendCurves, impulseManager, type BindingMode } from '@kvvasuu/klipp';
+import { BindingModes, BlendCurves, BlendHints, impulseManager, type BindingMode } from '@kvvasuu/klipp';
 import { Aim, Body, CameraFrustumHelper, Extension, Klipp, Noise, VirtualCamera } from '@kvvasuu/klipp/react';
 import { OrbitalControls } from '@kvvasuu/klipp/react/body/orbital-controls';
 import { Stats } from '@react-three/drei';
@@ -257,6 +257,50 @@ function OrbitalScene({ activeCamera }: { activeCamera: OrbitalActiveCamera }) {
   );
 }
 
+type BlendHintsActiveCamera = 'a' | 'b';
+
+/**
+ * Two cameras `HardLookAt`-ing DIFFERENT points, blending between them. Rotation always tracks the
+ * smoothly-interpolating look-at target exactly - unconditional whenever both sides have one, not gated
+ * behind `sphericalPosition`. The hint only shapes the POSITION path: arcing around Body's tracking
+ * target at an interpolated radius instead of cutting straight through.
+ */
+function BlendHintsScene({
+  activeCamera,
+  useSphericalHint,
+}: {
+  activeCamera: BlendHintsActiveCamera;
+  useSphericalHint: boolean;
+}) {
+  const hints = useSphericalHint ? BlendHints.sphericalPosition : BlendHints.none;
+
+  return (
+    <>
+      <ambientLight intensity={0.6} />
+      <directionalLight position={[5, 8, 3]} intensity={1.2} />
+      <gridHelper args={[24, 24, '#444', '#222']} position={[0, 0.01, 0]} />
+
+      <mesh>
+        <sphereGeometry args={[0.5, 16, 16]} />
+        <meshStandardMaterial color="tomato" />
+      </mesh>
+
+      <Klipp defaultBlend={{ curve: BlendCurves.linear, time: 2 }}>
+        <VirtualCamera name="blendHints-a" active={activeCamera === 'a'} priority={10} hints={hints}>
+          <Body.HardLockToTarget target={[5, 5, 5]} />
+          <Aim.HardLookAt target={[0, 0, 0]} />
+          <CameraFrustumHelper color="lime" hideWhenLive={false} />
+        </VirtualCamera>
+        <VirtualCamera name="blendHints-b" active={activeCamera === 'b'} priority={20} hints={hints}>
+          <Body.HardLockToTarget target={[1, 0, 2]} />
+          <Aim.RotationComposer target={[2, 0, 0]} damping={0.4} />
+          <CameraFrustumHelper color="orange" hideWhenLive={false} />
+        </VirtualCamera>
+      </Klipp>
+    </>
+  );
+}
+
 const focusBoxCenter: [number, number, number] = [0, 1, 0];
 const focusBoxSize: [number, number, number] = [2, 2, 2];
 
@@ -324,7 +368,7 @@ function ReactivationSnapScene({ targetKey, cameraActive }: { targetKey: 'A' | '
               (the regression case) reads as one clean ease — PositionComposer's stage-1 dolly is always
               instant/undamped by design, which would show as "jump, then the lateral part eases in",
               muddying what this scene is actually testing (unrelated to justActivated). */}
-          <Body.Follow target={targetPosition} offset={[0, 5, 16]} damping={1.5} bindingMode="worldSpace" />
+          <Body.Follow target={targetPosition} offset={[0, 5, 16]} damping={1.5} />
           <Aim.RotationComposer target={targetPosition} deadZone={[0.2, 0.2]} damping={1.5} />
         </VirtualCamera>
       </Klipp>
@@ -425,6 +469,7 @@ type Demo =
   | 'noise'
   | 'explosion'
   | 'orbital'
+  | 'blendHints'
   | 'focusRepro'
   | 'groupFraming'
   | 'reactivationSnap'
@@ -437,6 +482,8 @@ function App() {
   const [hardLimitEnabled, setHardLimitEnabled] = useState(false);
   const [noisePreset, setNoisePreset] = useState<NoisePreset>('subtle');
   const [orbitalActiveCamera, setOrbitalActiveCamera] = useState<OrbitalActiveCamera>('orbital');
+  const [blendHintsActiveCamera, setBlendHintsActiveCamera] = useState<BlendHintsActiveCamera>('a');
+  const [blendHintsUseSphericalHint, setBlendHintsUseSphericalHint] = useState(false);
   const [boxSize, setBoxSize] = useState(2);
   const [padding, setPadding] = useState(0.5);
   const [reactivationTarget, setReactivationTarget] = useState<'A' | 'B'>('A');
@@ -474,6 +521,9 @@ function App() {
         </button>
         <button data-active={demo === 'orbital'} onClick={() => setDemo('orbital')}>
           Orbital Controls
+        </button>
+        <button data-active={demo === 'blendHints'} onClick={() => setDemo('blendHints')}>
+          Blend Hints
         </button>
         <button data-active={demo === 'focusRepro'} onClick={() => setDemo('focusRepro')}>
           Click to Zoom
@@ -535,6 +585,19 @@ function App() {
             </button>
           </>
         )}
+        {demo === 'blendHints' && (
+          <>
+            <button data-active={blendHintsActiveCamera === 'a'} onClick={() => setBlendHintsActiveCamera('a')}>
+              Camera A (5,5,5)
+            </button>
+            <button data-active={blendHintsActiveCamera === 'b'} onClick={() => setBlendHintsActiveCamera('b')}>
+              Camera B (-5,0,2)
+            </button>
+            <button data-active={blendHintsUseSphericalHint} onClick={() => setBlendHintsUseSphericalHint((v) => !v)}>
+              {blendHintsUseSphericalHint ? 'sphericalPosition: on' : 'sphericalPosition: off - straight line'}
+            </button>
+          </>
+        )}
         {demo === 'groupFraming' && (
           <>
             <label>
@@ -586,6 +649,9 @@ function App() {
           {demo === 'noise' && <NoiseScene preset={noisePreset} />}
           {demo === 'explosion' && <ExplosionScene />}
           {demo === 'orbital' && <OrbitalScene activeCamera={orbitalActiveCamera} />}
+          {demo === 'blendHints' && (
+            <BlendHintsScene activeCamera={blendHintsActiveCamera} useSphericalHint={blendHintsUseSphericalHint} />
+          )}
           {demo === 'focusRepro' && <FocusReproScene />}
           {demo === 'groupFraming' && <GroupFramingScene boxSize={boxSize} padding={padding} />}
           {demo === 'reactivationSnap' && (
@@ -597,6 +663,13 @@ function App() {
         <p className="hint-text">
           bindingMode (Body) and Aim are independent: bindingMode only moves the camera's orbit position, never its own
           tilt. Switch Aim to "Glued" to see the camera's ROTATION lock to the target too.
+        </p>
+      )}
+      {demo === 'blendHints' && (
+        <p className="hint-text">
+          Camera A and B look at two DIFFERENT points - the look-at target itself smoothly slides between them during
+          the blend, staying framed either way, unconditionally. Toggle sphericalPosition to compare the camera's own
+          PATH: off cuts straight through, on arcs around Body's tracking target at an interpolated radius instead.
         </p>
       )}
       {demo === 'focusRepro' && (

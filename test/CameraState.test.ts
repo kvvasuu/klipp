@@ -18,6 +18,8 @@ describe('copyCameraState', () => {
       far: 1000,
       viewOffsetX: 40,
       viewOffsetY: -20,
+      target: new Vector3(4, 5, 6),
+      hasTarget: true,
       lookAtTarget: new Vector3(7, 8, 9),
       hasLookAtTarget: true,
     };
@@ -35,6 +37,8 @@ describe('copyCameraState', () => {
     expect(out.fov).toBe(50);
     expect(out.viewOffsetX).toBe(40);
     expect(out.viewOffsetY).toBe(-20);
+    expect(out.target.equals(source.target)).toBe(true);
+    expect(out.hasTarget).toBe(true);
     expect(out.lookAtTarget.equals(source.lookAtTarget)).toBe(true);
     expect(out.hasLookAtTarget).toBe(true);
   });
@@ -48,6 +52,8 @@ describe('copyCameraState', () => {
       far: 1000,
       viewOffsetX: 40,
       viewOffsetY: -20,
+      target: new Vector3(4, 5, 6),
+      hasTarget: true,
       lookAtTarget: new Vector3(7, 8, 9),
       hasLookAtTarget: true,
     };

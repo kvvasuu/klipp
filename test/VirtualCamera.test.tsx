@@ -13,6 +13,7 @@ import {
   VirtualCamera,
 } from '../src/VirtualCamera';
 import { BlendCurves } from '../src/blend/BlendCurves';
+import { BlendHints } from '../src/blend/BlendHints';
 
 function CoreReader({ onRead }: { onRead: (core: KlippCore) => void }) {
   onRead(useKlippCore());
@@ -73,6 +74,27 @@ describe('VirtualCamera — registration lifecycle', () => {
 
     await renderer.update(scene(30));
     expect(core!.activeCameraId).toBe('challenger');
+  });
+
+  it('the hints prop reaches core.registerCamera on mount, and core.updateHints on a later change (without a full re-register)', async () => {
+    let core: KlippCore | undefined;
+    const scene = (mounted: boolean, hints: number) => (
+      <Klipp>
+        <CoreReader onRead={(c) => (core = c)} />
+        {mounted && <VirtualCamera name="a" priority={10} hints={hints} />}
+      </Klipp>
+    );
+
+    const renderer = await create(scene(false, BlendHints.none));
+    const registerSpy = vi.spyOn(core!, 'registerCamera');
+    const updateHintsSpy = vi.spyOn(core!, 'updateHints');
+
+    await renderer.update(scene(true, BlendHints.sphericalPosition));
+    expect(registerSpy).toHaveBeenCalledWith(expect.objectContaining({ id: 'a', hints: BlendHints.sphericalPosition }));
+
+    await renderer.update(scene(true, BlendHints.cylindricalPosition));
+    expect(updateHintsSpy).toHaveBeenCalledWith('a', BlendHints.cylindricalPosition);
+    expect(registerSpy).toHaveBeenCalledTimes(1); // the hints-only change did not re-register
   });
 
   it('a priority edit on the sole, already-live camera does not spuriously restart a blend (real bug: it briefly stopped tracking)', async () => {

@@ -72,6 +72,8 @@ export class OrbitalControlsBody {
     if (resolved) {
       out.position.copy(this.camera.position);
       out.quaternion.copy(this.camera.quaternion);
+      out.target.copy(scratchTargetPosition);
+      out.hasTarget = true;
     }
   };
 }
