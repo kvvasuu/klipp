@@ -1,4 +1,4 @@
-import { Quaternion, Vector3 } from 'three';
+import { Matrix4, Quaternion, Vector3 } from 'three';
 import { describe, expect, it } from 'vitest';
 import { createCameraState, type CameraState } from '../../src/CameraState';
 import { lerpCameraState } from '../../src/blend/lerpCameraState';
@@ -12,6 +12,8 @@ function makeState(overrides: Partial<CameraState> = {}): CameraState {
     far: 1000,
     viewOffsetX: 0,
     viewOffsetY: 0,
+    lookAtTarget: new Vector3(0, 0, 0),
+    hasLookAtTarget: false,
     ...overrides,
   };
 }
@@ -113,14 +115,6 @@ describe('lerpCameraState', () => {
     expect(outIsB.position.x).toBeCloseTo(5, 10);
   });
 
-  it('accepts hints without changing the result (not yet differentiated, see doc comment)', () => {
-    const withoutHints = createCameraState();
-    const withHints = createCameraState();
-    lerpCameraState(withoutHints, a, b, 0.5);
-    lerpCameraState(withHints, a, b, 0.5, 0b111111);
-    expect(withHints.position.equals(withoutHints.position)).toBe(true);
-  });
-
   describe('hemisphere continuity (a live, moving "b" must not reverse the interpolated path)', () => {
     it('"b" expressed with a flipped quaternion sign produces the SAME result as the correctly-signed one', () => {
       const previousOutput = new Quaternion().setFromAxisAngle(new Vector3(0, 1, 0), Math.PI / 2); // 90°
@@ -162,6 +156,75 @@ describe('lerpCameraState', () => {
 
         expect(before.angleTo(out.quaternion)).toBeLessThan(0.2);
       }
+    });
+  });
+
+  describe('lookAtTarget-driven rotation (camera-controls-style continuous look-at)', () => {
+    const worldUp = new Vector3(0, 1, 0);
+    const scratchMatrix = new Matrix4();
+
+    /** A state with a REAL, consistent lookAt quaternion for `position`/`lookAtTarget` - matching what an
+     *  actual Aim (e.g. `HardLookAt`) would produce, unlike a quaternion left at some unrelated default. */
+    function stateWithLookAt(position: Vector3, lookAtTarget: Vector3): CameraState {
+      scratchMatrix.lookAt(position, lookAtTarget, worldUp);
+      const quaternion = new Quaternion().setFromRotationMatrix(scratchMatrix);
+      return makeState({ position, quaternion, lookAtTarget, hasLookAtTarget: true });
+    }
+
+    it('drives rotation via a fresh lookAt(out.position, out.lookAtTarget) instead of slerping a/b\'s rotations, whenever both sides share a lookAtTarget', () => {
+      const a = stateWithLookAt(new Vector3(5, 5, 5), new Vector3(0, 0, 0));
+      const b = stateWithLookAt(new Vector3(0, 0, 5), new Vector3(0, 0, 0));
+      const out = createCameraState();
+
+      lerpCameraState(out, a, b, 0.5);
+
+      const forward = new Vector3(0, 0, -1).applyQuaternion(out.quaternion);
+      const toTarget = out.lookAtTarget.clone().sub(out.position).normalize();
+      expect(forward.dot(toTarget)).toBeCloseTo(1, 10);
+    });
+
+    it("keeps looking exactly at the smoothly-interpolating target even when a's and b's lookAtTargets are far apart and unrelated (real use case: two cameras looking at entirely different subjects)", () => {
+      const a = stateWithLookAt(new Vector3(5, 5, 5), new Vector3(0, 0, 0));
+      const b = stateWithLookAt(new Vector3(-8, 2, 10), new Vector3(50, 20, -30));
+
+      for (let t = 0; t <= 1; t += 0.1) {
+        const out = createCameraState();
+        lerpCameraState(out, a, b, t);
+
+        const expectedTarget = a.lookAtTarget.clone().lerp(b.lookAtTarget, t);
+        expect(out.lookAtTarget.distanceTo(expectedTarget)).toBeLessThan(1e-9);
+
+        const forward = new Vector3(0, 0, -1).applyQuaternion(out.quaternion);
+        const toTarget = out.lookAtTarget.clone().sub(out.position).normalize();
+        expect(forward.dot(toTarget)).toBeGreaterThan(1 - 1e-9);
+      }
+    });
+
+    it("matches a's/b's quaternion EXACTLY at t=0/t=1 even when they have extra rotation beyond a pure lookAt (real bug: a raw lookAt ignored that extra rotation entirely, popping visibly the instant a blend committed and handed off to the Aim's own state)", () => {
+      const a = stateWithLookAt(new Vector3(-5, 0, 0), new Vector3(0, 0, 0));
+      const b = stateWithLookAt(new Vector3(5, 0, 0), new Vector3(0, 0, 0));
+      // simulate an Aim like RotationComposer layering an extra offset (screen position, damping lag, ...)
+      b.quaternion.multiply(new Quaternion().setFromAxisAngle(new Vector3(0, 1, 0), Math.PI / 9));
+
+      const outAt0 = createCameraState();
+      lerpCameraState(outAt0, a, b, 0);
+      expect(outAt0.quaternion.angleTo(a.quaternion)).toBeLessThan(1e-9);
+
+      const outAt1 = createCameraState();
+      lerpCameraState(outAt1, a, b, 1);
+      expect(outAt1.quaternion.angleTo(b.quaternion)).toBeLessThan(1e-9);
+    });
+
+    it("without a shared lookAtTarget, rotation falls back to slerping a/b's own quaternions", () => {
+      const rotatedA = makeState({ quaternion: new Quaternion().setFromAxisAngle(new Vector3(0, 1, 0), Math.PI / 2) });
+      const noLookAt = makeState({ position: new Vector3(0, 0, 5) });
+      const out = createCameraState();
+
+      lerpCameraState(out, rotatedA, noLookAt, 0.5);
+
+      expect(out.hasLookAtTarget).toBe(false);
+      // slerp of rotatedA's 90° and noLookAt's identity lands at 45°, not identity (a degenerate lookAt's result)
+      expect(out.quaternion.angleTo(new Quaternion())).toBeGreaterThan(0.1);
     });
   });
 });

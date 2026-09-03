@@ -1,10 +1,33 @@
-import { clamp, lerp } from 'maath';
-import { Quaternion } from 'three';
+import { clamp, lerp } from 'math';
+import { Matrix4, Quaternion, Vector3 } from 'three';
 import type { CameraState } from '../CameraState';
-import { BlendHints } from './BlendHints';
 
 /** Scratch for the negated-`b` case below — module-level is safe, this is a synchronous leaf call. */
 const negatedB = new Quaternion();
+
+const scratchLookMatrix = new Matrix4();
+const worldUp = new Vector3(0, 1, 0);
+const scratchLookAtCurrent = new Quaternion();
+const scratchDeltaA = new Quaternion();
+const scratchDeltaB = new Quaternion();
+
+/**
+ * Rotation for a shared `lookAtTarget`: decomposes `a`/`b` into `lookAt(position, lookAtTarget) * delta`
+ * (`delta` = whatever extra rotation an Aim like `RotationComposer` layers on, e.g. a damped screen-
+ * position offset), slerps the deltas, and recomposes onto a fresh lookAt at the current interpolated
+ * position/target - matches `a`/`b` exactly at t=0/1 (unlike a raw lookAt, which drops `delta` entirely
+ * and so pops the instant a blend commits and hands off to the Aim's own, un-blended state).
+ */
+function lerpLookAtRotation(out: Quaternion, a: CameraState, b: CameraState, position: Vector3, lookAtTarget: Vector3, t: number): void {
+  scratchLookMatrix.lookAt(a.position, a.lookAtTarget, worldUp);
+  scratchDeltaA.setFromRotationMatrix(scratchLookMatrix).invert().multiply(a.quaternion);
+  scratchLookMatrix.lookAt(b.position, b.lookAtTarget, worldUp);
+  scratchDeltaB.setFromRotationMatrix(scratchLookMatrix).invert().multiply(b.quaternion);
+
+  scratchLookMatrix.lookAt(position, lookAtTarget, worldUp);
+  scratchLookAtCurrent.setFromRotationMatrix(scratchLookMatrix);
+  out.slerpQuaternions(scratchDeltaA, scratchDeltaB, t).premultiply(scratchLookAtCurrent);
+}
 
 /**
  * Same trig as `Quaternion.slerp`, reimplemented because that one always re-derives its own "shortest
@@ -41,30 +64,30 @@ function slerpWithContinuity(out: Quaternion, from: Quaternion, to: Quaternion, 
  * Interpolates a WHOLE `CameraState` (position + rotation + lens) at one shared progress `t`, not three
  * independent lerps. `t` is clamped to [0, 1]. Writes into `out` and returns it.
  *
- * Rotation continuity: a plain slerp takes the shortest path between `a` and `b`, but `b` is often a
- * LIVE rotation (e.g. Aim tracking an orbiting target) while `a` stays frozen for the whole blend — once
- * `b` sweeps past ~180° from `a`, "shortest from `a`" flips sides, jerking the camera. Comparing `b`
- * against `out`'s pre-write value instead (that's last frame's result, since `out` is reused every
- * tick) keeps the path continuous.
- *
- * `_hints` is accepted but not yet honored: the target-relative ones need a target position, which
- * `CameraState` doesn't carry yet — deferred until real Body/Aim exist.
+ * Rotation: a shared `lookAtTarget` keeps the camera looking at it exactly throughout - see
+ * `lerpLookAtRotation`. Otherwise falls back to a plain slerp, with continuity: a plain slerp takes the
+ * shortest path between `a` and `b`, but `b` is often a LIVE rotation (e.g. Aim tracking an orbiting
+ * target) while `a` stays frozen for the whole blend — once `b` sweeps past ~180° from `a`, "shortest
+ * from `a`" flips sides, jerking the camera. Comparing `b` against `out`'s pre-write value instead (last
+ * frame's result, since `out` is reused every tick) keeps the path continuous.
  */
-export function lerpCameraState(
-  out: CameraState,
-  a: CameraState,
-  b: CameraState,
-  t: number,
-  _hints: BlendHints = BlendHints.none,
-): CameraState {
+export function lerpCameraState(out: CameraState, a: CameraState, b: CameraState, t: number): CameraState {
   const clamped = clamp(t, 0, 1);
   out.position.lerpVectors(a.position, b.position, clamped);
 
-  const bQuaternion =
-    out.quaternion.dot(b.quaternion) < 0
-      ? negatedB.set(-b.quaternion.x, -b.quaternion.y, -b.quaternion.z, -b.quaternion.w)
-      : b.quaternion;
-  slerpWithContinuity(out.quaternion, a.quaternion, bQuaternion, clamped);
+  const hasLookAtTarget = a.hasLookAtTarget && b.hasLookAtTarget;
+  if (hasLookAtTarget) out.lookAtTarget.lerpVectors(a.lookAtTarget, b.lookAtTarget, clamped);
+  out.hasLookAtTarget = hasLookAtTarget;
+
+  if (hasLookAtTarget) {
+    lerpLookAtRotation(out.quaternion, a, b, out.position, out.lookAtTarget, clamped);
+  } else {
+    const bQuaternion =
+      out.quaternion.dot(b.quaternion) < 0
+        ? negatedB.set(-b.quaternion.x, -b.quaternion.y, -b.quaternion.z, -b.quaternion.w)
+        : b.quaternion;
+    slerpWithContinuity(out.quaternion, a.quaternion, bQuaternion, clamped);
+  }
 
   out.fov = lerp(a.fov, b.fov, clamped);
   out.near = lerp(a.near, b.near, clamped);

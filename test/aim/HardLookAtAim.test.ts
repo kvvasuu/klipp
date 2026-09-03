@@ -33,6 +33,19 @@ describe('HardLookAtAim', () => {
     expect(forward.dot(towardTarget)).toBeCloseTo(1, 9);
   });
 
+  it("writes the target's world position and hasLookAtTarget onto out, for BlendHints' lookAt-rotation blend", () => {
+    const target = new Object3D();
+    target.position.set(5, -1, 0);
+    const aim = new HardLookAtAim(target);
+    const out = createCameraState();
+    out.position.set(1, 2, 3);
+
+    aim.update(out, 0.1);
+
+    expect(out.hasLookAtTarget).toBe(true);
+    expect(out.lookAtTarget.equals(new Vector3(5, -1, 0))).toBe(true);
+  });
+
   it("matches THREE's own camera-convention lookAt (PerspectiveCamera.lookAt) for the same eye/target", () => {
     const target = new Object3D();
     target.position.set(5, -1, 0);

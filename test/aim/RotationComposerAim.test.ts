@@ -28,6 +28,18 @@ describe('RotationComposerAim', () => {
     expect(projected.y).toBeCloseTo(0, 9);
   });
 
+  it("writes the resolved target's world position and hasLookAtTarget onto out, for the blend's always-on lookAt rotation - the raw target, unaffected by screenPosition/deadZone offsets", () => {
+    const target = new Vector3(5, 2, -30);
+    const aim = new RotationComposerAim(target, [0.3, 0.2]); // non-zero screenPosition on purpose
+    const out = createCameraState();
+    out.position.set(1, 1, 0);
+
+    aim.update(out, 0.1);
+
+    expect(out.hasLookAtTarget).toBe(true);
+    expect(out.lookAtTarget.equals(target)).toBe(true);
+  });
+
   it('lands the target at a non-zero screenPosition, independent of distance', () => {
     const aim = new RotationComposerAim(new Vector3(), [0.3, 0.2], 1.5);
     const out = createCameraState();

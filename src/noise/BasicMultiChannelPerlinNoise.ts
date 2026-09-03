@@ -1,5 +1,5 @@
-import { degreesToRadians } from 'maath';
-import { perlin2d } from 'maath/noise';
+import { degreesToRadians } from 'math';
+import { perlin2d } from 'math/noise';
 import { Euler, Quaternion, Vector3 } from 'three';
 import type { CameraState } from '../CameraState';
 import { Damper, type DampingConstant } from '../damping/Damper';
@@ -8,7 +8,7 @@ const scratchPositionOffset = new Vector3();
 const scratchEuler = new Euler();
 const scratchRotationOffset = new Quaternion();
 
-// Sampled at a fixed, non-integer Y rather than exactly 0: maath's `perlin2d` reuses 3D gradients with a
+// Sampled at a fixed, non-integer Y rather than exactly 0: `perlin2d` reuses 3D gradients with a
 // zero X-component for some lattice points, and Y=0 sits exactly on the grid line where those degenerate
 // to a constant 0 across an entire unit cell. Y=0.5 sits inside a cell instead of on its edge, so it
 // can't hit that degeneracy.

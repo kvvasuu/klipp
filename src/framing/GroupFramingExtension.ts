@@ -1,4 +1,4 @@
-import { degreesToRadians } from 'maath';
+import { degreesToRadians } from 'math';
 import { Quaternion, Vector3 } from 'three';
 import type { CameraState } from '../CameraState';
 import { Damper, type DampingConstant } from '../damping/Damper';

@@ -1,4 +1,4 @@
-import { clamp } from 'maath';
+import { clamp } from 'math';
 import { Vector3 } from 'three';
 import type { CameraState } from '../CameraState';
 import type { DampingConstant } from '../damping/Damper';

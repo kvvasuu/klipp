@@ -1,7 +1,8 @@
 import { bench, group } from '@pmndrs/labs';
-import { Object3D, Vector3 } from 'three';
+import { Matrix4, Object3D, Vector3 } from 'three';
 import { createCameraState } from '../src/CameraState';
 import { KlippCore } from '../src/KlippCore';
+import { lerpCameraState } from '../src/blend/lerpCameraState';
 import { VirtualCameraController } from '../src/VirtualCameraController';
 import { HardLookAtAim } from '../src/aim/HardLookAtAim';
 import { RotationComposerAim } from '../src/aim/RotationComposerAim';
@@ -190,6 +191,36 @@ group('KlippCore.tick @core', () => {
   bench('50 registered cameras', function* () {
     const core = makeCoreWithCameras(50);
     yield () => core.tick(0.016).position.x;
+  });
+});
+
+/** `lerpCameraState` in isolation, one call per iteration - the actual per-frame cost of each rotation
+ *  path during an in-progress blend (settled/non-blending frames never call this at all). */
+group('lerpCameraState @blend', () => {
+  function makeOrbitingState(position: Vector3, lookAtTarget: Vector3) {
+    const state = createCameraState();
+    state.position.copy(position);
+    state.quaternion.setFromRotationMatrix(new Matrix4().lookAt(position, lookAtTarget, new Vector3(0, 1, 0)));
+    state.lookAtTarget.copy(lookAtTarget);
+    state.hasLookAtTarget = true;
+    return state;
+  }
+
+  bench('plain slerp (no lookAtTarget)', function* () {
+    const a = createCameraState();
+    a.position.set(5, 5, 5);
+    const b = createCameraState();
+    b.position.set(0, 0, 5);
+    b.quaternion.setFromAxisAngle(new Vector3(0, 1, 0), Math.PI / 2);
+    const out = createCameraState();
+    yield () => lerpCameraState(out, a, b, 0.5).position.x;
+  });
+
+  bench('lookAtTarget-driven rotation', function* () {
+    const a = makeOrbitingState(new Vector3(5, 5, 5), new Vector3(0, 0, 0));
+    const b = makeOrbitingState(new Vector3(0, 0, 5), new Vector3(0, 0, 0));
+    const out = createCameraState();
+    yield () => lerpCameraState(out, a, b, 0.5).position.x;
   });
 });
 

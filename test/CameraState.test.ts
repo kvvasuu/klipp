@@ -18,6 +18,8 @@ describe('copyCameraState', () => {
       far: 1000,
       viewOffsetX: 40,
       viewOffsetY: -20,
+      lookAtTarget: new Vector3(7, 8, 9),
+      hasLookAtTarget: true,
     };
     const out = createCameraState();
     const outPosition = out.position;
@@ -33,6 +35,8 @@ describe('copyCameraState', () => {
     expect(out.fov).toBe(50);
     expect(out.viewOffsetX).toBe(40);
     expect(out.viewOffsetY).toBe(-20);
+    expect(out.lookAtTarget.equals(source.lookAtTarget)).toBe(true);
+    expect(out.hasLookAtTarget).toBe(true);
   });
 
   it('stays unchanged after the source is mutated — the actual "freeze" guarantee', () => {
@@ -44,6 +48,8 @@ describe('copyCameraState', () => {
       far: 1000,
       viewOffsetX: 40,
       viewOffsetY: -20,
+      lookAtTarget: new Vector3(7, 8, 9),
+      hasLookAtTarget: true,
     };
     const out = createCameraState();
     copyCameraState(out, source);
