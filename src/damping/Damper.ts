@@ -1,4 +1,4 @@
-import { clamp } from 'maath';
+import { clamp } from 'math';
 
 /** Asymmetric damping: `into` applies while the gap to target is widening (entering a reaction, e.g.
  *  dodging an obstacle), `from` while it's narrowing (returning to normal). */

@@ -89,6 +89,6 @@
     "vitest": "^4.1.10"
   },
   "dependencies": {
-    "maath": "1.0.0-canary-39fbc9bc-20260817"
+    "math": "1.0.0-canary-37519dcd-20260903"
   }
 }

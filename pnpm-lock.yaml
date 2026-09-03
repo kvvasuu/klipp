@@ -8,9 +8,9 @@ importers:
 
   .:
     dependencies:
-      maath:
-        specifier: 1.0.0-canary-39fbc9bc-20260817
-        version: 1.0.0-canary-39fbc9bc-20260817
+      math:
+        specifier: 1.0.0-canary-37519dcd-20260903
+        version: 1.0.0-canary-37519dcd-20260903
     devDependencies:
       '@pmndrs/labs':
         specifier: ^0.9.0
@@ -1075,11 +1075,11 @@ packages:
       '@types/three': '>=0.134.0'
       three: '>=0.134.0'
 
-  maath@1.0.0-canary-39fbc9bc-20260817:
-    resolution: {integrity: sha512-qvkDGFq1SmvXNYkqIzd5TH8TN1lz1SCvsGE1nHmi4onwpjqnBkKtouPF0ix/fqDB6IqdI5f5O4BrvFxOu8X6Vw==}
-
   magic-string@0.30.21:
     resolution: {integrity: sha512-vd2F4YUyEXKGcLHoq+TEyCjxueSeHnFxyyjNp80yg0XV4vUhnDer/lvvlqM/arB5bXQN5K2/3oinyCRyx8T2CQ==}
+
+  math@1.0.0-canary-37519dcd-20260903:
+    resolution: {integrity: sha512-aul1nzD8ob5wKMKVQqOXe5ufT/xmiTHxObL81J2ImgNRwpRg+r7IeWOQ2WnD5W/cvpZc7gySwXs0YjVpDtahTQ==}
 
   mdn-data@2.27.1:
     resolution: {integrity: sha512-9Yubnt3e8A0OKwxYSXyhLymGW4sCufcLG6VdiDdUGVkPhpqLxlvP5vl1983gQjJl3tqbrM731mjaZaP68AgosQ==}
@@ -2175,11 +2175,11 @@ snapshots:
       '@types/three': 0.185.4
       three: 0.185.1
 
-  maath@1.0.0-canary-39fbc9bc-20260817: {}
-
   magic-string@0.30.21:
     dependencies:
       '@jridgewell/sourcemap-codec': 1.5.5
+
+  math@1.0.0-canary-37519dcd-20260903: {}
 
   mdn-data@2.27.1: {}
 

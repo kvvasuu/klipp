@@ -1,4 +1,4 @@
-import { clamp } from 'maath';
+import { clamp } from 'math';
 import { copyCameraState, createCameraState, type CameraState } from '../CameraState';
 import { Damper } from '../damping/Damper';
 import type { BlendDefinition } from './BlendDefinition';
