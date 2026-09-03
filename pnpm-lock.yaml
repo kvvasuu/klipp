@@ -13,8 +13,8 @@ importers:
         version: 1.0.0-canary-39fbc9bc-20260817
     devDependencies:
       '@pmndrs/labs':
-        specifier: ^0.8.0
-        version: 0.8.0
+        specifier: ^0.9.0
+        version: 0.9.0
       '@react-three/fiber':
         specifier: ^9.7.0
         version: 9.7.0(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(three@0.185.1)
@@ -555,8 +555,8 @@ packages:
     cpu: [x64]
     os: [win32]
 
-  '@pmndrs/labs@0.8.0':
-    resolution: {integrity: sha512-Ntb9zclfLhFgcGYdYCSm5hPG1ZlEJVBq/BmEex9+aIsitfOvALai5G3sF6KpXPRl+PnfkaazZCwVsM0UDgpTQQ==}
+  '@pmndrs/labs@0.9.0':
+    resolution: {integrity: sha512-drIrOj8A4NOLEvPRsUD5pifbZxjnDSarfJQTMuRr9x6V0yWzver6t/1KmlMB3hHqKsBP5wgX57ElU+ZwqvFcQw==}
     engines: {node: '>=22.12.0'}
     hasBin: true
 
@@ -1699,7 +1699,7 @@ snapshots:
   '@oxlint/binding-win32-x64-msvc@1.78.0':
     optional: true
 
-  '@pmndrs/labs@0.8.0':
+  '@pmndrs/labs@0.9.0':
     dependencies:
       '@clack/prompts': 1.7.0
       tsx: 4.23.12
