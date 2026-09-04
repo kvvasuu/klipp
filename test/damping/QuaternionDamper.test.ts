@@ -102,4 +102,22 @@ describe('QuaternionDamper', () => {
 
     expect(out.angleTo(newTarget)).toBeLessThan(1e-9);
   });
+
+  it('a reset() whose next update() is already ON target consumes the armed snap there — it does not keep it armed for whatever moves NEXT', () => {
+    const damper = new QuaternionDamper();
+    const settled = new Quaternion().setFromAxisAngle(new Vector3(0, 1, 0), Math.PI / 2);
+    const out = settled.clone();
+
+    // the reactivation case: a <VirtualCamera> going active again while its stored rotation is still
+    // correct, e.g. re-focusing the same point
+    damper.reset();
+    damper.update(out, settled, 0.5, 1 / 60);
+    expect(out.angleTo(settled)).toBeLessThan(1e-9);
+
+    const moved = new Quaternion().setFromAxisAngle(new Vector3(0, 1, 0), Math.PI / 2 + 1);
+    damper.update(out, moved, 0.5, 1 / 60);
+
+    expect(out.angleTo(settled)).toBeLessThan(0.1); // barely left where it was
+    expect(out.angleTo(moved)).toBeGreaterThan(0.5); // nowhere near the new target yet
+  });
 });

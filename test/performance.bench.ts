@@ -91,6 +91,19 @@ group('Aim.update @aim', () => {
       return out.quaternion.x;
     };
   });
+
+  // the state a live camera spends most of its frames in, and a different path from the moving benches
+  // above: both dampers early-return and the published lookAtTarget takes its exact-copy branch
+  bench('RotationComposer (damped, converged on a still target)', function* () {
+    const aim = new RotationComposerAim(new Vector3(0, 2, -20), [0, 0], 16 / 9, [0, 0], 0.5);
+    const out = createCameraState();
+    out.position.set(0, 2, 15);
+    aim.update(out, 0.016, true);
+    yield () => {
+      aim.update(out, 0.016, false);
+      return out.quaternion.x;
+    };
+  });
 });
 
 group('Noise/Extension.update @noise', () => {
