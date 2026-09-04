@@ -1,6 +1,6 @@
 {
   "name": "@kvvasuu/klipp",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Declarative virtual camera library for react-three-fiber, inspired by Unity Cinemachine.",
   "keywords": [
     "react-three-fiber",
