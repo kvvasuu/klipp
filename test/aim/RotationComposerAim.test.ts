@@ -62,6 +62,22 @@ describe('RotationComposerAim', () => {
     expect(out.lookAtTarget.distanceTo(new Vector3(6, 5, 1))).toBeLessThan(1e-6);
   });
 
+  it('eases the published lookAtTarget when only its DISTANCE changes - the direction damper converges instantly there, so the point must not skip ahead along the ray', () => {
+    const aim = new RotationComposerAim(new Vector3(0, 0, -200), [0, 0], 1, [0, 0], 0.4);
+    const out = createCameraState();
+    out.position.set(0, 0, 0);
+    aim.update(out, 1 / 60, true);
+
+    aim.target = new Vector3(0, 0, -400); // same direction, twice as far
+    aim.update(out, 1 / 60, false);
+
+    // publishing the target as soon as the DIRECTION had converged jumped this the full 200 units
+    expect(Math.abs(out.lookAtTarget.z + 200)).toBeLessThan(2);
+
+    for (let i = 0; i < 240; i++) aim.update(out, 1 / 60, false);
+    expect(out.lookAtTarget.z).toBeCloseTo(-400, 6);
+  });
+
   it('lands the target at a non-zero screenPosition, independent of distance', () => {
     const aim = new RotationComposerAim(new Vector3(), [0.3, 0.2], 1.5);
     const out = createCameraState();
