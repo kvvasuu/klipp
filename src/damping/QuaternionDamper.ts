@@ -26,6 +26,10 @@ export class QuaternionDamper {
 
     const angle = 2 * Math.acos(Math.min(1, Math.max(-1, scratchDelta.w)));
     if (angle < 1e-5) {
+      // spends `Damper`'s snap-on-first-call here (a no-op update, same trick as `BlendDriver.setTarget`)
+      // — returning early without it leaves a `reset()` armed until the target NEXT moves, which would
+      // then teleport instead of easing
+      this.damper.update(0, 0, damping, dt);
       this.damper.velocity = 0;
       return out.copy(target);
     }

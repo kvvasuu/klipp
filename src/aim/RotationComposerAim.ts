@@ -1,7 +1,7 @@
 import { clamp } from 'math';
 import { Matrix4, Quaternion, Vector3 } from 'three';
 import type { CameraState } from '../CameraState';
-import type { DampingConstant } from '../damping/Damper';
+import { Damper, type DampingConstant } from '../damping/Damper';
 import { QuaternionDamper } from '../damping/QuaternionDamper';
 import { resolveTargetPosition, resolveTargetRotation, type Target } from '../resolve/Target';
 
@@ -17,6 +17,8 @@ const scratchTargetQuaternion = new Quaternion();
 const scratchHardLimitQuaternion = new Quaternion();
 const scratchOutInverse = new Quaternion();
 const scratchLocalDir = new Vector3();
+/** Matches `Damper.update`'s own `epsilon` — the gap at which it declares the distance arrived. */
+const DISTANCE_EPSILON = 1e-4;
 
 /** `[x, y, depth]` of a world point in a camera's local screen space — reused scratch, no allocation.
  *  `depth <= 0` means the point is behind the camera (degenerate). */
@@ -80,6 +82,12 @@ export class RotationComposerAim {
   targetOffset: Vector3;
 
   private readonly damper = new QuaternionDamper();
+  /** Direction is damped as a ROTATION, not by lerping the point: a straight line between two look-at
+   *  points can pass through the camera, where the look-at is degenerate and flips 180°. */
+  private readonly lookAtDirectionDamper = new QuaternionDamper();
+  private readonly lookAtDistanceDamper = new Damper();
+  private readonly publishedLookRotation = new Quaternion();
+  private publishedDistance = 0;
 
   constructor(
     target: Target,
@@ -104,7 +112,37 @@ export class RotationComposerAim {
 
     if (!resolveTargetRotation(scratchTargetRotation, this.target)) scratchTargetRotation.identity();
     scratchTargetPosition.add(scratchOffset.copy(this.targetOffset).applyQuaternion(scratchTargetRotation));
-    out.lookAtTarget.copy(scratchTargetPosition);
+
+    // `lookAtTarget` is published through the SAME `damping` as the rotation below, because
+    // `lerpLookAtRotation` blends on how far a camera's rotation deviates from pointing at it — publishing
+    // the raw target makes that deviation jump on every retarget, popping any blend in progress. Only what
+    // this Aim PUBLISHES is smoothed; the aiming math keeps using the raw `scratchTargetPosition`.
+    if (justActivated) {
+      this.lookAtDirectionDamper.reset();
+      this.lookAtDistanceDamper.reset();
+    }
+    scratchLookMatrix.lookAt(out.position, scratchTargetPosition, worldUp);
+    scratchTargetQuaternion.setFromRotationMatrix(scratchLookMatrix);
+    this.lookAtDirectionDamper.update(this.publishedLookRotation, scratchTargetQuaternion, this.damping, dt);
+    const targetDistance = out.position.distanceTo(scratchTargetPosition);
+    this.publishedDistance = this.lookAtDistanceDamper.update(this.publishedDistance, targetDistance, this.damping, dt);
+    // BOTH parts have to have caught up: the two dampers converge on their own thresholds, and a target
+    // moved straight along the current look direction converges the rotation one instantly while the
+    // distance is still easing — publishing the target then would jump the point along that ray
+    if (
+      this.publishedLookRotation.equals(scratchTargetQuaternion) &&
+      Math.abs(this.publishedDistance - targetDistance) < DISTANCE_EPSILON
+    ) {
+      // nothing lagging (`damping: 0`, or caught up) — publish the target itself, so the common case
+      // stays exact instead of picking up matrix→quaternion→ray round-trip error
+      out.lookAtTarget.copy(scratchTargetPosition);
+    } else {
+      out.lookAtTarget
+        .copy(forwardAxis)
+        .applyQuaternion(this.publishedLookRotation)
+        .multiplyScalar(this.publishedDistance)
+        .add(out.position);
+    }
     out.hasLookAtTarget = true;
 
     const halfFovV = (out.fov * Math.PI) / 360;
