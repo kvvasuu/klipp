@@ -40,6 +40,28 @@ describe('RotationComposerAim', () => {
     expect(out.lookAtTarget.equals(target)).toBe(true);
   });
 
+  it("with damping, the published lookAtTarget eases across a target change instead of teleporting - a blend measures this camera's (damped) rotation against it", () => {
+    const aim = new RotationComposerAim(new Vector3(-6, 1, 0), [0, 0], 1, [0, 0], 0.5);
+    const out = createCameraState();
+    out.position.set(-6, 3, 7);
+
+    aim.update(out, 1 / 60, true); // activation snaps, same as the rotation itself
+    expect(out.lookAtTarget.equals(new Vector3(-6, 1, 0))).toBe(true);
+
+    for (let i = 0; i < 10; i++) aim.update(out, 1 / 60, false);
+    const settled = out.lookAtTarget.clone();
+
+    aim.target = new Vector3(6, 5, 1); // 13+ units away
+    aim.update(out, 1 / 60, false);
+
+    // publishing the raw target moved this 12.7 units in one tick, against 0.14° of actual rotation
+    expect(out.lookAtTarget.distanceTo(settled)).toBeLessThan(0.5);
+
+    // ...and it does still get there
+    for (let i = 0; i < 240; i++) aim.update(out, 1 / 60, false);
+    expect(out.lookAtTarget.distanceTo(new Vector3(6, 5, 1))).toBeLessThan(1e-6);
+  });
+
   it('lands the target at a non-zero screenPosition, independent of distance', () => {
     const aim = new RotationComposerAim(new Vector3(), [0.3, 0.2], 1.5);
     const out = createCameraState();
