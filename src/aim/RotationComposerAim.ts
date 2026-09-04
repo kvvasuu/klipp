@@ -17,6 +17,8 @@ const scratchTargetQuaternion = new Quaternion();
 const scratchHardLimitQuaternion = new Quaternion();
 const scratchOutInverse = new Quaternion();
 const scratchLocalDir = new Vector3();
+/** Matches `Damper.update`'s own `epsilon` — the gap at which it declares the distance arrived. */
+const DISTANCE_EPSILON = 1e-4;
 
 /** `[x, y, depth]` of a world point in a camera's local screen space — reused scratch, no allocation.
  *  `depth <= 0` means the point is behind the camera (degenerate). */
@@ -122,13 +124,15 @@ export class RotationComposerAim {
     scratchLookMatrix.lookAt(out.position, scratchTargetPosition, worldUp);
     scratchTargetQuaternion.setFromRotationMatrix(scratchLookMatrix);
     this.lookAtDirectionDamper.update(this.publishedLookRotation, scratchTargetQuaternion, this.damping, dt);
-    this.publishedDistance = this.lookAtDistanceDamper.update(
-      this.publishedDistance,
-      out.position.distanceTo(scratchTargetPosition),
-      this.damping,
-      dt,
-    );
-    if (this.publishedLookRotation.equals(scratchTargetQuaternion)) {
+    const targetDistance = out.position.distanceTo(scratchTargetPosition);
+    this.publishedDistance = this.lookAtDistanceDamper.update(this.publishedDistance, targetDistance, this.damping, dt);
+    // BOTH parts have to have caught up: the two dampers converge on their own thresholds, and a target
+    // moved straight along the current look direction converges the rotation one instantly while the
+    // distance is still easing — publishing the target then would jump the point along that ray
+    if (
+      this.publishedLookRotation.equals(scratchTargetQuaternion) &&
+      Math.abs(this.publishedDistance - targetDistance) < DISTANCE_EPSILON
+    ) {
       // nothing lagging (`damping: 0`, or caught up) — publish the target itself, so the common case
       // stays exact instead of picking up matrix→quaternion→ray round-trip error
       out.lookAtTarget.copy(scratchTargetPosition);
