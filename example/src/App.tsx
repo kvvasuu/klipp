@@ -239,7 +239,11 @@ function OrbitalScene({ activeCamera, freeMode }: { activeCamera: OrbitalActiveC
       <OrbitingBall targetRef={targetRef} />
 
       <Klipp defaultBlend={{ damping: 0.8 }}>
-        <VirtualCamera name="orbital-cam" active={true} priority={activeCamera === 'orbital' ? 20 : 10}>
+        <VirtualCamera
+          name="orbital-cam"
+          active={true}
+          priority={activeCamera === 'orbital' ? 20 : 10}
+          hints={BlendHints.cylindricalPosition}>
           <CameraControls
             target={freeMode ? undefined : targetRef}
             initialPosition={[6, 4, 6]}
@@ -247,7 +251,11 @@ function OrbitalScene({ activeCamera, freeMode }: { activeCamera: OrbitalActiveC
           />
           <CameraFrustumHelper color="lime" />
         </VirtualCamera>
-        <VirtualCamera name="overview-cam" active={true} priority={activeCamera === 'overview' ? 20 : 10}>
+        <VirtualCamera
+          name="overview-cam"
+          active={true}
+          priority={activeCamera === 'overview' ? 20 : 10}
+          hints={BlendHints.cylindricalPosition}>
           <Body.HardLockToTarget target={[10, 8, 10]} />
           <Aim.HardLookAt target={targetRef} />
           <CameraFrustumHelper color="lime" />
@@ -293,12 +301,12 @@ function OrbitalTakeoverScene({ mode, enableTransition }: { mode: OrbitalTakeove
       <OrbitalTakeoverPlayer playerRef={playerRef} />
 
       <Klipp defaultBlend={{ damping: 0.5 }}>
-        <VirtualCamera name="intro" active={mode === 'intro'} priority={2}>
+        <VirtualCamera name="intro" active={mode === 'intro'} priority={2} hints={BlendHints.cylindricalPosition}>
           <Body.HardLockToTarget target={orbitalTakeoverIntroPosition} />
           <Aim.HardLookAt target={orbitalTakeoverPlayerStart} />
           <CameraFrustumHelper color="lime" />
         </VirtualCamera>
-        <VirtualCamera name="follow" active={mode !== 'intro'} priority={3}>
+        <VirtualCamera name="follow" active={mode !== 'intro'} priority={3} hints={BlendHints.cylindricalPosition}>
           <CameraControls
             target={mode === 'follow' ? playerRef : undefined}
             initialPosition={orbitalTakeoverIntroPosition}
@@ -306,7 +314,7 @@ function OrbitalTakeoverScene({ mode, enableTransition }: { mode: OrbitalTakeove
           />
           <CameraFrustumHelper color="orange" />
         </VirtualCamera>
-        <VirtualCamera name="free" active={mode === 'free'} priority={4}>
+        <VirtualCamera name="free" active={mode === 'free'} priority={4} hints={BlendHints.cylindricalPosition}>
           <CameraControls
             target={undefined}
             initialPosition={orbitalTakeoverIntroPosition}
@@ -493,10 +501,10 @@ function FocusReproScene() {
           { from: 'manual-orbit', to: 'focus', blend: { damping: 0.5 } },
           { from: 'focus', to: 'manual-orbit', blend: { curve: BlendCurves.easeInOut, time: 1 } },
         ]}>
-        <VirtualCamera name="manual-orbit" active={!focusActive} priority={5}>
+        <VirtualCamera name="manual-orbit" active={!focusActive} priority={5} hints={BlendHints.cylindricalPosition}>
           <CameraControls target={focusBoxCenter} initialPosition={[6, 3, 6]} />
         </VirtualCamera>
-        <VirtualCamera name="focus" active={focusActive} priority={20}>
+        <VirtualCamera name="focus" active={focusActive} priority={20} hints={BlendHints.cylindricalPosition}>
           <Body.HardLockToTarget target={focusPosition} damping={0.5} />
           <Aim.RotationComposer target={focusLookAt} damping={0.5} />
         </VirtualCamera>
@@ -556,8 +564,7 @@ function LookAtJumpMeter({ onJump, resetToken }: { onJump: (deg: number) => void
 
 /**
  * Retargeting a damped `RotationComposer` camera mid-blend. `default`'s `Aim.HardLookAt` sets
- * `hasLookAtTarget`, so this blend goes through `lerpLookAtRotation` — unlike `FocusReproScene`, whose
- * `CameraControls` never sets it and so takes the plain-slerp fallback instead.
+ * `hasLookAtTarget`, so this blend goes through `lerpLookAtRotation`.
  *
  * Every path here (focus A alone, retarget after the blend settles, retarget DURING it, reverse back to
  * `default` mid-blend) should move the camera continuously; any sudden step on the meter is a bug.
