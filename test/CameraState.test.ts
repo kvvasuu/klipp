@@ -5,6 +5,7 @@ import {
   copyCameraState,
   copyCameraStateFromCamera,
   createCameraState,
+  mergeCameraState,
   type CameraState,
 } from '../src/CameraState';
 
@@ -76,6 +77,46 @@ describe('copyCameraState', () => {
     state.position.set(1, 2, 3);
     expect(() => copyCameraState(state, state)).not.toThrow();
     expect(state.position.equals(new Vector3(1, 2, 3))).toBe(true);
+  });
+});
+
+describe('mergeCameraState', () => {
+  it('overwrites only the fields present in "partial", leaving the rest untouched', () => {
+    const out = createCameraState();
+    out.fov = 50;
+    out.near = 0.1;
+
+    const returned = mergeCameraState(out, { position: new Vector3(5, 20, 5), fov: 90 });
+
+    expect(returned).toBe(out);
+    expect(out.position.equals(new Vector3(5, 20, 5))).toBe(true);
+    expect(out.fov).toBe(90);
+    expect(out.near).toBe(0.1); // untouched
+  });
+
+  it('.copy()s Vector3/Quaternion fields instead of aliasing the caller\'s own instance', () => {
+    const out = createCameraState();
+    const outPosition = out.position;
+    const callerPosition = new Vector3(1, 2, 3);
+
+    mergeCameraState(out, { position: callerPosition });
+
+    expect(out.position).toBe(outPosition); // same instance, mutated in place
+    expect(out.position).not.toBe(callerPosition);
+
+    callerPosition.set(99, 99, 99);
+    expect(out.position.equals(new Vector3(1, 2, 3))).toBe(true); // unaffected by the caller's own mutation
+  });
+
+  it('an empty partial changes nothing', () => {
+    const out = createCameraState();
+    out.position.set(1, 2, 3);
+    out.fov = 70;
+
+    mergeCameraState(out, {});
+
+    expect(out.position.equals(new Vector3(1, 2, 3))).toBe(true);
+    expect(out.fov).toBe(70);
   });
 });
 

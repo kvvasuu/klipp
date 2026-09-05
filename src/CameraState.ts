@@ -60,6 +60,23 @@ export function copyCameraState(out: CameraState, source: CameraState): CameraSt
   return out;
 }
 
+/** Overwrites only the fields present in `partial` — `.copy()`s Vector3/Quaternion fields so `out` never
+ *  ends up aliasing an object the caller still owns, straight-assigns everything else. */
+export function mergeCameraState(out: CameraState, partial: Partial<CameraState>): CameraState {
+  if (partial.position) out.position.copy(partial.position);
+  if (partial.quaternion) out.quaternion.copy(partial.quaternion);
+  if (partial.fov !== undefined) out.fov = partial.fov;
+  if (partial.near !== undefined) out.near = partial.near;
+  if (partial.far !== undefined) out.far = partial.far;
+  if (partial.viewOffsetX !== undefined) out.viewOffsetX = partial.viewOffsetX;
+  if (partial.viewOffsetY !== undefined) out.viewOffsetY = partial.viewOffsetY;
+  if (partial.target) out.target.copy(partial.target);
+  if (partial.hasTarget !== undefined) out.hasTarget = partial.hasTarget;
+  if (partial.lookAtTarget) out.lookAtTarget.copy(partial.lookAtTarget);
+  if (partial.hasLookAtTarget !== undefined) out.hasLookAtTarget = partial.hasLookAtTarget;
+  return out;
+}
+
 export function copyCameraStateFromCamera(out: CameraState, camera: PerspectiveCamera): CameraState {
   out.position.copy(camera.position);
   out.quaternion.copy(camera.quaternion);

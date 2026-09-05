@@ -4,7 +4,7 @@ import { CameraControls } from '@kvvasuu/klipp/react/camera-controls';
 import { Stats } from '@react-three/drei';
 import { Canvas, invalidate, useFrame, useThree, type ThreeEvent } from '@react-three/fiber';
 import { useEffect, useRef, useState, type RefObject } from 'react';
-import { Group, Mesh, Quaternion, Vector3, type Object3D } from 'three';
+import { Group, Matrix4, Mesh, Quaternion, Vector3, type Object3D } from 'three';
 import './App.css';
 import { CapstoneScene } from './CapstoneScene';
 
@@ -646,6 +646,74 @@ function GroupFramingScene({ boxSize, padding }: { boxSize: number; padding: num
   );
 }
 
+const initialStateTopdownEye = new Vector3(0, 15, 0);
+const initialStateTopdownLookAt = new Vector3(0, 0, 0);
+// straight down is parallel to the usual (0,1,0) world-up reference — needs a horizontal one instead
+const initialStateTopdownUp = new Vector3(0, 0, -1);
+const initialStateTopdownQuaternion = new Quaternion().setFromRotationMatrix(
+  new Matrix4().lookAt(initialStateTopdownEye, initialStateTopdownLookAt, initialStateTopdownUp),
+);
+
+function InitialStatePlayer({ playerRef }: { playerRef: RefObject<Object3D | null> }) {
+  useFrame(({ clock }) => {
+    const player = playerRef.current;
+    if (!player) return;
+    const t = clock.elapsedTime;
+    player.position.set(Math.sin(t * 0.4) * 5, 1, Math.cos(t * 0.4) * 5);
+    invalidate();
+  });
+  return (
+    <mesh ref={playerRef}>
+      <capsuleGeometry args={[0.4, 1, 4, 8]} />
+      <meshStandardMaterial color="steelblue" />
+    </mesh>
+  );
+}
+
+type InitialStateMode = 'follow' | 'topdown';
+
+/**
+ * "topdown" starts out mounted but inactive — without `initialState` its `PositionComposer` inherits
+ * whatever rotation the real camera happened to have at `<Canvas>` mount (dead level, facing -Z) and
+ * dollies along THAT axis instead of straight down, so its first activation blends into a flat, sideways
+ * shot instead of an overhead one. `initialState` seeds a proper top-down pose so the very first frame
+ * already dollies the right way. The seeded/unseeded toggle remounts "topdown" (via `key`) to actually
+ * re-run that first-activation moment — `initialState` only applies once, at mount.
+ */
+function InitialStateScene({ mode, seeded }: { mode: InitialStateMode; seeded: boolean }) {
+  const playerRef = useRef<Object3D>(null);
+
+  return (
+    <>
+      <ambientLight intensity={0.6} />
+      <directionalLight position={[5, 8, 3]} intensity={1.2} />
+      <gridHelper args={[24, 24, '#444', '#222']} position={[0, 0.01, 0]} />
+
+      <InitialStatePlayer playerRef={playerRef} />
+
+      <Klipp defaultBlend={{ curve: BlendCurves.linear, time: 1 }}>
+        <VirtualCamera name="initialState-follow" active={mode === 'follow'} priority={10}>
+          <Body.Follow target={playerRef} offset={[0, 3, 8]} damping={0} />
+          <Aim.HardLookAt target={playerRef} />
+        </VirtualCamera>
+        <VirtualCamera
+          key={seeded ? 'seeded' : 'unseeded'}
+          name="initialState-topdown"
+          active={mode === 'topdown'}
+          priority={20}
+          initialState={
+            seeded
+              ? { position: initialStateTopdownEye, quaternion: initialStateTopdownQuaternion, fov: 80 }
+              : undefined
+          }>
+          <Body.PositionComposer target={playerRef} cameraDistance={15} deadZone={[0.4, 0.4]} />
+          <Aim.HardLookAt target={playerRef} />
+        </VirtualCamera>
+      </Klipp>
+    </>
+  );
+}
+
 type Demo =
   | 'offset'
   | 'hardLimit'
@@ -658,6 +726,7 @@ type Demo =
   | 'lookAtPop'
   | 'groupFraming'
   | 'reactivationSnap'
+  | 'initialState'
   | 'capstone';
 
 function App() {
@@ -677,6 +746,8 @@ function App() {
   const [padding, setPadding] = useState(0.5);
   const [reactivationTarget, setReactivationTarget] = useState<'A' | 'B'>('A');
   const [reactivationCameraActive, setReactivationCameraActive] = useState(true);
+  const [initialStateMode, setInitialStateMode] = useState<InitialStateMode>('follow');
+  const [initialStateSeeded, setInitialStateSeeded] = useState(false);
   const [lookAtPopFocus, setLookAtPopFocus] = useState<LookAtPopTarget | null>(null);
   const [lookAtPopMaxJumpDeg, setLookAtPopMaxJumpDeg] = useState(0);
   const [lookAtPopMeterKey, setLookAtPopMeterKey] = useState(0);
@@ -746,6 +817,9 @@ function App() {
         </button>
         <button data-active={demo === 'reactivationSnap'} onClick={() => setDemo('reactivationSnap')}>
           Reactivation Snap
+        </button>
+        <button data-active={demo === 'initialState'} onClick={() => setDemo('initialState')}>
+          Initial State
         </button>
         {demo === 'offset' &&
           (
@@ -903,6 +977,19 @@ function App() {
             </button>
           </>
         )}
+        {demo === 'initialState' && (
+          <>
+            <button data-active={initialStateMode === 'follow'} onClick={() => setInitialStateMode('follow')}>
+              Camera: Follow
+            </button>
+            <button data-active={initialStateMode === 'topdown'} onClick={() => setInitialStateMode('topdown')}>
+              Camera: Topdown (fresh activation)
+            </button>
+            <button data-active={initialStateSeeded} onClick={() => setInitialStateSeeded((v) => !v)}>
+              {initialStateSeeded ? 'initialState: seeded' : 'initialState: off — wrong axis on activation'}
+            </button>
+          </>
+        )}
       </div>
       {demo === 'capstone' ? (
         <CapstoneScene />
@@ -937,6 +1024,7 @@ function App() {
           {demo === 'reactivationSnap' && (
             <ReactivationSnapScene targetKey={reactivationTarget} cameraActive={reactivationCameraActive} />
           )}
+          {demo === 'initialState' && <InitialStateScene mode={initialStateMode} seeded={initialStateSeeded} />}
         </Canvas>
       )}
       {demo === 'offset' && (
@@ -995,6 +1083,14 @@ function App() {
         <p className="hint-text">
           Active: change target — the camera blends smoothly. Deactivate, change target, reactivate — the camera should
           snap straight to the new target, with no flythrough of the old spot.
+        </p>
+      )}
+      {demo === 'initialState' && (
+        <p className="hint-text">
+          "Topdown" sits inactive until you switch to it — a fresh runtime activation, not the app's first-ever camera.
+          Turn "initialState" off, switch to "Follow", then to "Topdown": PositionComposer dollies along whatever
+          rotation the canvas started with (flat, sideways), not straight down. Turn "initialState" on (this remounts
+          "Topdown" to re-run its first activation) and switch again — it starts from a proper overhead pose instead.
         </p>
       )}
     </>

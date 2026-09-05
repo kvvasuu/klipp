@@ -1,6 +1,6 @@
 import { useThree } from '@react-three/fiber';
 import { createContext, use, useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from 'react';
-import { copyCameraState, createCameraState, type CameraState } from './CameraState';
+import { copyCameraState, createCameraState, mergeCameraState, type CameraState } from './CameraState';
 import { BlendHints } from './blend/BlendHints';
 import { useKlippCore, useKlippInitialCameraState, useKlippUpdateRegistry } from './Klipp';
 import { VirtualCameraController, type VirtualCameraSlots } from './VirtualCameraController';
@@ -57,6 +57,12 @@ export type VirtualCameraProps = {
   /** Combined (OR'd) with whichever OTHER camera is on the other end of a transition into/out of this
    *  one - see `BlendHints`. Default `BlendHints.none`. */
   hints?: BlendHints;
+  /** Overrides this camera's starting pose at mount, before any Body/Aim ever runs. Without it, a fresh
+   *  camera inherits the real r3f camera's pristine state from `<Klipp>`'s own mount — meaningless for one
+   *  activated later at runtime (e.g. a mode switch), since a Body like `PositionComposer` derives its
+   *  dolly axis from whatever rotation is already there. Only the fields you set are overridden; applied
+   *  once, at mount, not reactive to later prop changes. */
+  initialState?: Partial<CameraState>;
   children?: ReactNode;
 };
 
@@ -65,14 +71,24 @@ export type VirtualCameraProps = {
  * add/remove it from arbitration. Thin wrapper — the Body/Aim/Noise combining logic lives in
  * `VirtualCameraController`, a plain class with no React dependency.
  */
-export function VirtualCamera({ name, priority, active = true, hints = BlendHints.none, children }: VirtualCameraProps) {
+export function VirtualCamera({
+  name,
+  priority,
+  active = true,
+  hints = BlendHints.none,
+  initialState,
+  children,
+}: VirtualCameraProps) {
   const core = useKlippCore();
   const registerUpdate = useKlippUpdateRegistry();
   const initialCameraState = useKlippInitialCameraState();
   const invalidate = useThree((state) => state.invalidate);
   // seeded from the real camera's own properties, not blank defaults - a Body/Aim chain that never
   // touches fov/near/far leaves whatever the camera was already configured as alone
-  const [state] = useState(() => copyCameraState(createCameraState(), initialCameraState));
+  const [state] = useState(() => {
+    const seeded = copyCameraState(createCameraState(), initialCameraState);
+    return initialState ? mergeCameraState(seeded, initialState) : seeded;
+  });
   const [controller] = useState(() => new VirtualCameraController(name));
   controller.name = name;
   const priorityRef = useRef(priority);
