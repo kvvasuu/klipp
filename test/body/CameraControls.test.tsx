@@ -207,6 +207,62 @@ describe('CameraControls (React wrapper)', () => {
     expect(disconnectSpy).toHaveBeenCalledTimes(1);
   });
 
+  describe('pointer lock survives losing and regaining priority', () => {
+    function scene(priority: number, onBody: (b: CameraControlsBody | null) => void, onDom: (el: HTMLElement) => void) {
+      function DomElementReader() {
+        onDom(useThree((state) => state.gl.domElement));
+        return null;
+      }
+      return (
+        <Klipp>
+          <DomElementReader />
+          <VirtualCamera name="a" priority={priority}>
+            <CameraControls target={new Vector3(0, 0, -10)} ref={onBody} />
+          </VirtualCamera>
+          <VirtualCamera name="other" priority={5}>
+            <HardLockToTarget target={[0, 0, 0]} />
+          </VirtualCamera>
+        </Klipp>
+      );
+    }
+
+    it('re-locks on reconnect if still OS-level locked - disconnect() drops the pointer-lock listeners without releasing the lock itself, so mouse movement would otherwise stay dead forever', async () => {
+      let orbitalBody: CameraControlsBody | null = null;
+      let domElement: HTMLElement | undefined;
+
+      const renderer = await create(scene(10, (b) => (orbitalBody = b), (el) => (domElement = el)));
+      await renderer.advanceFrames(1, 0.05); // "a" wins, connects
+
+      const lockPointerSpy = vi.spyOn(orbitalBody!.controls, 'lockPointer').mockImplementation(() => {});
+      Object.defineProperty(domElement!.ownerDocument, 'pointerLockElement', { value: domElement, configurable: true });
+
+      await renderer.update(scene(1, (b) => (orbitalBody = b), (el) => (domElement = el))); // "a" loses, disconnects
+      await renderer.advanceFrames(1, 0.05);
+      await renderer.update(scene(10, (b) => (orbitalBody = b), (el) => (domElement = el))); // "a" wins again, reconnects
+      await renderer.advanceFrames(1, 0.05);
+
+      expect(lockPointerSpy).toHaveBeenCalledTimes(1);
+    });
+
+    it('does NOT re-lock on reconnect once the user already exited pointer lock (e.g. Esc) during the gap', async () => {
+      let orbitalBody: CameraControlsBody | null = null;
+      let domElement: HTMLElement | undefined;
+
+      const renderer = await create(scene(10, (b) => (orbitalBody = b), (el) => (domElement = el)));
+      await renderer.advanceFrames(1, 0.05);
+
+      const lockPointerSpy = vi.spyOn(orbitalBody!.controls, 'lockPointer').mockImplementation(() => {});
+      // pointerLockElement stays null - the user pressed Esc (or never locked at all) during the gap
+
+      await renderer.update(scene(1, (b) => (orbitalBody = b), (el) => (domElement = el)));
+      await renderer.advanceFrames(1, 0.05);
+      await renderer.update(scene(10, (b) => (orbitalBody = b), (el) => (domElement = el)));
+      await renderer.advanceFrames(1, 0.05);
+
+      expect(lockPointerSpy).not.toHaveBeenCalled();
+    });
+  });
+
   describe('invalidate() on drag/scroll input', () => {
     it('calls invalidate() when camera-controls fires controlstart/control/transitionstart/update/wake while connected (real bug: frameloop="demand" never re-rendered on drag)', async () => {
       let controlsBody: CameraControlsBody | null = null;
