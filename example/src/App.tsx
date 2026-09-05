@@ -687,7 +687,12 @@ function GroupFramingScene({ boxSize, padding }: { boxSize: number; padding: num
         <VirtualCamera name="groupFraming-demo" active={true} priority={10}>
           <Body.Follow target={boxRef} offset={[0, 2, 5]} damping={0} />
           <Aim.HardLookAt target={boxRef} />
-          <Extension.GroupFraming members={[{ target: boxRef }]} padding={padding} damping={0.5} />
+          <Extension.GroupFraming
+            members={[{ target: boxRef }]}
+            padding={padding}
+            screenPosition={[0.5, 0]}
+            damping={0.5}
+          />
         </VirtualCamera>
       </Klipp>
     </>

@@ -166,10 +166,11 @@ export function Klipp({ children, defaultBlend, customBlends, camera: cameraProp
         camera.near = result.near;
         camera.far = result.far;
         if (result.viewOffset[0] !== 0 || result.viewOffset[1] !== 0) {
+          // X negated - see CameraState.ts's applyCameraState/copyCameraStateFromCamera comment
           camera.setViewOffset(
             size.width,
             size.height,
-            result.viewOffset[0] * (size.width / 2),
+            -result.viewOffset[0] * (size.width / 2),
             result.viewOffset[1] * (size.height / 2),
             size.width,
             size.height,
