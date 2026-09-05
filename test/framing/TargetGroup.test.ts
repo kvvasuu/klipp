@@ -212,6 +212,20 @@ describe('TargetGroup', () => {
       expect(out.z).toBeCloseTo(6, 10);
     });
 
+    it('auto-detection accounts for the mesh\'s current world scale, not just its local geometry bounds', () => {
+      const group = new TargetGroup();
+      const mesh = new Mesh(new BoxGeometry(2, 4, 6), new MeshBasicMaterial());
+      mesh.scale.set(3, 1, 0.5);
+      const out = new Vector3();
+
+      const resolved = group.resolveMemberSize(out, { target: mesh });
+
+      expect(resolved).toBe(true);
+      expect(out.x).toBeCloseTo(6, 10); // 2 * 3
+      expect(out.y).toBeCloseTo(4, 10); // 4 * 1
+      expect(out.z).toBeCloseTo(3, 10); // 6 * 0.5
+    });
+
     it('does not auto-detect for a non-Mesh Object3D (e.g. a plain Group)', () => {
       const group = new TargetGroup();
       const notAMesh = { isMesh: false } as unknown as Mesh;

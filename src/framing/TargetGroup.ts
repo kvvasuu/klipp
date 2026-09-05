@@ -26,6 +26,7 @@ const scratchMin = new Vector3();
 const scratchMax = new Vector3();
 const scratchAccumulator = new Vector3();
 const scratchSize = new Vector3();
+const scratchWorldScale = new Vector3();
 
 function resolveObject3D(target: Target): Object3D | null {
   if (target == null || isVector3Like(target)) return null;
@@ -44,8 +45,9 @@ export class TargetGroup {
   }
 
   /** Resolves one member's full box dimensions — explicit `size`, or auto-detected from a `Mesh` target's
-   *  own local geometry bounds when neither `size` nor `radius` is set. Returns `false`
-   *  (`outSize` untouched) for a member that should be treated as a sphere/point via `radius` instead. */
+   *  own geometry bounds (scaled by its current world scale) when neither `size` nor `radius` is set.
+   *  Returns `false` (`outSize` untouched) for a member that should be treated as a sphere/point via
+   *  `radius` instead. */
   resolveMemberSize = (outSize: Vector3, member: TargetGroupMember): boolean => {
     if (member.size) {
       resolveVector3(outSize, member.size);
@@ -59,6 +61,8 @@ export class TargetGroup {
     if (!mesh.geometry.boundingBox) mesh.geometry.computeBoundingBox();
     if (!mesh.geometry.boundingBox) return false;
     mesh.geometry.boundingBox.getSize(outSize);
+    mesh.getWorldScale(scratchWorldScale);
+    outSize.multiply(scratchWorldScale);
     return true;
   };
 
