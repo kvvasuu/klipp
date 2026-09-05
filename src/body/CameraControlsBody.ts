@@ -50,7 +50,7 @@ export class CameraControlsBody {
     }
   }
 
-  update = (out: CameraState, dt: number): void => {
+  update = (out: CameraState, dt: number, justActivated: boolean): void => {
     this.camera.fov = out.fov;
     this.camera.near = out.near;
     this.camera.far = out.far;
@@ -59,7 +59,8 @@ export class CameraControlsBody {
 
     const resolved = resolveTargetPosition(scratchTargetPosition, this.target);
 
-    if (resolved && !this.wasResolvedLastFrame) {
+    // justActivated also forces re-anchor - wasResolvedLastFrame is stale while inactive (update() didn't run)
+    if (resolved && (!this.wasResolvedLastFrame || justActivated)) {
       // re-anchor in place rather than moveTo, which would jump by a stale delta
       this.controls.setTarget(
         scratchTargetPosition.x,
@@ -78,6 +79,7 @@ export class CameraControlsBody {
     if (resolved) this.hasResolvedTargetOnce = true;
     this.wasResolvedLastFrame = resolved;
 
+    // not returned as stillInFlight - true even fully idle here, since moveTo/setTarget fire every frame
     this.controls.update(dt);
 
     // no-op only while a promised target has never resolved and there's no initialPosition to show
@@ -89,5 +91,8 @@ export class CameraControlsBody {
     }
     out.hasTarget = resolved;
     if (resolved) out.target.copy(scratchTargetPosition);
+    // locked mode always looks straight at `target` - so it's also the look-at target for blend rotation
+    out.hasLookAtTarget = resolved;
+    if (resolved) out.lookAtTarget.copy(scratchTargetPosition);
   };
 }

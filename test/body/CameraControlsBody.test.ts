@@ -1,10 +1,13 @@
 import CameraControls from 'camera-controls';
 import { Object3D, PerspectiveCamera, Vector3 } from 'three';
 import { describe, expect, it } from 'vitest';
+import { HardLookAtAim } from '../../src/aim/HardLookAtAim';
 import { BlendCurves } from '../../src/blend/BlendCurves';
+import { BlendHints } from '../../src/blend/BlendHints';
 import { createCameraState } from '../../src/CameraState';
 import { KlippCore } from '../../src/KlippCore';
 import { CameraControlsBody } from '../../src/body/CameraControlsBody';
+import { HardLockToTargetBody } from '../../src/body/HardLockToTargetBody';
 
 describe('CameraControlsBody', () => {
   it('constructs a real, ready-to-use CameraControls instance', () => {
@@ -27,6 +30,24 @@ describe('CameraControlsBody', () => {
 
     expect(out.hasTarget).toBe(true);
     expect(out.target.equals(target)).toBe(true);
+  });
+
+  it('also writes hasLookAtTarget/lookAtTarget when locked - it always looks straight at target, so blends into/out of it can track that rotation smoothly instead of a plain slerp', () => {
+    const target = new Vector3(1, 2, 3);
+    const body = new CameraControlsBody(target, 1);
+    const out = createCameraState();
+    body.update(out, 0.05);
+
+    expect(out.hasLookAtTarget).toBe(true);
+    expect(out.lookAtTarget.equals(target)).toBe(true);
+  });
+
+  it('hasLookAtTarget is false in free mode (no target) - nothing meaningful to smoothly track', () => {
+    const body = new CameraControlsBody(null);
+    const out = createCameraState();
+    body.update(out, 0.05);
+
+    expect(out.hasLookAtTarget).toBe(false);
   });
 
   it('with no initialPosition, the first resolution keeps camera-controls\' own starting position - coincident with a target at the origin', () => {
@@ -155,6 +176,27 @@ describe('CameraControlsBody', () => {
     expect(out.position.distanceTo(positionInFreeMode)).toBeLessThan(1e-4);
 
     for (let i = 0; i < 60; i++) body.update(out, 0.05); // settle
+    const forward = new Vector3(0, 0, -1).applyQuaternion(out.quaternion);
+    const towardTarget = target.clone().sub(out.position).normalize();
+    expect(forward.dot(towardTarget)).toBeGreaterThan(0.99); // and it DOES get there
+  });
+
+  it('justActivated re-anchors instead of moveTo jumping by a stale delta, even when the target never went null (real bug: reactivating via the `active` prop leaves wasResolvedLastFrame stale, since update() never ran at all while inactive)', () => {
+    const target = new Vector3(0, 0, 0);
+    const body = new CameraControlsBody(target, 1);
+    const out = createCameraState();
+    for (let i = 0; i < 5; i++) body.update(out, 0.05, false); // locked, settled
+    const positionBeforeGap = out.position.clone();
+
+    // simulates `active={false}`: update() simply isn't called at all for a while - unlike the
+    // null-target "free mode" gap, which keeps calling update() (with a null target) the whole time
+    target.set(50, 0, 50); // the target moved a long way during the inactive gap
+
+    // reactivation: justActivated=true on the very first call back, target already resolved (never null)
+    body.update(out, 0.05, true);
+    expect(out.position.distanceTo(positionBeforeGap)).toBeLessThan(1e-4);
+
+    for (let i = 0; i < 60; i++) body.update(out, 0.05, false); // settle
     const forward = new Vector3(0, 0, -1).applyQuaternion(out.quaternion);
     const towardTarget = target.clone().sub(out.position).normalize();
     expect(forward.dot(towardTarget)).toBeGreaterThan(0.99); // and it DOES get there
@@ -301,6 +343,53 @@ describe('CameraControlsBody', () => {
     const moved = out.position.clone().sub(positionBeforeMove);
     expect(moved.x).toBeGreaterThan(25); // camera moved by roughly the same delta as the target
     expect(Math.abs(out.position.distanceTo(target) - distanceBeforeMove)).toBeLessThan(1); // offset preserved
+  });
+
+  describe('BlendHints interop via KlippCore - real bug: blends into/out of CameraControls always went straight/plain-slerp, as if ignoreTarget were forced on', () => {
+    it('sphericalPosition arcs the position around the shared tracking target instead of a straight cartesian lerp', () => {
+      const core = new KlippCore({ defaultBlend: { curve: BlendCurves.linear, time: 1 } });
+
+      const aState = createCameraState();
+      new HardLockToTargetBody(new Vector3(10, 0, 0)).update(aState, 0.016);
+      new HardLookAtAim(new Vector3(0, 0, 0)).update(aState, 0.016);
+      core.registerCamera({ id: 'a', priority: 10, state: aState, hints: BlendHints.sphericalPosition });
+      core.tick(0);
+
+      const bState = createCameraState();
+      new CameraControlsBody(new Vector3(0, 0, 0), 1, new Vector3(0, 5, -10)).update(bState, 0.016);
+      core.registerCamera({ id: 'b', priority: 20, state: bState, hints: BlendHints.sphericalPosition });
+
+      const mid = core.tick(0.5);
+      const linearMid = new Vector3().lerpVectors(aState.position, bState.position, 0.5);
+
+      expect(mid.position.distanceTo(linearMid)).toBeGreaterThan(0.5);
+    });
+
+    it("locked CameraControls publishes hasLookAtTarget, so a blend into it tracks the interpolating look-at point (lerpLookAtRotation) instead of falling back to a plain slerp", () => {
+      // pointA/pointB deliberately far apart and distinct - a shared/nearby point would let even a
+      // frozen, un-interpolated out.lookAtTarget (the bug: hasLookAtTarget never true, so it's never
+      // touched past its very first snap) coincidentally still point roughly the right way
+      const pointA = new Vector3(5, 2, -3);
+      const pointB = new Vector3(5, 2, 47);
+      const core = new KlippCore({ defaultBlend: { curve: BlendCurves.linear, time: 1 } });
+
+      const aState = createCameraState();
+      new HardLockToTargetBody(new Vector3(15, 2, -3)).update(aState, 0.016);
+      new HardLookAtAim(pointA).update(aState, 0.016);
+      core.registerCamera({ id: 'a', priority: 10, state: aState });
+      core.tick(0);
+
+      const bState = createCameraState();
+      new CameraControlsBody(pointB, 1, new Vector3(5, 7, 37)).update(bState, 0.016);
+      core.registerCamera({ id: 'b', priority: 20, state: bState });
+
+      for (const dt of [0.25, 0.25, 0.25]) {
+        const out = core.tick(dt);
+        const forward = new Vector3(0, 0, -1).applyQuaternion(out.quaternion);
+        const towardLookAtTarget = out.lookAtTarget.clone().sub(out.position).normalize();
+        expect(forward.dot(towardLookAtTarget)).toBeGreaterThan(0.99);
+      }
+    });
   });
 
   describe('blending in via KlippCore, the `active`-prop toggle pattern (a real game: fixed intro shot -> CameraControls takeover)', () => {

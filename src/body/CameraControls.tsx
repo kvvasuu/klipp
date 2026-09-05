@@ -140,6 +140,11 @@ export function CameraControls({
     body.controls.addEventListener('wake', handleWake);
     body.controls.addEventListener('rest', handleRest);
     body.controls.addEventListener('sleep', handleSleep);
+
+    // disconnect() drops the pointer-lock listeners without releasing the OS-level lock itself -
+    // reconnecting re-locks so mouse movement resumes, unless the user already exited it (Esc)
+    if (domElement.ownerDocument.pointerLockElement === domElement) body.controls.lockPointer();
+
     return () => {
       body.controls.disconnect();
       body.controls.removeEventListener('controlstart', handleControlStart);
