@@ -1,7 +1,6 @@
 import type { Vector3 as Vector3Like } from '@react-three/fiber';
-import { Vector3, type Mesh, type Object3D } from 'three';
-import { isVector3Like, resolveVector3 } from '../resolve/resolveVector3';
-import { resolveTargetPosition, type Target } from '../resolve/Target';
+import { Vector3 } from 'three';
+import { resolveTargetPosition, resolveTargetSize, type Target } from '../resolve/Target';
 
 export type TargetGroupMember = {
   target: Target;
@@ -26,12 +25,6 @@ const scratchMin = new Vector3();
 const scratchMax = new Vector3();
 const scratchAccumulator = new Vector3();
 const scratchSize = new Vector3();
-const scratchWorldScale = new Vector3();
-
-function resolveObject3D(target: Target): Object3D | null {
-  if (target == null || isVector3Like(target)) return null;
-  return ('current' in target ? target.current : target) ?? null;
-}
 
 /** Treats several targets, each with its own weight and radius/size, as one. A member that can't currently
  *  resolve (`null`/unmounted ref) is skipped, not treated as sitting at the origin. */
@@ -44,27 +37,9 @@ export class TargetGroup {
     this.positionMode = positionMode;
   }
 
-  /** Resolves one member's full box dimensions — explicit `size`, or auto-detected from a `Mesh` target's
-   *  own geometry bounds (scaled by its current world scale) when neither `size` nor `radius` is set.
-   *  Returns `false` (`outSize` untouched) for a member that should be treated as a sphere/point via
-   *  `radius` instead. */
-  resolveMemberSize = (outSize: Vector3, member: TargetGroupMember): boolean => {
-    if (member.size) {
-      resolveVector3(outSize, member.size);
-      return true;
-    }
-    if (member.radius !== undefined) return false;
-
-    const object = resolveObject3D(member.target);
-    const mesh = object as Mesh | null;
-    if (!mesh?.isMesh) return false;
-    if (!mesh.geometry.boundingBox) mesh.geometry.computeBoundingBox();
-    if (!mesh.geometry.boundingBox) return false;
-    mesh.geometry.boundingBox.getSize(outSize);
-    mesh.getWorldScale(scratchWorldScale);
-    outSize.multiply(scratchWorldScale);
-    return true;
-  };
+  /** Resolves one member's full box dimensions — see `resolveTargetSize`. */
+  resolveMemberSize = (outSize: Vector3, member: TargetGroupMember): boolean =>
+    resolveTargetSize(outSize, member.target, member.size, member.radius);
 
   /** Writes the group's world position into `outPosition` and returns the radius of the smallest sphere,
    *  centered there, that encloses every resolvable member's own bounding sphere — a conservative

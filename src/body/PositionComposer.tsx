@@ -1,3 +1,4 @@
+import type { Vector3 as Vector3Like } from '@react-three/fiber';
 import { useThree } from '@react-three/fiber';
 import { useEffect, useImperativeHandle, useState, type Ref } from 'react';
 import type { DampingConstant } from '../damping/Damper';
@@ -25,9 +26,15 @@ export type PositionComposerProps = {
    *  visually leave — enforced instantly (bypassing `damping`) after the damped dead zone reaction runs.
    *  Default `[0, 0]` (none). */
   hardLimit?: [number, number];
+  /** Target's own bounding-sphere radius — `deadZone`/`hardLimit` then react to its nearest EDGE, not its
+   *  center. Ignored if `size` is given. Default: a dimensionless point. */
+  radius?: number;
+  /** Target's full box dimensions — takes priority over `radius`. Auto-detected from a `Mesh` target's own
+   *  geometry bounds when neither is given. */
+  size?: Vector3Like;
   /** Imperative access to the underlying `PositionComposerBody`, for reading/writing
-   *  `target`/`cameraDistance`/`screenPosition`/`deadZone`/`damping`/`hardLimit` directly instead of
-   *  through props. */
+   *  `target`/`cameraDistance`/`screenPosition`/`deadZone`/`damping`/`hardLimit`/`radius`/`size` directly
+   *  instead of through props. */
   ref?: Ref<PositionComposerBody>;
 };
 
@@ -47,12 +54,15 @@ export function PositionComposer({
   deadZone = defaultDeadZone,
   damping = 0,
   hardLimit = defaultHardLimit,
+  radius,
+  size,
   ref,
 }: PositionComposerProps) {
   const slots = useVirtualCameraSlots();
   const aspect = useThree((state) => state.viewport.aspect);
   const [body] = useState(
-    () => new PositionComposerBody(target, cameraDistance, screenPosition, aspect, deadZone, damping, hardLimit),
+    () =>
+      new PositionComposerBody(target, cameraDistance, screenPosition, aspect, deadZone, damping, hardLimit, radius, size),
   );
   body.target = target;
   body.cameraDistance = cameraDistance;
@@ -61,6 +71,8 @@ export function PositionComposer({
   body.deadZone = deadZone;
   body.damping = damping;
   body.hardLimit = hardLimit;
+  body.radius = radius;
+  body.size = size;
 
   useImperativeHandle(ref, () => body, [body]);
   useEffect(() => slots.registerBody(body.update), [slots, body]);
