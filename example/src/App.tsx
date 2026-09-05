@@ -258,21 +258,29 @@ function OrbitalScene({ activeCamera }: { activeCamera: OrbitalActiveCamera }) {
 }
 
 type BlendHintsActiveCamera = 'a' | 'b';
+type BlendHintsPositionMode = 'none' | 'spherical' | 'cylindrical';
 
 /**
- * Two cameras `HardLookAt`-ing DIFFERENT points, blending between them. Rotation always tracks the
- * smoothly-interpolating look-at target exactly - unconditional whenever both sides have one, not gated
- * behind `sphericalPosition`. The hint only shapes the POSITION path: arcing around Body's tracking
- * target at an interpolated radius instead of cutting straight through.
+ * Two cameras `HardLookAt`-ing DIFFERENT points, blending between them. Rotation tracks the smoothly-
+ * interpolating look-at target exactly, unconditionally - unless `ignoreTarget` opts out, falling back to
+ * a plain slerp between the two cameras' own rotations instead. The position mode is independent: it only
+ * shapes the POSITION path, arcing around Body's (shared) tracking target instead of cutting straight
+ * through - `spherical` and `cylindrical` differ once the two offsets sit at different heights: cylindrical
+ * lerps that height linearly, spherical folds it into the arc's own radius/polar angle instead.
  */
 function BlendHintsScene({
   activeCamera,
-  useSphericalHint,
+  positionMode,
+  useIgnoreTargetHint,
 }: {
   activeCamera: BlendHintsActiveCamera;
-  useSphericalHint: boolean;
+  positionMode: BlendHintsPositionMode;
+  useIgnoreTargetHint: boolean;
 }) {
-  const hints = useSphericalHint ? BlendHints.sphericalPosition : BlendHints.none;
+  const hints =
+    (positionMode === 'spherical' ? BlendHints.sphericalPosition : BlendHints.none) |
+    (positionMode === 'cylindrical' ? BlendHints.cylindricalPosition : BlendHints.none) |
+    (useIgnoreTargetHint ? BlendHints.ignoreTarget : BlendHints.none);
 
   return (
     <>
@@ -589,7 +597,8 @@ function App() {
   const [noisePreset, setNoisePreset] = useState<NoisePreset>('subtle');
   const [orbitalActiveCamera, setOrbitalActiveCamera] = useState<OrbitalActiveCamera>('orbital');
   const [blendHintsActiveCamera, setBlendHintsActiveCamera] = useState<BlendHintsActiveCamera>('a');
-  const [blendHintsUseSphericalHint, setBlendHintsUseSphericalHint] = useState(false);
+  const [blendHintsPositionMode, setBlendHintsPositionMode] = useState<BlendHintsPositionMode>('none');
+  const [blendHintsUseIgnoreTargetHint, setBlendHintsUseIgnoreTargetHint] = useState(false);
   const [boxSize, setBoxSize] = useState(2);
   const [padding, setPadding] = useState(0.5);
   const [reactivationTarget, setReactivationTarget] = useState<'A' | 'B'>('A');
@@ -720,8 +729,23 @@ function App() {
             <button data-active={blendHintsActiveCamera === 'b'} onClick={() => setBlendHintsActiveCamera('b')}>
               Camera B (-5,0,2)
             </button>
-            <button data-active={blendHintsUseSphericalHint} onClick={() => setBlendHintsUseSphericalHint((v) => !v)}>
-              {blendHintsUseSphericalHint ? 'sphericalPosition: on' : 'sphericalPosition: off - straight line'}
+            <button data-active={blendHintsPositionMode === 'none'} onClick={() => setBlendHintsPositionMode('none')}>
+              position: straight line
+            </button>
+            <button
+              data-active={blendHintsPositionMode === 'spherical'}
+              onClick={() => setBlendHintsPositionMode('spherical')}>
+              position: sphericalPosition
+            </button>
+            <button
+              data-active={blendHintsPositionMode === 'cylindrical'}
+              onClick={() => setBlendHintsPositionMode('cylindrical')}>
+              position: cylindricalPosition
+            </button>
+            <button
+              data-active={blendHintsUseIgnoreTargetHint}
+              onClick={() => setBlendHintsUseIgnoreTargetHint((v) => !v)}>
+              {blendHintsUseIgnoreTargetHint ? 'ignoreTarget: on - plain slerp' : 'ignoreTarget: off - tracks look-at'}
             </button>
           </>
         )}
@@ -792,7 +816,11 @@ function App() {
           {demo === 'explosion' && <ExplosionScene />}
           {demo === 'orbital' && <OrbitalScene activeCamera={orbitalActiveCamera} />}
           {demo === 'blendHints' && (
-            <BlendHintsScene activeCamera={blendHintsActiveCamera} useSphericalHint={blendHintsUseSphericalHint} />
+            <BlendHintsScene
+              activeCamera={blendHintsActiveCamera}
+              positionMode={blendHintsPositionMode}
+              useIgnoreTargetHint={blendHintsUseIgnoreTargetHint}
+            />
           )}
           {demo === 'focusRepro' && <FocusReproScene />}
           {demo === 'lookAtPop' && (
@@ -816,9 +844,13 @@ function App() {
       )}
       {demo === 'blendHints' && (
         <p className="hint-text">
-          Camera A and B look at two DIFFERENT points - the look-at target itself smoothly slides between them during
-          the blend, staying framed either way, unconditionally. Toggle sphericalPosition to compare the camera's own
-          PATH: off cuts straight through, on arcs around Body's tracking target at an interpolated radius instead.
+          Camera A and B look at two DIFFERENT points. With ignoreTarget off (default), rotation tracks the smoothly-
+          sliding look-at target throughout the blend, staying framed. Toggle ignoreTarget to fall back to a plain slerp
+          between the two cameras' own rotations instead - the subject drifts out of frame mid-blend. The position
+          buttons (independent of ignoreTarget) compare the camera's own PATH: straight line cuts through,
+          sphericalPosition/cylindricalPosition arc around Body's shared tracking target instead - the two only differ
+          once the offsets sit at different heights, since cylindricalPosition lerps that height linearly while
+          sphericalPosition folds it into the arc itself.
         </p>
       )}
       {demo === 'focusRepro' && (
@@ -827,10 +859,10 @@ function App() {
       {demo === 'lookAtPop' && (
         <p className="hint-text">
           Max single-frame rotation jump this run: <strong>{lookAtPopMaxJumpDeg.toFixed(1)}°</strong>. "Auto repro" (or
-          Focus A then Focus B by hand, fast) changes the focus target while the default→focused blend is STILL
-          running — the case that used to snap. The number should only ever climb gradually, as the shot accelerates;
-          a sudden step means a damped Aim is publishing a look-at target its own rotation hasn't reached yet, and the
-          blend is reading that gap as a camera-wide offset.
+          Focus A then Focus B by hand, fast) changes the focus target while the default→focused blend is STILL running
+          — the case that used to snap. The number should only ever climb gradually, as the shot accelerates; a sudden
+          step means a damped Aim is publishing a look-at target its own rotation hasn't reached yet, and the blend is
+          reading that gap as a camera-wide offset.
         </p>
       )}
       {demo === 'groupFraming' && (
