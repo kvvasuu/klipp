@@ -54,6 +54,8 @@ export class PositionComposerBody {
 
   update = (out: CameraState, dt: number, justActivated: boolean): void => {
     if (!resolveTargetPosition(scratchTargetPosition, this.target)) return;
+    out.target.copy(scratchTargetPosition);
+    out.hasTarget = true;
 
     scratchForward.set(0, 0, -1).applyQuaternion(out.quaternion);
     scratchRight.set(1, 0, 0).applyQuaternion(out.quaternion);

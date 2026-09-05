@@ -2,6 +2,7 @@ import type { CameraState } from './CameraState';
 import { BlendCurves } from './blend/BlendCurves';
 import { resolveBlendDefinition, type BlendDefinition, type CustomBlend } from './blend/BlendDefinition';
 import { BlendDriver } from './blend/BlendDriver';
+import { BlendHints } from './blend/BlendHints';
 
 export type VirtualCameraConfig = {
   id: string;
@@ -9,6 +10,9 @@ export type VirtualCameraConfig = {
   /** Reference to this camera's live state — `KlippCore` reads it directly. Whoever registers it is
    *  responsible for keeping it updated in place (zero-allocation convention, see CLAUDE.md). */
   state: CameraState;
+  /** Combined (OR'd) with whichever OTHER camera is on the other end of a transition into/out of this
+   *  one - see `BlendHints`. Default `BlendHints.none`. */
+  hints?: BlendHints;
 };
 
 type Candidate = VirtualCameraConfig & { activatedAt: number };
@@ -48,6 +52,9 @@ export class KlippCore {
 
   /** Unlike `driver.blendTargetId`, survives the outgoing camera unregistering mid-transition. */
   private customBlendFromId: string | null = null;
+  /** Fallback for `customBlendFromId`'s `hints` once its candidate entry is gone (`tick()` prefers the
+   *  live value when the candidate still exists, since `hints` can change while a camera stays active). */
+  private customBlendFromHints: BlendHints = BlendHints.none;
 
   constructor(options: KlippCoreOptions = {}) {
     this.defaultBlend = options.defaultBlend ?? DEFAULT_BLEND;
@@ -141,6 +148,17 @@ export class KlippCore {
     this.recompute();
   }
 
+  /** Updates an already-registered candidate's `hints` in place - no re-arbitration needed, `hints` are
+   *  only consulted lazily when a NEW blend into/out of this candidate starts. Also refreshes
+   *  `customBlendFromHints` when `id` is the camera it was captured from - otherwise a live camera's
+   *  hints changing (e.g. a toggle) while it's NOT mid-transition would go stale: it may already have
+   *  unregistered (the `active`-prop toggle pattern) by the time a future transition needs its hints. */
+  updateHints(id: string, hints: BlendHints): void {
+    const candidate = this.candidates.get(id);
+    if (candidate) candidate.hints = hints;
+    if (id === this.customBlendFromId) this.customBlendFromHints = hints;
+  }
+
   private recompute(): void {
     let winner: Candidate | null = null;
     for (const candidate of this.candidates.values()) {
@@ -191,8 +209,14 @@ export class KlippCore {
           this.activeId,
           this.defaultBlend,
         );
-        this.driver.setTarget(this.activeId, definition);
+        const toHints = this.candidates.get(this.activeId)?.hints ?? BlendHints.none;
+        // prefer the outgoing camera's CURRENT hints (it may have changed since it went live) - the
+        // captured customBlendFromHints is only a fallback for when it already unregistered mid-transition
+        const fromCandidate = this.customBlendFromId !== null ? this.candidates.get(this.customBlendFromId) : undefined;
+        const fromHints = fromCandidate?.hints ?? this.customBlendFromHints;
+        this.driver.setTarget(this.activeId, definition, fromHints | toHints);
         this.customBlendFromId = this.activeId;
+        this.customBlendFromHints = toHints;
       }
       result = this.driver.tick(dt);
     });

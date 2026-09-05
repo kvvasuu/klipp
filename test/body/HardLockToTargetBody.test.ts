@@ -18,6 +18,18 @@ describe('HardLockToTargetBody', () => {
     expect(out.position.x).toBeCloseTo(7, 10);
   });
 
+  it("writes the resolved target position and hasTarget onto out, for BlendHints' sphericalPosition", () => {
+    const target = new Object3D();
+    target.position.set(2, 3, 4);
+
+    const body = new HardLockToTargetBody(target);
+    const out = createCameraState();
+    body.update(out, 0.1);
+
+    expect(out.hasTarget).toBe(true);
+    expect(out.target.equals(new Vector3(2, 3, 4))).toBe(true);
+  });
+
   it('target is a mutable field — reassigning it changes what gets tracked, no re-registration needed', () => {
     const a = new Object3D();
     a.position.set(1, 0, 0);

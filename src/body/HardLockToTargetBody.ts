@@ -22,5 +22,7 @@ export class HardLockToTargetBody {
     if (!resolveTargetPosition(this.resolvedTarget, this.target)) return;
     if (justActivated) this.damper.reset();
     this.damper.update(out.position, this.resolvedTarget, this.damping, dt);
+    out.target.copy(this.resolvedTarget);
+    out.hasTarget = true;
   };
 }

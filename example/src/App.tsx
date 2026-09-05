@@ -1,10 +1,10 @@
-import { BindingModes, BlendCurves, impulseManager, type BindingMode } from '@kvvasuu/klipp';
+import { BindingModes, BlendCurves, BlendHints, impulseManager, type BindingMode } from '@kvvasuu/klipp';
 import { Aim, Body, CameraFrustumHelper, Extension, Klipp, Noise, VirtualCamera } from '@kvvasuu/klipp/react';
 import { OrbitalControls } from '@kvvasuu/klipp/react/body/orbital-controls';
 import { Stats } from '@react-three/drei';
 import { Canvas, invalidate, useFrame, useThree, type ThreeEvent } from '@react-three/fiber';
 import { useEffect, useRef, useState, type RefObject } from 'react';
-import { Group, Mesh, Vector3, type Object3D } from 'three';
+import { Group, Mesh, Quaternion, Vector3, type Object3D } from 'three';
 import './App.css';
 import { CapstoneScene } from './CapstoneScene';
 
@@ -257,6 +257,58 @@ function OrbitalScene({ activeCamera }: { activeCamera: OrbitalActiveCamera }) {
   );
 }
 
+type BlendHintsActiveCamera = 'a' | 'b';
+type BlendHintsPositionMode = 'none' | 'spherical' | 'cylindrical';
+
+/**
+ * Two cameras `HardLookAt`-ing DIFFERENT points, blending between them. Rotation tracks the smoothly-
+ * interpolating look-at target exactly, unconditionally - unless `ignoreTarget` opts out, falling back to
+ * a plain slerp between the two cameras' own rotations instead. The position mode is independent: it only
+ * shapes the POSITION path, arcing around Body's (shared) tracking target instead of cutting straight
+ * through - `spherical` and `cylindrical` differ once the two offsets sit at different heights: cylindrical
+ * lerps that height linearly, spherical folds it into the arc's own radius/polar angle instead.
+ */
+function BlendHintsScene({
+  activeCamera,
+  positionMode,
+  useIgnoreTargetHint,
+}: {
+  activeCamera: BlendHintsActiveCamera;
+  positionMode: BlendHintsPositionMode;
+  useIgnoreTargetHint: boolean;
+}) {
+  const hints =
+    (positionMode === 'spherical' ? BlendHints.sphericalPosition : BlendHints.none) |
+    (positionMode === 'cylindrical' ? BlendHints.cylindricalPosition : BlendHints.none) |
+    (useIgnoreTargetHint ? BlendHints.ignoreTarget : BlendHints.none);
+
+  return (
+    <>
+      <ambientLight intensity={0.6} />
+      <directionalLight position={[5, 8, 3]} intensity={1.2} />
+      <gridHelper args={[24, 24, '#444', '#222']} position={[0, 0.01, 0]} />
+
+      <mesh>
+        <sphereGeometry args={[0.5, 16, 16]} />
+        <meshStandardMaterial color="tomato" />
+      </mesh>
+
+      <Klipp defaultBlend={{ curve: BlendCurves.linear, time: 2 }}>
+        <VirtualCamera name="blendHints-a" active={activeCamera === 'a'} priority={10} hints={hints}>
+          <Body.Follow target={[5, 5, 5]} offset={[3, 0, 0]} />
+          <Aim.HardLookAt target={[0, 0, 0]} />
+          <CameraFrustumHelper color="lime" hideWhenLive={false} />
+        </VirtualCamera>
+        <VirtualCamera name="blendHints-b" active={activeCamera === 'b'} priority={20} hints={hints}>
+          <Body.Follow target={[5, 5, 5]} offset={[-10, 0, -5]} />
+          <Aim.RotationComposer target={[0, 0, 0]} damping={0.4} />
+          <CameraFrustumHelper color="orange" hideWhenLive={false} />
+        </VirtualCamera>
+      </Klipp>
+    </>
+  );
+}
+
 const focusBoxCenter: [number, number, number] = [0, 1, 0];
 const focusBoxSize: [number, number, number] = [2, 2, 2];
 
@@ -324,7 +376,7 @@ function ReactivationSnapScene({ targetKey, cameraActive }: { targetKey: 'A' | '
               (the regression case) reads as one clean ease — PositionComposer's stage-1 dolly is always
               instant/undamped by design, which would show as "jump, then the lateral part eases in",
               muddying what this scene is actually testing (unrelated to justActivated). */}
-          <Body.Follow target={targetPosition} offset={[0, 5, 16]} damping={1.5} bindingMode="worldSpace" />
+          <Body.Follow target={targetPosition} offset={[0, 5, 16]} damping={1.5} />
           <Aim.RotationComposer target={targetPosition} deadZone={[0.2, 0.2]} damping={1.5} />
         </VirtualCamera>
       </Klipp>
@@ -390,6 +442,111 @@ function FocusReproScene() {
   );
 }
 
+type LookAtPopTarget = 'A' | 'B';
+
+/** A and B differ in both position and look-at on purpose — the bigger the gap, the more obvious any pop. */
+const lookAtPopConfigs: Record<
+  LookAtPopTarget,
+  { position: [number, number, number]; lookAt: [number, number, number] }
+> = {
+  A: { position: [-6, 3, 7], lookAt: [-6, 1, 0] },
+  B: { position: [6, 1, -4], lookAt: [6, 5, 1] },
+};
+
+function LookAtPopMarker({ position, color }: { position: [number, number, number]; color: string }) {
+  return (
+    <mesh position={position}>
+      <sphereGeometry args={[0.4, 16, 16]} />
+      <meshStandardMaterial color={color} emissive={color} emissiveIntensity={0.4} />
+    </mesh>
+  );
+}
+
+/** Reports the running max of the real camera's frame-to-frame rotation, turning "looks like it pops" into
+ *  degrees. `resetToken` clears it WITHOUT remounting — resetting by `key` would tear down `<Klipp>`'s core
+ *  and every camera's state too, which mid-blend is itself a snap, and looks just like the bug. */
+function LookAtJumpMeter({ onJump, resetToken }: { onJump: (deg: number) => void; resetToken: number }) {
+  const { camera } = useThree();
+  const prevQuaternion = useRef(new Quaternion());
+  const hasPrev = useRef(false);
+  const maxJumpDeg = useRef(0);
+
+  useEffect(() => {
+    maxJumpDeg.current = 0;
+    hasPrev.current = false; // whatever gap the reset itself spans isn't a frame-to-frame delta
+  }, [resetToken]);
+
+  useFrame(() => {
+    if (hasPrev.current) {
+      const deg = (prevQuaternion.current.angleTo(camera.quaternion) * 180) / Math.PI;
+      if (deg > maxJumpDeg.current) {
+        maxJumpDeg.current = deg;
+        onJump(deg);
+      }
+    }
+    prevQuaternion.current.copy(camera.quaternion);
+    hasPrev.current = true;
+  });
+
+  return null;
+}
+
+/**
+ * Retargeting a damped `RotationComposer` camera mid-blend. `default`'s `Aim.HardLookAt` sets
+ * `hasLookAtTarget`, so this blend goes through `lerpLookAtRotation` — unlike `FocusReproScene`, whose
+ * `Body.OrbitalControls` never sets it and so takes the plain-slerp fallback instead.
+ *
+ * Every path here (focus A alone, retarget after the blend settles, retarget DURING it, reverse back to
+ * `default` mid-blend) should move the camera continuously; any sudden step on the meter is a bug.
+ */
+function LookAtBlendPopScene({
+  focusTarget,
+  onJump,
+  meterResetToken,
+}: {
+  focusTarget: LookAtPopTarget | null;
+  onJump: (deg: number) => void;
+  meterResetToken: number;
+}) {
+  const focusPosition = useRef(new Vector3()).current;
+  const focusLookAt = useRef(new Vector3()).current;
+
+  useEffect(() => {
+    if (!focusTarget) return;
+    const config = lookAtPopConfigs[focusTarget];
+    focusPosition.set(...config.position);
+    focusLookAt.set(...config.lookAt);
+    // same rule as FocusReproScene's handleBoxClick — a retarget while already active mutates these in
+    // place, with no prop change for VirtualCamera to react to
+    invalidate();
+  }, [focusTarget, focusPosition, focusLookAt]);
+
+  return (
+    <>
+      <ambientLight intensity={0.6} />
+      <directionalLight position={[5, 8, 3]} intensity={1.2} />
+      <gridHelper args={[30, 30, '#444', '#222']} position={[0, 0.01, 0]} />
+
+      <LookAtPopMarker position={lookAtPopConfigs.A.lookAt} color="#3399ff" />
+      <LookAtPopMarker position={lookAtPopConfigs.B.lookAt} color="#ff6633" />
+
+      <LookAtJumpMeter onJump={onJump} resetToken={meterResetToken} />
+
+      {/* mirrors the real app: defaultBlend only, no customBlends */}
+      <Klipp defaultBlend={{ damping: 0.5 }}>
+        <VirtualCamera name="default" active={!focusTarget} priority={10}>
+          <Body.Follow target={[0, 0, 0]} offset={[0, 4, 16]} damping={0} />
+          <Aim.HardLookAt target={[0, 0, 0]} />
+        </VirtualCamera>
+        <VirtualCamera name="focused" active={!!focusTarget} priority={100}>
+          <Body.HardLockToTarget target={focusPosition} damping={0.5} />
+          <Aim.RotationComposer target={focusLookAt} damping={0.5} />
+        </VirtualCamera>
+      </Klipp>
+    </>
+  );
+}
+
 /**
  * A box that never overflows the frame as it grows (slider) or the canvas resizes — `Extension.GroupFraming`
  * dollies back only as far as needed, so shrinking the box doesn't pull the camera back in.
@@ -425,7 +582,9 @@ type Demo =
   | 'noise'
   | 'explosion'
   | 'orbital'
+  | 'blendHints'
   | 'focusRepro'
+  | 'lookAtPop'
   | 'groupFraming'
   | 'reactivationSnap'
   | 'capstone';
@@ -437,10 +596,31 @@ function App() {
   const [hardLimitEnabled, setHardLimitEnabled] = useState(false);
   const [noisePreset, setNoisePreset] = useState<NoisePreset>('subtle');
   const [orbitalActiveCamera, setOrbitalActiveCamera] = useState<OrbitalActiveCamera>('orbital');
+  const [blendHintsActiveCamera, setBlendHintsActiveCamera] = useState<BlendHintsActiveCamera>('a');
+  const [blendHintsPositionMode, setBlendHintsPositionMode] = useState<BlendHintsPositionMode>('none');
+  const [blendHintsUseIgnoreTargetHint, setBlendHintsUseIgnoreTargetHint] = useState(false);
   const [boxSize, setBoxSize] = useState(2);
   const [padding, setPadding] = useState(0.5);
   const [reactivationTarget, setReactivationTarget] = useState<'A' | 'B'>('A');
   const [reactivationCameraActive, setReactivationCameraActive] = useState(true);
+  const [lookAtPopFocus, setLookAtPopFocus] = useState<LookAtPopTarget | null>(null);
+  const [lookAtPopMaxJumpDeg, setLookAtPopMaxJumpDeg] = useState(0);
+  const [lookAtPopMeterKey, setLookAtPopMeterKey] = useState(0);
+
+  function resetLookAtPop() {
+    setLookAtPopFocus(null);
+    setLookAtPopMaxJumpDeg(0);
+    setLookAtPopMeterKey((k) => k + 1);
+  }
+
+  function runLookAtPopAutoRepro() {
+    resetLookAtPop();
+    // let the focus clear commit before starting the A→B-mid-blend sequence
+    requestAnimationFrame(() => {
+      setLookAtPopFocus('A');
+      window.setTimeout(() => setLookAtPopFocus('B'), 150);
+    });
+  }
 
   return (
     <>
@@ -475,8 +655,14 @@ function App() {
         <button data-active={demo === 'orbital'} onClick={() => setDemo('orbital')}>
           Orbital Controls
         </button>
+        <button data-active={demo === 'blendHints'} onClick={() => setDemo('blendHints')}>
+          Blend Hints
+        </button>
         <button data-active={demo === 'focusRepro'} onClick={() => setDemo('focusRepro')}>
           Click to Zoom
+        </button>
+        <button data-active={demo === 'lookAtPop'} onClick={() => setDemo('lookAtPop')}>
+          LookAt Blend Pop
         </button>
         <button data-active={demo === 'groupFraming'} onClick={() => setDemo('groupFraming')}>
           Group Framing
@@ -535,6 +721,49 @@ function App() {
             </button>
           </>
         )}
+        {demo === 'blendHints' && (
+          <>
+            <button data-active={blendHintsActiveCamera === 'a'} onClick={() => setBlendHintsActiveCamera('a')}>
+              Camera A (5,5,5)
+            </button>
+            <button data-active={blendHintsActiveCamera === 'b'} onClick={() => setBlendHintsActiveCamera('b')}>
+              Camera B (-5,0,2)
+            </button>
+            <button data-active={blendHintsPositionMode === 'none'} onClick={() => setBlendHintsPositionMode('none')}>
+              position: straight line
+            </button>
+            <button
+              data-active={blendHintsPositionMode === 'spherical'}
+              onClick={() => setBlendHintsPositionMode('spherical')}>
+              position: sphericalPosition
+            </button>
+            <button
+              data-active={blendHintsPositionMode === 'cylindrical'}
+              onClick={() => setBlendHintsPositionMode('cylindrical')}>
+              position: cylindricalPosition
+            </button>
+            <button
+              data-active={blendHintsUseIgnoreTargetHint}
+              onClick={() => setBlendHintsUseIgnoreTargetHint((v) => !v)}>
+              {blendHintsUseIgnoreTargetHint ? 'ignoreTarget: on - plain slerp' : 'ignoreTarget: off - tracks look-at'}
+            </button>
+          </>
+        )}
+        {demo === 'lookAtPop' && (
+          <>
+            <button data-active={lookAtPopFocus === 'A'} onClick={() => setLookAtPopFocus('A')}>
+              Focus A
+            </button>
+            <button data-active={lookAtPopFocus === 'B'} onClick={() => setLookAtPopFocus('B')}>
+              Focus B
+            </button>
+            <button data-active={lookAtPopFocus === null} onClick={() => setLookAtPopFocus(null)}>
+              Back to default
+            </button>
+            <button onClick={runLookAtPopAutoRepro}>⚡ Auto repro: A → B mid-blend</button>
+            <button onClick={resetLookAtPop}>Reset meter</button>
+          </>
+        )}
         {demo === 'groupFraming' && (
           <>
             <label>
@@ -586,7 +815,21 @@ function App() {
           {demo === 'noise' && <NoiseScene preset={noisePreset} />}
           {demo === 'explosion' && <ExplosionScene />}
           {demo === 'orbital' && <OrbitalScene activeCamera={orbitalActiveCamera} />}
+          {demo === 'blendHints' && (
+            <BlendHintsScene
+              activeCamera={blendHintsActiveCamera}
+              positionMode={blendHintsPositionMode}
+              useIgnoreTargetHint={blendHintsUseIgnoreTargetHint}
+            />
+          )}
           {demo === 'focusRepro' && <FocusReproScene />}
+          {demo === 'lookAtPop' && (
+            <LookAtBlendPopScene
+              focusTarget={lookAtPopFocus}
+              onJump={setLookAtPopMaxJumpDeg}
+              meterResetToken={lookAtPopMeterKey}
+            />
+          )}
           {demo === 'groupFraming' && <GroupFramingScene boxSize={boxSize} padding={padding} />}
           {demo === 'reactivationSnap' && (
             <ReactivationSnapScene targetKey={reactivationTarget} cameraActive={reactivationCameraActive} />
@@ -599,8 +842,28 @@ function App() {
           tilt. Switch Aim to "Glued" to see the camera's ROTATION lock to the target too.
         </p>
       )}
+      {demo === 'blendHints' && (
+        <p className="hint-text">
+          Camera A and B look at two DIFFERENT points. With ignoreTarget off (default), rotation tracks the smoothly-
+          sliding look-at target throughout the blend, staying framed. Toggle ignoreTarget to fall back to a plain slerp
+          between the two cameras' own rotations instead - the subject drifts out of frame mid-blend. The position
+          buttons (independent of ignoreTarget) compare the camera's own PATH: straight line cuts through,
+          sphericalPosition/cylindricalPosition arc around Body's shared tracking target instead - the two only differ
+          once the offsets sit at different heights, since cylindricalPosition lerps that height linearly while
+          sphericalPosition folds it into the arc itself.
+        </p>
+      )}
       {demo === 'focusRepro' && (
         <p className="hint-text">Click the box to zoom in. Esc — back to the orbital camera.</p>
+      )}
+      {demo === 'lookAtPop' && (
+        <p className="hint-text">
+          Max single-frame rotation jump this run: <strong>{lookAtPopMaxJumpDeg.toFixed(1)}°</strong>. "Auto repro" (or
+          Focus A then Focus B by hand, fast) changes the focus target while the default→focused blend is STILL running
+          — the case that used to snap. The number should only ever climb gradually, as the shot accelerates; a sudden
+          step means a damped Aim is publishing a look-at target its own rotation hasn't reached yet, and the blend is
+          reading that gap as a camera-wide offset.
+        </p>
       )}
       {demo === 'groupFraming' && (
         <p className="hint-text">Resize the box with the slider, or resize the browser window.</p>

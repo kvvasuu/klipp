@@ -2,6 +2,7 @@ import { bench, group } from '@pmndrs/labs';
 import { Matrix4, Object3D, Vector3 } from 'three';
 import { createCameraState } from '../src/CameraState';
 import { KlippCore } from '../src/KlippCore';
+import { BlendHints } from '../src/blend/BlendHints';
 import { lerpCameraState } from '../src/blend/lerpCameraState';
 import { VirtualCameraController } from '../src/VirtualCameraController';
 import { HardLookAtAim } from '../src/aim/HardLookAtAim';
@@ -86,6 +87,19 @@ group('Aim.update @aim', () => {
     out.position.set(0, 2, 15);
     yield () => {
       step();
+      aim.update(out, 0.016, false);
+      return out.quaternion.x;
+    };
+  });
+
+  // the state a live camera spends most of its frames in, and a different path from the moving benches
+  // above: both dampers early-return and the published lookAtTarget takes its exact-copy branch
+  bench('RotationComposer (damped, converged on a still target)', function* () {
+    const aim = new RotationComposerAim(new Vector3(0, 2, -20), [0, 0], 16 / 9, [0, 0], 0.5);
+    const out = createCameraState();
+    out.position.set(0, 2, 15);
+    aim.update(out, 0.016, true);
+    yield () => {
       aim.update(out, 0.016, false);
       return out.quaternion.x;
     };
@@ -201,6 +215,8 @@ group('lerpCameraState @blend', () => {
     const state = createCameraState();
     state.position.copy(position);
     state.quaternion.setFromRotationMatrix(new Matrix4().lookAt(position, lookAtTarget, new Vector3(0, 1, 0)));
+    state.target.copy(lookAtTarget);
+    state.hasTarget = true;
     state.lookAtTarget.copy(lookAtTarget);
     state.hasLookAtTarget = true;
     return state;
@@ -221,6 +237,13 @@ group('lerpCameraState @blend', () => {
     const b = makeOrbitingState(new Vector3(0, 0, 5), new Vector3(0, 0, 0));
     const out = createCameraState();
     yield () => lerpCameraState(out, a, b, 0.5).position.x;
+  });
+
+  bench('lookAtTarget-driven rotation + sphericalPosition hint', function* () {
+    const a = makeOrbitingState(new Vector3(5, 5, 5), new Vector3(0, 0, 0));
+    const b = makeOrbitingState(new Vector3(0, 0, 5), new Vector3(0, 0, 0));
+    const out = createCameraState();
+    yield () => lerpCameraState(out, a, b, 0.5, BlendHints.sphericalPosition).position.x;
   });
 });
 
