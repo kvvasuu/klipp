@@ -27,7 +27,7 @@ const CORNER_SIGNS = [-1, 1] as const;
  * tangent formula (`sin`); boxes (`size`) check all 8 corners against the camera's current axes and take
  * the worst case (`tan`) — a corner's own depth affects how close it can get, so height/width and depth
  * can't just be added. "Dolly Only": never touches `out.quaternion`/`out.fov`, so it needs Aim already
- * looking at `group`. `centerOffsetX`/`Y` shift `out.viewOffsetX`/`Y` separately.
+ * looking at `group`. `screenPosition` shifts `out.viewOffsetX`/`Y` separately.
  */
 export class GroupFramingExtension {
   group: TargetGroup;
@@ -36,19 +36,18 @@ export class GroupFramingExtension {
   /** Current canvas size in pixels, for the viewport's aspect ratio. */
   viewportWidth: number;
   viewportHeight: number;
-  /** Seconds to catch up to the distance ceiling (and `centerOffsetX`/`Y`) as they change. `0` (default)
+  /** Seconds to catch up to the distance ceiling (and `screenPosition`) as they change. `0` (default)
    *  = hard, instant. */
   damping: DampingConstant;
-  /** Shifts the frustum (screen pixels) without moving or rotating the camera. `0` (default) = none. */
-  centerOffsetX: number;
-  centerOffsetY: number;
+  /** Shifts the frustum without moving/rotating the camera - same convention as `PositionComposer`'s
+   *  `screenPosition` (0 = center, ±1 = frame edge), converted to `setViewOffset`'s pixels internally. */
+  screenPosition: [number, number];
 
   private readonly distanceDamper = new Damper();
   private currentDistance = 0;
-  private readonly centerOffsetXDamper = new Damper();
-  private readonly centerOffsetYDamper = new Damper();
-  private currentCenterOffsetX = 0;
-  private currentCenterOffsetY = 0;
+  private readonly screenPositionXDamper = new Damper();
+  private readonly screenPositionYDamper = new Damper();
+  private currentScreenPosition: [number, number] = [0, 0];
 
   constructor(
     group: TargetGroup,
@@ -56,16 +55,14 @@ export class GroupFramingExtension {
     viewportWidth = 1,
     viewportHeight = 1,
     damping: DampingConstant = 0,
-    centerOffsetX = 0,
-    centerOffsetY = 0,
+    screenPosition: [number, number] = [0, 0],
   ) {
     this.group = group;
     this.padding = padding;
     this.viewportWidth = viewportWidth;
     this.viewportHeight = viewportHeight;
     this.damping = damping;
-    this.centerOffsetX = centerOffsetX;
-    this.centerOffsetY = centerOffsetY;
+    this.screenPosition = screenPosition;
   }
 
   update = (out: CameraState, dt: number, justActivated: boolean): boolean => {
@@ -151,8 +148,8 @@ export class GroupFramingExtension {
 
     if (justActivated) {
       this.distanceDamper.reset();
-      this.centerOffsetXDamper.reset();
-      this.centerOffsetYDamper.reset();
+      this.screenPositionXDamper.reset();
+      this.screenPositionYDamper.reset();
     }
 
     this.currentDistance = instant
@@ -162,19 +159,20 @@ export class GroupFramingExtension {
     scratchBackward.set(0, 0, 1).applyQuaternion(out.quaternion);
     out.position.copy(scratchGroupPosition).addScaledVector(scratchBackward, this.currentDistance);
 
-    this.currentCenterOffsetX = instant
-      ? this.centerOffsetX
-      : this.centerOffsetXDamper.update(this.currentCenterOffsetX, this.centerOffsetX, this.damping, dt);
-    this.currentCenterOffsetY = instant
-      ? this.centerOffsetY
-      : this.centerOffsetYDamper.update(this.currentCenterOffsetY, this.centerOffsetY, this.damping, dt);
-    out.viewOffsetX = this.currentCenterOffsetX;
-    out.viewOffsetY = this.currentCenterOffsetY;
+    this.currentScreenPosition[0] = instant
+      ? this.screenPosition[0]
+      : this.screenPositionXDamper.update(this.currentScreenPosition[0], this.screenPosition[0], this.damping, dt);
+    this.currentScreenPosition[1] = instant
+      ? this.screenPosition[1]
+      : this.screenPositionYDamper.update(this.currentScreenPosition[1], this.screenPosition[1], this.damping, dt);
+    // out.viewOffsetX/Y stay real setViewOffset pixels - only the public screenPosition field is normalized
+    out.viewOffsetX = this.currentScreenPosition[0] * (this.viewportWidth / 2);
+    out.viewOffsetY = this.currentScreenPosition[1] * (this.viewportHeight / 2);
 
     return (
       this.currentDistance !== distance ||
-      this.currentCenterOffsetX !== this.centerOffsetX ||
-      this.currentCenterOffsetY !== this.centerOffsetY
+      this.currentScreenPosition[0] !== this.screenPosition[0] ||
+      this.currentScreenPosition[1] !== this.screenPosition[1]
     );
   };
 }

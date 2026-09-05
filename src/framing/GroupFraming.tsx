@@ -12,14 +12,13 @@ export type GroupFramingProps = {
   positionMode?: TargetGroupPositionMode;
   /** Margin kept clear around the group's members, in world units. Default `0`. */
   padding?: number;
-  /** Seconds to catch up to the distance ceiling (and `centerOffsetX`/`Y`) as they change. `0` (default)
+  /** Seconds to catch up to the distance ceiling (and `screenPosition`) as they change. `0` (default)
    *  = hard, instant. */
   damping?: DampingConstant;
-  /** Shifts the frustum, in screen pixels, without moving or rotating the camera — e.g. to keep the
-   *  framed group visually centered in the space left over after reserving room for UI on one side.
-   *  Default `0`. */
-  centerOffsetX?: number;
-  centerOffsetY?: number;
+  /** Shifts the frustum without moving/rotating the camera — e.g. to keep the framed group visually
+   *  centered in the space left over after reserving room for UI on one side. Same convention as
+   *  `PositionComposer`'s `screenPosition` (0 = center, ±1 = frame edge), not pixels. Default `[0, 0]`. */
+  screenPosition?: [number, number];
   /** Imperative access to the underlying `GroupFramingExtension`, for reading/writing its fields (or
    *  the `TargetGroup` it owns) directly instead of through props. */
   ref?: Ref<GroupFramingExtension>;
@@ -35,15 +34,14 @@ export function GroupFraming({
   positionMode = 'groupCenter',
   padding = 0,
   damping = 0,
-  centerOffsetX = 0,
-  centerOffsetY = 0,
+  screenPosition = [0, 0],
   ref,
 }: GroupFramingProps) {
   const slots = useVirtualCameraSlots();
   const size = useThree((state) => state.size);
   const [group] = useState(() => new TargetGroup(members, positionMode));
   const [extension] = useState(
-    () => new GroupFramingExtension(group, padding, size.width, size.height, damping, centerOffsetX, centerOffsetY),
+    () => new GroupFramingExtension(group, padding, size.width, size.height, damping, screenPosition),
   );
 
   group.members = members;
@@ -52,8 +50,7 @@ export function GroupFraming({
   extension.viewportWidth = size.width;
   extension.viewportHeight = size.height;
   extension.damping = damping;
-  extension.centerOffsetX = centerOffsetX;
-  extension.centerOffsetY = centerOffsetY;
+  extension.screenPosition = screenPosition;
 
   useImperativeHandle(ref, () => extension, [extension]);
   useEffect(() => slots.registerExtension(extension.update), [slots, extension]);
