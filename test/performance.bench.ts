@@ -1,5 +1,5 @@
 import { bench, group } from '@pmndrs/labs';
-import { Matrix4, Object3D, Vector3 } from 'three';
+import { BoxGeometry, Matrix4, Mesh, MeshBasicMaterial, Object3D, Vector3 } from 'three';
 import { createCameraState } from '../src/CameraState';
 import { KlippCore } from '../src/KlippCore';
 import { BlendHints } from '../src/blend/BlendHints';
@@ -20,6 +20,22 @@ import { BasicMultiChannelPerlinNoise } from '../src/noise/BasicMultiChannelPerl
  *  camera is doing WORK most frames, not sitting converged). */
 function makeMovingTarget(): { object: Object3D; step: () => void } {
   const object = new Object3D();
+  let t = 0;
+  return {
+    object,
+    step: () => {
+      t += 0.016;
+      object.position.set(Math.sin(t) * 10, 2, Math.cos(t) * 10);
+      object.rotation.set(0, t * 0.3, 0);
+      object.updateMatrixWorld(true);
+    },
+  };
+}
+
+/** Same motion as `makeMovingTarget`, but a real `Mesh` — exercises `resolveTargetSize`'s auto-detect path
+ *  (`geometry.boundingBox`/`getWorldScale`), not just an explicit `size`. */
+function makeMovingMeshTarget(): { object: Mesh; step: () => void } {
+  const object = new Mesh(new BoxGeometry(2, 2, 2), new MeshBasicMaterial());
   let t = 0;
   return {
     object,
@@ -57,6 +73,42 @@ group('Body.update @body', () => {
 
   bench('PositionComposer (deadZone + hardLimit)', function* () {
     const { object, step } = makeMovingTarget();
+    const body = new PositionComposerBody(object, 10, [0, 0], 16 / 9, [0.2, 0.2], 0.5, [0.4, 0.4]);
+    const out = createCameraState();
+    yield () => {
+      step();
+      body.update(out, 0.016, false);
+      return out.position.x;
+    };
+  });
+
+  // radius/size give deadZone/hardLimit a screen-space EDGE instead of a point - the radius path skips
+  // resolveTargetRotation entirely, while size (explicit or auto-detected) projects a rotated box every
+  // frame instead; all three should still show ~0 bytes/iter, same as the plain point-target bench above
+  bench('PositionComposer (radius extent)', function* () {
+    const { object, step } = makeMovingTarget();
+    const body = new PositionComposerBody(object, 10, [0, 0], 16 / 9, [0.2, 0.2], 0.5, [0.4, 0.4], 1.5);
+    const out = createCameraState();
+    yield () => {
+      step();
+      body.update(out, 0.016, false);
+      return out.position.x;
+    };
+  });
+
+  bench('PositionComposer (explicit size extent, rotating box)', function* () {
+    const { object, step } = makeMovingTarget();
+    const body = new PositionComposerBody(object, 10, [0, 0], 16 / 9, [0.2, 0.2], 0.5, [0.4, 0.4], undefined, [2, 2, 2]);
+    const out = createCameraState();
+    yield () => {
+      step();
+      body.update(out, 0.016, false);
+      return out.position.x;
+    };
+  });
+
+  bench('PositionComposer (auto-detected Mesh size extent, rotating box)', function* () {
+    const { object, step } = makeMovingMeshTarget();
     const body = new PositionComposerBody(object, 10, [0, 0], 16 / 9, [0.2, 0.2], 0.5, [0.4, 0.4]);
     const out = createCameraState();
     yield () => {

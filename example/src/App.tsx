@@ -118,6 +118,54 @@ function HardLimitScene({ hardLimitEnabled }: { hardLimitEnabled: boolean }) {
   );
 }
 
+function TargetExtentZigzag({ targetRef }: { targetRef: RefObject<Mesh | null> }) {
+  useFrame((state) => {
+    const target = targetRef.current;
+    if (!target) return;
+    const t = state.clock.elapsedTime;
+    target.position.set(Math.sin(t * 1.2) * 15, 2, -6);
+    target.rotation.y = t * 0.6; // tumbles, so "size" mode exercises the rotated-box math, not just axis-aligned
+    state.invalidate();
+  });
+  return (
+    <mesh ref={targetRef}>
+      <boxGeometry args={[3, 3, 3]} />
+      <meshStandardMaterial color="tomato" />
+    </mesh>
+  );
+}
+
+type TargetExtentMode = 'point' | 'radius' | 'size';
+
+/** Same box mesh in every mode - only how PositionComposer measures its extent changes. "Point" passes
+ *  radius={0} to force the old center-only behavior for comparison (otherwise a Mesh target auto-detects
+ *  its own size); "Size" leaves radius/size unset, letting that auto-detection take over.
+ */
+function TargetExtentScene({ mode }: { mode: TargetExtentMode }) {
+  const targetRef = useRef<Mesh>(null);
+
+  return (
+    <>
+      <ambientLight intensity={0.6} />
+      <directionalLight position={[5, 8, 3]} intensity={1.2} />
+      <gridHelper args={[24, 24, '#444', '#222']} position={[0, 0.01, 0]} />
+
+      <TargetExtentZigzag targetRef={targetRef} />
+
+      <Klipp>
+        <VirtualCamera name="targetExtent-demo" active={true} priority={10}>
+          <Body.PositionComposer
+            target={targetRef}
+            deadZone={[0.4, 0.4]}
+            damping={0.2}
+            radius={mode === 'point' ? 0 : mode === 'radius' ? 2 : undefined}
+          />
+        </VirtualCamera>
+      </Klipp>
+    </>
+  );
+}
+
 type NoisePreset = 'off' | 'subtle' | 'heavy';
 
 const noisePresets: Record<
@@ -727,6 +775,7 @@ type Demo =
   | 'groupFraming'
   | 'reactivationSnap'
   | 'initialState'
+  | 'targetExtent'
   | 'capstone';
 
 function App() {
@@ -748,6 +797,7 @@ function App() {
   const [reactivationCameraActive, setReactivationCameraActive] = useState(true);
   const [initialStateMode, setInitialStateMode] = useState<InitialStateMode>('follow');
   const [initialStateSeeded, setInitialStateSeeded] = useState(false);
+  const [targetExtentMode, setTargetExtentMode] = useState<TargetExtentMode>('point');
   const [lookAtPopFocus, setLookAtPopFocus] = useState<LookAtPopTarget | null>(null);
   const [lookAtPopMaxJumpDeg, setLookAtPopMaxJumpDeg] = useState(0);
   const [lookAtPopMeterKey, setLookAtPopMeterKey] = useState(0);
@@ -820,6 +870,9 @@ function App() {
         </button>
         <button data-active={demo === 'initialState'} onClick={() => setDemo('initialState')}>
           Initial State
+        </button>
+        <button data-active={demo === 'targetExtent'} onClick={() => setDemo('targetExtent')}>
+          Target Extent
         </button>
         {demo === 'offset' &&
           (
@@ -990,6 +1043,19 @@ function App() {
             </button>
           </>
         )}
+        {demo === 'targetExtent' && (
+          <>
+            <button data-active={targetExtentMode === 'point'} onClick={() => setTargetExtentMode('point')}>
+              Point (radius=0, ignores real size)
+            </button>
+            <button data-active={targetExtentMode === 'radius'} onClick={() => setTargetExtentMode('radius')}>
+              Radius (sphere approx.)
+            </button>
+            <button data-active={targetExtentMode === 'size'} onClick={() => setTargetExtentMode('size')}>
+              Size (auto-detected from Mesh)
+            </button>
+          </>
+        )}
       </div>
       {demo === 'capstone' ? (
         <CapstoneScene />
@@ -1025,6 +1091,7 @@ function App() {
             <ReactivationSnapScene targetKey={reactivationTarget} cameraActive={reactivationCameraActive} />
           )}
           {demo === 'initialState' && <InitialStateScene mode={initialStateMode} seeded={initialStateSeeded} />}
+          {demo === 'targetExtent' && <TargetExtentScene mode={targetExtentMode} />}
         </Canvas>
       )}
       {demo === 'offset' && (
@@ -1091,6 +1158,14 @@ function App() {
           Turn "initialState" off, switch to "Follow", then to "Topdown": PositionComposer dollies along whatever
           rotation the canvas started with (flat, sideways), not straight down. Turn "initialState" on (this remounts
           "Topdown" to re-run its first activation) and switch again — it starts from a proper overhead pose instead.
+        </p>
+      )}
+      {demo === 'targetExtent' && (
+        <p className="hint-text">
+          Same tumbling box in every mode - only how PositionComposer measures its extent changes. "Point" treats it as
+          a dimensionless center (radius=0), so the box visibly leaves the dead zone box before the camera reacts.
+          "Radius" and "Size" react to its nearest EDGE instead - "Size" auto-detects the box's own rotated geometry, so
+          it tracks tightly no matter how the box is tumbling.
         </p>
       )}
     </>
