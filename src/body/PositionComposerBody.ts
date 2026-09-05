@@ -17,7 +17,8 @@ const scratchDesiredPosition = new Vector3();
  * `screenPosition` (or the `deadZone`/`hardLimit` edge).
  *
  * Reads `out.quaternion`/`out.fov` as whatever Aim wrote LAST frame (Body runs before Aim) — one frame
- * stale.
+ * stale. On a fresh activation, the dolly axis instead comes from `VirtualCamera`'s `initialState` (or the
+ * camera's pristine default) - set it explicitly for a specific starting axis (e.g. straight down).
  *
  * A non-center `screenPosition` needs an Aim that respects it too (e.g. `RotationComposer`, with a
  * matching non-zero `deadZone` on both sides) — `HardLookAt` re-centers every frame, which fights a

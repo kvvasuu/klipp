@@ -1,9 +1,19 @@
+import type { Vector3 as Vector3Like } from '@react-three/fiber';
 import { useThree } from '@react-three/fiber';
 import { createContext, use, useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from 'react';
-import { copyCameraState, createCameraState, type CameraState } from './CameraState';
+import { copyCameraState, createCameraState, mergeCameraState, type CameraState } from './CameraState';
 import { BlendHints } from './blend/BlendHints';
 import { useKlippCore, useKlippInitialCameraState, useKlippUpdateRegistry } from './Klipp';
+import { resolveVector3 } from './resolve/resolveVector3';
 import { VirtualCameraController, type VirtualCameraSlots } from './VirtualCameraController';
+
+/** Like `CameraState`, but `position`/`target`/`lookAtTarget` accept the r3f Vector3 shorthand
+ *  (`Vector3 | [x,y,z] | number`); `quaternion` still needs a real `THREE.Quaternion`. */
+export type InitialCameraState = Partial<Omit<CameraState, 'position' | 'target' | 'lookAtTarget'>> & {
+  position?: Vector3Like;
+  target?: Vector3Like;
+  lookAtTarget?: Vector3Like;
+};
 
 const VirtualCameraSlotsContext = createContext<VirtualCameraSlots | null>(null);
 const VirtualCameraStateContext = createContext<CameraState | null>(null);
@@ -57,6 +67,10 @@ export type VirtualCameraProps = {
   /** Combined (OR'd) with whichever OTHER camera is on the other end of a transition into/out of this
    *  one - see `BlendHints`. Default `BlendHints.none`. */
   hints?: BlendHints;
+  /** Overrides this camera's starting pose at mount, before any Body/Aim ever runs - otherwise it
+   *  inherits the real r3f camera's pristine state, which may be meaningless for a camera activated later
+   *  at runtime. Only the fields you set are overridden; applied once, at mount. */
+  initialState?: InitialCameraState;
   children?: ReactNode;
 };
 
@@ -65,14 +79,30 @@ export type VirtualCameraProps = {
  * add/remove it from arbitration. Thin wrapper — the Body/Aim/Noise combining logic lives in
  * `VirtualCameraController`, a plain class with no React dependency.
  */
-export function VirtualCamera({ name, priority, active = true, hints = BlendHints.none, children }: VirtualCameraProps) {
+export function VirtualCamera({
+  name,
+  priority,
+  active = true,
+  hints = BlendHints.none,
+  initialState,
+  children,
+}: VirtualCameraProps) {
   const core = useKlippCore();
   const registerUpdate = useKlippUpdateRegistry();
   const initialCameraState = useKlippInitialCameraState();
   const invalidate = useThree((state) => state.invalidate);
   // seeded from the real camera's own properties, not blank defaults - a Body/Aim chain that never
   // touches fov/near/far leaves whatever the camera was already configured as alone
-  const [state] = useState(() => copyCameraState(createCameraState(), initialCameraState));
+  const [state] = useState(() => {
+    const seeded = copyCameraState(createCameraState(), initialCameraState);
+    if (!initialState) return seeded;
+    const { position, target, lookAtTarget, ...rest } = initialState;
+    mergeCameraState(seeded, rest);
+    if (position) resolveVector3(seeded.position, position);
+    if (target) resolveVector3(seeded.target, target);
+    if (lookAtTarget) resolveVector3(seeded.lookAtTarget, lookAtTarget);
+    return seeded;
+  });
   const [controller] = useState(() => new VirtualCameraController(name));
   controller.name = name;
   const priorityRef = useRef(priority);

@@ -1,6 +1,7 @@
 import { renderHook } from '@testing-library/react';
 import { create } from '@react-three/test-renderer';
 import { useEffect } from 'react';
+import { Quaternion, Vector3 } from 'three';
 import { describe, expect, it, vi } from 'vitest';
 import type { CameraState } from '../src/CameraState';
 import { Klipp, useKlippCore } from '../src/Klipp';
@@ -193,6 +194,91 @@ describe('VirtualCamera — Body/Aim/Noise wiring', () => {
 
     await renderer.advanceFrames(1, 0.1);
     expect(core!.activeState!.position.x).toBe(42);
+  });
+});
+
+describe('VirtualCamera — initialState prop', () => {
+  it("seeds the camera's own CameraState before any Body/Aim ever runs", async () => {
+    let core: KlippCore | undefined;
+    await create(
+      <Klipp>
+        <CoreReader onRead={(c) => (core = c)} />
+        <VirtualCamera name="a" priority={10} initialState={{ position: new Vector3(5, 20, 5) }} />
+      </Klipp>,
+    );
+
+    expect(core!.activeState!.position.equals(new Vector3(5, 20, 5))).toBe(true);
+  });
+
+  it('position/target/lookAtTarget accept the r3f Vector3Like shorthand, not just a real THREE.Vector3', async () => {
+    let core: KlippCore | undefined;
+    await create(
+      <Klipp>
+        <CoreReader onRead={(c) => (core = c)} />
+        <VirtualCamera name="a" priority={10} initialState={{ position: [5, 20, 5], target: [1, 2, 3] }} />
+      </Klipp>,
+    );
+
+    expect(core!.activeState!.position.equals(new Vector3(5, 20, 5))).toBe(true);
+    expect(core!.activeState!.target.equals(new Vector3(1, 2, 3))).toBe(true);
+  });
+
+  it('only overrides the given fields — an unset field still inherits the real camera\'s pristine state', async () => {
+    let plainState: CameraState | undefined;
+    let seededState: CameraState | undefined;
+    function StateReader({ onRead }: { onRead: (state: CameraState) => void }) {
+      onRead(useVirtualCameraState());
+      return null;
+    }
+
+    await create(
+      <Klipp>
+        <VirtualCamera name="plain" priority={10}>
+          <StateReader onRead={(s) => (plainState = s)} />
+        </VirtualCamera>
+        <VirtualCamera name="seeded" priority={20} initialState={{ position: new Vector3(5, 20, 5) }}>
+          <StateReader onRead={(s) => (seededState = s)} />
+        </VirtualCamera>
+      </Klipp>,
+    );
+
+    expect(seededState!.position.equals(new Vector3(5, 20, 5))).toBe(true);
+    expect(seededState!.fov).toBe(plainState!.fov); // fov wasn't part of initialState — still inherited
+  });
+
+  it("doesn't alias the caller's own Vector3/Quaternion instances", async () => {
+    let core: KlippCore | undefined;
+    const callerPosition = new Vector3(1, 2, 3);
+    const callerQuaternion = new Quaternion(0.1, 0.2, 0.3, 0.9).normalize();
+
+    await create(
+      <Klipp>
+        <CoreReader onRead={(c) => (core = c)} />
+        <VirtualCamera name="a" priority={10} initialState={{ position: callerPosition, quaternion: callerQuaternion }} />
+      </Klipp>,
+    );
+
+    callerPosition.set(99, 99, 99);
+    callerQuaternion.set(0, 0, 0, 1);
+
+    expect(core!.activeState!.position.equals(new Vector3(1, 2, 3))).toBe(true);
+    expect(core!.activeState!.quaternion.equals(new Quaternion(0.1, 0.2, 0.3, 0.9).normalize())).toBe(true);
+  });
+
+  it('is applied once at mount, not reactive to a later prop change', async () => {
+    let core: KlippCore | undefined;
+    const scene = (position: Vector3) => (
+      <Klipp>
+        <CoreReader onRead={(c) => (core = c)} />
+        <VirtualCamera name="a" priority={10} initialState={{ position }} />
+      </Klipp>
+    );
+
+    const renderer = await create(scene(new Vector3(5, 20, 5)));
+    expect(core!.activeState!.position.equals(new Vector3(5, 20, 5))).toBe(true);
+
+    await renderer.update(scene(new Vector3(1, 1, 1)));
+    expect(core!.activeState!.position.equals(new Vector3(5, 20, 5))).toBe(true); // unchanged — state was seeded once
   });
 });
 

@@ -155,7 +155,7 @@ export function lerpCameraState(
   out.fov = lerp(a.fov, b.fov, clamped);
   out.near = lerp(a.near, b.near, clamped);
   out.far = lerp(a.far, b.far, clamped);
-  out.viewOffsetX = lerp(a.viewOffsetX, b.viewOffsetX, clamped);
-  out.viewOffsetY = lerp(a.viewOffsetY, b.viewOffsetY, clamped);
+  out.viewOffset[0] = lerp(a.viewOffset[0], b.viewOffset[0], clamped);
+  out.viewOffset[1] = lerp(a.viewOffset[1], b.viewOffset[1], clamped);
   return out;
 }

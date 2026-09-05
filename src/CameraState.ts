@@ -10,12 +10,10 @@ export type CameraState = {
   fov: number;
   near: number;
   far: number;
-  /** `camera.setViewOffset`'s `offsetX`/`offsetY`, in pixels — shifts the frustum without moving or
-   *  rotating the camera, e.g. to keep a subject visually centered in the space left over after
-   *  reserving room for UI on one side. `0` (default) = no shift, equivalent to
-   *  `camera.clearViewOffset()`. */
-  viewOffsetX: number;
-  viewOffsetY: number;
+  /** Shifts the frustum without moving/rotating the camera - same normalized convention as
+   *  `screenPosition` elsewhere (0 = center, ±1 = frame edge), NOT raw pixels; `[0, 0]` (default) = no
+   *  shift. Mutable tuple - mutate elements in place, never replace the array. */
+  viewOffset: [number, number];
   /** The Body's tracking target world position, if it has one - e.g. for `BlendHints.sphericalPosition`.
    *  Always allocated; `hasTarget` says whether it's meaningful. */
   target: Vector3;
@@ -34,8 +32,7 @@ export function createCameraState(): CameraState {
     fov: 50,
     near: 0.1,
     far: 1000,
-    viewOffsetX: 0,
-    viewOffsetY: 0,
+    viewOffset: [0, 0],
     target: new Vector3(),
     hasTarget: false,
     lookAtTarget: new Vector3(),
@@ -51,12 +48,31 @@ export function copyCameraState(out: CameraState, source: CameraState): CameraSt
   out.fov = source.fov;
   out.near = source.near;
   out.far = source.far;
-  out.viewOffsetX = source.viewOffsetX;
-  out.viewOffsetY = source.viewOffsetY;
+  out.viewOffset[0] = source.viewOffset[0];
+  out.viewOffset[1] = source.viewOffset[1];
   out.target.copy(source.target);
   out.hasTarget = source.hasTarget;
   out.lookAtTarget.copy(source.lookAtTarget);
   out.hasLookAtTarget = source.hasLookAtTarget;
+  return out;
+}
+
+/** Overwrites only the fields present in `partial` — `.copy()`s Vector3/Quaternion/`viewOffset` fields so
+ *  `out` never ends up aliasing an object the caller still owns, straight-assigns everything else. */
+export function mergeCameraState(out: CameraState, partial: Partial<CameraState>): CameraState {
+  if (partial.position) out.position.copy(partial.position);
+  if (partial.quaternion) out.quaternion.copy(partial.quaternion);
+  if (partial.fov !== undefined) out.fov = partial.fov;
+  if (partial.near !== undefined) out.near = partial.near;
+  if (partial.far !== undefined) out.far = partial.far;
+  if (partial.viewOffset) {
+    out.viewOffset[0] = partial.viewOffset[0];
+    out.viewOffset[1] = partial.viewOffset[1];
+  }
+  if (partial.target) out.target.copy(partial.target);
+  if (partial.hasTarget !== undefined) out.hasTarget = partial.hasTarget;
+  if (partial.lookAtTarget) out.lookAtTarget.copy(partial.lookAtTarget);
+  if (partial.hasLookAtTarget !== undefined) out.hasLookAtTarget = partial.hasLookAtTarget;
   return out;
 }
 
@@ -66,16 +82,18 @@ export function copyCameraStateFromCamera(out: CameraState, camera: PerspectiveC
   out.fov = camera.fov;
   out.near = camera.near;
   out.far = camera.far;
-  out.viewOffsetX = camera.view?.enabled ? camera.view.offsetX : 0;
-  out.viewOffsetY = camera.view?.enabled ? camera.view.offsetY : 0;
+  // camera.view stores its own fullWidth/fullHeight from the setViewOffset() call that created it, so
+  // normalizing back needs no separate viewport size argument here
+  out.viewOffset[0] = camera.view?.enabled ? camera.view.offsetX / (camera.view.fullWidth / 2) : 0;
+  out.viewOffset[1] = camera.view?.enabled ? camera.view.offsetY / (camera.view.fullHeight / 2) : 0;
   out.hasTarget = false;
   out.hasLookAtTarget = false;
   return out;
 }
 
 /** The reverse of `copyCameraStateFromCamera` — writes `state` onto a real `PerspectiveCamera`.
- *  `viewportWidth`/`viewportHeight` are only needed to convert `viewOffsetX`/`Y` into
- *  `camera.setViewOffset`'s pixel arguments — pass the canvas's actual size. */
+ *  `viewportWidth`/`viewportHeight` are only needed to convert `viewOffset` into `camera.setViewOffset`'s
+ *  pixel arguments — pass the canvas's actual size. */
 export function applyCameraState(
   camera: PerspectiveCamera,
   state: CameraState,
@@ -89,8 +107,10 @@ export function applyCameraState(
   camera.far = state.far;
   // setViewOffset/clearViewOffset call updateProjectionMatrix() themselves, which also picks up the
   // fov/near/far just set above
-  if (state.viewOffsetX !== 0 || state.viewOffsetY !== 0) {
-    camera.setViewOffset(viewportWidth, viewportHeight, state.viewOffsetX, state.viewOffsetY, viewportWidth, viewportHeight);
+  if (state.viewOffset[0] !== 0 || state.viewOffset[1] !== 0) {
+    const offsetX = state.viewOffset[0] * (viewportWidth / 2);
+    const offsetY = state.viewOffset[1] * (viewportHeight / 2);
+    camera.setViewOffset(viewportWidth, viewportHeight, offsetX, offsetY, viewportWidth, viewportHeight);
   } else {
     camera.clearViewOffset();
   }
