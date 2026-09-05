@@ -345,22 +345,22 @@ describe('GroupFramingExtension', () => {
     });
   });
 
-  describe('centerOffset', () => {
-    it('writes centerOffsetX/Y into out.viewOffsetX/Y', () => {
+  describe('screenPosition (normalized 0 = center, ±1 = frame edge - same convention/shape as PositionComposer\'s screenPosition, not pixels)', () => {
+    it('writes screenPosition into out.viewOffsetX/Y scaled by half the viewport, in real setViewOffset pixels', () => {
       const group = new TargetGroup([{ target: new Vector3(0, 0, 0), radius: 1 }]);
-      const extension = new GroupFramingExtension(group, 0, 100, 100, 0, 80, -30);
+      const extension = new GroupFramingExtension(group, 0, 100, 100, 0, [0.8, -0.3]);
       const out = createCameraState();
       out.fov = 90;
 
       extension.update(out, 0.1);
 
-      expect(out.viewOffsetX).toBe(80);
-      expect(out.viewOffsetY).toBe(-30);
+      expect(out.viewOffsetX).toBe(40); // 0.8 * (100 / 2)
+      expect(out.viewOffsetY).toBe(-15); // -0.3 * (100 / 2)
     });
 
     it('is a no-op (out.viewOffsetX/Y untouched) when the group has nothing to resolve, same as position', () => {
       const group = new TargetGroup([]);
-      const extension = new GroupFramingExtension(group, 0, 100, 100, 0, 80, -30);
+      const extension = new GroupFramingExtension(group, 0, 100, 100, 0, [0.8, -0.3]);
       const out = createCameraState();
       out.viewOffsetX = 1;
       out.viewOffsetY = 2;
@@ -371,33 +371,33 @@ describe('GroupFramingExtension', () => {
       expect(out.viewOffsetY).toBe(2);
     });
 
-    it('damps toward centerOffsetX/Y using the SAME damping field as the distance fit', () => {
+    it('damps toward screenPosition using the SAME damping field as the distance fit', () => {
       const group = new TargetGroup([{ target: new Vector3(0, 0, 0), radius: 1 }]);
-      const extension = new GroupFramingExtension(group, 0, 100, 100, 1, 100, 0); // damping = 1s
+      const extension = new GroupFramingExtension(group, 0, 100, 100, 1, [1, 0]); // damping = 1s
       const out = createCameraState();
       out.fov = 90;
 
       extension.update(out, 0.1); // first-ever call snaps
-      expect(out.viewOffsetX).toBe(100);
+      expect(out.viewOffsetX).toBe(50); // 1 * (100 / 2)
 
-      extension.centerOffsetX = 0; // big change
+      extension.screenPosition = [0, 0]; // big change
       extension.update(out, 0.1); // one small step back toward 0
 
-      expect(out.viewOffsetX).toBeLessThan(100);
+      expect(out.viewOffsetX).toBeLessThan(50);
       expect(out.viewOffsetX).toBeGreaterThan(0);
     });
 
-    it('damping=0 (default) snaps centerOffsetX/Y instantly, same as the distance fit', () => {
+    it('damping=0 (default) snaps screenPosition instantly, same as the distance fit', () => {
       const group = new TargetGroup([{ target: new Vector3(0, 0, 0), radius: 1 }]);
       const extension = new GroupFramingExtension(group, 0, 100, 100); // damping defaults to 0
       const out = createCameraState();
       out.fov = 90;
 
       extension.update(out, 0.1);
-      extension.centerOffsetX = 50;
+      extension.screenPosition = [0.5, 0];
       extension.update(out, 0.1);
 
-      expect(out.viewOffsetX).toBe(50);
+      expect(out.viewOffsetX).toBe(25); // 0.5 * (100 / 2)
     });
   });
 
@@ -429,16 +429,16 @@ describe('GroupFramingExtension', () => {
       expect(extension.update(out, 0.1)).toBe(false);
     });
 
-    it('true while ONLY centerOffset is still catching up, even if distance already converged', () => {
+    it('true while ONLY screenPosition is still catching up, even if distance already converged', () => {
       const group = new TargetGroup([{ target: new Vector3(0, 0, 0), radius: 1 }]);
-      const extension = new GroupFramingExtension(group, 0, 100, 100, 0.3, 100, 0);
+      const extension = new GroupFramingExtension(group, 0, 100, 100, 0.3, [1, 0]);
       const out = createCameraState();
       out.fov = 90;
 
-      extension.update(out, 0.1); // first-ever call snaps both distance and centerOffset exactly
+      extension.update(out, 0.1); // first-ever call snaps both distance and screenPosition exactly
       expect(extension.update(out, 0.1)).toBe(false);
 
-      extension.centerOffsetX = 0; // distance's target hasn't changed, only centerOffset's has
+      extension.screenPosition = [0, 0]; // distance's target hasn't changed, only screenPosition's has
       expect(extension.update(out, 0.1)).toBe(true);
     });
 
