@@ -1,6 +1,6 @@
 {
   "name": "@kvvasuu/klipp",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Declarative virtual camera library for react-three-fiber, inspired by Unity Cinemachine.",
   "keywords": [
     "react-three-fiber",
@@ -44,7 +44,7 @@
   "publishConfig": {
     "access": "public"
   },
-  "packageManager": "pnpm@11.15.1",
+  "packageManager": "pnpm@12.3.4",
   "scripts": {
     "clean": "node -e \"require('node:fs').rmSync('dist', { recursive: true, force: true })\"",
     "prebuild": "pnpm run clean",
@@ -57,7 +57,7 @@
     "@react-three/fiber": "^9.7.0",
     "camera-controls": "^3.1.2",
     "react": "^19.0",
-    "three": ">=0.185.0"
+    "three": ">=0.156.0"
   },
   "peerDependenciesMeta": {
     "react": {
