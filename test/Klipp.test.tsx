@@ -170,7 +170,7 @@ describe('Klipp / useKlippCore', () => {
       await renderer.advanceFrames(1, 0.1);
 
       expect(camera!.view?.enabled).toBe(true);
-      expect(camera!.view?.offsetX).toBe(320); // 0.5 * (1280 / 2)
+      expect(camera!.view?.offsetX).toBe(-320); // -0.5 * (1280 / 2) - negated, see CameraState.ts
       expect(camera!.view?.offsetY).toBe(-120); // -0.3 * (800 / 2)
     });
 

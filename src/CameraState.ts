@@ -84,7 +84,9 @@ export function copyCameraStateFromCamera(out: CameraState, camera: PerspectiveC
   out.far = camera.far;
   // camera.view stores its own fullWidth/fullHeight from the setViewOffset() call that created it, so
   // normalizing back needs no separate viewport size argument here
-  out.viewOffset[0] = camera.view?.enabled ? camera.view.offsetX / (camera.view.fullWidth / 2) : 0;
+  // negated on X: setViewOffset's own raw offsetX shifts a fixed point LEFT for a positive value -
+  // backwards from viewOffset's screenPosition-matching "+X = right" convention (Y already agrees)
+  out.viewOffset[0] = camera.view?.enabled ? -camera.view.offsetX / (camera.view.fullWidth / 2) : 0;
   out.viewOffset[1] = camera.view?.enabled ? camera.view.offsetY / (camera.view.fullHeight / 2) : 0;
   out.hasTarget = false;
   out.hasLookAtTarget = false;
@@ -108,7 +110,8 @@ export function applyCameraState(
   // setViewOffset/clearViewOffset call updateProjectionMatrix() themselves, which also picks up the
   // fov/near/far just set above
   if (state.viewOffset[0] !== 0 || state.viewOffset[1] !== 0) {
-    const offsetX = state.viewOffset[0] * (viewportWidth / 2);
+    // negated on X - see copyCameraStateFromCamera's matching comment
+    const offsetX = -state.viewOffset[0] * (viewportWidth / 2);
     const offsetY = state.viewOffset[1] * (viewportHeight / 2);
     camera.setViewOffset(viewportWidth, viewportHeight, offsetX, offsetY, viewportWidth, viewportHeight);
   } else {

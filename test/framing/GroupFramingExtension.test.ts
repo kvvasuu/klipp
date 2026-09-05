@@ -1,6 +1,6 @@
-import { BoxGeometry, Mesh, Vector3 } from 'three';
+import { BoxGeometry, Mesh, PerspectiveCamera, Vector3 } from 'three';
 import { describe, expect, it } from 'vitest';
-import { createCameraState } from '../../src/CameraState';
+import { applyCameraState, createCameraState } from '../../src/CameraState';
 import { GroupFramingExtension } from '../../src/framing/GroupFramingExtension';
 import { TargetGroup } from '../../src/framing/TargetGroup';
 
@@ -397,6 +397,24 @@ describe('GroupFramingExtension', () => {
       extension.update(out, 0.1);
 
       expect(out.viewOffset[0]).toBe(0.5);
+    });
+
+    it('a positive screenPosition[0] moves the target toward the RIGHT of the frame end-to-end, matching PositionComposer\'s own convention (real bug: was inverted through camera.setViewOffset)', () => {
+      const target = new Vector3(0, 0, 0);
+      const group = new TargetGroup([{ target, radius: 1 }]);
+      const extension = new GroupFramingExtension(group, 0, 100, 100, 0, [0.5, 0]);
+      const out = createCameraState();
+      out.fov = 90;
+      out.quaternion.identity(); // looking down -Z, target dead ahead
+
+      extension.update(out, 0.1);
+
+      const camera = new PerspectiveCamera(out.fov, 1, 0.1, 1000);
+      applyCameraState(camera, out, 100, 100);
+      camera.updateMatrixWorld(true);
+
+      const projected = target.clone().project(camera);
+      expect(projected.x).toBeGreaterThan(0);
     });
   });
 

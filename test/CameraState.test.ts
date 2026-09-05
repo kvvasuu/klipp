@@ -151,14 +151,14 @@ describe('copyCameraStateFromCamera', () => {
     expect(out.far).toBe(500);
   });
 
-  it('normalizes an active setViewOffset back to viewOffset\'s [-1, 1]-ish convention (same sign)', () => {
+  it('normalizes an active setViewOffset back to viewOffset\'s [-1, 1]-ish convention, X negated (real bug: raw offsetX shifts a fixed point LEFT for a positive value, backwards from screenPosition\'s "+X = right")', () => {
     const camera = new PerspectiveCamera(60, 1, 0.5, 500);
     camera.setViewOffset(800, 600, 80, -60, 800, 600);
 
     const out = createCameraState();
     copyCameraStateFromCamera(out, camera);
 
-    expect(out.viewOffset).toEqual([0.2, -0.2]); // 80 / (800 / 2), -60 / (600 / 2)
+    expect(out.viewOffset).toEqual([-0.2, -0.2]); // -80 / (800 / 2), -60 / (600 / 2) - Y unchanged, already agreed
   });
 
   it('viewOffset defaults to [0, 0] when no view offset is active', () => {
@@ -255,5 +255,17 @@ describe('applyCameraState', () => {
     applyCameraState(camera, state, 800, 600);
 
     expect(camera.projectionMatrix.equals(before)).toBe(false);
+  });
+
+  it('a positive viewOffset[0] visually shifts a fixed point toward the RIGHT of the frame, matching screenPosition\'s convention (real bug: raw setViewOffset does the opposite)', () => {
+    const camera = new PerspectiveCamera(50, 1, 0.1, 1000);
+    const state = createCameraState(); // default position (0,0,0), identity rotation - facing -Z
+    state.viewOffset[0] = 0.3;
+
+    applyCameraState(camera, state, 800, 600);
+    camera.updateMatrixWorld(true);
+
+    const projected = new Vector3(0, 0, -10).project(camera); // dead ahead
+    expect(projected.x).toBeGreaterThan(0);
   });
 });
