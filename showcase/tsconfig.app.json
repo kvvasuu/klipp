@@ -18,7 +18,7 @@
     "paths": {
       "@kvvasuu/klipp": ["../src/index.ts"],
       "@kvvasuu/klipp/react": ["../src/react.ts"],
-      "@kvvasuu/klipp/react/body/orbital-controls": ["../src/body/OrbitalControls.tsx"]
+      "@kvvasuu/klipp/react/camera-controls": ["../src/body/CameraControls.tsx"]
     },
 
     /* Linting */

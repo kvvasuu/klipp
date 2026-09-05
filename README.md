@@ -33,7 +33,7 @@ Klipp replaces that with declarative, composable pieces instead.
 
 - Keeps a group of targets (`TargetGroup`, weighted, point/sphere/box members) in frame as a **distance ceiling** - dollies the camera back only as far as needed, never closer than Body/Aim already placed it.
 
-### 🕹️ OrbitalControls
+### 🕹️ CameraControls
 
 - Optional adapter around [`camera-controls`](https://github.com/yomotsu/camera-controls) for user-driven orbiting - the one deliberate exception to the Body/Aim split, since orbit input is inherently coupled position+rotation.
 

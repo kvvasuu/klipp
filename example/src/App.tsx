@@ -1,6 +1,6 @@
 import { BindingModes, BlendCurves, BlendHints, impulseManager, type BindingMode } from '@kvvasuu/klipp';
 import { Aim, Body, CameraFrustumHelper, Extension, Klipp, Noise, VirtualCamera } from '@kvvasuu/klipp/react';
-import { OrbitalControls } from '@kvvasuu/klipp/react/body/orbital-controls';
+import { CameraControls } from '@kvvasuu/klipp/react/camera-controls';
 import { Stats } from '@react-three/drei';
 import { Canvas, invalidate, useFrame, useThree, type ThreeEvent } from '@react-three/fiber';
 import { useEffect, useRef, useState, type RefObject } from 'react';
@@ -213,6 +213,7 @@ function OrbitingBall({ targetRef }: { targetRef: RefObject<Object3D | null> }) 
     if (!target) return;
     const t = clock.elapsedTime;
     target.position.set(Math.sin(t * 0.4) * 5, 1 + Math.sin(t * 0.7), Math.cos(t * 0.4) * 5);
+    invalidate();
   });
   return (
     <mesh ref={targetRef}>
@@ -224,14 +225,9 @@ function OrbitingBall({ targetRef }: { targetRef: RefObject<Object3D | null> }) 
 
 type OrbitalActiveCamera = 'orbital' | 'overview';
 
-/**
- * Two scenarios stress-testing `OrbitalControls` at once: (1) `target` is a continuously moving object,
- * tracked every frame while `camera-controls` also handles live drag/scroll input on top. (2) Two
- * `<VirtualCamera>`s, switchable by priority — `overview-cam` (fixed `HardLockToTarget` + `HardLookAt`)
- * vs `orbital-cam`. Drag around while on "Overview", then switch back to "Orbital" — it should resume
- * exactly where it left off, unaffected by input that landed while it wasn't showing.
- */
-function OrbitalScene({ activeCamera }: { activeCamera: OrbitalActiveCamera }) {
+/** Stress-tests `CameraControls`: a moving target, priority-switching to a second camera and back,
+ *  and `freeMode` dropping `target` for full free `camera-controls`. */
+function OrbitalScene({ activeCamera, freeMode }: { activeCamera: OrbitalActiveCamera; freeMode: boolean }) {
   const targetRef = useRef<Object3D>(null);
 
   return (
@@ -244,13 +240,80 @@ function OrbitalScene({ activeCamera }: { activeCamera: OrbitalActiveCamera }) {
 
       <Klipp defaultBlend={{ damping: 0.8 }}>
         <VirtualCamera name="orbital-cam" active={true} priority={activeCamera === 'orbital' ? 20 : 10}>
-          <OrbitalControls target={targetRef} initialDistance={8} />
+          <CameraControls
+            target={freeMode ? undefined : targetRef}
+            initialPosition={[6, 4, 6]}
+            enableTransition={true}
+          />
           <CameraFrustumHelper color="lime" />
         </VirtualCamera>
         <VirtualCamera name="overview-cam" active={true} priority={activeCamera === 'overview' ? 20 : 10}>
           <Body.HardLockToTarget target={[10, 8, 10]} />
           <Aim.HardLookAt target={targetRef} />
           <CameraFrustumHelper color="lime" />
+        </VirtualCamera>
+      </Klipp>
+    </>
+  );
+}
+
+const orbitalTakeoverPlayerStart: [number, number, number] = [0, 1, 0];
+const orbitalTakeoverIntroPosition: [number, number, number] = [-2, 2, -3];
+
+function OrbitalTakeoverPlayer({ playerRef }: { playerRef: RefObject<Object3D | null> }) {
+  useFrame(({ clock }) => {
+    const player = playerRef.current;
+    if (!player) return;
+    const t = clock.elapsedTime;
+    player.position.set(Math.sin(t * 0.3) * 4, 1, Math.cos(t * 0.3) * 4);
+    invalidate();
+  });
+  return (
+    <mesh ref={playerRef} position={orbitalTakeoverPlayerStart}>
+      <capsuleGeometry args={[0.4, 1, 4, 8]} />
+      <meshStandardMaterial color="steelblue" />
+    </mesh>
+  );
+}
+
+type OrbitalTakeoverMode = 'intro' | 'follow' | 'free';
+
+/** Fixed intro shot -> `CameraControls` takeover via the `active`-prop toggle. "Free Control" reuses
+ *  the same `<VirtualCamera>`, just dropping `target` to `undefined` instead of spawning a third one.
+ */
+function OrbitalTakeoverScene({ mode, enableTransition }: { mode: OrbitalTakeoverMode; enableTransition: boolean }) {
+  const playerRef = useRef<Object3D>(null);
+
+  return (
+    <>
+      <ambientLight intensity={0.6} />
+      <directionalLight position={[5, 8, 3]} intensity={1.2} />
+      <gridHelper args={[24, 24, '#444', '#222']} position={[0, 0.01, 0]} />
+
+      <OrbitalTakeoverPlayer playerRef={playerRef} />
+
+      <Klipp defaultBlend={{ damping: 0.5 }}>
+        <VirtualCamera name="intro" active={mode === 'intro'} priority={2}>
+          <Body.HardLockToTarget target={orbitalTakeoverIntroPosition} />
+          <Aim.HardLookAt target={orbitalTakeoverPlayerStart} />
+          <CameraFrustumHelper color="lime" />
+        </VirtualCamera>
+        <VirtualCamera name="follow" active={mode !== 'intro'} priority={3}>
+          <CameraControls
+            target={mode === 'follow' ? playerRef : undefined}
+            initialPosition={orbitalTakeoverIntroPosition}
+            enableTransition={enableTransition}
+          />
+          <CameraFrustumHelper color="orange" />
+        </VirtualCamera>
+        <VirtualCamera name="free" active={mode === 'free'} priority={4}>
+          <CameraControls
+            target={undefined}
+            initialPosition={orbitalTakeoverIntroPosition}
+            enableTransition={enableTransition}
+            waitForBlend={false}
+          />
+          <CameraFrustumHelper color="red" />
         </VirtualCamera>
       </Klipp>
     </>
@@ -387,7 +450,7 @@ function ReactivationSnapScene({ targetKey, cameraActive }: { targetKey: 'A' | '
 /**
  * Click-to-zoom repro: clicking the box pulls the camera back 0.5 units from the clicked point along the
  * (current-camera → point) direction and looks straight at that point, as a second `<VirtualCamera>` that
- * outranks "manual-orbit" (`Body.OrbitalControls`, the default view). Esc returns to "manual-orbit",
+ * outranks "manual-orbit" (`CameraControls`, the default view). Esc returns to "manual-orbit",
  * which keeps tracking any drag/scroll input the whole time it wasn't showing.
  */
 function FocusReproScene() {
@@ -431,7 +494,7 @@ function FocusReproScene() {
           { from: 'focus', to: 'manual-orbit', blend: { curve: BlendCurves.easeInOut, time: 1 } },
         ]}>
         <VirtualCamera name="manual-orbit" active={!focusActive} priority={5}>
-          <OrbitalControls target={focusBoxCenter} initialDistance={8} />
+          <CameraControls target={focusBoxCenter} initialPosition={[6, 3, 6]} />
         </VirtualCamera>
         <VirtualCamera name="focus" active={focusActive} priority={20}>
           <Body.HardLockToTarget target={focusPosition} damping={0.5} />
@@ -494,7 +557,7 @@ function LookAtJumpMeter({ onJump, resetToken }: { onJump: (deg: number) => void
 /**
  * Retargeting a damped `RotationComposer` camera mid-blend. `default`'s `Aim.HardLookAt` sets
  * `hasLookAtTarget`, so this blend goes through `lerpLookAtRotation` — unlike `FocusReproScene`, whose
- * `Body.OrbitalControls` never sets it and so takes the plain-slerp fallback instead.
+ * `CameraControls` never sets it and so takes the plain-slerp fallback instead.
  *
  * Every path here (focus A alone, retarget after the blend settles, retarget DURING it, reverse back to
  * `default` mid-blend) should move the camera continuously; any sudden step on the meter is a bug.
@@ -582,6 +645,7 @@ type Demo =
   | 'noise'
   | 'explosion'
   | 'orbital'
+  | 'orbitalTakeover'
   | 'blendHints'
   | 'focusRepro'
   | 'lookAtPop'
@@ -596,6 +660,9 @@ function App() {
   const [hardLimitEnabled, setHardLimitEnabled] = useState(false);
   const [noisePreset, setNoisePreset] = useState<NoisePreset>('subtle');
   const [orbitalActiveCamera, setOrbitalActiveCamera] = useState<OrbitalActiveCamera>('orbital');
+  const [orbitalFreeMode, setOrbitalFreeMode] = useState(false);
+  const [orbitalTakeoverMode, setOrbitalTakeoverMode] = useState<OrbitalTakeoverMode>('intro');
+  const [orbitalTakeoverEnableTransition, setOrbitalTakeoverEnableTransition] = useState(false);
   const [blendHintsActiveCamera, setBlendHintsActiveCamera] = useState<BlendHintsActiveCamera>('a');
   const [blendHintsPositionMode, setBlendHintsPositionMode] = useState<BlendHintsPositionMode>('none');
   const [blendHintsUseIgnoreTargetHint, setBlendHintsUseIgnoreTargetHint] = useState(false);
@@ -654,6 +721,9 @@ function App() {
         </button>
         <button data-active={demo === 'orbital'} onClick={() => setDemo('orbital')}>
           Orbital Controls
+        </button>
+        <button data-active={demo === 'orbitalTakeover'} onClick={() => setDemo('orbitalTakeover')}>
+          Orbital Takeover
         </button>
         <button data-active={demo === 'blendHints'} onClick={() => setDemo('blendHints')}>
           Blend Hints
@@ -718,6 +788,29 @@ function App() {
             </button>
             <button data-active={orbitalActiveCamera === 'overview'} onClick={() => setOrbitalActiveCamera('overview')}>
               Camera: Overview
+            </button>
+            <button data-active={orbitalFreeMode} onClick={() => setOrbitalFreeMode((v) => !v)}>
+              {orbitalFreeMode ? 'target: none - free camera-controls' : 'target: ball - locked orbit/dolly'}
+            </button>
+          </>
+        )}
+        {demo === 'orbitalTakeover' && (
+          <>
+            <button data-active={orbitalTakeoverMode === 'intro'} onClick={() => setOrbitalTakeoverMode('intro')}>
+              Back to Intro
+            </button>
+            <button data-active={orbitalTakeoverMode === 'follow'} onClick={() => setOrbitalTakeoverMode('follow')}>
+              Start Game
+            </button>
+            <button data-active={orbitalTakeoverMode === 'free'} onClick={() => setOrbitalTakeoverMode('free')}>
+              Free Control
+            </button>
+            <button
+              data-active={orbitalTakeoverEnableTransition}
+              onClick={() => setOrbitalTakeoverEnableTransition((v) => !v)}>
+              {orbitalTakeoverEnableTransition
+                ? 'enableTransition: on - eased'
+                : 'enableTransition: off - instant re-anchor'}
             </button>
           </>
         )}
@@ -814,7 +907,10 @@ function App() {
           {demo === 'hardLimit' && <HardLimitScene hardLimitEnabled={hardLimitEnabled} />}
           {demo === 'noise' && <NoiseScene preset={noisePreset} />}
           {demo === 'explosion' && <ExplosionScene />}
-          {demo === 'orbital' && <OrbitalScene activeCamera={orbitalActiveCamera} />}
+          {demo === 'orbital' && <OrbitalScene activeCamera={orbitalActiveCamera} freeMode={orbitalFreeMode} />}
+          {demo === 'orbitalTakeover' && (
+            <OrbitalTakeoverScene mode={orbitalTakeoverMode} enableTransition={orbitalTakeoverEnableTransition} />
+          )}
           {demo === 'blendHints' && (
             <BlendHintsScene
               activeCamera={blendHintsActiveCamera}
@@ -840,6 +936,26 @@ function App() {
         <p className="hint-text">
           bindingMode (Body) and Aim are independent: bindingMode only moves the camera's orbit position, never its own
           tilt. Switch Aim to "Glued" to see the camera's ROTATION lock to the target too.
+        </p>
+      )}
+      {demo === 'orbital' && (
+        <p className="hint-text">
+          Drag/scroll to orbit and dolly. Switch Camera to "Overview" and back - "Orbital" resumes exactly where you
+          left it, unaffected by nothing happening while it wasn't showing. Toggle target to drop it entirely - full
+          free camera-controls, orbit AND pan AND dolly, nothing locked, same as a bare drei &lt;CameraControls&gt;.
+        </p>
+      )}
+      {demo === 'orbitalTakeover' && (
+        <p className="hint-text">
+          The real-game pattern: a fixed intro shot ("intro", HardLockToTarget), then "Start Game" activates "follow"
+          (CameraControls locked onto the player) via the `active`-prop TOGGLE - "intro" fully unregisters, its Body/Aim
+          stop running. `initialPosition` matches "intro"'s own spot, so the handoff cuts smoothly instead of jumping.
+          Once live, drag/scroll to orbit/dolly around the player - panning away snaps back, target stays locked. "Free
+          Control" doesn't spawn a new camera or blend anything - it just drops `target` to `undefined` on the SAME rig,
+          staying exactly where it was: full free camera-controls (orbit AND pan AND dolly) from that spot. "Back to
+          Intro" re-activates the fixed shot, blending back from wherever "follow"/"free" left off. Pan away in "Free
+          Control", then hit "Start Game" - `enableTransition` (camera-controls' own argument, instant by default)
+          toggles whether re-acquiring the player eases in (`smoothTime`) or re-anchors instantly.
         </p>
       )}
       {demo === 'blendHints' && (

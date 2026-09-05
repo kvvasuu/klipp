@@ -33,7 +33,7 @@ export function useVirtualCameraState(): CameraState {
 /** Whether the nearest `<VirtualCamera>` is `KlippCore`'s current priority winner — reactive, updates
  *  the instant arbitration picks a new winner (not gated on `Klipp`'s blend finishing, see
  *  `KlippCore.activeCameraId`'s doc comment — `useIsLiveVirtualCamera` is the gated version). `false`
- *  outside any `<VirtualCamera>`. Only a few Body/Aim (e.g. `OrbitalControlsBody`, deciding whether to
+ *  outside any `<VirtualCamera>`. Only a few Body/Aim (e.g. `CameraControlsBody`, deciding whether to
  *  listen to user input) need this — most don't. */
 export function useIsActiveVirtualCamera(): boolean {
   return use(VirtualCameraActiveContext);
