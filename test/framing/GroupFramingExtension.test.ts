@@ -346,7 +346,7 @@ describe('GroupFramingExtension', () => {
   });
 
   describe('screenPosition (normalized 0 = center, ±1 = frame edge - same convention/shape as PositionComposer\'s screenPosition, not pixels)', () => {
-    it('writes screenPosition into out.viewOffsetX/Y scaled by half the viewport, in real setViewOffset pixels', () => {
+    it('writes screenPosition straight into out.viewOffset - both normalized, no pixel conversion here', () => {
       const group = new TargetGroup([{ target: new Vector3(0, 0, 0), radius: 1 }]);
       const extension = new GroupFramingExtension(group, 0, 100, 100, 0, [0.8, -0.3]);
       const out = createCameraState();
@@ -354,21 +354,20 @@ describe('GroupFramingExtension', () => {
 
       extension.update(out, 0.1);
 
-      expect(out.viewOffsetX).toBe(40); // 0.8 * (100 / 2)
-      expect(out.viewOffsetY).toBe(-15); // -0.3 * (100 / 2)
+      expect(out.viewOffset).toEqual([0.8, -0.3]);
     });
 
-    it('is a no-op (out.viewOffsetX/Y untouched) when the group has nothing to resolve, same as position', () => {
+    it('is a no-op (out.viewOffset untouched) when the group has nothing to resolve, same as position', () => {
       const group = new TargetGroup([]);
       const extension = new GroupFramingExtension(group, 0, 100, 100, 0, [0.8, -0.3]);
       const out = createCameraState();
-      out.viewOffsetX = 1;
-      out.viewOffsetY = 2;
+      out.viewOffset[0] = 1;
+      out.viewOffset[1] = 2;
 
       extension.update(out, 0.1);
 
-      expect(out.viewOffsetX).toBe(1);
-      expect(out.viewOffsetY).toBe(2);
+      expect(out.viewOffset[0]).toBe(1);
+      expect(out.viewOffset[1]).toBe(2);
     });
 
     it('damps toward screenPosition using the SAME damping field as the distance fit', () => {
@@ -378,13 +377,13 @@ describe('GroupFramingExtension', () => {
       out.fov = 90;
 
       extension.update(out, 0.1); // first-ever call snaps
-      expect(out.viewOffsetX).toBe(50); // 1 * (100 / 2)
+      expect(out.viewOffset[0]).toBe(1);
 
       extension.screenPosition = [0, 0]; // big change
       extension.update(out, 0.1); // one small step back toward 0
 
-      expect(out.viewOffsetX).toBeLessThan(50);
-      expect(out.viewOffsetX).toBeGreaterThan(0);
+      expect(out.viewOffset[0]).toBeLessThan(1);
+      expect(out.viewOffset[0]).toBeGreaterThan(0);
     });
 
     it('damping=0 (default) snaps screenPosition instantly, same as the distance fit', () => {
@@ -397,7 +396,7 @@ describe('GroupFramingExtension', () => {
       extension.screenPosition = [0.5, 0];
       extension.update(out, 0.1);
 
-      expect(out.viewOffsetX).toBe(25); // 0.5 * (100 / 2)
+      expect(out.viewOffset[0]).toBe(0.5);
     });
   });
 

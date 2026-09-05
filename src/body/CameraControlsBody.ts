@@ -16,10 +16,9 @@ const scratchTargetPosition = new THREE.Vector3();
  * No `target`: full free camera-controls.
  * With a `target`: locked orbit/dolly via `moveTo` each frame, which re-overrides any truck/pan drift back onto it.
  *
- * `initialPosition` is applied once at construction, independent of `target` resolution. Unlike
- * `PositionComposerBody`, this Body never reads `out.position`/`out.quaternion` as input - it owns a
- * private internal camera and always overwrites `out` from that, so `VirtualCamera`'s `initialState` has no
- * effect here; `initialPosition` is the only way to seed this Body's own starting pose.
+ * `initialPosition` is applied once at construction, independent of `target` resolution. This Body owns a
+ * private internal camera and never reads `out.position`/`out.quaternion` as input, so `VirtualCamera`'s
+ * `initialState` has no effect here - `initialPosition` is the only way to seed its starting pose.
  */
 export class CameraControlsBody {
   target: Target;

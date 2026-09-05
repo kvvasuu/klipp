@@ -27,7 +27,7 @@ const CORNER_SIGNS = [-1, 1] as const;
  * tangent formula (`sin`); boxes (`size`) check all 8 corners against the camera's current axes and take
  * the worst case (`tan`) — a corner's own depth affects how close it can get, so height/width and depth
  * can't just be added. "Dolly Only": never touches `out.quaternion`/`out.fov`, so it needs Aim already
- * looking at `group`. `screenPosition` shifts `out.viewOffsetX`/`Y` separately.
+ * looking at `group`. `screenPosition` shifts `out.viewOffset` separately.
  */
 export class GroupFramingExtension {
   group: TargetGroup;
@@ -40,7 +40,7 @@ export class GroupFramingExtension {
    *  = hard, instant. */
   damping: DampingConstant;
   /** Shifts the frustum without moving/rotating the camera - same convention as `PositionComposer`'s
-   *  `screenPosition` (0 = center, ±1 = frame edge), converted to `setViewOffset`'s pixels internally. */
+   *  `screenPosition` (0 = center, ±1 = frame edge). */
   screenPosition: [number, number];
 
   private readonly distanceDamper = new Damper();
@@ -165,9 +165,9 @@ export class GroupFramingExtension {
     this.currentScreenPosition[1] = instant
       ? this.screenPosition[1]
       : this.screenPositionYDamper.update(this.currentScreenPosition[1], this.screenPosition[1], this.damping, dt);
-    // out.viewOffsetX/Y stay real setViewOffset pixels - only the public screenPosition field is normalized
-    out.viewOffsetX = this.currentScreenPosition[0] * (this.viewportWidth / 2);
-    out.viewOffsetY = this.currentScreenPosition[1] * (this.viewportHeight / 2);
+
+    out.viewOffset[0] = this.currentScreenPosition[0];
+    out.viewOffset[1] = this.currentScreenPosition[1];
 
     return (
       this.currentDistance !== distance ||

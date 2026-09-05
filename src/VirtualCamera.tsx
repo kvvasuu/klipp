@@ -1,9 +1,19 @@
+import type { Vector3 as Vector3Like } from '@react-three/fiber';
 import { useThree } from '@react-three/fiber';
 import { createContext, use, useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from 'react';
 import { copyCameraState, createCameraState, mergeCameraState, type CameraState } from './CameraState';
 import { BlendHints } from './blend/BlendHints';
 import { useKlippCore, useKlippInitialCameraState, useKlippUpdateRegistry } from './Klipp';
+import { resolveVector3 } from './resolve/resolveVector3';
 import { VirtualCameraController, type VirtualCameraSlots } from './VirtualCameraController';
+
+/** Like `CameraState`, but `position`/`target`/`lookAtTarget` accept the r3f Vector3 shorthand
+ *  (`Vector3 | [x,y,z] | number`); `quaternion` still needs a real `THREE.Quaternion`. */
+export type InitialCameraState = Partial<Omit<CameraState, 'position' | 'target' | 'lookAtTarget'>> & {
+  position?: Vector3Like;
+  target?: Vector3Like;
+  lookAtTarget?: Vector3Like;
+};
 
 const VirtualCameraSlotsContext = createContext<VirtualCameraSlots | null>(null);
 const VirtualCameraStateContext = createContext<CameraState | null>(null);
@@ -57,12 +67,10 @@ export type VirtualCameraProps = {
   /** Combined (OR'd) with whichever OTHER camera is on the other end of a transition into/out of this
    *  one - see `BlendHints`. Default `BlendHints.none`. */
   hints?: BlendHints;
-  /** Overrides this camera's starting pose at mount, before any Body/Aim ever runs. Without it, a fresh
-   *  camera inherits the real r3f camera's pristine state from `<Klipp>`'s own mount — meaningless for one
-   *  activated later at runtime (e.g. a mode switch), since a Body like `PositionComposer` derives its
-   *  dolly axis from whatever rotation is already there. Only the fields you set are overridden; applied
-   *  once, at mount, not reactive to later prop changes. */
-  initialState?: Partial<CameraState>;
+  /** Overrides this camera's starting pose at mount, before any Body/Aim ever runs - otherwise it
+   *  inherits the real r3f camera's pristine state, which may be meaningless for a camera activated later
+   *  at runtime. Only the fields you set are overridden; applied once, at mount. */
+  initialState?: InitialCameraState;
   children?: ReactNode;
 };
 
@@ -87,7 +95,13 @@ export function VirtualCamera({
   // touches fov/near/far leaves whatever the camera was already configured as alone
   const [state] = useState(() => {
     const seeded = copyCameraState(createCameraState(), initialCameraState);
-    return initialState ? mergeCameraState(seeded, initialState) : seeded;
+    if (!initialState) return seeded;
+    const { position, target, lookAtTarget, ...rest } = initialState;
+    mergeCameraState(seeded, rest);
+    if (position) resolveVector3(seeded.position, position);
+    if (target) resolveVector3(seeded.target, target);
+    if (lookAtTarget) resolveVector3(seeded.lookAtTarget, lookAtTarget);
+    return seeded;
   });
   const [controller] = useState(() => new VirtualCameraController(name));
   controller.name = name;

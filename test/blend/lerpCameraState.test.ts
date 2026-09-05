@@ -21,8 +21,7 @@ function makeState(overrides: Partial<CameraState> = {}): CameraState {
     fov: 50,
     near: 0.1,
     far: 1000,
-    viewOffsetX: 0,
-    viewOffsetY: 0,
+    viewOffset: [0, 0],
     target: new Vector3(0, 0, 0),
     hasTarget: false,
     lookAtTarget: new Vector3(0, 0, 0),
@@ -32,15 +31,14 @@ function makeState(overrides: Partial<CameraState> = {}): CameraState {
 }
 
 describe('lerpCameraState', () => {
-  const a = makeState({ position: new Vector3(0, 0, 0), fov: 40, near: 0.1, far: 100, viewOffsetX: 0, viewOffsetY: 0 });
+  const a = makeState({ position: new Vector3(0, 0, 0), fov: 40, near: 0.1, far: 100, viewOffset: [0, 0] });
   const b = makeState({
     position: new Vector3(10, 0, 0),
     quaternion: new Quaternion().setFromAxisAngle(new Vector3(0, 1, 0), Math.PI / 2),
     fov: 60,
     near: 0.5,
     far: 500,
-    viewOffsetX: 100,
-    viewOffsetY: -40,
+    viewOffset: [100, -40],
   });
 
   it('writes into "out" without allocating (same Vector3/Quaternion instances)', () => {
@@ -84,11 +82,11 @@ describe('lerpCameraState', () => {
     expect(out.far).toBeCloseTo(300, 10);
   });
 
-  it('interpolates viewOffsetX/Y the same way as fov/near/far', () => {
+  it('interpolates viewOffset the same way as fov/near/far', () => {
     const out = createCameraState();
     lerpCameraState(out, a, b, 0.5);
-    expect(out.viewOffsetX).toBeCloseTo(50, 10);
-    expect(out.viewOffsetY).toBeCloseTo(-20, 10);
+    expect(out.viewOffset[0]).toBeCloseTo(50, 10);
+    expect(out.viewOffset[1]).toBeCloseTo(-20, 10);
   });
 
   it('clamps t outside [0, 1]', () => {

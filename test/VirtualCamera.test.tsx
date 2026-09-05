@@ -210,6 +210,19 @@ describe('VirtualCamera — initialState prop', () => {
     expect(core!.activeState!.position.equals(new Vector3(5, 20, 5))).toBe(true);
   });
 
+  it('position/target/lookAtTarget accept the r3f Vector3Like shorthand, not just a real THREE.Vector3', async () => {
+    let core: KlippCore | undefined;
+    await create(
+      <Klipp>
+        <CoreReader onRead={(c) => (core = c)} />
+        <VirtualCamera name="a" priority={10} initialState={{ position: [5, 20, 5], target: [1, 2, 3] }} />
+      </Klipp>,
+    );
+
+    expect(core!.activeState!.position.equals(new Vector3(5, 20, 5))).toBe(true);
+    expect(core!.activeState!.target.equals(new Vector3(1, 2, 3))).toBe(true);
+  });
+
   it('only overrides the given fields — an unset field still inherits the real camera\'s pristine state', async () => {
     let plainState: CameraState | undefined;
     let seededState: CameraState | undefined;

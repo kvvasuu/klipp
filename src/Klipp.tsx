@@ -143,15 +143,15 @@ export function Klipp({ children, defaultBlend, customBlends, camera: cameraProp
       result.position.equals(previousResult.position) &&
       result.quaternion.equals(previousResult.quaternion);
     // matrixWorld updates regardless of this check — only lens fields need updateProjectionMatrix().
-    // viewOffsetX/Y live here too, not in a separate flag — both setViewOffset/clearViewOffset already
+    // viewOffset lives here too, not in a separate flag — both setViewOffset/clearViewOffset already
     // call updateProjectionMatrix() themselves, same as the fov/near/far path needs
     const lensUnchanged =
       settledRef.current &&
       result.fov === previousResult.fov &&
       result.near === previousResult.near &&
       result.far === previousResult.far &&
-      result.viewOffsetX === previousResult.viewOffsetX &&
-      result.viewOffsetY === previousResult.viewOffsetY;
+      result.viewOffset[0] === previousResult.viewOffset[0] &&
+      result.viewOffset[1] === previousResult.viewOffset[1];
 
     if (!transformUnchanged || !lensUnchanged) {
       copyCameraState(previousResult, result);
@@ -165,12 +165,12 @@ export function Klipp({ children, defaultBlend, customBlends, camera: cameraProp
         camera.fov = result.fov;
         camera.near = result.near;
         camera.far = result.far;
-        if (result.viewOffsetX !== 0 || result.viewOffsetY !== 0) {
+        if (result.viewOffset[0] !== 0 || result.viewOffset[1] !== 0) {
           camera.setViewOffset(
             size.width,
             size.height,
-            result.viewOffsetX,
-            result.viewOffsetY,
+            result.viewOffset[0] * (size.width / 2),
+            result.viewOffset[1] * (size.height / 2),
             size.width,
             size.height,
           );

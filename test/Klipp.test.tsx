@@ -144,15 +144,15 @@ describe('Klipp / useKlippCore', () => {
       useEffect(
         () =>
           slots.registerAim((out) => {
-            out.viewOffsetX = x;
-            out.viewOffsetY = y;
+            out.viewOffset[0] = x;
+            out.viewOffset[1] = y;
           }),
         [slots, x, y],
       );
       return null;
     }
 
-    it('a nonzero viewOffsetX/Y calls camera.setViewOffset with it, in canvas pixel size', async () => {
+    it('a nonzero viewOffset calls camera.setViewOffset scaled to canvas pixel size (test-renderer default 1280x800)', async () => {
       let camera: PerspectiveCamera | undefined;
       function CameraReader() {
         camera = useThree((state) => state.camera as PerspectiveCamera);
@@ -163,18 +163,18 @@ describe('Klipp / useKlippCore', () => {
         <Klipp>
           <CameraReader />
           <VirtualCamera name="a" priority={10}>
-            <ViewOffsetWriter x={80} y={-30} />
+            <ViewOffsetWriter x={0.5} y={-0.3} />
           </VirtualCamera>
         </Klipp>,
       );
       await renderer.advanceFrames(1, 0.1);
 
       expect(camera!.view?.enabled).toBe(true);
-      expect(camera!.view?.offsetX).toBe(80);
-      expect(camera!.view?.offsetY).toBe(-30);
+      expect(camera!.view?.offsetX).toBe(320); // 0.5 * (1280 / 2)
+      expect(camera!.view?.offsetY).toBe(-120); // -0.3 * (800 / 2)
     });
 
-    it('viewOffsetX/Y = 0 (default) never calls setViewOffset at all', async () => {
+    it('viewOffset = [0, 0] (default) never calls setViewOffset at all', async () => {
       let camera: PerspectiveCamera | undefined;
       function CameraReader() {
         camera = useThree((state) => state.camera as PerspectiveCamera);
@@ -210,7 +210,7 @@ describe('Klipp / useKlippCore', () => {
         </Klipp>
       );
 
-      const renderer = await create(scene(80));
+      const renderer = await create(scene(0.4));
       await renderer.advanceFrames(1, 0.1);
       expect(camera!.view?.enabled).toBe(true);
 
