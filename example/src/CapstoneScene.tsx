@@ -60,7 +60,7 @@ function Character({
 /**
  * Capstone demo — a Diablo-style top-down scene tying together most of klipp's systems in one flow:
  * a main-menu → gameplay camera hand-off, a dead-zone-based follow camera reacting to click-to-move,
- * and (in later steps) interactive props for Impulse, ambient Noise, and OrbitalControls. Placeholder
+ * and (in later steps) interactive props for Impulse, ambient Noise, and CameraControls. Placeholder
  * primitives throughout — real models are a follow-up, this pass is about the camera/interaction logic.
  */
 export function CapstoneScene() {

@@ -33,9 +33,9 @@
       "types": "./dist/react.d.ts",
       "default": "./dist/react.js"
     },
-    "./react/body/orbital-controls": {
-      "types": "./dist/body/OrbitalControls.d.ts",
-      "default": "./dist/body/OrbitalControls.js"
+    "./react/camera-controls": {
+      "types": "./dist/body/CameraControls.d.ts",
+      "default": "./dist/body/CameraControls.js"
     }
   },
   "files": [

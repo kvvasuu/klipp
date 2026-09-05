@@ -8,7 +8,7 @@ export default defineConfig({
   resolve: {
     alias: {
       // Read the library straight from source during development — no build step in the loop.
-      '@kvvasuu/klipp/react/body/orbital-controls': fileURLToPath(new URL('../src/body/OrbitalControls.tsx', import.meta.url)),
+      '@kvvasuu/klipp/react/camera-controls': fileURLToPath(new URL('../src/body/CameraControls.tsx', import.meta.url)),
       '@kvvasuu/klipp/react': fileURLToPath(new URL('../src/react.ts', import.meta.url)),
       '@kvvasuu/klipp': fileURLToPath(new URL('../src/index.ts', import.meta.url)),
     },
