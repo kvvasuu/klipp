@@ -8,7 +8,6 @@ describe('BlendHints', () => {
       BlendHints.sphericalPosition,
       BlendHints.screenSpaceAimWhenTargetsDiffer,
       BlendHints.ignoreTarget,
-      BlendHints.freezeWhenBlendingOut,
       BlendHints.inheritPosition,
     ];
     const seen = new Set(flags);
@@ -21,10 +20,10 @@ describe('BlendHints', () => {
   });
 
   it('combining flags with | preserves each one independently', () => {
-    const combined = BlendHints.cylindricalPosition | BlendHints.freezeWhenBlendingOut;
+    const combined = BlendHints.cylindricalPosition | BlendHints.ignoreTarget;
 
     expect(hasBlendHint(combined, BlendHints.cylindricalPosition)).toBe(true);
-    expect(hasBlendHint(combined, BlendHints.freezeWhenBlendingOut)).toBe(true);
+    expect(hasBlendHint(combined, BlendHints.ignoreTarget)).toBe(true);
     expect(hasBlendHint(combined, BlendHints.sphericalPosition)).toBe(false);
     expect(hasBlendHint(combined, BlendHints.inheritPosition)).toBe(false);
   });

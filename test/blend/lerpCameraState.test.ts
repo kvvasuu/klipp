@@ -365,5 +365,55 @@ describe('lerpCameraState', () => {
       // slerp of rotatedA's 90° and noLookAt's identity lands at 45°, not identity (a degenerate lookAt's result)
       expect(out.quaternion.angleTo(new Quaternion())).toBeGreaterThan(0.1);
     });
+
+    describe('BlendHints.ignoreTarget', () => {
+      it('opts out of lookAt-driven rotation even with a shared lookAtTarget, falling back to a plain slerp', () => {
+        const a = stateWithLookAt(new Vector3(5, 5, 5), new Vector3(0, 0, 0));
+        const b = stateWithLookAt(new Vector3(0, 0, 5), new Vector3(0, 0, 0));
+
+        const tracked = createCameraState();
+        lerpCameraState(tracked, a, b, 0.5);
+        const ignored = createCameraState();
+        lerpCameraState(ignored, a, b, 0.5, BlendHints.ignoreTarget);
+
+        expect(ignored.quaternion.angleTo(tracked.quaternion)).toBeGreaterThan(0.01);
+        // matches the plain-slerp fallback exactly - the same path taken when there's no lookAtTarget at all
+        const plainSlerpEquivalent = createCameraState();
+        lerpCameraState(plainSlerpEquivalent, makeState({ quaternion: a.quaternion }), makeState({ quaternion: b.quaternion }), 0.5);
+        expect(ignored.quaternion.angleTo(plainSlerpEquivalent.quaternion)).toBeLessThan(1e-6);
+      });
+
+      it('still publishes lookAtTarget/hasLookAtTarget for downstream consumers - only the ROTATION path is affected', () => {
+        const a = stateWithLookAt(new Vector3(5, 5, 5), new Vector3(0, 0, 0));
+        const b = stateWithLookAt(new Vector3(0, 0, 5), new Vector3(2, 0, 0));
+        const out = createCameraState();
+
+        lerpCameraState(out, a, b, 0.5, BlendHints.ignoreTarget);
+
+        expect(out.hasLookAtTarget).toBe(true);
+        expect(out.lookAtTarget.distanceTo(new Vector3(1, 0, 0))).toBeLessThan(1e-9);
+      });
+
+      it('is independent of sphericalPosition - position still arcs while rotation still ignores the target', () => {
+        const a = stateWithLookAt(new Vector3(5, 5, 5), new Vector3(0, 0, 0));
+        const b = stateWithLookAt(new Vector3(0, 0, 5), new Vector3(0, 0, 0));
+        a.target.set(0, 0, 0);
+        a.hasTarget = true;
+        b.target.set(0, 0, 0);
+        b.hasTarget = true;
+
+        const linearWithoutHints = createCameraState();
+        lerpCameraState(linearWithoutHints, a, b, 0.5);
+        const combined = createCameraState();
+        lerpCameraState(combined, a, b, 0.5, BlendHints.sphericalPosition | BlendHints.ignoreTarget);
+
+        // position still arcs (sphericalPosition applied)...
+        expect(combined.position.equals(linearWithoutHints.position)).toBe(false);
+        // ...but rotation ignores the target (a plain slerp, not pointed at combined.lookAtTarget)
+        const forward = new Vector3(0, 0, -1).applyQuaternion(combined.quaternion);
+        const toTarget = combined.lookAtTarget.clone().sub(combined.position).normalize();
+        expect(forward.dot(toTarget)).toBeLessThan(1 - 1e-6);
+      });
+    });
   });
 });

@@ -109,13 +109,13 @@ function slerpWithContinuity(out: Quaternion, from: Quaternion, to: Quaternion, 
  * Interpolates a WHOLE `CameraState` (position + rotation + lens) at one shared progress `t`, not three
  * independent lerps. `t` is clamped to [0, 1]. Writes into `out` and returns it.
  *
- * Rotation ignores `hints` (those only shape POSITION, see `BlendHints`) - a shared `lookAtTarget`
- * (Aim's, distinct from Body's `target`) always drives it via `lerpLookAtRotation` instead. Otherwise
- * falls back to a plain slerp, with continuity: a plain slerp takes the shortest path between `a` and
- * `b`, but `b` is often a LIVE rotation (e.g. Aim tracking an orbiting target) while `a` stays frozen for
- * the whole blend — once `b` sweeps past ~180° from `a`, "shortest from `a`" flips sides, jerking the
- * camera. Comparing `b` against `out`'s pre-write value instead (last frame's result, since `out` is
- * reused every tick) keeps the path continuous.
+ * A shared `lookAtTarget` (Aim's, distinct from Body's `target`) drives rotation via `lerpLookAtRotation`
+ * unless `BlendHints.ignoreTarget` opts out - `out.lookAtTarget` is still published either way, only the
+ * rotation path changes. Otherwise falls back to a plain slerp, with continuity: a plain slerp takes the
+ * shortest path between `a` and `b`, but `b` is often a LIVE rotation (e.g. Aim tracking an orbiting
+ * target) while `a` stays frozen for the whole blend — once `b` sweeps past ~180° from `a`, "shortest
+ * from `a`" flips sides, jerking the camera. Comparing `b` against `out`'s pre-write value instead (last
+ * frame's result, since `out` is reused every tick) keeps the path continuous.
  */
 export function lerpCameraState(
   out: CameraState,
@@ -129,6 +129,7 @@ export function lerpCameraState(
   const hasLookAtTarget = a.hasLookAtTarget && b.hasLookAtTarget;
   const spherical = hasTarget && hasBlendHint(hints, BlendHints.sphericalPosition);
   const cylindrical = hasTarget && !spherical && hasBlendHint(hints, BlendHints.cylindricalPosition);
+  const useLookAtRotation = hasLookAtTarget && !hasBlendHint(hints, BlendHints.ignoreTarget);
 
   if (spherical || cylindrical) {
     lerpPositionAroundTarget(out.position, a, b, clamped, cylindrical);
@@ -141,7 +142,7 @@ export function lerpCameraState(
   if (hasLookAtTarget) out.lookAtTarget.lerpVectors(a.lookAtTarget, b.lookAtTarget, clamped);
   out.hasLookAtTarget = hasLookAtTarget;
 
-  if (hasLookAtTarget) {
+  if (useLookAtRotation) {
     lerpLookAtRotation(out.quaternion, a, b, out.position, out.lookAtTarget, clamped);
   } else {
     const bQuaternion =
