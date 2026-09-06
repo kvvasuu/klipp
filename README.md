@@ -15,8 +15,9 @@ Klipp replaces that with declarative, composable pieces instead.
 ### 🎥 Body & Aim - independent by design
 
 - A camera's **position** (`Body`) and **rotation** (`Aim`) are computed by two completely separate pieces - follow one target with one damping curve while looking at a totally different one.
-- `Body`: `HardLockToTarget` (instant), `Follow` (damped, with `BindingModes` controlling how the offset rotates with the target), `PositionComposer` (keeps the target at a chosen screen position/size instead of a fixed world offset).
-- `Aim`: `HardLookAt` (instant), `RotateWithFollowTarget` (rigidly matches the target's own rotation, "glued" child-like framing), `RotationComposer` (keeps the look-at target at a chosen screen position with a dead zone + damping).
+- `Body`: `HardLockToTarget` (instant), `Follow` (damped, with `BindingModes` controlling how the offset rotates with the target), `PositionComposer` (keeps the target at a chosen screen position with a dead zone + damping, reacting to its nearest screen-space edge - auto-detected from a `Mesh`/`Line`/`Points`, or given explicitly via `radius`/`size` - instead of just its center point).
+- `Aim`: `HardLookAt` (instant), `RotateWithFollowTarget` (rigidly matches the target's own rotation, "glued" child-like framing), `RotationComposer` (the same screen-position/dead-zone/edge-aware composition as `PositionComposer`, but for rotation).
+- A target that deforms (a `SkinnedMesh` bone animation, a mutated `BufferGeometry`) can call `recalculateSize()` on its `PositionComposerBody`/`RotationComposerAim`/`GroupFramingExtension` ref to force a fresh measurement on demand, instead of paying for one every frame.
 
 ### 🎬 Multi-camera blending
 
@@ -29,9 +30,15 @@ Klipp replaces that with declarative, composable pieces instead.
 - `Noise` stacks additive shake on top of whatever Body/Aim already computed - `BasicMultiChannelPerlin` gives independent amplitude/frequency per axis, in camera-local space.
 - `Impulse` is event-driven, one-shot reactions (explosions, impacts) that any number of `<VirtualCamera>`s can react to independently, on a shared clock decoupled from any single camera's own `dt` - `ImpulseManager.generate()` fires an event, `ImpulseListenerNoise`/`ImpulseListener` sample its envelope with their own falloff/radius.
 
-### 🖼️ GroupFraming
+### 🖼️ Extensions
 
-- Keeps a group of targets (`TargetGroup`, weighted, point/sphere/box members) in frame as a **distance ceiling** - dollies the camera back only as far as needed, never closer than Body/Aim already placed it.
+- `Extension`s run after Body+Aim and before Noise - a stacking slot for adjustments that need the shot's final orientation, or fields Body/Aim don't touch at all.
+- `GroupFraming` keeps a group of targets (`TargetGroup`, weighted, point/sphere/box members) in frame as a **distance ceiling** - dollies the camera back only as far as needed, never closer than Body/Aim already placed it.
+- `Lens` overrides `fov`/`near`/`far`, each independently damped - settable via prop or `ref`, so an external `useFrame` animating the lens doesn't fight Klipp's own driver every frame.
+
+### 🔍 Debug Visualization
+
+- `PositionComposer`/`RotationComposer`/`GroupFraming` all take a `debug` prop that draws their dead zone/hard limit/padding as bordered, dimmed boxes directly on the canvas - lightweight DOM manipulation, no extra dependency, visible only while that camera is actually live.
 
 ### 🕹️ CameraControls
 
