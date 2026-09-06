@@ -1,5 +1,5 @@
 import type { Vector3 as Vector3Like } from '@react-three/fiber';
-import { clamp } from 'math';
+import { clamp, degreesToRadians } from 'math';
 import { Quaternion, Vector3 } from 'three';
 import type { CameraState } from '../CameraState';
 import type { DampingConstant } from '../damping/Damper';
@@ -114,7 +114,7 @@ export class PositionComposerBody {
 
     // stage 2: shift laterally to screenPosition (or the dead zone edge)
     scratchRelative.copy(scratchTargetPosition).sub(out.position);
-    const halfHeight = this.cameraDistance * Math.tan((out.fov * Math.PI) / 360);
+    const halfHeight = this.cameraDistance * Math.tan(degreesToRadians(out.fov) / 2);
     const halfWidth = halfHeight * this.aspect;
 
     const [halfExtentRight, halfExtentUp] = this.computeHalfExtents();

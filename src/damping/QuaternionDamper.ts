@@ -1,3 +1,4 @@
+import { clamp } from 'math';
 import { Quaternion } from 'three';
 import { Damper, type DampingConstant } from './Damper';
 
@@ -24,7 +25,7 @@ export class QuaternionDamper {
     scratchDelta.copy(target).multiply(scratchOutInverse);
     if (scratchDelta.w < 0) scratchDelta.set(-scratchDelta.x, -scratchDelta.y, -scratchDelta.z, -scratchDelta.w);
 
-    const angle = 2 * Math.acos(Math.min(1, Math.max(-1, scratchDelta.w)));
+    const angle = 2 * Math.acos(clamp(scratchDelta.w, -1, 1));
     if (angle < 1e-5) {
       // spends `Damper`'s snap-on-first-call here (a no-op update, same trick as `BlendDriver.setTarget`)
       // — returning early without it leaves a `reset()` armed until the target NEXT moves, which would
