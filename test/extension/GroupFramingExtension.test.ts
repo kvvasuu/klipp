@@ -1,8 +1,8 @@
 import { BoxGeometry, Mesh, PerspectiveCamera, Vector3 } from 'three';
 import { describe, expect, it } from 'vitest';
 import { applyCameraState, createCameraState } from '../../src/CameraState';
-import { GroupFramingExtension } from '../../src/framing/GroupFramingExtension';
-import { TargetGroup } from '../../src/framing/TargetGroup';
+import { GroupFramingExtension } from '../../src/extension/GroupFramingExtension';
+import { TargetGroup } from '../../src/extension/TargetGroup';
 
 describe('GroupFramingExtension', () => {
   it('no-op (out untouched) when the group has nothing to resolve', () => {

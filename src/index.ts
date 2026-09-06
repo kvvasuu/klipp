@@ -46,5 +46,5 @@ export { BasicMultiChannelPerlinNoise } from './noise/BasicMultiChannelPerlinNoi
 export { ImpulseManager, impulseManager, type GenerateImpulseOptions } from './impulse/ImpulseManager';
 export { ImpulseListenerNoise } from './impulse/ImpulseListenerNoise';
 
-export { TargetGroup, type TargetGroupMember, type TargetGroupPositionMode } from './framing/TargetGroup';
-export { GroupFramingExtension } from './framing/GroupFramingExtension';
+export { TargetGroup, type TargetGroupMember, type TargetGroupPositionMode } from './extension/TargetGroup';
+export { GroupFramingExtension } from './extension/GroupFramingExtension';
