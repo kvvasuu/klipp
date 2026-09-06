@@ -1,6 +1,7 @@
 import type { Vector3 as Vector3Like } from '@react-three/fiber';
 import { useThree } from '@react-three/fiber';
 import { useEffect, useImperativeHandle, useState, type Ref } from 'react';
+import { DebugZoneOverlay, type DebugZone } from '../DebugZoneOverlay';
 import type { DampingConstant } from '../damping/Damper';
 import type { Target } from '../resolve/Target';
 import { useVirtualCameraSlots } from '../VirtualCamera';
@@ -32,6 +33,9 @@ export type PositionComposerProps = {
   /** Target's full box dimensions — takes priority over `radius`. Auto-detected from a `Mesh` target's own
    *  geometry bounds when neither is given. */
   size?: Vector3Like;
+  /** Draws `deadZone`/`hardLimit` as bordered rectangles over the canvas - only while this
+   *  `VirtualCamera` is actually the one on screen. Default `false`. */
+  debug?: boolean;
   /** Imperative access to the underlying `PositionComposerBody`, for reading/writing
    *  `target`/`cameraDistance`/`screenPosition`/`deadZone`/`damping`/`hardLimit`/`radius`/`size` directly
    *  instead of through props, and for calling `recalculateSize()` on a target that deformed (a
@@ -58,6 +62,7 @@ export function PositionComposer({
   hardLimit = defaultHardLimit,
   radius,
   size,
+  debug = false,
   ref,
 }: PositionComposerProps) {
   const slots = useVirtualCameraSlots();
@@ -79,5 +84,9 @@ export function PositionComposer({
   useImperativeHandle(ref, () => body, [body]);
   useEffect(() => slots.registerBody(body.update), [slots, body]);
 
-  return null;
+  if (!debug) return null;
+  const zones: DebugZone[] = [];
+  if (hardLimit[0] > 0 || hardLimit[1] > 0) zones.push({ screenPosition, size: hardLimit, color: '#cc3333' });
+  if (deadZone[0] > 0 || deadZone[1] > 0) zones.push({ screenPosition, size: deadZone, color: '#33cc33' });
+  return <DebugZoneOverlay zones={zones} />;
 }
