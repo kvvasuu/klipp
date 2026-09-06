@@ -192,6 +192,69 @@ describe('GroupFramingExtension', () => {
       expect(out.position.z).toBeCloseTo(expectedDistance, 10);
     });
 
+    // raw vertex mutation, not .scale()/.applyMatrix4() - the one case three.js never keeps a cached
+    // boundingBox in sync for automatically
+    function growMeshGeometryThreefold(mesh: Mesh): void {
+      const position = mesh.geometry.attributes.position;
+      for (let i = 0; i < position.count; i++) {
+        position.setXYZ(i, position.getX(i) * 3, position.getY(i) * 3, position.getZ(i) * 3);
+      }
+      position.needsUpdate = true;
+    }
+
+    it("without recalculateSize(), keeps reacting to the mesh's ORIGINAL size after it grows", () => {
+      const mesh = new Mesh(new BoxGeometry(2, 2, 2));
+      const group = new TargetGroup([{ target: mesh }]);
+      const extension = new GroupFramingExtension(group, 0, 100, 100);
+      const out = createCameraState();
+      out.fov = 90;
+      out.quaternion.identity();
+      extension.update(out, 0.1); // caches the original half-extent (1)
+
+      growMeshGeometryThreefold(mesh); // now half-extent 3, but the cache doesn't know that
+      extension.update(out, 0.1);
+
+      const expectedDistance = 1 / Math.tan(Math.PI / 4) + 1; // same as the un-grown mesh
+      expect(out.position.z).toBeCloseTo(expectedDistance, 10);
+    });
+
+    it('recalculateSize() reacts to the GROWN size on the very next update() call', () => {
+      const mesh = new Mesh(new BoxGeometry(2, 2, 2));
+      const group = new TargetGroup([{ target: mesh }]);
+      const extension = new GroupFramingExtension(group, 0, 100, 100);
+      const out = createCameraState();
+      out.fov = 90;
+      out.quaternion.identity();
+      extension.update(out, 0.1);
+
+      growMeshGeometryThreefold(mesh); // half-extent now 3
+      extension.recalculateSize();
+      extension.update(out, 0.1);
+
+      const expectedDistance = 3 / Math.tan(Math.PI / 4) + 3; // matches the GROWN half-extent
+      expect(out.position.z).toBeCloseTo(expectedDistance, 10);
+    });
+
+    it('recalculateSize() only forces ONE recompute - a LATER deformation goes stale again', () => {
+      const mesh = new Mesh(new BoxGeometry(2, 2, 2));
+      const group = new TargetGroup([{ target: mesh }]);
+      const extension = new GroupFramingExtension(group, 0, 100, 100);
+      const out = createCameraState();
+      out.fov = 90;
+      out.quaternion.identity();
+      extension.update(out, 0.1);
+
+      growMeshGeometryThreefold(mesh); // half-extent 1 -> 3
+      extension.recalculateSize();
+      extension.update(out, 0.1);
+      const afterFirstRecalc = out.position.clone();
+
+      growMeshGeometryThreefold(mesh); // half-extent 3 -> 9, but NOT recalculated again
+      extension.update(out, 0.1);
+
+      expect(out.position.equals(afterFirstRecalc)).toBe(true); // still reacting to the 3x measurement
+    });
+
     it('a mixed group (sphere + box) takes whichever member actually requires more distance', () => {
       const group = new TargetGroup([
         { target: new Vector3(0, 0, 0), radius: 1 }, // needs 1/sin(45°) ≈ 1.41

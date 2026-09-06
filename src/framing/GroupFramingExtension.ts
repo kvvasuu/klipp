@@ -48,6 +48,7 @@ export class GroupFramingExtension {
   private readonly screenPositionXDamper = new Damper();
   private readonly screenPositionYDamper = new Damper();
   private currentScreenPosition: [number, number] = [0, 0];
+  private forceSizeRecalculation = false;
 
   constructor(
     group: TargetGroup,
@@ -65,8 +66,20 @@ export class GroupFramingExtension {
     this.screenPosition = screenPosition;
   }
 
+  /** Forces every member's auto-detected `size` to be re-measured on the NEXT `update()` call, then goes
+   *  back to the cheap cached behavior - for a member that deforms occasionally (an event), not
+   *  continuously. */
+  recalculateSize(): void {
+    this.forceSizeRecalculation = true;
+  }
+
   update = (out: CameraState, dt: number, justActivated: boolean): boolean => {
-    const boundsRadius = this.group.computeBounds(scratchGroupPosition);
+    // captured up front so it applies uniformly to every member size lookup this frame (computeBounds's
+    // own internal ones included), not just whichever happens to run first
+    const dynamicSize = this.forceSizeRecalculation;
+    this.forceSizeRecalculation = false;
+
+    const boundsRadius = this.group.computeBounds(scratchGroupPosition, dynamicSize);
     if (boundsRadius <= 0) return false;
 
     const verticalHalfFov = degreesToRadians(out.fov) / 2;
@@ -89,7 +102,7 @@ export class GroupFramingExtension {
       if (!resolveTargetPosition(scratchMemberPosition, member.target)) continue;
       scratchOffset.subVectors(scratchMemberPosition, scratchGroupPosition);
 
-      if (this.group.resolveMemberSize(scratchSize, member)) {
+      if (this.group.resolveMemberSize(scratchSize, member, dynamicSize)) {
         hasBoxMember = true;
         if (!resolveTargetRotation(scratchMemberQuaternion, member.target)) scratchMemberQuaternion.identity();
         scratchHalfSize.copy(scratchSize).multiplyScalar(0.5);

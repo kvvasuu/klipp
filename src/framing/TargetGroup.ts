@@ -37,41 +37,42 @@ export class TargetGroup {
     this.positionMode = positionMode;
   }
 
-  /** Resolves one member's full box dimensions — see `resolveTargetSize`. */
-  resolveMemberSize = (outSize: Vector3, member: TargetGroupMember): boolean =>
-    resolveTargetSize(outSize, member.target, member.size, member.radius);
+  /** Resolves one member's full box dimensions — see `resolveTargetSize`. `dynamicSize` forces a fresh
+   *  measurement instead of reusing a cached one - see `GroupFramingExtension.recalculateSize`. */
+  resolveMemberSize = (outSize: Vector3, member: TargetGroupMember, dynamicSize = false): boolean =>
+    resolveTargetSize(outSize, member.target, member.size, member.radius, dynamicSize);
 
   /** Writes the group's world position into `outPosition` and returns the radius of the smallest sphere,
    *  centered there, that encloses every resolvable member's own bounding sphere — a conservative
    *  fallback extent (box members contribute their bounding sphere here, not their tight silhouette; see
    *  `GroupFraming` for the camera-aware box fit). Returns `0` (leaving `outPosition` untouched) if no
    *  member currently resolves, mirroring `resolveTargetPosition`'s "not ready" convention. */
-  computeBounds = (outPosition: Vector3): number => {
+  computeBounds = (outPosition: Vector3, dynamicSize = false): number => {
     const resolved =
       this.positionMode === 'groupAverage'
         ? this.computeAveragePosition(outPosition)
-        : this.computeCenterPosition(outPosition);
+        : this.computeCenterPosition(outPosition, dynamicSize);
     if (!resolved) return 0;
 
     let radius = 0;
     for (const member of this.members) {
       if (!resolveTargetPosition(scratchMemberPosition, member.target)) continue;
-      const reach = scratchMemberPosition.distanceTo(outPosition) + this.resolveFallbackRadius(member);
+      const reach = scratchMemberPosition.distanceTo(outPosition) + this.resolveFallbackRadius(member, dynamicSize);
       if (reach > radius) radius = reach;
     }
     return radius;
   };
 
-  private resolveFallbackRadius = (member: TargetGroupMember): number => {
-    if (this.resolveMemberSize(scratchSize, member)) return scratchSize.length() / 2; // box's own half-diagonal
+  private resolveFallbackRadius = (member: TargetGroupMember, dynamicSize = false): number => {
+    if (this.resolveMemberSize(scratchSize, member, dynamicSize)) return scratchSize.length() / 2; // box's own half-diagonal
     return member.radius ?? 0;
   };
 
-  private computeCenterPosition = (outPosition: Vector3): boolean => {
+  private computeCenterPosition = (outPosition: Vector3, dynamicSize = false): boolean => {
     let any = false;
     for (const member of this.members) {
       if (!resolveTargetPosition(scratchMemberPosition, member.target)) continue;
-      const radius = this.resolveFallbackRadius(member);
+      const radius = this.resolveFallbackRadius(member, dynamicSize);
       if (!any) {
         scratchMin.copy(scratchMemberPosition).subScalar(radius);
         scratchMax.copy(scratchMemberPosition).addScalar(radius);
