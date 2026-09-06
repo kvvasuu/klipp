@@ -43,6 +43,7 @@ export class PositionComposerBody {
   size?: Vector3Like;
 
   private readonly damper = new Vector3Damper();
+  private forceSizeRecalculation = false;
 
   constructor(
     target: Target,
@@ -66,6 +67,12 @@ export class PositionComposerBody {
     this.size = size;
   }
 
+  /** Forces the auto-detected `size` to be re-measured on the NEXT `update()` call, then goes back to the
+   *  cheap cached behavior - for a target that deforms occasionally (an event), not continuously. */
+  recalculateSize(): void {
+    this.forceSizeRecalculation = true;
+  }
+
   update = (out: CameraState, dt: number, justActivated: boolean): void => {
     if (!resolveTargetPosition(scratchTargetPosition, this.target)) return;
     out.target.copy(scratchTargetPosition);
@@ -85,7 +92,8 @@ export class PositionComposerBody {
     const halfHeight = this.cameraDistance * Math.tan(degreesToRadians(out.fov) / 2);
     const halfWidth = halfHeight * this.aspect;
 
-    resolveTargetHalfExtents(scratchExtents, this.target, this.size, this.radius, scratchRight, scratchUp);
+    resolveTargetHalfExtents(scratchExtents, this.target, this.size, this.radius, scratchRight, scratchUp, this.forceSizeRecalculation);
+    this.forceSizeRecalculation = false;
     const extentX = scratchExtents[0] / halfWidth;
     const extentY = scratchExtents[1] / halfHeight;
 

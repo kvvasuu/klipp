@@ -38,7 +38,9 @@ export type RotationComposerProps = {
   size?: Vector3Like;
   /** Imperative access to the underlying `RotationComposerAim`, for reading/writing
    *  `target`/`screenPosition`/`deadZone`/`damping`/`hardLimit`/`targetOffset`/`radius`/`size` directly
-   *  instead of through props. */
+   *  instead of through props, and for calling `recalculateSize()` on a target that deformed (a
+   *  `SkinnedMesh` bone animation, a mutated `BufferGeometry`) - auto-detected `size` is otherwise only
+   *  measured once. */
   ref?: Ref<RotationComposerAim>;
 };
 

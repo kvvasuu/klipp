@@ -356,6 +356,55 @@ describe('RotationComposerAim', () => {
       const projected = projectToScreen(out, 1, mesh.position.clone());
       expect(projected.x).toBeCloseTo(0.1, 4);
     });
+
+    // raw vertex mutation, not .scale()/.applyMatrix4() - the one case three.js never keeps a cached
+    // boundingBox in sync for automatically
+    function growMeshGeometryThreefold(mesh: Mesh): void {
+      const position = mesh.geometry.attributes.position;
+      for (let i = 0; i < position.count; i++) {
+        position.setXYZ(i, position.getX(i) * 3, position.getY(i) * 3, position.getZ(i) * 3);
+      }
+      position.needsUpdate = true;
+    }
+
+    it('recalculateSize() reacts to a grown mesh on the very next update() call', () => {
+      const mesh = new Mesh(new BoxGeometry(2, 2, 2), new MeshBasicMaterial());
+      mesh.position.set(0, 0, -10);
+      const aim = new RotationComposerAim(mesh, [0, 0], 1, [0.4, 0.4], 0);
+      const out = createCameraState();
+      out.fov = 90;
+      aim.update(out, 0.1);
+
+      growMeshGeometryThreefold(mesh); // half-extent 1 -> 3
+      aim.recalculateSize();
+      mesh.position.set(1.5, 0, -10);
+      aim.update(out, 0.1);
+
+      const projected = projectToScreen(out, 1, mesh.position.clone());
+      expect(projected.x).not.toBeCloseTo(0.1, 2); // the grown extent changes the reaction from the baseline
+    });
+
+    it('recalculateSize() only forces ONE recompute - a LATER deformation goes stale again', () => {
+      // the dead zone's own edge-correction converges over several ticks even with damping=0 (its "desired"
+      // point is derived from last frame's own result) - settle fully after each stage so only the extent's
+      // effect is being compared, not leftover convergence noise
+      const mesh = new Mesh(new BoxGeometry(2, 2, 2), new MeshBasicMaterial());
+      mesh.position.set(4, 0, -10);
+      const aim = new RotationComposerAim(mesh, [0, 0], 1, [1.2, 1.2], 0);
+      const out = createCameraState();
+      out.fov = 90;
+      for (let i = 0; i < 30; i++) aim.update(out, 0.1);
+
+      growMeshGeometryThreefold(mesh); // half-extent 1 -> 3
+      aim.recalculateSize(); // only the FIRST of these settling calls actually forces a recompute
+      for (let i = 0; i < 30; i++) aim.update(out, 0.1);
+      const afterFirstRecalc = out.quaternion.clone();
+
+      growMeshGeometryThreefold(mesh); // half-extent 3 -> 9, but NOT recalculated again
+      for (let i = 0; i < 30; i++) aim.update(out, 0.1);
+
+      expect(out.quaternion.angleTo(afterFirstRecalc)).toBeLessThan(1e-6); // still reacting to the 3x measurement
+    });
   });
 
   describe('extent bigger than the reaction zone (real bug in PositionComposer, fixed here from the start)', () => {
