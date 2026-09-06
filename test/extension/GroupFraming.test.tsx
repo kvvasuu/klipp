@@ -1,7 +1,7 @@
 import { create } from '@react-three/test-renderer';
 import { Vector3 } from 'three';
 import { describe, expect, it } from 'vitest';
-import { GroupFraming } from '../../src/framing/GroupFraming';
+import { GroupFraming } from '../../src/extension/GroupFraming';
 import { Klipp } from '../../src/Klipp';
 import { VirtualCamera } from '../../src/VirtualCamera';
 

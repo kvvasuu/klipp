@@ -733,6 +733,35 @@ function GroupFramingScene({ boxSize, padding }: { boxSize: number; padding: num
   );
 }
 
+/**
+ * `Extension.Lens` overrides `fov` after Body/Aim run - toggling `fovDamping` shows it easing toward a
+ * slider change instead of snapping, same damping convention as everywhere else in klipp.
+ */
+function LensScene({ fov, fovDamping }: { fov: number; fovDamping: number }) {
+  const boxRef = useRef<Mesh>(null);
+
+  return (
+    <>
+      <ambientLight intensity={0.6} />
+      <directionalLight position={[5, 8, 3]} intensity={1.2} />
+      <gridHelper args={[24, 24, '#444', '#222']} position={[0, 0.01, 0]} />
+
+      <mesh ref={boxRef} position={[0, 1, 0]}>
+        <boxGeometry args={[2, 2, 2]} />
+        <meshStandardMaterial color="steelblue" />
+      </mesh>
+
+      <Klipp>
+        <VirtualCamera name="lens-demo" active={true} priority={10}>
+          <Body.Follow target={boxRef} offset={[0, 2, 8]} damping={0} />
+          <Aim.HardLookAt target={boxRef} />
+          <Extension.Lens fov={fov} fovDamping={fovDamping} />
+        </VirtualCamera>
+      </Klipp>
+    </>
+  );
+}
+
 const initialStateTopdownEye = new Vector3(0, 15, 0);
 const initialStateTopdownLookAt = new Vector3(0, 0, 0);
 // straight down is parallel to the usual (0,1,0) world-up reference — needs a horizontal one instead
@@ -816,6 +845,7 @@ type Demo =
   | 'initialState'
   | 'targetExtent'
   | 'rotationExtent'
+  | 'lens'
   | 'capstone';
 
 function App() {
@@ -842,6 +872,8 @@ function App() {
   const [lookAtPopFocus, setLookAtPopFocus] = useState<LookAtPopTarget | null>(null);
   const [lookAtPopMaxJumpDeg, setLookAtPopMaxJumpDeg] = useState(0);
   const [lookAtPopMeterKey, setLookAtPopMeterKey] = useState(0);
+  const [lensFov, setLensFov] = useState(50);
+  const [lensFovDamping, setLensFovDamping] = useState(0);
 
   function resetLookAtPop() {
     setLookAtPopFocus(null);
@@ -917,6 +949,9 @@ function App() {
         </button>
         <button data-active={demo === 'rotationExtent'} onClick={() => setDemo('rotationExtent')}>
           Rotation Extent
+        </button>
+        <button data-active={demo === 'lens'} onClick={() => setDemo('lens')}>
+          Lens
         </button>
         {demo === 'offset' &&
           (
@@ -1113,6 +1148,24 @@ function App() {
             </button>
           </>
         )}
+        {demo === 'lens' && (
+          <>
+            <label>
+              FOV: {lensFov}°
+              <input
+                type="range"
+                min={10}
+                max={120}
+                step={1}
+                value={lensFov}
+                onChange={(e) => setLensFov(Number(e.target.value))}
+              />
+            </label>
+            <button data-active={lensFovDamping > 0} onClick={() => setLensFovDamping((v) => (v > 0 ? 0 : 0.5))}>
+              {lensFovDamping > 0 ? 'fovDamping: 0.5s' : 'fovDamping: 0 (instant)'}
+            </button>
+          </>
+        )}
       </div>
       {demo === 'capstone' ? (
         <CapstoneScene />
@@ -1150,6 +1203,7 @@ function App() {
           {demo === 'initialState' && <InitialStateScene mode={initialStateMode} seeded={initialStateSeeded} />}
           {demo === 'targetExtent' && <TargetExtentScene mode={targetExtentMode} />}
           {demo === 'rotationExtent' && <RotationExtentScene mode={rotationExtentMode} />}
+          {demo === 'lens' && <LensScene fov={lensFov} fovDamping={lensFovDamping} />}
         </Canvas>
       )}
       {demo === 'offset' && (
@@ -1232,6 +1286,12 @@ function App() {
           treats the box as a dimensionless center, so it visibly leaves the dead zone before the camera turns to
           follow. "Radius" and "Size" react to its nearest EDGE instead, converted to an angular extent at the box's
           actual (changing) distance from the fixed camera.
+        </p>
+      )}
+      {demo === 'lens' && (
+        <p className="hint-text">
+          Drag the FOV slider - with damping off it snaps instantly, with damping on it eases toward the new value
+          instead, same as any other damped field in klipp.
         </p>
       )}
     </>

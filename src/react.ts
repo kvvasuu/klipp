@@ -24,5 +24,6 @@ export { Noise } from './noise/Noise';
 
 export { ImpulseListener, type ImpulseListenerProps } from './impulse/ImpulseListener';
 
-export { GroupFraming, type GroupFramingProps } from './framing/GroupFraming';
-export { Extension } from './framing/Extension';
+export { GroupFraming, type GroupFramingProps } from './extension/GroupFraming';
+export { Lens, type LensProps } from './extension/Lens';
+export { Extension } from './extension/Extension';

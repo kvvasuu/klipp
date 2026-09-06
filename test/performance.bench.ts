@@ -10,8 +10,8 @@ import { RotationComposerAim } from '../src/aim/RotationComposerAim';
 import { FollowBody } from '../src/body/FollowBody';
 import { HardLockToTargetBody } from '../src/body/HardLockToTargetBody';
 import { PositionComposerBody } from '../src/body/PositionComposerBody';
-import { GroupFramingExtension } from '../src/framing/GroupFramingExtension';
-import { TargetGroup } from '../src/framing/TargetGroup';
+import { GroupFramingExtension } from '../src/extension/GroupFramingExtension';
+import { TargetGroup } from '../src/extension/TargetGroup';
 import { BasicMultiChannelPerlinNoise } from '../src/noise/BasicMultiChannelPerlinNoise';
 
 /** A moving Object3D target — same shape a real scene's tracked character/prop would be, exercising
