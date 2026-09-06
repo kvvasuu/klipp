@@ -1,9 +1,10 @@
+import type { Vector3 as Vector3Like } from '@react-three/fiber';
 import { clamp } from 'math';
 import { Matrix4, Quaternion, Vector3 } from 'three';
 import type { CameraState } from '../CameraState';
 import { Damper, type DampingConstant } from '../damping/Damper';
 import { QuaternionDamper } from '../damping/QuaternionDamper';
-import { resolveTargetPosition, resolveTargetRotation, type Target } from '../resolve/Target';
+import { resolveTargetHalfExtents, resolveTargetPosition, resolveTargetRotation, type Target } from '../resolve/Target';
 
 const worldUp = new Vector3(0, 1, 0);
 const forwardAxis = new Vector3(0, 0, -1);
@@ -17,6 +18,12 @@ const scratchTargetQuaternion = new Quaternion();
 const scratchHardLimitQuaternion = new Quaternion();
 const scratchOutInverse = new Quaternion();
 const scratchLocalDir = new Vector3();
+const scratchRight = new Vector3();
+const scratchUp = new Vector3();
+/** `[halfExtentRight, halfExtentUp]`, in WORLD units - reused scratch, no allocation. Converted to an
+ *  angular (screen-fraction) extent at the point of use, since unlike `PositionComposerBody` the target
+ *  here can sit at any, changing distance - there's no fixed `cameraDistance` to divide by. */
+const scratchExtents: [number, number] = [0, 0];
 /** Matches `Damper.update`'s own `epsilon` — the gap at which it declares the distance arrived. */
 const DISTANCE_EPSILON = 1e-4;
 
@@ -71,6 +78,11 @@ function composeQuaternionForScreenPoint(
  * **Paired with `PositionComposer` on the same `screenPosition`, BOTH need a non-zero `deadZone`** — with
  * either side still hard, that side perfectly compensates every frame, so the other's dead zone check
  * never reacts.
+ *
+ * `radius`/`size` give the target an angular extent instead of a point: `deadZone`/`hardLimit` react to
+ * its nearest edge, capped to the zone's own half-size so an oversized target settles on dead center
+ * instead of oscillating - same idea as `PositionComposerBody`'s, but converted through the target's
+ * actual, possibly-changing distance (`computeScreenPoint`'s `depth`) rather than a fixed `cameraDistance`.
  */
 export class RotationComposerAim {
   target: Target;
@@ -80,6 +92,8 @@ export class RotationComposerAim {
   damping: DampingConstant;
   hardLimit: [number, number];
   targetOffset: Vector3;
+  radius?: number;
+  size?: Vector3Like;
 
   private readonly damper = new QuaternionDamper();
   /** Direction is damped as a ROTATION, not by lerping the point: a straight line between two look-at
@@ -97,6 +111,8 @@ export class RotationComposerAim {
     damping: DampingConstant = 0,
     hardLimit: [number, number] = [0, 0],
     targetOffset: Vector3 = new Vector3(),
+    radius?: number,
+    size?: Vector3Like,
   ) {
     this.target = target;
     this.screenPosition = screenPosition;
@@ -105,6 +121,8 @@ export class RotationComposerAim {
     this.damping = damping;
     this.hardLimit = hardLimit;
     this.targetOffset = targetOffset;
+    this.radius = radius;
+    this.size = size;
   }
 
   update = (out: CameraState, dt: number, justActivated: boolean): void => {
@@ -168,15 +186,25 @@ export class RotationComposerAim {
       );
 
       if (depth > 1e-6) {
+        const halfWidth = this.deadZone[0] / 2;
+        const halfHeight = this.deadZone[1] / 2;
+        scratchRight.set(1, 0, 0).applyQuaternion(out.quaternion);
+        scratchUp.set(0, 1, 0).applyQuaternion(out.quaternion);
+        resolveTargetHalfExtents(scratchExtents, this.target, this.size, this.radius, scratchRight, scratchUp);
+        // capped to the zone's own half-size, or an oversized target would overshoot center and oscillate
+        const extentX = Math.min(scratchExtents[0] / depth / tanHalfFovH, halfWidth);
+        const extentY = Math.min(scratchExtents[1] / depth / tanHalfFovV, halfHeight);
+
         const errorX = screenX - this.screenPosition[0];
         const errorY = screenY - this.screenPosition[1];
-        insideDeadZone = Math.abs(errorX) <= this.deadZone[0] / 2 && Math.abs(errorY) <= this.deadZone[1] / 2;
+        // the leading edge (center error + extent) must stay inside the zone, not just the center
+        const edgeErrorX = errorX + Math.sign(errorX) * extentX;
+        const edgeErrorY = errorY + Math.sign(errorY) * extentY;
+        insideDeadZone = Math.abs(edgeErrorX) <= halfWidth && Math.abs(edgeErrorY) <= halfHeight;
 
         if (!insideDeadZone) {
-          const halfWidth = this.deadZone[0] / 2;
-          const halfHeight = this.deadZone[1] / 2;
-          desiredX = this.screenPosition[0] + clamp(errorX, -halfWidth, halfWidth);
-          desiredY = this.screenPosition[1] + clamp(errorY, -halfHeight, halfHeight);
+          desiredX = this.screenPosition[0] + clamp(edgeErrorX, -halfWidth, halfWidth) - Math.sign(errorX) * extentX;
+          desiredY = this.screenPosition[1] + clamp(edgeErrorY, -halfHeight, halfHeight) - Math.sign(errorY) * extentY;
         }
       }
       // depth <= 0 (target behind camera): degenerate, fall through and correct all the way to screenPosition
@@ -214,12 +242,21 @@ export class RotationComposerAim {
 
     const halfLimitWidth = this.hardLimit[0] / 2;
     const halfLimitHeight = this.hardLimit[1] / 2;
+    scratchRight.set(1, 0, 0).applyQuaternion(out.quaternion);
+    scratchUp.set(0, 1, 0).applyQuaternion(out.quaternion);
+    resolveTargetHalfExtents(scratchExtents, this.target, this.size, this.radius, scratchRight, scratchUp);
+    // same overshoot cap as the dead zone pass, against this box's own half-size
+    const limitExtentX = Math.min(scratchExtents[0] / depth / tanHalfFovH, halfLimitWidth);
+    const limitExtentY = Math.min(scratchExtents[1] / depth / tanHalfFovV, halfLimitHeight);
+
     const errorX = screenX - this.screenPosition[0];
     const errorY = screenY - this.screenPosition[1];
-    if (Math.abs(errorX) <= halfLimitWidth && Math.abs(errorY) <= halfLimitHeight) return;
+    const edgeErrorX = errorX + Math.sign(errorX) * limitExtentX;
+    const edgeErrorY = errorY + Math.sign(errorY) * limitExtentY;
+    if (Math.abs(edgeErrorX) <= halfLimitWidth && Math.abs(edgeErrorY) <= halfLimitHeight) return;
 
-    const clampedX = this.screenPosition[0] + clamp(errorX, -halfLimitWidth, halfLimitWidth);
-    const clampedY = this.screenPosition[1] + clamp(errorY, -halfLimitHeight, halfLimitHeight);
+    const clampedX = this.screenPosition[0] + clamp(edgeErrorX, -halfLimitWidth, halfLimitWidth) - Math.sign(errorX) * limitExtentX;
+    const clampedY = this.screenPosition[1] + clamp(edgeErrorY, -halfLimitHeight, halfLimitHeight) - Math.sign(errorY) * limitExtentY;
     composeQuaternionForScreenPoint(
       scratchHardLimitQuaternion,
       out.position,
