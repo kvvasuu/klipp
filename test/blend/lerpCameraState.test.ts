@@ -263,6 +263,54 @@ describe('lerpCameraState', () => {
       expect(both.position.equals(sphericalOnly.position)).toBe(true);
     });
 
+    describe('a side with a zero orbit radius (position exactly AT its own target, e.g. HardLockToTarget snapped onto it) does not fake a sweep through Math.atan2/Spherical\'s "0" fallback angle', () => {
+      // real bug: a zero-length offset reports angle 0 (atan2/Spherical's fallback) - sweeping the other
+      // side's real angle toward that fake "0" swings the camera around the target for no reason
+      const farAngleA = makeState({
+        position: new Vector3(-5, 3, -5), // ~135°, away from atan2's "0" fallback in both axes
+        target: target.clone(),
+        hasTarget: true,
+      });
+      const zeroRadiusB = makeState({ position: new Vector3(8, 2, -1), target: new Vector3(8, 2, -1), hasTarget: true });
+
+      it('sphericalPosition holds a\'s own bearing/elevation instead of sweeping toward theta=0/phi=0', () => {
+        const offsetA = farAngleA.position.clone().sub(target);
+        const thetaA = Math.atan2(offsetA.x, offsetA.z);
+        const phiA = Math.acos(offsetA.y / offsetA.length());
+
+        for (let t = 0; t <= 1; t += 0.25) {
+          const out = createCameraState();
+          lerpCameraState(out, farAngleA, zeroRadiusB, t, BlendHints.sphericalPosition);
+
+          const interpolatedTarget = target.clone().lerp(zeroRadiusB.target, t);
+          const offset = out.position.clone().sub(interpolatedTarget);
+          if (offset.length() < 1e-6) continue; // radius ~0 near t=1 - bearing is moot there anyway
+
+          const theta = Math.atan2(offset.x, offset.z);
+          const phi = Math.acos(offset.y / offset.length());
+          expect(theta).toBeCloseTo(thetaA, 5);
+          expect(phi).toBeCloseTo(phiA, 5);
+        }
+      });
+
+      it('cylindricalPosition holds the same bearing (Y interpolates independently, unaffected)', () => {
+        const offsetA = farAngleA.position.clone().sub(target);
+        const angleA = Math.atan2(offsetA.x, offsetA.z);
+
+        for (let t = 0; t <= 1; t += 0.25) {
+          const out = createCameraState();
+          lerpCameraState(out, farAngleA, zeroRadiusB, t, BlendHints.cylindricalPosition);
+
+          const interpolatedTarget = target.clone().lerp(zeroRadiusB.target, t);
+          const offsetX = out.position.x - interpolatedTarget.x;
+          const offsetZ = out.position.z - interpolatedTarget.z;
+          if (Math.hypot(offsetX, offsetZ) < 1e-6) continue;
+
+          expect(Math.atan2(offsetX, offsetZ)).toBeCloseTo(angleA, 5);
+        }
+      });
+    });
+
     it('out.target/hasTarget carry the lerped target forward when both sides have one (so a later mid-blend interruption still has it)', () => {
       const withDifferentTarget = makeState({ position: new Vector3(0, 0, 5), target: new Vector3(10, 0, 0), hasTarget: true });
       const out = createCameraState();

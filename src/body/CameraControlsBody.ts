@@ -63,8 +63,9 @@ export class CameraControlsBody {
 
     // justActivated also forces re-anchor - wasResolvedLastFrame is stale while inactive (update() didn't run)
     if (resolved && (!this.wasResolvedLastFrame || justActivated)) {
-      // re-anchor in place rather than moveTo, which would jump by a stale delta
-      this.controls.setTarget(
+      // normalize first - setTarget()'s freshly-derived azimuth won't know the live one accumulated past
+      // it over several free-drag turns, and would otherwise ease back through every extra turn
+      this.controls.normalizeRotations().setTarget(
         scratchTargetPosition.x,
         scratchTargetPosition.y,
         scratchTargetPosition.z,
