@@ -202,4 +202,42 @@ describe('RotationComposer (React wrapper)', () => {
     const projected = projectToScreen(state.position, state.quaternion, state.fov, aspect, target.position);
     expect(projected.x).toBeCloseTo(0.15, 3);
   });
+
+  describe('debug', () => {
+    function readBoxColors(): string[] {
+      const canvas = document.querySelector('canvas');
+      const root = canvas?.parentElement?.querySelector('div');
+      return root ? Array.from(root.children).map((el) => (el as HTMLDivElement).style.borderColor) : [];
+    }
+
+    it('draws nothing (default false)', async () => {
+      const renderer = await create(
+        <Klipp>
+          <VirtualCamera name="a" priority={10}>
+            <RotationComposer target={new Object3D()} deadZone={[0.4, 0.4]} />
+          </VirtualCamera>
+        </Klipp>,
+        { beforeReturn: (canvas: HTMLCanvasElement) => document.body.appendChild(canvas) },
+      );
+      await renderer.advanceFrames(1, 0.1);
+
+      expect(readBoxColors()).toHaveLength(0);
+      document.body.replaceChildren();
+    });
+
+    it('draws deadZone/hardLimit boxes when true', async () => {
+      const renderer = await create(
+        <Klipp>
+          <VirtualCamera name="a" priority={10}>
+            <RotationComposer target={new Object3D()} deadZone={[0.4, 0.4]} hardLimit={[0.7, 0.7]} debug />
+          </VirtualCamera>
+        </Klipp>,
+        { beforeReturn: (canvas: HTMLCanvasElement) => document.body.appendChild(canvas) },
+      );
+      await renderer.advanceFrames(1, 0.1);
+
+      expect(readBoxColors()).toHaveLength(2);
+      document.body.replaceChildren();
+    });
+  });
 });

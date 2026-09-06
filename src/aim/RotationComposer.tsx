@@ -2,6 +2,7 @@ import type { Vector3 as Vector3Like } from '@react-three/fiber';
 import { useThree } from '@react-three/fiber';
 import { useEffect, useImperativeHandle, useState, type Ref } from 'react';
 import { Vector3 } from 'three';
+import { DebugZoneOverlay, type DebugZone } from '../DebugZoneOverlay';
 import type { DampingConstant } from '../damping/Damper';
 import { resolveVector3 } from '../resolve/resolveVector3';
 import type { Target } from '../resolve/Target';
@@ -36,6 +37,9 @@ export type RotationComposerProps = {
   /** Target's full box dimensions — takes priority over `radius`. Auto-detected from a `Mesh` target's own
    *  geometry bounds when neither is given. */
   size?: Vector3Like;
+  /** Draws `deadZone`/`hardLimit` as bordered rectangles over the canvas - only while this
+   *  `VirtualCamera` is actually the one on screen. Default `false`. */
+  debug?: boolean;
   /** Imperative access to the underlying `RotationComposerAim`, for reading/writing
    *  `target`/`screenPosition`/`deadZone`/`damping`/`hardLimit`/`targetOffset`/`radius`/`size` directly
    *  instead of through props, and for calling `recalculateSize()` on a target that deformed (a
@@ -63,6 +67,7 @@ export function RotationComposer({
   targetOffset = defaultTargetOffset,
   radius,
   size,
+  debug = false,
   ref,
 }: RotationComposerProps) {
   const slots = useVirtualCameraSlots();
@@ -84,5 +89,9 @@ export function RotationComposer({
   useImperativeHandle(ref, () => aim, [aim]);
   useEffect(() => slots.registerAim(aim.update), [slots, aim]);
 
-  return null;
+  if (!debug) return null;
+  const zones: DebugZone[] = [];
+  if (hardLimit[0] > 0 || hardLimit[1] > 0) zones.push({ screenPosition, size: hardLimit, color: '#cc3333' });
+  if (deadZone[0] > 0 || deadZone[1] > 0) zones.push({ screenPosition, size: deadZone, color: '#33cc33' });
+  return <DebugZoneOverlay zones={zones} />;
 }
