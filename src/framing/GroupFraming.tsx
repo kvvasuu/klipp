@@ -19,8 +19,9 @@ export type GroupFramingProps = {
    *  centered in the space left over after reserving room for UI on one side. Same convention as
    *  `PositionComposer`'s `screenPosition` (0 = center, ±1 = frame edge), not pixels. Default `[0, 0]`. */
   screenPosition?: [number, number];
-  /** Imperative access to the underlying `GroupFramingExtension`, for reading/writing its fields (or
-   *  the `TargetGroup` it owns) directly instead of through props. */
+  /** Imperative access to the underlying `GroupFramingExtension`, for reading/writing its fields (or the
+   *  `TargetGroup` it owns) directly instead of through props, and for calling `recalculateSize()` on a
+   *  member that deformed - auto-detected member sizes are otherwise only measured once. */
   ref?: Ref<GroupFramingExtension>;
 };
 

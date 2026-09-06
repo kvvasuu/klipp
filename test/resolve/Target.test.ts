@@ -1,6 +1,6 @@
-import { Object3D, Quaternion, Vector3 } from 'three';
+import { BoxGeometry, BufferGeometry, Line, Mesh, Object3D, Points, Quaternion, SkinnedMesh, Vector3 } from 'three';
 import { describe, expect, it } from 'vitest';
-import { resolveTargetPosition, resolveTargetRotation } from '../../src/resolve/Target';
+import { resolveTargetPosition, resolveTargetRotation, resolveTargetSize } from '../../src/resolve/Target';
 
 describe('resolveTargetPosition', () => {
   it('copies a Vector3 target as-is (already world-space) and returns true', () => {
@@ -75,6 +75,103 @@ describe('resolveTargetPosition', () => {
 
     expect(resolved).toBe(false);
     expect(out.equals(new Vector3(9, 9, 9))).toBe(true);
+  });
+});
+
+describe('resolveTargetSize', () => {
+  it("auto-detects a Mesh geometry's bounding box size", () => {
+    const mesh = new Mesh(new BoxGeometry(2, 4, 6));
+    const out = new Vector3();
+
+    expect(resolveTargetSize(out, mesh)).toBe(true);
+    expect(out.x).toBeCloseTo(2, 5);
+    expect(out.y).toBeCloseTo(4, 5);
+    expect(out.z).toBeCloseTo(6, 5);
+  });
+
+  it("auto-detects a SkinnedMesh too - it inherits Mesh's isMesh flag", () => {
+    const mesh = new SkinnedMesh(new BoxGeometry(2, 4, 6));
+    const out = new Vector3();
+
+    expect(resolveTargetSize(out, mesh)).toBe(true);
+    expect(out.x).toBeCloseTo(2, 5);
+  });
+
+  it('auto-detects a Line geometry (real gap: Line has no isMesh flag, only isLine)', () => {
+    const geometry = new BufferGeometry().setFromPoints([new Vector3(-1, 0, 0), new Vector3(1, 2, 3)]);
+    const line = new Line(geometry);
+    const out = new Vector3();
+
+    expect(resolveTargetSize(out, line)).toBe(true);
+    expect(out.x).toBeCloseTo(2, 5);
+    expect(out.y).toBeCloseTo(2, 5);
+    expect(out.z).toBeCloseTo(3, 5);
+  });
+
+  it('auto-detects a Points geometry (real gap: Points has no isMesh flag, only isPoints)', () => {
+    const geometry = new BufferGeometry().setFromPoints([new Vector3(-2, -1, -1), new Vector3(2, 1, 1)]);
+    const points = new Points(geometry);
+    const out = new Vector3();
+
+    expect(resolveTargetSize(out, points)).toBe(true);
+    expect(out.x).toBeCloseTo(4, 5);
+    expect(out.y).toBeCloseTo(2, 5);
+    expect(out.z).toBeCloseTo(2, 5);
+  });
+
+  it('returns false and leaves "out" untouched for a plain Object3D (no geometry)', () => {
+    const out = new Vector3(9, 9, 9);
+
+    expect(resolveTargetSize(out, new Object3D())).toBe(false);
+    expect(out.equals(new Vector3(9, 9, 9))).toBe(true);
+  });
+
+  it('an explicit size wins over auto-detection', () => {
+    const mesh = new Mesh(new BoxGeometry(2, 2, 2));
+    const out = new Vector3();
+
+    expect(resolveTargetSize(out, mesh, [10, 20, 30])).toBe(true);
+    expect(out.equals(new Vector3(10, 20, 30))).toBe(true);
+  });
+
+  it('radius without size means "sphere, not a box" - returns false even with a real Mesh', () => {
+    const mesh = new Mesh(new BoxGeometry(2, 2, 2));
+    const out = new Vector3(9, 9, 9);
+
+    expect(resolveTargetSize(out, mesh, undefined, 5)).toBe(false);
+    expect(out.equals(new Vector3(9, 9, 9))).toBe(true);
+  });
+
+  describe('dynamicSize', () => {
+    // a raw vertex edit (no .scale()/.applyMatrix4()) is the one case three.js itself never keeps
+    // boundingBox in sync for automatically - matches a SkinnedMesh's bind-pose-only limitation
+    function deformFirstVertex(mesh: Mesh): void {
+      const position = mesh.geometry.attributes.position;
+      position.setX(0, position.getX(0) * 10);
+      position.needsUpdate = true;
+    }
+
+    it('default (false): the FIRST computed bounding box is cached and reused - a later deformation goes unnoticed', () => {
+      const mesh = new Mesh(new BoxGeometry(2, 2, 2));
+      const out = new Vector3();
+      resolveTargetSize(out, mesh);
+
+      deformFirstVertex(mesh);
+      resolveTargetSize(out, mesh);
+
+      expect(out.x).toBeCloseTo(2, 5);
+    });
+
+    it('true: recomputes every call, picking up the same deformation', () => {
+      const mesh = new Mesh(new BoxGeometry(2, 2, 2));
+      const out = new Vector3();
+      resolveTargetSize(out, mesh, undefined, undefined, true);
+
+      deformFirstVertex(mesh);
+      resolveTargetSize(out, mesh, undefined, undefined, true);
+
+      expect(out.x).toBeGreaterThan(5);
+    });
   });
 });
 

@@ -34,7 +34,9 @@ export type PositionComposerProps = {
   size?: Vector3Like;
   /** Imperative access to the underlying `PositionComposerBody`, for reading/writing
    *  `target`/`cameraDistance`/`screenPosition`/`deadZone`/`damping`/`hardLimit`/`radius`/`size` directly
-   *  instead of through props. */
+   *  instead of through props, and for calling `recalculateSize()` on a target that deformed (a
+   *  `SkinnedMesh` bone animation, a mutated `BufferGeometry`) - auto-detected `size` is otherwise only
+   *  measured once. */
   ref?: Ref<PositionComposerBody>;
 };
 

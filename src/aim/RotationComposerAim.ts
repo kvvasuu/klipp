@@ -102,6 +102,7 @@ export class RotationComposerAim {
   private readonly lookAtDistanceDamper = new Damper();
   private readonly publishedLookRotation = new Quaternion();
   private publishedDistance = 0;
+  private forceSizeRecalculation = false;
 
   constructor(
     target: Target,
@@ -125,8 +126,17 @@ export class RotationComposerAim {
     this.size = size;
   }
 
+  /** Forces the auto-detected `size` to be re-measured on the NEXT `update()` call, then goes back to the
+   *  cheap cached behavior - for a target that deforms occasionally (an event), not continuously. */
+  recalculateSize(): void {
+    this.forceSizeRecalculation = true;
+  }
+
   update = (out: CameraState, dt: number, justActivated: boolean): void => {
     if (!resolveTargetPosition(scratchTargetPosition, this.target)) return;
+    // captured up front so an early return below can't leave it lit for a later, unrelated frame
+    const recalculateSizeThisFrame = this.forceSizeRecalculation;
+    this.forceSizeRecalculation = false;
 
     if (!resolveTargetRotation(scratchTargetRotation, this.target)) scratchTargetRotation.identity();
     scratchTargetPosition.add(scratchOffset.copy(this.targetOffset).applyQuaternion(scratchTargetRotation));
@@ -190,7 +200,7 @@ export class RotationComposerAim {
         const halfHeight = this.deadZone[1] / 2;
         scratchRight.set(1, 0, 0).applyQuaternion(out.quaternion);
         scratchUp.set(0, 1, 0).applyQuaternion(out.quaternion);
-        resolveTargetHalfExtents(scratchExtents, this.target, this.size, this.radius, scratchRight, scratchUp);
+        resolveTargetHalfExtents(scratchExtents, this.target, this.size, this.radius, scratchRight, scratchUp, recalculateSizeThisFrame);
         // capped to the zone's own half-size, or an oversized target would overshoot center and oscillate
         const extentX = Math.min(scratchExtents[0] / depth / tanHalfFovH, halfWidth);
         const extentY = Math.min(scratchExtents[1] / depth / tanHalfFovV, halfHeight);
@@ -244,7 +254,7 @@ export class RotationComposerAim {
     const halfLimitHeight = this.hardLimit[1] / 2;
     scratchRight.set(1, 0, 0).applyQuaternion(out.quaternion);
     scratchUp.set(0, 1, 0).applyQuaternion(out.quaternion);
-    resolveTargetHalfExtents(scratchExtents, this.target, this.size, this.radius, scratchRight, scratchUp);
+    resolveTargetHalfExtents(scratchExtents, this.target, this.size, this.radius, scratchRight, scratchUp, recalculateSizeThisFrame);
     // same overshoot cap as the dead zone pass, against this box's own half-size
     const limitExtentX = Math.min(scratchExtents[0] / depth / tanHalfFovH, halfLimitWidth);
     const limitExtentY = Math.min(scratchExtents[1] / depth / tanHalfFovV, halfLimitHeight);

@@ -383,6 +383,73 @@ describe('PositionComposerBody', () => {
       const projected = projectToScreen(out, 1, mesh.position.clone());
       expect(projected.x).toBeCloseTo(0.1, 4);
     });
+
+    // raw vertex mutation, not .scale()/.applyMatrix4() - the one case three.js never keeps a cached
+    // boundingBox in sync for automatically (same root cause as a SkinnedMesh's bind-pose limitation)
+    function growMeshGeometryThreefold(mesh: Mesh): void {
+      const position = mesh.geometry.attributes.position;
+      for (let i = 0; i < position.count; i++) {
+        position.setXYZ(i, position.getX(i) * 3, position.getY(i) * 3, position.getZ(i) * 3);
+      }
+      position.needsUpdate = true;
+    }
+
+    it("without recalculateSize(), keeps reacting to the mesh's ORIGINAL size after it grows", () => {
+      const mesh = new Mesh(new BoxGeometry(2, 2, 2), new MeshBasicMaterial());
+      mesh.position.set(0, 0, -20);
+      const body = new PositionComposerBody(mesh, 10, [0, 0], 1, [0.4, 0.4], 0);
+      const out = createCameraState();
+      out.fov = 90;
+      body.update(out, 0.1); // caches the original half-extent (1)
+
+      growMeshGeometryThreefold(mesh); // now half-extent 3, but the cache doesn't know that
+      mesh.position.set(1.5, 0, -20);
+      body.update(out, 0.1);
+
+      const projected = projectToScreen(out, 1, mesh.position.clone());
+      expect(projected.x).toBeCloseTo(0.1, 4); // same result as the un-grown mesh above
+    });
+
+    it('recalculateSize() reacts to the GROWN size on the very next update() call', () => {
+      const mesh = new Mesh(new BoxGeometry(2, 2, 2), new MeshBasicMaterial());
+      mesh.position.set(0, 0, -20);
+      const body = new PositionComposerBody(mesh, 10, [0, 0], 1, [0.4, 0.4], 0);
+      const out = createCameraState();
+      out.fov = 90;
+      body.update(out, 0.1);
+
+      growMeshGeometryThreefold(mesh); // half-extent now 3
+      body.recalculateSize();
+      mesh.position.set(1.5, 0, -20);
+      body.update(out, 0.1);
+
+      const projected = projectToScreen(out, 1, mesh.position.clone());
+      // extent(3)/cameraDistance(10) = 0.3 exceeds the dead zone's own half-width (0.2) - the earlier
+      // oscillation-safety cap kicks in (Math.min(extentX, halfDeadWidth)), settling dead center
+      expect(projected.x).toBeCloseTo(0, 4);
+    });
+
+    it('recalculateSize() only forces ONE recompute - a LATER deformation goes stale again', () => {
+      // deadZone's half-width (0.6) sits BETWEEN the two extents' screen fractions (0.3 for 3x, 0.9 for a
+      // would-be 9x) - neither hits the oscillation-safety cap, and only the 9x one alone would flip
+      // which side of the zone edge the correction lands on, so a wrongly-persisted flag is unmistakable
+      const mesh = new Mesh(new BoxGeometry(2, 2, 2), new MeshBasicMaterial());
+      mesh.position.set(10, 0, -20);
+      const body = new PositionComposerBody(mesh, 10, [0, 0], 1, [1.2, 1.2], 0);
+      const out = createCameraState();
+      out.fov = 90;
+      body.update(out, 0.1);
+
+      growMeshGeometryThreefold(mesh); // half-extent 1 -> 3, extentX 0.1 -> 0.3
+      body.recalculateSize();
+      body.update(out, 0.1);
+      const afterFirstRecalc = out.position.clone();
+
+      growMeshGeometryThreefold(mesh); // half-extent 3 -> 9, extentX -> 0.9, but NOT recalculated again
+      body.update(out, 0.1);
+
+      expect(out.position.equals(afterFirstRecalc)).toBe(true); // still reacting to the 3x measurement
+    });
   });
 
   describe('extent bigger than the reaction zone (real bug: used to oscillate like a spring, never converging)', () => {
