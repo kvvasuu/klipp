@@ -1,4 +1,4 @@
-import { clamp } from 'math';
+import { clamp, degreesToRadians } from 'math';
 import { Matrix4, Quaternion, Vector3 } from 'three';
 import type { CameraState } from '../CameraState';
 import { Damper, type DampingConstant } from '../damping/Damper';
@@ -145,7 +145,7 @@ export class RotationComposerAim {
     }
     out.hasLookAtTarget = true;
 
-    const halfFovV = (out.fov * Math.PI) / 360;
+    const halfFovV = degreesToRadians(out.fov) / 2;
     const tanHalfFovV = Math.tan(halfFovV);
     const tanHalfFovH = tanHalfFovV * this.aspect;
 

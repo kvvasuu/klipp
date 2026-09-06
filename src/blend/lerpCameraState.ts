@@ -1,4 +1,4 @@
-import { clamp, lerp } from 'math';
+import { clamp, deltaAngle, lerp } from 'math';
 import { Matrix4, Quaternion, Spherical, Vector3 } from 'three';
 import type { CameraState } from '../CameraState';
 import { BlendHints, hasBlendHint } from './BlendHints';
@@ -41,15 +41,6 @@ function lerpLookAtRotation(
   out.slerpQuaternions(scratchDeltaA, scratchDeltaB, t).premultiply(scratchLookAtCurrent);
 }
 
-/** Shortest signed angular distance from `from` to `to`, in (-π, π] — a raw `to - from` would take the
- *  long way around whenever the two angles straddle the ±π wraparound. */
-function shortestAngleDelta(from: number, to: number): number {
-  const delta = (to - from) % (Math.PI * 2);
-  if (delta > Math.PI) return delta - Math.PI * 2;
-  if (delta < -Math.PI) return delta + Math.PI * 2;
-  return delta;
-}
-
 /** Below this, `Math.atan2`/`Spherical` report a fake angle of `0` for lack of any real direction -
  *  matches `Damper.update`'s own snap epsilon. */
 const RADIUS_EPSILON = 1e-4;
@@ -59,7 +50,7 @@ const RADIUS_EPSILON = 1e-4;
 function blendAngle(angleA: number, radiusA: number, angleB: number, radiusB: number, t: number): number {
   const validA = radiusA >= RADIUS_EPSILON;
   const validB = radiusB >= RADIUS_EPSILON;
-  if (validA && validB) return angleA + shortestAngleDelta(angleA, angleB) * t;
+  if (validA && validB) return angleA + deltaAngle(angleA, angleB) * t;
   return validA ? angleA : angleB;
 }
 
@@ -117,7 +108,7 @@ function slerpWithContinuity(out: Quaternion, from: Quaternion, to: Quaternion, 
     toZ = to.z,
     toW = to.w;
 
-  const dot = Math.min(1, Math.max(-1, from.x * toX + from.y * toY + from.z * toZ + from.w * toW));
+  const dot = clamp(from.x * toX + from.y * toY + from.z * toZ + from.w * toW, -1, 1);
   const fromX = from.x,
     fromY = from.y,
     fromZ = from.z,
