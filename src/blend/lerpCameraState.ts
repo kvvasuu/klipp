@@ -1,4 +1,4 @@
-import { clamp, lerp } from 'math';
+import { clamp, deltaAngle, lerp } from 'math';
 import { Matrix4, Quaternion, Spherical, Vector3 } from 'three';
 import type { CameraState } from '../CameraState';
 import { BlendHints, hasBlendHint } from './BlendHints';
@@ -23,7 +23,14 @@ const scratchDeltaB = new Quaternion();
  * position/target - matches `a`/`b` exactly at t=0/1 (unlike a raw lookAt, which drops `delta` entirely
  * and so pops the instant a blend commits and hands off to the Aim's own, un-blended state).
  */
-function lerpLookAtRotation(out: Quaternion, a: CameraState, b: CameraState, position: Vector3, lookAtTarget: Vector3, t: number): void {
+function lerpLookAtRotation(
+  out: Quaternion,
+  a: CameraState,
+  b: CameraState,
+  position: Vector3,
+  lookAtTarget: Vector3,
+  t: number,
+): void {
   scratchLookMatrix.lookAt(a.position, a.lookAtTarget, worldUp);
   scratchDeltaA.setFromRotationMatrix(scratchLookMatrix).invert().multiply(a.quaternion);
   scratchLookMatrix.lookAt(b.position, b.lookAtTarget, worldUp);
@@ -34,39 +41,55 @@ function lerpLookAtRotation(out: Quaternion, a: CameraState, b: CameraState, pos
   out.slerpQuaternions(scratchDeltaA, scratchDeltaB, t).premultiply(scratchLookAtCurrent);
 }
 
-/** Shortest signed angular distance from `from` to `to`, in (-π, π] — a raw `to - from` would take the
- *  long way around whenever the two angles straddle the ±π wraparound. */
-function shortestAngleDelta(from: number, to: number): number {
-  const delta = (to - from) % (Math.PI * 2);
-  if (delta > Math.PI) return delta - Math.PI * 2;
-  if (delta < -Math.PI) return delta + Math.PI * 2;
-  return delta;
+/** Below this, `Math.atan2`/`Spherical` report a fake angle of `0` for lack of any real direction -
+ *  matches `Damper.update`'s own snap epsilon. */
+const RADIUS_EPSILON = 1e-4;
+
+/** Holds the OTHER side's angle when one side's radius is too small for its own angle to mean anything -
+ *  otherwise a fake `0` fallback would sweep the real one around the target for no reason. */
+function blendAngle(angleA: number, radiusA: number, angleB: number, radiusB: number, t: number): number {
+  const validA = radiusA >= RADIUS_EPSILON;
+  const validB = radiusB >= RADIUS_EPSILON;
+  if (validA && validB) return angleA + deltaAngle(angleA, angleB) * t;
+  return validA ? angleA : angleB;
 }
 
 /** `BlendHints.sphericalPosition`/`cylindricalPosition`: interpolates the camera's offset from its
  *  tracking target in spherical/cylindrical coordinates instead of a straight cartesian lerp. */
-function lerpPositionAroundTarget(
-  out: Vector3,
-  a: CameraState,
-  b: CameraState,
-  t: number,
-  cylindrical: boolean,
-): void {
+function lerpPositionAroundTarget(out: Vector3, a: CameraState, b: CameraState, t: number, cylindrical: boolean): void {
   scratchOffsetA.copy(a.position).sub(a.target);
   scratchOffsetB.copy(b.position).sub(b.target);
 
   if (cylindrical) {
     const radiusA = Math.hypot(scratchOffsetA.x, scratchOffsetA.z);
     const radiusB = Math.hypot(scratchOffsetB.x, scratchOffsetB.z);
-    const angleA = Math.atan2(scratchOffsetA.x, scratchOffsetA.z);
-    const angle = angleA + shortestAngleDelta(angleA, Math.atan2(scratchOffsetB.x, scratchOffsetB.z)) * t;
+    const angle = blendAngle(
+      Math.atan2(scratchOffsetA.x, scratchOffsetA.z),
+      radiusA,
+      Math.atan2(scratchOffsetB.x, scratchOffsetB.z),
+      radiusB,
+      t,
+    );
     const radius = lerp(radiusA, radiusB, t);
     out.set(radius * Math.sin(angle), lerp(scratchOffsetA.y, scratchOffsetB.y, t), radius * Math.cos(angle));
   } else {
     scratchSphericalA.setFromVector3(scratchOffsetA);
     scratchSphericalB.setFromVector3(scratchOffsetB);
-    const theta = scratchSphericalA.theta + shortestAngleDelta(scratchSphericalA.theta, scratchSphericalB.theta) * t;
-    out.setFromSphericalCoords(lerp(scratchSphericalA.radius, scratchSphericalB.radius, t), lerp(scratchSphericalA.phi, scratchSphericalB.phi, t), theta);
+    const theta = blendAngle(
+      scratchSphericalA.theta,
+      scratchSphericalA.radius,
+      scratchSphericalB.theta,
+      scratchSphericalB.radius,
+      t,
+    );
+    const phi = blendAngle(
+      scratchSphericalA.phi,
+      scratchSphericalA.radius,
+      scratchSphericalB.phi,
+      scratchSphericalB.radius,
+      t,
+    );
+    out.setFromSphericalCoords(lerp(scratchSphericalA.radius, scratchSphericalB.radius, t), phi, theta);
   }
 
   out.x += lerp(a.target.x, b.target.x, t);
@@ -85,7 +108,7 @@ function slerpWithContinuity(out: Quaternion, from: Quaternion, to: Quaternion, 
     toZ = to.z,
     toW = to.w;
 
-  const dot = Math.min(1, Math.max(-1, from.x * toX + from.y * toY + from.z * toZ + from.w * toW));
+  const dot = clamp(from.x * toX + from.y * toY + from.z * toZ + from.w * toW, -1, 1);
   const fromX = from.x,
     fromY = from.y,
     fromZ = from.z,

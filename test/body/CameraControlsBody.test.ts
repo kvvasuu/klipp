@@ -181,6 +181,32 @@ describe('CameraControlsBody', () => {
     expect(forward.dot(towardTarget)).toBeGreaterThan(0.99); // and it DOES get there
   });
 
+  it("re-acquiring after several full free-drag turns eases the SHORT way, instead of visibly unwinding through every accumulated turn (real bug: camera-controls' azimuth keeps accumulating past +-180 degrees, and setTarget()'s freshly-computed goal doesn't know that)", () => {
+    const target = new Vector3(0, 0, 0);
+    // a real starting distance - a degenerate radius-0 orbit has no "look" direction to sweep, masking the bug
+    const body = new CameraControlsBody(target, 1, new Vector3(6, 4, 6), CameraControls, true);
+    const out = createCameraState();
+    for (let i = 0; i < 5; i++) body.update(out, 0.05); // locked, settled
+
+    body.target = null; // "Free Control"
+    body.controls.rotate(Math.PI * 2 * 3, 0, false); // three full turns, same direction, like a real drag
+    for (let i = 0; i < 10; i++) body.update(out, 0.05);
+
+    body.target = target; // re-acquire - the bug: this used to visibly spin backward through all 3 turns
+    // total angle actually swept by the RENDERED camera - a correct wrap jumps the raw azimuth number by
+    // a full turn too, but that's invisible bookkeeping, not real motion
+    let totalRotation = 0;
+    const previousQuaternion = out.quaternion.clone();
+    for (let i = 0; i < 200; i++) {
+      body.update(out, 0.05);
+      totalRotation += out.quaternion.angleTo(previousQuaternion);
+      previousQuaternion.copy(out.quaternion);
+    }
+
+    // a correct shortest-path ease only ever has to cover a bit more than half a turn, never three of them
+    expect(totalRotation).toBeLessThan(Math.PI * 1.5);
+  });
+
   it('justActivated re-anchors instead of moveTo jumping by a stale delta, even when the target never went null (real bug: reactivating via the `active` prop leaves wasResolvedLastFrame stale, since update() never ran at all while inactive)', () => {
     const target = new Vector3(0, 0, 0);
     const body = new CameraControlsBody(target, 1);
@@ -350,7 +376,11 @@ describe('CameraControlsBody', () => {
       const core = new KlippCore({ defaultBlend: { curve: BlendCurves.linear, time: 1 } });
 
       const aState = createCameraState();
-      new HardLockToTargetBody(new Vector3(10, 0, 0)).update(aState, 0.016);
+      // damping + a moved target gives a's offset a real, non-zero orbit radius (not a degenerate snap)
+      const aBody = new HardLockToTargetBody(new Vector3(10, 0, 0), 0.5);
+      aBody.update(aState, 0.016, true);
+      aBody.target = new Vector3(20, 5, 0);
+      aBody.update(aState, 0.016, false);
       new HardLookAtAim(new Vector3(0, 0, 0)).update(aState, 0.016);
       core.registerCamera({ id: 'a', priority: 10, state: aState, hints: BlendHints.sphericalPosition });
       core.tick(0);
