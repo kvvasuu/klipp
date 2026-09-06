@@ -1,24 +1,18 @@
 import type { Vector3 as Vector3Like } from '@react-three/fiber';
 import { clamp, degreesToRadians } from 'math';
-import { Quaternion, Vector3 } from 'three';
+import { Vector3 } from 'three';
 import type { CameraState } from '../CameraState';
 import type { DampingConstant } from '../damping/Damper';
 import { Vector3Damper } from '../damping/Vector3Damper';
-import { resolveTargetPosition, resolveTargetRotation, resolveTargetSize, type Target } from '../resolve/Target';
+import { resolveTargetHalfExtents, resolveTargetPosition, type Target } from '../resolve/Target';
 
 const scratchForward = new Vector3();
 const scratchRight = new Vector3();
 const scratchUp = new Vector3();
 const scratchTargetPosition = new Vector3();
-const scratchTargetRotation = new Quaternion();
 const scratchRelative = new Vector3();
 const scratchDesiredPosition = new Vector3();
-const scratchSize = new Vector3();
-const scratchHalfSize = new Vector3();
-const scratchAxisX = new Vector3();
-const scratchAxisY = new Vector3();
-const scratchAxisZ = new Vector3();
-/** `[halfExtentRight, halfExtentUp]` - reused scratch, no allocation (see `computeHalfExtents`). */
+/** `[halfExtentRight, halfExtentUp]` - reused scratch, no allocation (see `resolveTargetHalfExtents`). */
 const scratchExtents: [number, number] = [0, 0];
 
 /**
@@ -72,32 +66,6 @@ export class PositionComposerBody {
     this.size = size;
   }
 
-  /** Half the target's screen-space reach along `scratchRight`/`scratchUp` - `[0, 0]` for a point target.
-   *  A box's half-extent along an axis is the sum of its rotated half-size axes' projections onto it. */
-  private computeHalfExtents = (): readonly [number, number] => {
-    if (this.radius !== undefined && !this.size) {
-      scratchExtents[0] = this.radius;
-      scratchExtents[1] = this.radius;
-      return scratchExtents;
-    }
-    if (!resolveTargetSize(scratchSize, this.target, this.size, this.radius)) {
-      scratchExtents[0] = 0;
-      scratchExtents[1] = 0;
-      return scratchExtents;
-    }
-
-    if (!resolveTargetRotation(scratchTargetRotation, this.target)) scratchTargetRotation.identity();
-    scratchHalfSize.copy(scratchSize).multiplyScalar(0.5);
-    scratchAxisX.set(scratchHalfSize.x, 0, 0).applyQuaternion(scratchTargetRotation);
-    scratchAxisY.set(0, scratchHalfSize.y, 0).applyQuaternion(scratchTargetRotation);
-    scratchAxisZ.set(0, 0, scratchHalfSize.z).applyQuaternion(scratchTargetRotation);
-    scratchExtents[0] =
-      Math.abs(scratchAxisX.dot(scratchRight)) + Math.abs(scratchAxisY.dot(scratchRight)) + Math.abs(scratchAxisZ.dot(scratchRight));
-    scratchExtents[1] =
-      Math.abs(scratchAxisX.dot(scratchUp)) + Math.abs(scratchAxisY.dot(scratchUp)) + Math.abs(scratchAxisZ.dot(scratchUp));
-    return scratchExtents;
-  };
-
   update = (out: CameraState, dt: number, justActivated: boolean): void => {
     if (!resolveTargetPosition(scratchTargetPosition, this.target)) return;
     out.target.copy(scratchTargetPosition);
@@ -117,9 +85,9 @@ export class PositionComposerBody {
     const halfHeight = this.cameraDistance * Math.tan(degreesToRadians(out.fov) / 2);
     const halfWidth = halfHeight * this.aspect;
 
-    const [halfExtentRight, halfExtentUp] = this.computeHalfExtents();
-    const extentX = halfExtentRight / halfWidth;
-    const extentY = halfExtentUp / halfHeight;
+    resolveTargetHalfExtents(scratchExtents, this.target, this.size, this.radius, scratchRight, scratchUp);
+    const extentX = scratchExtents[0] / halfWidth;
+    const extentY = scratchExtents[1] / halfHeight;
 
     const currentRight = scratchRelative.dot(scratchRight);
     const currentUp = scratchRelative.dot(scratchUp);

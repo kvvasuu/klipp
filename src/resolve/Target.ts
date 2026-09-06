@@ -1,6 +1,6 @@
 import type { Vector3 as Vector3Like } from '@react-three/fiber';
 import type { RefObject } from 'react';
-import { Vector3, type Mesh, type Object3D, type Quaternion } from 'three';
+import { Quaternion, Vector3, type Mesh, type Object3D } from 'three';
 import { isVector3Like, resolveVector3 } from './resolveVector3';
 
 /** What a Body/Aim `target` prop accepts: a fixed point (r3f's `Vector3` shorthand — instance, `[x,y,z]`,
@@ -36,6 +36,45 @@ export function resolveTargetSize(outSize: Vector3, target: Target, size?: Vecto
   mesh.getWorldScale(scratchWorldScale);
   outSize.multiply(scratchWorldScale);
   return true;
+}
+
+const scratchHalfSize = new Vector3();
+const scratchAxisX = new Vector3();
+const scratchAxisY = new Vector3();
+const scratchAxisZ = new Vector3();
+const scratchTargetRotation = new Quaternion();
+const scratchTargetSize = new Vector3();
+
+/** Half a target's reach along two given world axes (typically a camera's Right/Up) - `[0, 0]` for a
+ *  dimensionless point (no `radius`/`size`, nothing auto-detected). A box's half-extent along an axis is
+ *  the sum of its own (rotated) half-size axes' projections onto it - the standard oriented-bounding-box
+ *  formula. Writes into `outExtents` in place - no allocation. */
+export function resolveTargetHalfExtents(
+  outExtents: [number, number],
+  target: Target,
+  size: Vector3Like | undefined,
+  radius: number | undefined,
+  axisA: Vector3,
+  axisB: Vector3,
+): void {
+  if (radius !== undefined && !size) {
+    outExtents[0] = radius;
+    outExtents[1] = radius;
+    return;
+  }
+  if (!resolveTargetSize(scratchTargetSize, target, size, radius)) {
+    outExtents[0] = 0;
+    outExtents[1] = 0;
+    return;
+  }
+
+  if (!resolveTargetRotation(scratchTargetRotation, target)) scratchTargetRotation.identity();
+  scratchHalfSize.copy(scratchTargetSize).multiplyScalar(0.5);
+  scratchAxisX.set(scratchHalfSize.x, 0, 0).applyQuaternion(scratchTargetRotation);
+  scratchAxisY.set(0, scratchHalfSize.y, 0).applyQuaternion(scratchTargetRotation);
+  scratchAxisZ.set(0, 0, scratchHalfSize.z).applyQuaternion(scratchTargetRotation);
+  outExtents[0] = Math.abs(scratchAxisX.dot(axisA)) + Math.abs(scratchAxisY.dot(axisA)) + Math.abs(scratchAxisZ.dot(axisA));
+  outExtents[1] = Math.abs(scratchAxisX.dot(axisB)) + Math.abs(scratchAxisY.dot(axisB)) + Math.abs(scratchAxisZ.dot(axisB));
 }
 
 /** Resolves a `Target` to a world position. Returns `false` (leaving `out` untouched) for `null`/

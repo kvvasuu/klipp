@@ -30,9 +30,15 @@ export type RotationComposerProps = {
    *  composition math — e.g. aim at a character's head instead of its feet/origin. Degrades to a plain
    *  world-space offset for a target with no rotation (a fixed point). Default `(0, 0, 0)`. */
   targetOffset?: Vector3Like;
+  /** Target's own bounding-sphere radius — `deadZone`/`hardLimit` then react to its nearest EDGE, not its
+   *  center. Ignored if `size` is given. Default: a dimensionless point. */
+  radius?: number;
+  /** Target's full box dimensions — takes priority over `radius`. Auto-detected from a `Mesh` target's own
+   *  geometry bounds when neither is given. */
+  size?: Vector3Like;
   /** Imperative access to the underlying `RotationComposerAim`, for reading/writing
-   *  `target`/`screenPosition`/`deadZone`/`damping`/`hardLimit`/`targetOffset` directly instead of
-   *  through props. */
+   *  `target`/`screenPosition`/`deadZone`/`damping`/`hardLimit`/`targetOffset`/`radius`/`size` directly
+   *  instead of through props. */
   ref?: Ref<RotationComposerAim>;
 };
 
@@ -53,12 +59,15 @@ export function RotationComposer({
   damping = 0,
   hardLimit = defaultHardLimit,
   targetOffset = defaultTargetOffset,
+  radius,
+  size,
   ref,
 }: RotationComposerProps) {
   const slots = useVirtualCameraSlots();
   const aspect = useThree((state) => state.viewport.aspect);
   const [aim] = useState(
-    () => new RotationComposerAim(target, screenPosition, aspect, deadZone, damping, hardLimit, new Vector3()),
+    () =>
+      new RotationComposerAim(target, screenPosition, aspect, deadZone, damping, hardLimit, new Vector3(), radius, size),
   );
   aim.target = target;
   aim.screenPosition = screenPosition;
@@ -66,6 +75,8 @@ export function RotationComposer({
   aim.deadZone = deadZone;
   aim.damping = damping;
   aim.hardLimit = hardLimit;
+  aim.radius = radius;
+  aim.size = size;
   resolveVector3(aim.targetOffset, targetOffset);
 
   useImperativeHandle(ref, () => aim, [aim]);

@@ -1,4 +1,4 @@
-import { Object3D, PerspectiveCamera, Quaternion, Vector3 } from 'three';
+import { BoxGeometry, Mesh, MeshBasicMaterial, Object3D, PerspectiveCamera, Quaternion, Vector3 } from 'three';
 import { describe, expect, it } from 'vitest';
 import { createCameraState } from '../../src/CameraState';
 import { RotationComposerAim } from '../../src/aim/RotationComposerAim';
@@ -264,6 +264,140 @@ describe('RotationComposerAim', () => {
       aim.update(out, 0.1);
       projected = projectToScreen(out, 1, target);
       expect(projected.y).toBeCloseTo(0.1, 2);
+    });
+  });
+
+  describe('dead zone with target extent (radius/size)', () => {
+    it("a radius makes the dead zone react to the target's EDGE, catching drift a point target would still ignore", () => {
+      const target = new Vector3(0, 0, -10);
+      const aim = new RotationComposerAim(target, [0, 0], 1, [0.4, 0.4], 0, [0, 0], new Vector3(), 1); // radius = 1
+      const out = createCameraState();
+      out.fov = 90; // tan(45°) = 1, so depth-normalized math is clean
+      aim.update(out, 0.1); // baseline, dead-center
+
+      target.set(1.5, 0, -10); // point-only offset: 1.5 / depth(10) = 0.15, inside [0.4, 0.4]
+      aim.update(out, 0.1);
+
+      const projected = projectToScreen(out, 1, target);
+      // edge = 0.15 + radius(1)/depth(10) = 0.25, past the dead zone's 0.2 half-width - clamped there,
+      // so the CENTER lands 0.1 short of the edge (0.2 - extent 0.1)
+      expect(projected.x).toBeCloseTo(0.1, 4);
+    });
+
+    it('the identical nudge with no radius stays inside the dead zone (point-target baseline unaffected)', () => {
+      const target = new Vector3(0, 0, -10);
+      const aim = new RotationComposerAim(target, [0, 0], 1, [0.4, 0.4], 0);
+      const out = createCameraState();
+      out.fov = 90;
+      aim.update(out, 0.1);
+      const before = out.quaternion.clone();
+
+      target.set(1.5, 0, -10);
+      aim.update(out, 0.1);
+
+      expect(out.quaternion.equals(before)).toBe(true);
+    });
+
+    it('an axis-aligned size reproduces the same edge as an equivalent radius', () => {
+      const target = new Vector3(0, 0, -10);
+      const aim = new RotationComposerAim(target, [0, 0], 1, [0.4, 0.4], 0, [0, 0], new Vector3(), undefined, [2, 2, 2]);
+      const out = createCameraState();
+      out.fov = 90;
+      aim.update(out, 0.1);
+
+      target.set(1.5, 0, -10);
+      aim.update(out, 0.1);
+
+      const projected = projectToScreen(out, 1, target);
+      expect(projected.x).toBeCloseTo(0.1, 4); // half-size 1 on each axis - same reach as radius 1
+    });
+
+    it("a rotated box uses its own oriented extent, not an axis-aligned approximation", () => {
+      const targetObject = new Object3D();
+      targetObject.quaternion.setFromAxisAngle(new Vector3(0, 1, 0), Math.PI / 4); // 45° around Y
+      targetObject.position.set(0, 0, -10);
+
+      const aim = new RotationComposerAim(
+        targetObject,
+        [0, 0],
+        1,
+        [0.4, 0.4],
+        0,
+        [0, 0],
+        new Vector3(),
+        undefined,
+        [2, 2, 2],
+      );
+      const out = createCameraState();
+      out.fov = 90;
+      aim.update(out, 0.1); // dead-center baseline
+
+      targetObject.position.set(1.5, 0, -10);
+      aim.update(out, 0.1);
+
+      const projected = projectToScreen(out, 1, targetObject.position.clone());
+      // a 45°-rotated square's half-diagonal reach along Right = half-size * sqrt(2)
+      const extent = Math.sqrt(2) / 10;
+      expect(projected.x).toBeCloseTo(0.2 - extent, 4);
+    });
+
+    it('auto-detects size from a Mesh target end-to-end, same as an explicit size', () => {
+      const mesh = new Mesh(new BoxGeometry(2, 2, 2), new MeshBasicMaterial());
+      mesh.position.set(0, 0, -10);
+
+      const aim = new RotationComposerAim(mesh, [0, 0], 1, [0.4, 0.4], 0);
+      const out = createCameraState();
+      out.fov = 90;
+      aim.update(out, 0.1);
+
+      mesh.position.set(1.5, 0, -10);
+      aim.update(out, 0.1);
+
+      const projected = projectToScreen(out, 1, mesh.position.clone());
+      expect(projected.x).toBeCloseTo(0.1, 4);
+    });
+  });
+
+  describe('extent bigger than the reaction zone (real bug in PositionComposer, fixed here from the start)', () => {
+    it('a radius larger than the dead zone settles at dead center instead of alternating forever', () => {
+      const target = new Vector3(0, 0, -10);
+      const aim = new RotationComposerAim(target, [0, 0], 1, [0.4, 0.4], 0, [0, 0], new Vector3(), 3); // radius 3 > deadZone's own half-width in world units at this depth
+      const out = createCameraState();
+      out.fov = 90;
+      aim.update(out, 0.1); // baseline, dead-center
+
+      target.set(0.3, 0, -10); // nudge off-center
+      aim.update(out, 0.1); // first reaction to the nudge - expected to move
+      let previous = out.quaternion.clone();
+      for (let i = 0; i < 20; i++) {
+        aim.update(out, 0.1);
+        expect(out.quaternion.angleTo(previous)).toBeLessThan(1e-6); // stays put after that, doesn't alternate
+        previous = out.quaternion.clone();
+      }
+
+      const projected = projectToScreen(out, 1, target);
+      expect(projected.x).toBeCloseTo(0, 4); // the best achievable compromise: dead center
+    });
+
+    it('a radius larger than hardLimit settles at dead center there too, not alternating', () => {
+      const target = new Vector3(0, 0, -10);
+      // huge deadZone never triggers, isolating hardLimit; radius 3 > hardLimit's own half-width here
+      const aim = new RotationComposerAim(target, [0, 0], 1, [10, 10], 0, [0.1, 0.1], new Vector3(), 3);
+      const out = createCameraState();
+      out.fov = 90;
+      aim.update(out, 0.1); // baseline, dead-center
+
+      target.set(3, 0, -10); // nudge - stays inside the huge deadZone, so only hardLimit reacts
+      aim.update(out, 0.1); // first reaction to the nudge - expected to move
+      let previous = out.quaternion.clone();
+      for (let i = 0; i < 20; i++) {
+        aim.update(out, 0.1);
+        expect(out.quaternion.angleTo(previous)).toBeLessThan(1e-6); // stays put after that, doesn't alternate
+        previous = out.quaternion.clone();
+      }
+
+      const projected = projectToScreen(out, 1, target);
+      expect(projected.x).toBeCloseTo(0, 3); // the best achievable compromise: dead center
     });
   });
 

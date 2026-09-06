@@ -166,6 +166,40 @@ function TargetExtentScene({ mode }: { mode: TargetExtentMode }) {
   );
 }
 
+type RotationExtentMode = 'point' | 'radius' | 'size';
+
+const rotationExtentCameraPosition: [number, number, number] = [0, 3, 12];
+
+/** Same idea as `TargetExtentScene`, but for `RotationComposer` (Aim) instead of `PositionComposer`
+ *  (Body) - the camera stays fixed in place, only its ROTATION reacts to the target's edge instead of
+ *  its center.
+ */
+function RotationExtentScene({ mode }: { mode: RotationExtentMode }) {
+  const targetRef = useRef<Mesh>(null);
+
+  return (
+    <>
+      <ambientLight intensity={0.6} />
+      <directionalLight position={[5, 8, 3]} intensity={1.2} />
+      <gridHelper args={[24, 24, '#444', '#222']} position={[0, 0.01, 0]} />
+
+      <TargetExtentZigzag targetRef={targetRef} />
+
+      <Klipp>
+        <VirtualCamera name="rotationExtent-demo" active={true} priority={10}>
+          <Body.HardLockToTarget target={rotationExtentCameraPosition} />
+          <Aim.RotationComposer
+            target={targetRef}
+            deadZone={[0.4, 0.4]}
+            damping={0.2}
+            radius={mode === 'point' ? 0 : mode === 'radius' ? 2 : undefined}
+          />
+        </VirtualCamera>
+      </Klipp>
+    </>
+  );
+}
+
 type NoisePreset = 'off' | 'subtle' | 'heavy';
 
 const noisePresets: Record<
@@ -781,6 +815,7 @@ type Demo =
   | 'reactivationSnap'
   | 'initialState'
   | 'targetExtent'
+  | 'rotationExtent'
   | 'capstone';
 
 function App() {
@@ -803,6 +838,7 @@ function App() {
   const [initialStateMode, setInitialStateMode] = useState<InitialStateMode>('follow');
   const [initialStateSeeded, setInitialStateSeeded] = useState(false);
   const [targetExtentMode, setTargetExtentMode] = useState<TargetExtentMode>('point');
+  const [rotationExtentMode, setRotationExtentMode] = useState<RotationExtentMode>('point');
   const [lookAtPopFocus, setLookAtPopFocus] = useState<LookAtPopTarget | null>(null);
   const [lookAtPopMaxJumpDeg, setLookAtPopMaxJumpDeg] = useState(0);
   const [lookAtPopMeterKey, setLookAtPopMeterKey] = useState(0);
@@ -878,6 +914,9 @@ function App() {
         </button>
         <button data-active={demo === 'targetExtent'} onClick={() => setDemo('targetExtent')}>
           Target Extent
+        </button>
+        <button data-active={demo === 'rotationExtent'} onClick={() => setDemo('rotationExtent')}>
+          Rotation Extent
         </button>
         {demo === 'offset' &&
           (
@@ -1061,6 +1100,19 @@ function App() {
             </button>
           </>
         )}
+        {demo === 'rotationExtent' && (
+          <>
+            <button data-active={rotationExtentMode === 'point'} onClick={() => setRotationExtentMode('point')}>
+              Point (radius=0, ignores real size)
+            </button>
+            <button data-active={rotationExtentMode === 'radius'} onClick={() => setRotationExtentMode('radius')}>
+              Radius (sphere approx.)
+            </button>
+            <button data-active={rotationExtentMode === 'size'} onClick={() => setRotationExtentMode('size')}>
+              Size (auto-detected from Mesh)
+            </button>
+          </>
+        )}
       </div>
       {demo === 'capstone' ? (
         <CapstoneScene />
@@ -1097,6 +1149,7 @@ function App() {
           )}
           {demo === 'initialState' && <InitialStateScene mode={initialStateMode} seeded={initialStateSeeded} />}
           {demo === 'targetExtent' && <TargetExtentScene mode={targetExtentMode} />}
+          {demo === 'rotationExtent' && <RotationExtentScene mode={rotationExtentMode} />}
         </Canvas>
       )}
       {demo === 'offset' && (
@@ -1171,6 +1224,14 @@ function App() {
           a dimensionless center (radius=0), so the box visibly leaves the dead zone box before the camera reacts.
           "Radius" and "Size" react to its nearest EDGE instead - "Size" auto-detects the box's own rotated geometry, so
           it tracks tightly no matter how the box is tumbling.
+        </p>
+      )}
+      {demo === 'rotationExtent' && (
+        <p className="hint-text">
+          Same idea, but for RotationComposer - the camera stays FIXED in place, only its rotation reacts. "Point"
+          treats the box as a dimensionless center, so it visibly leaves the dead zone before the camera turns to
+          follow. "Radius" and "Size" react to its nearest EDGE instead, converted to an angular extent at the box's
+          actual (changing) distance from the fixed camera.
         </p>
       )}
     </>
