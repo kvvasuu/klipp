@@ -4,4 +4,59 @@ description: Event-driven, one-shot reactions like explosions or impacts.
 nav: 32
 ---
 
-Coming soon.
+Position-only, one-shot reactions - an explosion, an impact, a footstep - instead of continuous shake. `ImpulseManager.generate()` fires an event with its own position, direction/strength, and envelope; `Noise.ImpulseListener` samples the sum of every still-active event as an additive position offset, the same stacking Noise slot [`BasicMultiChannelPerlin`](/noise/basic-multi-channel-perlin) uses.
+
+```tsx
+import { impulseManager } from '@kvvasuu/klipp';
+
+function onExplosion(position: Vector3) {
+  impulseManager.generate({
+    position,
+    direction: [0, 0.5, 0],
+    radius: 5,
+    dissipationDistance: 15,
+  });
+}
+```
+
+```tsx
+<VirtualCamera name="follow-cam" priority={10}>
+  <Body.Follow target={playerRef} offset={[0, 3, 8]} damping={0.5} />
+  <Aim.HardLookAt target={playerRef} />
+  <Noise.ImpulseListener />
+</VirtualCamera>
+```
+
+## Generating an event
+
+`impulseManager.generate(options, now?)` - `now` defaults to the real clock, pass it explicitly only in tests for determinism.
+
+| Option                | Type        | Default | |
+| ---------------------- | ----------- | ------- | - |
+| `position`             | `Vector3`   | -       | World-space origin of the event. |
+| `direction`            | `Vector3`   | -       | World-space direction **and** strength - the offset at peak envelope is exactly this vector, not a separately-scaled unit direction. A bigger explosion is a bigger `direction`, not a separate strength field. |
+| `attackTime`           | `number`    | `0`     | Seconds to linearly ramp up to full strength. |
+| `sustainTime`          | `number`    | `0.05`  | Seconds held at full strength. |
+| `decayTime`            | `number`    | `0.2`   | Seconds to linearly ramp back down to `0`. |
+| `radius`               | `number`    | `0`     | Distance from `position` within which the event is felt at full strength. |
+| `dissipationDistance`  | `number`    | `0`     | Distance beyond `radius` over which strength falls off linearly to `0`. `0` = no falloff, felt at full strength at any distance. |
+| `propagationSpeed`     | `number`    | `Infinity` | World units/second the signal travels outward at, delaying a distant listener like a real sound wave. `Infinity` (default) = felt everywhere instantly. |
+| `channel`              | `number`    | `1`     | Bitmask - a listener only reacts if `(channel & listener.channelMask) !== 0`. |
+
+Overlapping events always combine additively - there's no "strongest signal only" mode.
+
+## `Noise.ImpulseListener`
+
+| Prop          | Type            | Default              | |
+| ------------- | --------------- | --------------------- | - |
+| `manager`     | `ImpulseManager` | shared `impulseManager` singleton | Pass your own instance only for isolated impulse "worlds" (e.g. split-screen with independent explosions per view). |
+| `channelMask` | `number`        | `1`                    | Only reacts to events where `(event.channel & channelMask) !== 0`. |
+| `gain`        | `number`        | `1`                    | Multiplies the sampled offset. `0` mutes this listener entirely. |
+
+## `ref`
+
+```tsx
+const listenerRef = useRef<ImpulseListenerNoise>(null);
+```
+
+Gives you the underlying `ImpulseListenerNoise` - read or write `.manager`/`.channelMask`/`.gain` directly. `impulseManager` itself is also directly importable and usable outside any `<VirtualCamera>` - `generate()` doesn't need one.

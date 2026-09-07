@@ -4,4 +4,27 @@ description: Instant rotation to look straight at a target.
 nav: 21
 ---
 
-Coming soon.
+Rotates the camera so `target` sits exactly at the center of the frame - no dead zone, no damping, no `screenPosition`. The simplest possible Aim, and a reasonable default whenever you don't need any of the framing behavior `RotationComposer` adds.
+
+```tsx
+<VirtualCamera name="follow-cam" priority={10}>
+  <Body.Follow target={playerRef} offset={[0, 3, 8]} damping={0.5} />
+  <Aim.HardLookAt target={playerRef} />
+</VirtualCamera>
+```
+
+## Props
+
+| Prop     | Type     | Default | |
+| -------- | -------- | ------- | - |
+| `target` | `Target` | -       | Look At Target - the camera rotates so this position/object is dead-center in frame. `null`/`undefined`/omitted is a no-op, same as an unmounted ref. |
+
+That's the whole API - `HardLookAt` has no `damping` prop at all, unlike [`HardLockToTarget`](/body/hard-lock-to-target). If you want the rotation to ease toward the target instead of snapping, reach for [`RotationComposer`](/aim/rotation-composer) with `deadZone={[0, 0]}` (still dead-center, just damped).
+
+## `ref`
+
+```tsx
+const aimRef = useRef<HardLookAtAim>(null);
+```
+
+Gives you the underlying `HardLookAtAim` - read or write `.target` directly, useful for mutating it every frame from an external `useFrame` without forcing a React re-render.

@@ -4,4 +4,100 @@ description: Writing your own Body/Aim/Extension/Noise outside klipp itself.
 nav: 73
 ---
 
-Coming soon.
+Body/Aim/Noise/Extension aren't a closed set - `registerBody`/`registerAim`/`registerNoise`/`registerExtension` (from `useVirtualCameraSlots()`) are public, so a project can register its own per-frame camera logic without forking klipp.
+
+## The contract
+
+```ts
+type CameraStateWriter = (out: CameraState, dt: number, justActivated: boolean) => boolean | void;
+```
+
+Every writer gets the same three arguments and mutates `out` in place - `dt` is the frame delta, and `justActivated` is `true` only on the first call after the owning `<VirtualCamera>`'s `active` prop flips from `false` to `true`. A writer with its own persistent damping state should treat that as a cue to snap straight to its target instead of easing - while `active` was `false`, it wasn't being called at all, so both `out` and any `Damper`'s own remembered state are frozen at whatever an earlier, unrelated activation left them at.
+
+The return value only matters under `frameloop="demand"` - return `true` if there's still work in flight that could change the output on a *later* frame even though this call's output happens to match the previous one (a damper still converging, for example). Most writers can ignore this and return nothing.
+
+## Worked example: pointer-driven parallax
+
+A project-level `Extension` that nudges the shot's yaw/pitch by a small, damped amount toward wherever the pointer sits - on top of whatever Body/Aim already composed that frame. It works with *any* Body/Aim.
+
+```ts
+import { Damper, type CameraState, type DampingConstant } from '@kvvasuu/klipp';
+import { Euler, Quaternion } from 'three';
+
+const scratchEuler = new Euler();
+const scratchOffset = new Quaternion();
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(Math.max(value, min), max);
+}
+
+export class PointerDriftExtension {
+  strength: number;
+  maxPointerAngle: number;
+  damping: DampingConstant;
+
+  private readonly yawDamper = new Damper();
+  private readonly pitchDamper = new Damper();
+  private currentYaw = 0;
+  private currentPitch = 0;
+
+  constructor(strength = 0.15, maxPointerAngle = 0.6, damping: DampingConstant = 0.4) {
+    this.strength = strength;
+    this.maxPointerAngle = maxPointerAngle;
+    this.damping = damping;
+  }
+
+  /** `pointerX`/`pointerY` - r3f's normalized device pointer (`state.pointer`), -1..1. */
+  update = (out: CameraState, dt: number, justActivated: boolean, pointerX: number, pointerY: number): boolean => {
+    if (justActivated) {
+      this.yawDamper.reset();
+      this.pitchDamper.reset();
+    }
+
+    const targetYaw = clamp(pointerX, -this.maxPointerAngle, this.maxPointerAngle) * this.strength;
+    const targetPitch = -clamp(pointerY, -this.maxPointerAngle, this.maxPointerAngle) * this.strength * 0.6;
+
+    this.currentYaw = this.yawDamper.update(this.currentYaw, targetYaw, this.damping, dt);
+    this.currentPitch = this.pitchDamper.update(this.currentPitch, targetPitch, this.damping, dt);
+
+    scratchEuler.set(this.currentPitch, this.currentYaw, 0);
+    scratchOffset.setFromEuler(scratchEuler);
+    out.quaternion.multiply(scratchOffset);
+
+    return this.currentYaw !== targetYaw || this.currentPitch !== targetPitch;
+  };
+}
+```
+
+`registerExtension` only passes `(out, dt, justActivated)` - `pointerX`/`pointerY` come from closing over r3f's own `state.pointer`. `useVirtualCameraSlots()` is scoped to the nearest `<VirtualCamera>`, so this has to be a component mounted *inside* the one whose shot should drift:
+
+```tsx
+import { useThree } from '@react-three/fiber';
+import { useEffect, useState } from 'react';
+import type { CameraState } from '@kvvasuu/klipp';
+import { useVirtualCameraSlots } from '@kvvasuu/klipp/react';
+
+export default function PointerDrift() {
+  const slots = useVirtualCameraSlots();
+  const pointer = useThree((state) => state.pointer);
+  const [extension] = useState(() => new PointerDriftExtension(0.15, 0.6, 0.4));
+
+  useEffect(
+    () => slots.registerExtension((out, dt, justActivated) => extension.update(out, dt, justActivated, pointer.x, pointer.y)),
+    [slots, extension, pointer],
+  );
+
+  return null;
+}
+```
+
+```tsx
+<VirtualCamera name="orbit-cam" priority={10}>
+  <CameraControls target={ballRef} />
+  <PointerDrift />
+</VirtualCamera>
+```
+
+## Reusing klipp's own building blocks
+
+None of this needed a fork - `Damper`/`Vector3Damper`/`QuaternionDamper` ([Damping](/advanced/damping)), `resolveTargetPosition`/`resolveVector3` ([Targets](/advanced/targets)), and `CameraState`'s own fields are all public, exported from `@kvvasuu/klipp` specifically so custom Body/Aim/Extension/Noise can match klipp's own conventions (snap-on-first-call damping, the `Target` shorthand, zero-allocation `out`-parameters) instead of reinventing them.

@@ -4,4 +4,42 @@ description: Damped offset from a target, with BindingModes controlling how the 
 nav: 12
 ---
 
-Coming soon.
+Position = `target`'s world position + a fixed `offset`, optionally rotated along with the target and optionally damped. The offset is interpreted in the target's own rotation space by default, so a chase camera stays behind a turning character instead of sliding off to one side.
+
+```tsx
+<VirtualCamera name="chase-cam" priority={10}>
+  <Body.Follow target={playerRef} offset={[0, 3, 8]} damping={0.5} />
+  <Aim.HardLookAt target={playerRef} />
+</VirtualCamera>
+```
+
+## Props
+
+| Prop          | Type              | Default        | |
+| ------------- | ----------------- | -------------- | - |
+| `target`      | `Target`          | -              | Tracking Target - the camera keeps a fixed `offset` from this position/object's world transform. |
+| `offset`      | `Vector3`          | `(0, 0, 10)`   | Offset from the target, rotated according to `bindingMode` before being added to its position. |
+| `damping`     | `DampingConstant` | `0`            | Seconds to catch up to the desired position, per axis (or `{ into, from }`). `0` = hard, instant follow. |
+| `bindingMode` | `BindingMode`     | `BindingModes.lockToTarget` | Which rotation, if any, `offset` is interpreted in - see below. |
+
+`target` degrades gracefully to a plain world-space offset when it's a bare `Vector3` (no rotation to apply `bindingMode` to at all).
+
+## `BindingModes`
+
+| Mode | Offset rotates by |
+| ---- | ------------------ |
+| `worldSpace` | Nothing - always identity, the offset never rotates. |
+| `lockToTarget` (default) | The target's full, live rotation (pitch + yaw + roll). |
+| `lockToTargetWithWorldUp` | Only the target's yaw - its forward vector flattened onto the world XZ plane before rebuilding the rotation, so a barrel roll or a steep dive never tips the offset. |
+| `lockToTargetNoRoll` | The target's full 3D forward direction (pitch *and* yaw), rebuilt without roll - structurally impossible to introduce roll, not just zeroed out after the fact. |
+| `lockToTargetOnAssign` | The target's rotation, captured once the first time `target` changes *identity* (a genuinely different object/ref, not just movement) and held frozen until the next identity change. |
+
+`lockToTargetWithWorldUp` and `lockToTargetNoRoll` both rebuild the rotation through a `lookAt`-style matrix rather than stripping roll out of an Euler decomposition afterward - roll is excluded by construction, so there's no gimbal-lock edge case to worry about.
+
+## `ref`
+
+```tsx
+const bodyRef = useRef<FollowBody>(null);
+```
+
+Gives you the underlying `FollowBody` - read or write `.target`/`.offset`/`.damping`/`.bindingMode` directly.

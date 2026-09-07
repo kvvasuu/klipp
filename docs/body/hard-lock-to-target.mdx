@@ -4,4 +4,26 @@ description: Instant position lock onto a target, with optional damping.
 nav: 11
 ---
 
-Coming soon.
+Position = `target`'s world position, 1:1 - no offset, no framing. The simplest possible Body, and a reasonable default whenever the camera genuinely needs to sit exactly where the target is (a first-person rig, or a camera physically attached to something else that already handles its own positioning).
+
+```tsx
+<VirtualCamera name="fps-cam" priority={10}>
+  <Body.HardLockToTarget target={headBoneRef} />
+  <Aim.RotateWithFollowTarget target={headBoneRef} />
+</VirtualCamera>
+```
+
+## Props
+
+| Prop      | Type              | Default | |
+| --------- | ----------------- | ------- | - |
+| `target`  | `Target`          | -       | Tracking Target - the camera's position becomes this position/object's world position. `null`/`undefined`/omitted is a no-op, same as an unmounted ref. |
+| `damping` | `DampingConstant` | `0`     | Seconds to catch up to the target's position, per axis (or `{ into, from }` for asymmetric damping). `0` = hard, instant lock. |
+
+## `ref`
+
+```tsx
+const bodyRef = useRef<HardLockToTargetBody>(null);
+```
+
+Gives you the underlying `HardLockToTargetBody` - read or write `.target`/`.damping` directly.

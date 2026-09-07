@@ -4,4 +4,52 @@ description: Keeps a target at a chosen screen position with a dead zone, hard l
 nav: 13
 ---
 
-Coming soon.
+Two-stage positioning: first dollies along the camera's own forward axis until `target` sits at `cameraDistance`, then shifts sideways until it lands at `screenPosition` - with a dead zone, hard limit, and damping on that second stage, the same framing model as [`RotationComposer`](/aim/rotation-composer).
+
+It's the natural fit for a camera whose **rotation stays fixed** - a top-down or 2.5D side-scroller, following the player positionally without ever re-aiming. A `<VirtualCamera>` doesn't require an Aim at all; with none mounted, rotation just stays wherever it started (the real camera's own pristine config, or `initialState`):
+
+```tsx
+<VirtualCamera name="platformer-cam" priority={10}>
+  <Body.PositionComposer target={playerRef} cameraDistance={12} deadZone={[0.15, 0.1]} damping={0.3} />
+</VirtualCamera>
+```
+
+See [Ordering with Aim](#ordering-with-aim) below for why pairing this with an Aim that re-centers every frame (`HardLookAt`) undoes exactly the framing behavior that makes it useful in the first place.
+
+## Props
+
+| Prop           | Type                 | Default   | |
+| -------------- | -------------------- | --------- | - |
+| `target`       | `Target`             | -         | Tracking Target - the camera composes its shot around this position/object's world position. |
+| `cameraDistance` | `number`           | `10`      | Desired distance from the camera to the target, along the camera's own forward axis. |
+| `screenPosition` | `[number, number]` | `[0, 0]`  | Where the target should land on screen. `0` = center, `±1` = edge. |
+| `deadZone`     | `[number, number]`   | `[0, 0]`  | Box (screen fractions) around `screenPosition` where the target can sit with no lateral reaction at all. `[0, 0]` = none, always reacts. |
+| `damping`      | `DampingConstant`    | `0`       | Seconds to catch up once the target steps outside the dead zone. `0` = hard, instant snap to the edge. |
+| `hardLimit`    | `[number, number]`   | `[0, 0]`  | A second, normally wider box the target may never visually leave - enforced instantly, bypassing `damping`, after the damped dead-zone pass. `[0, 0]` = no enforcement. |
+| `radius`       | `number`             | -         | Target's own bounding-sphere radius - `deadZone`/`hardLimit` react to its nearest edge, not its center. Ignored if `size` is given. |
+| `size`         | `Vector3`            | -         | Target's full box dimensions - takes priority over `radius`. Auto-detected from a `Mesh`/`Line`/`Points` target's own geometry when neither is given. |
+| `debug`        | `boolean`            | `false`   | Draws `deadZone`/`hardLimit` as bordered, dimmed boxes over the canvas - see [Debug Zones](/debugging/debug-zones). |
+
+The distance stage (the dolly) is always exact - the dead zone only ever applies to the screen-space placement, since distance isn't a 2D screen concept.
+
+## Ordering with Aim
+
+Body always runs before Aim, so the dolly/screen-position math reads whatever `out.quaternion`/`out.fov` Aim wrote on the *previous* frame, not this one - a one-frame lag that's structural, not a bug: Body has to run first so Aim can react to the position it just chose, which means Body itself can only ever see last frame's rotation.
+
+`HardLookAt` rotates to put the target dead-center *every single frame*, regardless of where Body just put the camera - so even with the default `screenPosition: [0, 0]`, it quietly defeats the whole point of a `deadZone`: the target visually never appears to drift at all, since rotation re-centers it before you'd ever see the slack `deadZone` was supposed to allow. Nothing breaks, but the framing behavior you added `deadZone`/`hardLimit` for becomes invisible.
+
+A genuine **non-zero** `screenPosition` paired with `HardLookAt` is worse - a real feedback loop: Body pushes the target off-center based on last frame's rotation, `HardLookAt` immediately re-centers it with a new rotation, and the next frame Body tries again. The shot settles into a stable orbit instead of the position you asked for.
+
+Either way, an Aim that reacts to the target's position at all fights `PositionComposer`. Use no Aim (a fixed rotation, see above), `RotateWithFollowTarget` (which never looks at position, only the target's own rotation), or [`RotationComposer`](/aim/rotation-composer) with the **same** `screenPosition` and a non-zero `deadZone` on both sides - see its own page for why the dead zone specifically is required on both, not just one.
+
+## Target extent (`radius`/`size`)
+
+Without `radius`/`size`, `deadZone`/`hardLimit` react to the target's exact center point, so a target with real, on-screen size can visually leave the zone well before its center does. `radius`/`size` react to its true edge instead. Auto-detection recomputes the bounds only once by default; call `recalculateSize()` (via `ref`) after a target deforms (a `SkinnedMesh` bone animation, a mutated `BufferGeometry`) to force a fresh measurement on the next frame.
+
+## `ref`
+
+```tsx
+const bodyRef = useRef<PositionComposerBody>(null);
+```
+
+Gives you the underlying `PositionComposerBody` - read or write any prop's field directly, and call `recalculateSize()`.

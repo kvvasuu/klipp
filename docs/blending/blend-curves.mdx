@@ -4,4 +4,31 @@ description: The named easing curves used for transitions between cameras.
 nav: 50
 ---
 
-Coming soon.
+`BlendCurves` is a set of named easing functions - raw linear progress `t` (0..1) in, eased progress out - used wherever a blend needs a `curve` (as opposed to [`damping`](/getting-started/core-concepts)).
+
+```tsx
+<Klipp defaultBlend={{ curve: BlendCurves.easeInOut, time: 1.5 }}>
+```
+
+## Curves
+
+| Curve       | Shape |
+| ----------- | ----- |
+| `cut`       | Zero-length - stays at the start until the very last instant, then snaps. |
+| `linear`    | Mechanical-looking, constant rate. |
+| `easeInOut` | S-shaped, gentle and smooth throughout. |
+| `easeIn`    | Full-rate departure, eased arrival. |
+| `easeOut`   | Eased departure, full-rate arrival. |
+| `hardIn`    | Gentle departure, abrupt arrival. |
+| `hardOut`   | Abrupt departure, gentle arrival. |
+
+> [!WARNING]
+> The In/Out naming describes the **transition** (departure vs. arrival), not raw acceleration - `easeIn` means a full-rate *departure* with an eased *arrival*. That's the opposite of CSS's `ease-in` (a slow start), so don't assume the two map onto each other.
+
+## Custom curves
+
+There's no `BlendCurves.custom` constant - `curve` just takes any `Ease` function directly:
+
+```tsx
+<Klipp defaultBlend={{ curve: (t) => t * t * t, time: 1 }}>
+```

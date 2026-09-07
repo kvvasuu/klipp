@@ -4,4 +4,28 @@ description: The piece that computes a VirtualCamera's position.
 nav: 10
 ---
 
-Coming soon.
+A Body computes a `<VirtualCamera>`'s **position** - nothing else. It never touches rotation, and at most one Body runs per `<VirtualCamera>` (see [Core Concepts](/getting-started/core-concepts) for why Body and Aim are split like this in the first place).
+
+```tsx
+import { Body } from '@kvvasuu/klipp/react';
+
+<VirtualCamera name="follow-cam" priority={10}>
+  <Body.Follow target={playerRef} offset={[0, 3, 8]} damping={0.5} />
+</VirtualCamera>
+```
+
+## Choosing one
+
+- [`HardLockToTarget`](/body/hard-lock-to-target) - position = target's position, 1:1. Instant, no offset, no framing - the simplest possible Body.
+- [`Follow`](/body/follow) - a damped, constant offset from a target, with `BindingModes` controlling whether (and how) that offset rotates along with the target.
+- [`PositionComposer`](/body/position-composer) - keeps the target at a chosen on-screen position and distance instead of a fixed world-space offset, with a dead zone, hard limit, and damping.
+
+[`CameraControls`](/camera-controls) also plugs into the Body slot, but it's a separate topic - see its own page for why.
+
+## Shared conventions
+
+Every Body shares the same shape:
+
+- **`target`** accepts an `Object3D`, a `RefObject<Object3D | null>`, or the r3f `Vector3` shorthand (`THREE.Vector3 | [x, y, z] | number`) - the same convention as a plain `<mesh position>`. `null`/`undefined`/an unmounted ref is a no-op, not an error.
+- **`damping`** is either a plain number (seconds to catch up) or `{ into, from }` for asymmetric easing - `0` (the default almost everywhere) means hard, instant snapping.
+- **`ref`** gives you the underlying class (`FollowBody`, `PositionComposerBody`, ...) for reading or writing its fields directly, or calling methods a prop can't express - `recalculateSize()` on `PositionComposerBody`, for instance.

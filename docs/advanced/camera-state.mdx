@@ -4,4 +4,34 @@ description: The frozen, zero-allocation snapshot every Body/Aim/Extension/Noise
 nav: 70
 ---
 
-Coming soon.
+A plain object, not a class - a camera's full visual state at one instant, and the value every Body/Aim/Extension/Noise mutates in place via its `out` parameter. You'll mostly only touch this directly when writing a [custom Body/Aim/Extension/Noise](/advanced/custom-extensions).
+
+## Fields
+
+| Field             | Type        | |
+| ------------------ | ----------- | - |
+| `position`         | `Vector3`   | |
+| `quaternion`       | `Quaternion` | |
+| `fov`              | `number`    | |
+| `near`             | `number`    | |
+| `far`              | `number`    | |
+| `viewOffset`       | `[number, number]` | Shifts the frustum without moving/rotating the camera - same normalized convention as `screenPosition` elsewhere (`0` = center, `±1` = edge), not raw pixels. Mutable tuple - mutate elements in place, never replace the array. |
+| `target`           | `Vector3`   | The Body's tracking-target world position, if it has one - e.g. for `BlendHints.sphericalPosition`. Always allocated; `hasTarget` says whether it's meaningful. |
+| `hasTarget`        | `boolean`   | |
+| `lookAtTarget`      | `Vector3`   | The Aim's look-at target world position, distinct from `target` (equal to `position` itself for `HardLockToTarget`, for example). |
+| `hasLookAtTarget`  | `boolean`   | |
+
+`position`/`quaternion`/`target`/`lookAtTarget` are each owned by the `CameraState` (never shared refs), so one can be frozen as an independent blend start point without another writer's later mutation leaking into it.
+
+## Functions
+
+| Function                    | |
+| ---------------------------- | - |
+| `createCameraState()`         | Allocates a new `CameraState` with default values (`fov: 50`, `near: 0.1`, `far: 1000`, identity transform). Call once, never per frame. |
+| `copyCameraState(out, source)` | Copies `source` into `out` in place - safe even if `out === source`. |
+| `copyCameraStateFromCamera(out, camera)` | Reads a real `THREE.PerspectiveCamera`'s current state into `out`. |
+| `applyCameraState(camera, state, viewportWidth, viewportHeight)` | The reverse - writes `state` onto a real camera. Viewport size is only needed to convert `viewOffset` into `camera.setViewOffset`'s pixel arguments. |
+
+## Zero-allocation convention
+
+Every per-frame path in klipp (`update`, blending, damping) reuses scratch objects instead of allocating - the only legal allocation is a one-time `createCameraState()`-style constructor, called once (e.g. as a class field), never inside a function that runs every frame. When combining two `out`-able inputs into one output (a `lerp`, for example), klipp uses the aliasing-safe three.js methods (`Vector3.lerpVectors`/`Quaternion.slerpQuaternions`) rather than `copy().lerp()` - the latter corrupts the result when `out` happens to be the same object as one of the inputs.

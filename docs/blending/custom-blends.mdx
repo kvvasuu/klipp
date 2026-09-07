@@ -4,4 +4,35 @@ description: Overriding the default blend for specific from→to camera pairs.
 nav: 52
 ---
 
-Coming soon.
+`customBlends` on `<Klipp>` is a list of explicit from→to overrides - for when one specific transition needs a different blend than everything else (a hard cut into a close-up, a slow drift into a cutscene), without changing `defaultBlend` for every other pair.
+
+```tsx
+<Klipp
+  defaultBlend={{ curve: BlendCurves.easeInOut, time: 1 }}
+  customBlends={[
+    { to: 'closeup-cam', blend: { curve: BlendCurves.cut, time: 0 } },
+    { from: 'intro-cam', to: 'gameplay-cam', blend: { damping: 0.8 } },
+  ]}
+>
+```
+
+## `CustomBlend`
+
+| Field   | Type              | | 
+| ------- | ----------------- | - |
+| `from`  | `string`          | Omit to match any outgoing camera. |
+| `to`    | `string`          | Omit to match any incoming camera. |
+| `blend` | `BlendDefinition` | Either `{ curve, time }` or `{ damping }` - see [Core Concepts](/getting-started/core-concepts). |
+
+`from`/`to` refer to `<VirtualCamera name>`.
+
+## Matching specificity
+
+When more than one entry could match a transition, the most specific one wins:
+
+1. Exact `from` **and** `to` match.
+2. `to`-only match (an omitted `from` matches any outgoing camera).
+3. `from`-only match.
+4. Neither matches - falls back to `defaultBlend`.
+
+A `to`-only entry beats a `from`-only entry at the same transition, since "always blend fast into this specific camera" is a more common thing to want pinned down than "always blend a specific way *leaving* this camera."

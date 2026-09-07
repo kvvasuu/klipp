@@ -4,4 +4,29 @@ description: The piece that computes a VirtualCamera's rotation.
 nav: 20
 ---
 
-Coming soon.
+An Aim computes a `<VirtualCamera>`'s **rotation** - nothing else. It never touches position, and at most one Aim runs per `<VirtualCamera>` (see [Core Concepts](/getting-started/core-concepts) for why Body and Aim are split like this in the first place). Aim runs after Body, so it always sees the position Body just wrote.
+
+```tsx
+import { Aim } from '@kvvasuu/klipp/react';
+
+<VirtualCamera name="follow-cam" priority={10}>
+  <Body.Follow target={playerRef} offset={[0, 3, 8]} damping={0.5} />
+  <Aim.HardLookAt target={playerRef} />
+</VirtualCamera>
+```
+
+## Choosing one
+
+- [`HardLookAt`](/aim/hard-look-at) - rotates so the target is dead-center in frame. Instant, no dead zone, no framing - the simplest possible Aim.
+- [`RotateWithFollowTarget`](/aim/rotate-with-follow-target) - mirrors a target's own rotation directly onto the camera, "glued" child-like - it never looks at the target's *position* at all.
+- [`RotationComposer`](/aim/rotation-composer) - keeps the target at a chosen on-screen position instead of dead-center, with a dead zone, hard limit, and damping.
+
+[`CameraControls`](/camera-controls) also drives rotation (orbiting), but it plugs into the Body slot instead and is a separate topic - see its own page for why.
+
+## Shared conventions
+
+Every Aim shares the same shape as [Body](/body/introduction):
+
+- **`target`** accepts an `Object3D`, a `RefObject<Object3D | null>`, or the r3f `Vector3` shorthand (`THREE.Vector3 | [x, y, z] | number`) - the same convention as a plain `<mesh position>`. `null`/`undefined`/an unmounted ref is a no-op, not an error.
+- **`damping`** is either a plain number (seconds to catch up) or `{ into, from }` for asymmetric easing - `0` (the default almost everywhere) means hard, instant snapping. `HardLookAt` is the one exception: it has no `damping` prop at all, always instant.
+- **`ref`** gives you the underlying class (`RotateWithFollowTargetAim`, `RotationComposerAim`, ...) for reading or writing its fields directly, or calling methods a prop can't express - `recalculateSize()` on `RotationComposerAim`, for instance.

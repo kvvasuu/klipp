@@ -5,8 +5,7 @@ nav: 0
 ---
 
 <Intro>
-  Stop hand-rolling `useFrame` callbacks full of lerps and look-ats. Declare the shot you want, mount as
-  many cameras as your scene needs, and let **klipp** arbitrate priority and blend between them for you.
+  Stop hand-rolling `useFrame` callbacks full of lerps and look-ats. Declare the shot you want, mount as many cameras as your scene needs, and let **klipp** arbitrate priority and blend between them for you.
 </Intro>
 
 ```bash
@@ -18,25 +17,15 @@ npm install @kvvasuu/klipp
 
 ## Why not just useFrame?
 
-Because a real camera rig is never one lerp. It's a tracking target, a look-at target that's a
-*different* object, a dead zone so the shot doesn't jitter on every twitch, a hard limit so it never
-loses the subject entirely, a smooth handoff to a cutscene camera and back, screen shake that fades out
-instead of cutting - and all of that logic ends up tangled in one callback, hard to reuse across scenes.
-klipp splits it into small, independent, composable pieces instead - swap one out, reuse another across
-scenes, and reason about (or unit-test) each piece in isolation.
+Because a real camera rig is never one lerp. It's a tracking target, a look-at target that's a *different* object, a dead zone so the shot doesn't jitter on every twitch, a hard limit so it never loses the subject entirely, a smooth handoff to a cutscene camera and back, screen shake that fades out instead of cutting - and all of that logic ends up tangled in one callback, hard to reuse across scenes. klipp splits it into small, independent, composable pieces instead - swap one out, reuse another across scenes, and reason about (or unit-test) each piece in isolation.
 
 ## Do I lose manual control?
 
-No. `CameraControls` is a first-class citizen, not an afterthought - a `<VirtualCamera>` can be a
-fully user-driven orbit rig (drag, scroll, pan) that still participates in priority arbitration and
-blends smoothly into/out of other cameras. And every Body/Aim/Noise/Extension exposes a `ref` to its
-underlying class for imperative access whenever a declarative prop isn't enough.
+No. `CameraControls` is a first-class citizen, not an afterthought - a `<VirtualCamera>` can be a fully user-driven orbit rig (drag, scroll, pan) that still participates in priority arbitration and blends smoothly into/out of other cameras. And every Body/Aim/Noise/Extension exposes a `ref` to its underlying class for imperative access whenever a declarative prop isn't enough.
 
 ## Does it cost performance?
 
-No allocations on the hot path. Every per-frame function (`update`, blending, damping) reuses scratch
-objects instead of allocating - safe to run every frame, on any number of cameras, without generating
-garbage.
+No allocations on the hot path. Every per-frame function (`update`, blending, damping) reuses scratch objects instead of allocating - safe to run every frame, on any number of cameras, without generating garbage.
 
 ## What does it look like?
 
@@ -59,16 +48,12 @@ function Scene({ playerRef, isCutscene, cutsceneCamPosition }) {
 }
 ```
 
-Mount a second `<VirtualCamera>` with a higher `priority` and klipp blends into it automatically - no
-manual state machine required, including mid-blend interruption (the outgoing camera stays live until
-its own blend actually finishes).
+Mount a second `<VirtualCamera>` with a higher `priority` and klipp blends into it automatically - no manual state machine required, including mid-blend interruption (the outgoing camera stays live until its own blend actually finishes).
 
 ## First steps
 
-You should already be comfortable with React Three Fiber itself - klipp drives the real camera it finds
-via `useThree`, it doesn't replace `<Canvas>` or teach you r3f from scratch. From here:
+You should already be comfortable with React Three Fiber itself - klipp drives the real camera it finds via `useThree`, it doesn't replace `<Canvas>` or teach you r3f from scratch. From here:
 
 1. [Installation](/getting-started/installation) - entry points and the optional `CameraControls` subpath.
-2. [Core Concepts](/getting-started/core-concepts) - how `KlippCore`, `<VirtualCamera>`, and the
-   Body→Aim→Extension→Noise pipeline fit together.
+2. [Core Concepts](/getting-started/core-concepts) - how `KlippCore`, `<VirtualCamera>`, and the Body→Aim→Extension→Noise pipeline fit together.
 3. Then [Body](/body/introduction) and [Aim](/aim/introduction) - the two pieces you'll reach for first.

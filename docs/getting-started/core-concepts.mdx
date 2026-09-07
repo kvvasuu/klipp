@@ -6,28 +6,20 @@ nav: 2
 
 ## `<Klipp>` and `KlippCore`
 
-`<Klipp>` is both the provider and the driver - it must be mounted inside `<Canvas>`, since it drives
-itself via its own `useFrame`. Every frame it:
+`<Klipp>` is both the provider and the driver - it must be mounted inside `<Canvas>`, since it drives itself via its own `useFrame`. Every frame it:
 
 1. Updates every mounted, `active` `<VirtualCamera>` (its own Body→Aim→Extension→Noise pipeline, see below).
 2. Calls `KlippCore.tick(dt)`, which arbitrates priority and blends toward the winner.
 3. Writes the result onto the real camera.
 
-`KlippCore` is the piece that actually owns this - a plain class with no React dependency, reachable via
-`useKlippCore()` if you need it directly. It keeps a registry of every candidate camera and decides which
-one wins:
+`KlippCore` is the piece that actually owns this - a plain class with no React dependency, reachable via `useKlippCore()` if you need it directly. It keeps a registry of every candidate camera and decides which one wins:
 
 - **Highest `priority` wins.** Ties go to whichever camera was live most recently, not registration order.
-- **A camera that stops winning stays live until its own outgoing blend finishes** - switching priority
-  back and forth mid-blend doesn't cut, it re-targets the blend already in flight
-  (*mid-blend interruption*).
+- **A camera that stops winning stays live until its own outgoing blend finishes** - switching priority back and forth mid-blend doesn't cut, it re-targets the blend already in flight (*mid-blend interruption*).
 
 ## `<VirtualCamera>`
 
-A `<VirtualCamera>` is a candidate, not necessarily what's on screen - `name` and `priority` are what
-`KlippCore` arbitrates on, and `active` (default `true`) controls whether it's a candidate **at all**,
-independent of `priority`. `active={false}` fully unregisters it - its Body/Aim/Noise don't even run, not
-just "loses arbitration."
+A `<VirtualCamera>` is a candidate, not necessarily what's on screen - `name` and `priority` are what `KlippCore` arbitrates on, and `active` (default `true`) controls whether it's a candidate **at all**, independent of `priority`. `active={false}` fully unregisters it - its Body/Aim/Noise don't even run, not just "loses arbitration."
 
 ```tsx
 <VirtualCamera name="follow-cam" priority={10} active={true}>
@@ -37,50 +29,25 @@ just "loses arbitration."
 
 ## The pipeline: Body → Aim → Extension → Noise
 
-Each `<VirtualCamera>` owns one mutable `CameraState` (see below) that its children write into, always in
-this order:
+Each `<VirtualCamera>` owns one mutable `CameraState` (see below) that its children write into, always in this order:
 
-1. **Body** computes **position**. At most one per `<VirtualCamera>` - `HardLockToTarget`, `Follow`,
-   `PositionComposer`, or [`CameraControls`](/camera-controls)*.
-2. **Aim** computes **rotation**, reading whatever position Body just wrote. At most one -
-   `HardLookAt`, `RotateWithFollowTarget`, or `RotationComposer`.
-3. **Extension** runs after Body+Aim, since it needs the shot's final orientation - `GroupFraming` dollies
-   along the camera's own current view axis, `Lens` overrides `fov`/`near`/`far`. Unlike Body/Aim, this
-   slot **stacks**: mount as many as you need.
-4. **Noise** runs last, adding shake on top of an already-correctly-framed shot instead of one an
-   Extension might still adjust out from under it. Also a stacking slot.
+1. **Body** computes **position**. At most one per `<VirtualCamera>` - `HardLockToTarget`, `Follow`, `PositionComposer`, or [`CameraControls`](/camera-controls)*.
+2. **Aim** computes **rotation**, reading whatever position Body just wrote. At most one - `HardLookAt`, `RotateWithFollowTarget`, or `RotationComposer`.
+3. **Extension** runs after Body+Aim, since it needs the shot's final orientation - `GroupFraming` dollies along the camera's own current view axis, `Lens` overrides `fov`/`near`/`far`. Unlike Body/Aim, this slot **stacks**: mount as many as you need.
+4. **Noise** runs last, adding shake on top of an already-correctly-framed shot instead of one an Extension might still adjust out from under it. Also a stacking slot.
 
-Body never touches rotation and Aim never touches position - they're deliberately independent, so you can
-follow one target with one damping curve while looking at a completely different one.
+Body never touches rotation and Aim never touches position - they're deliberately independent, so you can follow one target with one damping curve while looking at a completely different one.
 
-\* `CameraControls` is the one deliberate exception: orbiting couples position and rotation inherently
-(an orbit camera always looks at its target), so it writes both. It's an adapter around the
-[`camera-controls`](https://github.com/yomotsu/camera-controls) library for user-driven input, not one of
-klipp's own composable pieces - see its [own page](/camera-controls) rather than treating it as just
-another Body.
+\* `CameraControls` is the one deliberate exception: orbiting couples position and rotation inherently (an orbit camera always looks at its target), so it writes both. It's an adapter around the [`camera-controls`](https://github.com/yomotsu/camera-controls) library for user-driven input, not one of klipp's own composable pieces - see its [own page](/camera-controls) rather than treating it as just another Body.
 
 ## `CameraState`
 
-The value threaded through that whole pipeline is a single, plain `CameraState` object: `position`,
-`quaternion`, `fov`, `near`, `far`, `viewOffset`, plus the Body's `target`/Aim's `lookAtTarget` (used by
-blend hints, see [Blend Hints](/blending/blend-hints)). It's zero-allocation by convention - every
-Body/Aim/Extension/Noise mutates the `out` parameter it's given in place rather than returning a new
-object, safe to call every frame without generating garbage.
+The value threaded through that whole pipeline is a single, plain `CameraState` object: `position`, `quaternion`, `fov`, `near`, `far`, `viewOffset`, plus the Body's `target`/Aim's `lookAtTarget` (used by blend hints, see [Blend Hints](/blending/blend-hints)). It's zero-allocation by convention - every Body/Aim/Extension/Noise mutates the `out` parameter it's given in place rather than returning a new object, safe to call every frame without generating garbage.
 
 ## Blending and priority arbitration
 
-Only one camera is ever actually **live** - what `<Klipp>` currently writes onto the real camera. When
-arbitration picks a new winner, `KlippCore` blends from the previous live `CameraState` to the new one,
-not an instant cut - either a [named curve](/blending/blend-curves) over a fixed duration, or `damping`
-(seconds), which approaches the new camera asymptotically instead of finishing at a fixed pace, the same
-spring as every other damped field in klipp. `defaultBlend` on `<Klipp>` sets this globally;
-[Custom Blends](/blending/custom-blends) override it for specific from→to camera pairs.
+Only one camera is ever actually **live** - what `<Klipp>` currently writes onto the real camera. When arbitration picks a new winner, `KlippCore` blends from the previous live `CameraState` to the new one, not an instant cut - either a [named curve](/blending/blend-curves) over a fixed duration, or `damping` (seconds), which approaches the new camera asymptotically instead of finishing at a fixed pace, the same spring as every other damped field in klipp. `defaultBlend` on `<Klipp>` sets this globally; [Custom Blends](/blending/custom-blends) override it for specific from→to camera pairs.
 
 ## `frameloop="demand"` and re-renders
 
-If your `<Canvas>` uses `frameloop="demand"`, klipp keeps the loop alive on its own **as long as
-something is actually changing** frame to frame - a moving target, an in-progress blend, damping still
-catching up. But a mutation that doesn't go through React or `useFrame` (an imperative
-`target.position.set(...)` in a click handler, for example) won't wake the loop by itself. Call
-`invalidate()` right after a mutation like that, or it'll sit un-rendered until something else happens to
-request a frame.
+If your `<Canvas>` uses `frameloop="demand"`, klipp keeps the loop alive on its own **as long as something is actually changing** frame to frame - a moving target, an in-progress blend, damping still catching up. But a mutation that doesn't go through React or `useFrame` (an imperative `target.position.set(...)` in a click handler, for example) won't wake the loop by itself. Call `invalidate()` right after a mutation like that, or it'll sit un-rendered until something else happens to request a frame.

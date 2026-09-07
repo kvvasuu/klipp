@@ -4,4 +4,22 @@ description: Visualizing deadZone/hardLimit/padding directly on the canvas.
 nav: 60
 ---
 
-Coming soon.
+[`PositionComposer`](/body/position-composer), [`RotationComposer`](/aim/rotation-composer), and [`GroupFraming`](/extension/group-framing) all take a `debug` prop that draws their zones as bordered boxes directly over the canvas, dimming everything outside them - the same visual language as Unity's Game View overlays.
+
+```tsx
+<Body.PositionComposer target={playerRef} deadZone={[0.4, 0.4]} hardLimit={[0.7, 0.7]} debug />
+```
+
+| Component           | Draws |
+| -------------------- | ----- |
+| `PositionComposer`   | `hardLimit` (red) and `deadZone` (green), if either is non-zero. |
+| `RotationComposer`   | Same as `PositionComposer` - `hardLimit`/`deadZone`. |
+| `GroupFraming`       | `padding` (blue), inset from the frame edges. |
+
+## Only while this camera is live
+
+The overlay only renders while its `<VirtualCamera>` is the one `<Klipp>` is actually showing right now (`useIsLiveVirtualCamera`) - debugging a camera that currently isn't on screen would draw boxes over whatever *is* showing, which makes no sense to look at.
+
+## Implementation
+
+Plain, imperative DOM manipulation (`document.createElement`/`appendChild`), not JSX or a `react-dom` portal.

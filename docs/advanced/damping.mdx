@@ -4,4 +4,31 @@ description: The shared SmoothDamp-style primitive behind every damped field in 
 nav: 71
 ---
 
-Coming soon.
+Every `damping` prop across klipp - `Follow`'s offset, `PositionComposer`'s dead zone, blend transitions, Noise's `amplitudeDamping`, all of it - ultimately runs through the same `Damper` class. It's a critically-damped spring (Game Programming Gems 4, §1.10): motion accelerates and decelerates naturally toward a moving target, instead of the exponential-decay "jump most of the way there every frame" feel of a naive `lerp(current, target, dt)`.
+
+## `DampingConstant`
+
+```ts
+type DampingConstant = number | { into: number; from: number };
+```
+
+A plain number is seconds to (roughly) catch up. `{ into, from }` gives asymmetric easing: `into` applies while the gap to the target is *widening*, `from` while it's *narrowing* - useful whenever a snappy reaction should recover more gently than it triggered, or vice versa.
+
+## `Damper`
+
+```ts
+damper.update(current: number, target: number, damping: DampingConstant, dt: number, maxSpeed?, epsilon?): number
+```
+
+- **Snaps below `epsilon`** (default `1e-4`) instead of asymptotically approaching forever - without this, a settled camera would keep accumulating floating-point residue instead of truly stopping. Not part of the ported formula, added for numerical correctness.
+- **The very first call always snaps hard to `target`**, regardless of `damping` - a fresh `Damper`'s `current` otherwise defaults to `0`, a coordinate the caller never chose; damping *from* it would fly the camera in from that meaningless value instead of smoothing a real, later change. Call `.reset()` to re-arm this snap - every Body/Aim/Extension/Noise does this on `justActivated`, so reactivating a camera after a gap snaps straight to the current target instead of easing in from wherever it was frozen.
+
+## `Vector3Damper` and `QuaternionDamper`
+
+Bundle three independent `Damper`s (Cartesian x/y/z) and a rotation-aware variant, respectively - shared by any writer that damps a whole `Vector3` or `Quaternion` at once instead of a single scalar.
+
+`QuaternionDamper` is gimbal-lock-free: each call, it recomputes the *shortest* rotation from `out`'s current value to `target`, splits it into axis + angle, and only runs the angle through a plain `Damper` - never decomposing into per-axis Euler angles. Recomputing that delta fresh off `out`'s current value every call (not a frozen reference) is what keeps it jump-free while chasing a continuously rotating target.
+
+## Writing your own damped field
+
+If you're building a [custom Extension](/advanced/custom-extensions) with its own damped value, reuse `Damper` (or `Vector3Damper`/`QuaternionDamper`) rather than hand-rolling a lerp - it gets you the snap-on-first-call and snap-below-epsilon behavior for free, consistent with every other damped field a user of your Extension will already be used to.
