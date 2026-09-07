@@ -6,7 +6,6 @@ import { Canvas, invalidate, useFrame, useThree, type ThreeEvent } from '@react-
 import { useEffect, useRef, useState, type RefObject } from 'react';
 import { Group, Matrix4, Mesh, Quaternion, Vector3, type Object3D } from 'three';
 import './App.css';
-import { CapstoneScene } from './CapstoneScene';
 
 const headOffset = new Vector3(0, 1.3, 0);
 
@@ -845,8 +844,7 @@ type Demo =
   | 'initialState'
   | 'targetExtent'
   | 'rotationExtent'
-  | 'lens'
-  | 'capstone';
+  | 'lens';
 
 function App() {
   const [demo, setDemo] = useState<Demo>('offset');
@@ -1167,45 +1165,42 @@ function App() {
           </>
         )}
       </div>
-      {demo === 'capstone' ? (
-        <CapstoneScene />
-      ) : (
-        <Canvas frameloop="demand" camera={{ position: [0, 1, 10], fov: 50 }}>
-          <Stats />
 
-          {demo === 'offset' && <TargetOffsetScene bindingMode={bindingMode} aimMode={aimMode} />}
-          {demo === 'hardLimit' && <HardLimitScene hardLimitEnabled={hardLimitEnabled} />}
-          {demo === 'noise' && <NoiseScene preset={noisePreset} />}
-          {demo === 'explosion' && <ExplosionScene />}
-          {demo === 'orbital' && <OrbitalScene activeCamera={orbitalActiveCamera} freeMode={orbitalFreeMode} />}
-          {demo === 'orbitalTakeover' && (
-            <OrbitalTakeoverScene mode={orbitalTakeoverMode} enableTransition={orbitalTakeoverEnableTransition} />
-          )}
-          {demo === 'blendHints' && (
-            <BlendHintsScene
-              activeCamera={blendHintsActiveCamera}
-              positionMode={blendHintsPositionMode}
-              useIgnoreTargetHint={blendHintsUseIgnoreTargetHint}
-            />
-          )}
-          {demo === 'focusRepro' && <FocusReproScene />}
-          {demo === 'lookAtPop' && (
-            <LookAtBlendPopScene
-              focusTarget={lookAtPopFocus}
-              onJump={setLookAtPopMaxJumpDeg}
-              meterResetToken={lookAtPopMeterKey}
-            />
-          )}
-          {demo === 'groupFraming' && <GroupFramingScene boxSize={boxSize} padding={padding} />}
-          {demo === 'reactivationSnap' && (
-            <ReactivationSnapScene targetKey={reactivationTarget} cameraActive={reactivationCameraActive} />
-          )}
-          {demo === 'initialState' && <InitialStateScene mode={initialStateMode} seeded={initialStateSeeded} />}
-          {demo === 'targetExtent' && <TargetExtentScene mode={targetExtentMode} />}
-          {demo === 'rotationExtent' && <RotationExtentScene mode={rotationExtentMode} />}
-          {demo === 'lens' && <LensScene fov={lensFov} fovDamping={lensFovDamping} />}
-        </Canvas>
-      )}
+      <Canvas frameloop="demand" camera={{ position: [0, 1, 10], fov: 50 }}>
+        <Stats />
+
+        {demo === 'offset' && <TargetOffsetScene bindingMode={bindingMode} aimMode={aimMode} />}
+        {demo === 'hardLimit' && <HardLimitScene hardLimitEnabled={hardLimitEnabled} />}
+        {demo === 'noise' && <NoiseScene preset={noisePreset} />}
+        {demo === 'explosion' && <ExplosionScene />}
+        {demo === 'orbital' && <OrbitalScene activeCamera={orbitalActiveCamera} freeMode={orbitalFreeMode} />}
+        {demo === 'orbitalTakeover' && (
+          <OrbitalTakeoverScene mode={orbitalTakeoverMode} enableTransition={orbitalTakeoverEnableTransition} />
+        )}
+        {demo === 'blendHints' && (
+          <BlendHintsScene
+            activeCamera={blendHintsActiveCamera}
+            positionMode={blendHintsPositionMode}
+            useIgnoreTargetHint={blendHintsUseIgnoreTargetHint}
+          />
+        )}
+        {demo === 'focusRepro' && <FocusReproScene />}
+        {demo === 'lookAtPop' && (
+          <LookAtBlendPopScene
+            focusTarget={lookAtPopFocus}
+            onJump={setLookAtPopMaxJumpDeg}
+            meterResetToken={lookAtPopMeterKey}
+          />
+        )}
+        {demo === 'groupFraming' && <GroupFramingScene boxSize={boxSize} padding={padding} />}
+        {demo === 'reactivationSnap' && (
+          <ReactivationSnapScene targetKey={reactivationTarget} cameraActive={reactivationCameraActive} />
+        )}
+        {demo === 'initialState' && <InitialStateScene mode={initialStateMode} seeded={initialStateSeeded} />}
+        {demo === 'targetExtent' && <TargetExtentScene mode={targetExtentMode} />}
+        {demo === 'rotationExtent' && <RotationExtentScene mode={rotationExtentMode} />}
+        {demo === 'lens' && <LensScene fov={lensFov} fovDamping={lensFovDamping} />}
+      </Canvas>
       {demo === 'offset' && (
         <p className="hint-text">
           bindingMode (Body) and Aim are independent: bindingMode only moves the camera's orbit position, never its own
