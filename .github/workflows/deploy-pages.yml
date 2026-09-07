@@ -48,7 +48,7 @@ jobs:
       - run: >
           npx -y @pmndrs/docs@4 build docs site/docs --format website
           --libname "Klipp" --libname-short "klipp"
-          --home-redirect "/introduction"
+          --home-redirect "/getting-started/introduction"
           --icon "📹"
           --github "https://github.com/kvvasuu/klipp"
           --base-path "${{ steps.pages.outputs.base_path }}/docs"
