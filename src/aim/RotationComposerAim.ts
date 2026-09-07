@@ -196,8 +196,8 @@ export class RotationComposerAim {
       );
 
       if (depth > 1e-6) {
-        const halfWidth = this.deadZone[0] / 2;
-        const halfHeight = this.deadZone[1] / 2;
+        const halfWidth = this.deadZone[0];
+        const halfHeight = this.deadZone[1];
         scratchRight.set(1, 0, 0).applyQuaternion(out.quaternion);
         scratchUp.set(0, 1, 0).applyQuaternion(out.quaternion);
         resolveTargetHalfExtents(scratchExtents, this.target, this.size, this.radius, scratchRight, scratchUp, recalculateSizeThisFrame);
@@ -250,8 +250,8 @@ export class RotationComposerAim {
     );
     if (depth <= 1e-6) return;
 
-    const halfLimitWidth = this.hardLimit[0] / 2;
-    const halfLimitHeight = this.hardLimit[1] / 2;
+    const halfLimitWidth = this.hardLimit[0];
+    const halfLimitHeight = this.hardLimit[1];
     scratchRight.set(1, 0, 0).applyQuaternion(out.quaternion);
     scratchUp.set(0, 1, 0).applyQuaternion(out.quaternion);
     resolveTargetHalfExtents(scratchExtents, this.target, this.size, this.radius, scratchRight, scratchUp, recalculateSizeThisFrame);

@@ -108,8 +108,8 @@ export class PositionComposerBody {
     // judges drift in out.position, which on a fresh activation is whatever an earlier, unrelated
     // activation left behind, not a meaningful "current" to stay near
     if (!justActivated && (this.deadZone[0] > 0 || this.deadZone[1] > 0)) {
-      const halfDeadWidth = this.deadZone[0] / 2;
-      const halfDeadHeight = this.deadZone[1] / 2;
+      const halfDeadWidth = this.deadZone[0];
+      const halfDeadHeight = this.deadZone[1];
       // capped to the zone's own half-size, or an oversized target would overshoot center and oscillate
       const deadExtentX = Math.min(extentX, halfDeadWidth);
       const deadExtentY = Math.min(extentY, halfDeadHeight);
@@ -150,8 +150,8 @@ export class PositionComposerBody {
     const afterRight = scratchRelative.dot(scratchRight);
     const afterUp = scratchRelative.dot(scratchUp);
 
-    const halfLimitWidth = this.hardLimit[0] / 2;
-    const halfLimitHeight = this.hardLimit[1] / 2;
+    const halfLimitWidth = this.hardLimit[0];
+    const halfLimitHeight = this.hardLimit[1];
     // same overshoot cap as the dead zone pass, against this box's own half-size
     const limitExtentX = Math.min(extentX, halfLimitWidth);
     const limitExtentY = Math.min(extentY, halfLimitHeight);

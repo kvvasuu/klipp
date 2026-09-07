@@ -19,9 +19,9 @@ The rotation counterpart to [`PositionComposer`](/body/position-composer): inste
 | -------------- | -------------------- | --------- | - |
 | `target`       | `Target`             | -         | Look At Target - the camera rotates so this position/object composes at `screenPosition`. |
 | `screenPosition` | `[number, number]` | `[0, 0]`  | Where the target should land on screen. `0` = center, `±1` = edge. |
-| `deadZone`     | `[number, number]`   | `[0, 0]`  | Box (screen fractions) around `screenPosition` where the target can sit with no reaction at all. `[0, 0]` (default) = none, always reacts, same as `HardLookAt`. |
+| `deadZone`     | `[number, number]`   | `[0, 0]`  | How far the target can drift from `screenPosition` with no reaction at all - same unit as `screenPosition` itself (`1` reaches the frame edge). `[0, 0]` (default) = none, always reacts, same as `HardLookAt`. |
 | `damping`      | `DampingConstant`    | `0`       | Seconds to catch up once the target steps outside the dead zone. Only matters when `deadZone` is non-zero. `0` = hard, instant snap to the edge. |
-| `hardLimit`    | `[number, number]`   | `[0, 0]`  | A second, normally wider box the target may never visually leave - enforced instantly, bypassing `damping`, after the damped dead-zone reaction runs. `[0, 0]` = no enforcement. |
+| `hardLimit`    | `[number, number]`   | `[0, 0]`  | A second, normally larger reach the target may never visually drift past - enforced instantly, bypassing `damping`, after the damped dead-zone reaction runs. `[0, 0]` = no enforcement. |
 | `targetOffset` | `Vector3`            | `[0,0,0]` | Offset applied to the target's position, in the target's own local rotation space, before the rest of the math - e.g. aim at a character's head instead of its feet. Degrades to a plain world-space offset for a target with no rotation. |
 | `radius`       | `number`             | -         | Target's own bounding-sphere radius - `deadZone`/`hardLimit` then react to its nearest edge, not its center. Ignored if `size` is given. |
 | `size`         | `Vector3`            | -         | Target's full box dimensions - takes priority over `radius`. Auto-detected from a `Mesh`/`Line`/`Points` target's own geometry when neither is given. |

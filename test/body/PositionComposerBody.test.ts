@@ -190,7 +190,7 @@ describe('PositionComposerBody', () => {
 
     it('target outside the dead zone with damping <= 0: snaps instantly to the dead zone EDGE, not to screenPosition center', () => {
       const target = new Vector3(20, 0, -20); // far outside the dead zone on X
-      const body = new PositionComposerBody(target, 10, [0, 0], 1, [0.2, 0.2], 0);
+      const body = new PositionComposerBody(target, 10, [0, 0], 1, [0.1, 0.1], 0);
       const out = createCameraState();
 
       body.update(out, 0.1);
@@ -217,7 +217,7 @@ describe('PositionComposerBody', () => {
 
     it('converges to the dead zone edge over repeated ticks with damping enabled', () => {
       const target = new Vector3(20, 0, -20);
-      const body = new PositionComposerBody(target, 10, [0, 0], 1, [0.2, 0.2], 0.3);
+      const body = new PositionComposerBody(target, 10, [0, 0], 1, [0.1, 0.1], 0.3);
       const out = createCameraState();
 
       for (let i = 0; i < 300; i++) body.update(out, 0.016);
@@ -247,7 +247,7 @@ describe('PositionComposerBody', () => {
       let projected = projectToScreen(out, 1, target);
       expect(projected.x).toBeCloseTo(0, 4);
 
-      body.deadZone = [0.2, 0.2];
+      body.deadZone = [0.1, 0.1];
       target.set(20, 5, -20); // move well outside the new dead zone (vertically this time)
       body.update(out, 0.1);
       projected = projectToScreen(out, 1, target);
@@ -307,12 +307,12 @@ describe('PositionComposerBody', () => {
   describe('dead zone with target extent (radius/size)', () => {
     it("a radius makes the dead zone react to the target's EDGE, catching drift a point target would still ignore", () => {
       const target = new Vector3(0, 0, -20);
-      const body = new PositionComposerBody(target, 10, [0, 0], 1, [0.4, 0.4], 0, [0, 0], 1); // radius = 1
+      const body = new PositionComposerBody(target, 10, [0, 0], 1, [0.2, 0.2], 0, [0, 0], 1); // radius = 1
       const out = createCameraState();
       out.fov = 90; // tan(45°) = 1, so halfWidth = cameraDistance exactly - clean world-unit math
       body.update(out, 0.1); // establishes stage-1 dolly, target dead-center
 
-      target.set(1.5, 0, -20); // point-only offset: 1.5 / 10 = 0.15 screen units, inside [0.4, 0.4]
+      target.set(1.5, 0, -20); // point-only offset: 1.5 / 10 = 0.15 screen units, inside [0.2, 0.2]
       body.update(out, 0.1);
 
       const projected = projectToScreen(out, 1, target);
@@ -323,7 +323,7 @@ describe('PositionComposerBody', () => {
 
     it('the identical nudge with no radius stays inside the dead zone (point-target baseline unaffected)', () => {
       const target = new Vector3(0, 0, -20);
-      const body = new PositionComposerBody(target, 10, [0, 0], 1, [0.4, 0.4], 0);
+      const body = new PositionComposerBody(target, 10, [0, 0], 1, [0.2, 0.2], 0);
       const out = createCameraState();
       out.fov = 90;
       body.update(out, 0.1);
@@ -337,7 +337,7 @@ describe('PositionComposerBody', () => {
 
     it('an axis-aligned size reproduces the same edge as an equivalent radius', () => {
       const target = new Vector3(0, 0, -20);
-      const body = new PositionComposerBody(target, 10, [0, 0], 1, [0.4, 0.4], 0, [0, 0], undefined, [2, 2, 2]);
+      const body = new PositionComposerBody(target, 10, [0, 0], 1, [0.2, 0.2], 0, [0, 0], undefined, [2, 2, 2]);
       const out = createCameraState();
       out.fov = 90;
       body.update(out, 0.1);
@@ -354,7 +354,7 @@ describe('PositionComposerBody', () => {
       targetObject.quaternion.setFromAxisAngle(new Vector3(0, 1, 0), Math.PI / 4); // 45° around Y
       targetObject.position.set(0, 0, -20);
 
-      const body = new PositionComposerBody(targetObject, 10, [0, 0], 1, [0.4, 0.4], 0, [0, 0], undefined, [2, 2, 2]);
+      const body = new PositionComposerBody(targetObject, 10, [0, 0], 1, [0.2, 0.2], 0, [0, 0], undefined, [2, 2, 2]);
       const out = createCameraState();
       out.fov = 90;
       body.update(out, 0.1); // dead-center baseline
@@ -372,7 +372,7 @@ describe('PositionComposerBody', () => {
       const mesh = new Mesh(new BoxGeometry(2, 2, 2), new MeshBasicMaterial());
       mesh.position.set(0, 0, -20);
 
-      const body = new PositionComposerBody(mesh, 10, [0, 0], 1, [0.4, 0.4], 0);
+      const body = new PositionComposerBody(mesh, 10, [0, 0], 1, [0.2, 0.2], 0);
       const out = createCameraState();
       out.fov = 90;
       body.update(out, 0.1);
@@ -397,7 +397,7 @@ describe('PositionComposerBody', () => {
     it("without recalculateSize(), keeps reacting to the mesh's ORIGINAL size after it grows", () => {
       const mesh = new Mesh(new BoxGeometry(2, 2, 2), new MeshBasicMaterial());
       mesh.position.set(0, 0, -20);
-      const body = new PositionComposerBody(mesh, 10, [0, 0], 1, [0.4, 0.4], 0);
+      const body = new PositionComposerBody(mesh, 10, [0, 0], 1, [0.2, 0.2], 0);
       const out = createCameraState();
       out.fov = 90;
       body.update(out, 0.1); // caches the original half-extent (1)
@@ -413,7 +413,7 @@ describe('PositionComposerBody', () => {
     it('recalculateSize() reacts to the GROWN size on the very next update() call', () => {
       const mesh = new Mesh(new BoxGeometry(2, 2, 2), new MeshBasicMaterial());
       mesh.position.set(0, 0, -20);
-      const body = new PositionComposerBody(mesh, 10, [0, 0], 1, [0.4, 0.4], 0);
+      const body = new PositionComposerBody(mesh, 10, [0, 0], 1, [0.2, 0.2], 0);
       const out = createCameraState();
       out.fov = 90;
       body.update(out, 0.1);
@@ -435,7 +435,7 @@ describe('PositionComposerBody', () => {
       // which side of the zone edge the correction lands on, so a wrongly-persisted flag is unmistakable
       const mesh = new Mesh(new BoxGeometry(2, 2, 2), new MeshBasicMaterial());
       mesh.position.set(10, 0, -20);
-      const body = new PositionComposerBody(mesh, 10, [0, 0], 1, [1.2, 1.2], 0);
+      const body = new PositionComposerBody(mesh, 10, [0, 0], 1, [0.6, 0.6], 0);
       const out = createCameraState();
       out.fov = 90;
       body.update(out, 0.1);
@@ -455,7 +455,7 @@ describe('PositionComposerBody', () => {
   describe('extent bigger than the reaction zone (real bug: used to oscillate like a spring, never converging)', () => {
     it('a radius larger than the dead zone settles at dead center instead of alternating forever', () => {
       const target = new Vector3(0, 0, -20);
-      const body = new PositionComposerBody(target, 10, [0, 0], 1, [0.4, 0.4], 0, [0, 0], 2); // radius 2 > the dead zone's own half-width in world units
+      const body = new PositionComposerBody(target, 10, [0, 0], 1, [0.2, 0.2], 0, [0, 0], 2); // radius 2 > the dead zone's own half-width in world units
       const out = createCameraState();
       body.update(out, 0.1, true); // baseline, dead-center
 
@@ -476,7 +476,7 @@ describe('PositionComposerBody', () => {
       targetObject.quaternion.setFromAxisAngle(new Vector3(0, 1, 0), Math.PI / 4);
       targetObject.position.set(0, 0, -20);
 
-      const body = new PositionComposerBody(targetObject, 10, [0, 0], 1, [0.4, 0.4], 0, [0, 0], undefined, [4, 4, 4]);
+      const body = new PositionComposerBody(targetObject, 10, [0, 0], 1, [0.2, 0.2], 0, [0, 0], undefined, [4, 4, 4]);
       const out = createCameraState();
       body.update(out, 0.1, true);
 
@@ -494,7 +494,7 @@ describe('PositionComposerBody', () => {
 
     it('a radius larger than hardLimit settles at dead center there too, not alternating', () => {
       const target = new Vector3(20, 0, -20); // far outside
-      const body = new PositionComposerBody(target, 10, [0, 0], 1, [0.1, 0.1], 5, [0.3, 0.3], 2); // radius 2 > hardLimit's own half-width
+      const body = new PositionComposerBody(target, 10, [0, 0], 1, [0.1, 0.1], 5, [0.15, 0.15], 2); // radius 2 > hardLimit's own half-width
       body.update(createCameraState(), 0.1); // consume the first-ever-update hard snap on a throwaway state
       const out = createCameraState();
 
@@ -511,19 +511,19 @@ describe('PositionComposerBody', () => {
   describe('hard limit', () => {
     it('forces the target back inside hardLimit even when heavy damping alone would leave it outside', () => {
       const target = new Vector3(20, 0, -20); // far outside on X
-      const body = new PositionComposerBody(target, 10, [0, 0], 1, [0.1, 0.1], 5, [0.3, 0.3]);
+      const body = new PositionComposerBody(target, 10, [0, 0], 1, [0.1, 0.1], 5, [0.15, 0.15]);
       body.update(createCameraState(), 0.1); // consume the first-ever-update hard snap on a throwaway state
       const out = createCameraState();
 
       body.update(out, 0.1);
 
       const projected = projectToScreen(out, 1, target);
-      expect(projected.x).toBeCloseTo(0.15, 4); // clamped to the hard limit's edge (0.3 / 2)
+      expect(projected.x).toBeCloseTo(0.15, 4); // clamped to the hard limit's edge
     });
 
     it("a radius pulls hardLimit enforcement in earlier, clamping the target's EDGE to the limit boundary", () => {
       const target = new Vector3(20, 0, -20); // far outside on X
-      const body = new PositionComposerBody(target, 10, [0, 0], 1, [0.1, 0.1], 5, [0.3, 0.3], 1); // radius = 1
+      const body = new PositionComposerBody(target, 10, [0, 0], 1, [0.1, 0.1], 5, [0.15, 0.15], 1); // radius = 1
       body.update(createCameraState(), 0.1); // consume the first-ever-update hard snap on a throwaway state
       const out = createCameraState();
       out.fov = 90; // tan(45°) = 1, so halfWidth = cameraDistance exactly - clean world-unit math
@@ -544,14 +544,14 @@ describe('PositionComposerBody', () => {
       const withoutLimit = createCameraState();
       bodyWithoutLimit.update(withoutLimit, 0.1);
 
-      const bodyWithLimit = new PositionComposerBody(target, 10, [0, 0], 1, [0.1, 0.1], 5, [0.3, 0.3]);
+      const bodyWithLimit = new PositionComposerBody(target, 10, [0, 0], 1, [0.1, 0.1], 5, [0.15, 0.15]);
       bodyWithLimit.update(createCameraState(), 0.1); // consume the first-ever-update hard snap
       const withLimit = createCameraState();
       bodyWithLimit.update(withLimit, 0.1);
 
       expect(withoutLimit.position.equals(withLimit.position)).toBe(false);
       const projected = projectToScreen(withoutLimit, 1, target);
-      expect(Math.abs(projected.x)).toBeGreaterThan(0.15); // past where hardLimit=[0.3,0.3] would have clamped it
+      expect(Math.abs(projected.x)).toBeGreaterThan(0.15); // past where hardLimit=[0.15,0.15] would have clamped it
     });
 
     it('does nothing when the damped result already sits inside a generous hardLimit', () => {
