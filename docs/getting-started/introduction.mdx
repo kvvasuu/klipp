@@ -17,7 +17,7 @@ npm install @kvvasuu/klipp
 
 ## Why not just useFrame?
 
-Because a real camera rig is never one lerp. It's a tracking target, a look-at target that's a *different* object, a dead zone so the shot doesn't jitter on every twitch, a hard limit so it never loses the subject entirely, a smooth handoff to a cutscene camera and back, screen shake that fades out instead of cutting - and all of that logic ends up tangled in one callback, hard to reuse across scenes. klipp splits it into small, independent, composable pieces instead - swap one out, reuse another across scenes, and reason about (or unit-test) each piece in isolation.
+Because a real camera rig is never one lerp - a dead zone so the shot doesn't jitter on every twitch, a hard limit so it never loses the subject entirely, a smooth handoff to a cutscene camera and back. That logic tangles into one callback, hard to reuse across scenes. klipp splits it into small, independent, composable pieces instead - swap one out, reuse another elsewhere, and reason about (or unit-test) each piece in isolation.
 
 ## Do I lose manual control?
 
