@@ -3,8 +3,8 @@ import { defineConfig } from 'vite';
 
 // https://vite.dev/config/
 export default defineConfig(({ command }) => ({
-  // deployed alongside example/ under the same GitHub Pages site, at /klipp/vanilla/
-  base: command === 'build' ? '/klipp/vanilla/' : '/',
+  // nested inside example/'s own deployed output, at /klipp/example/vanilla/
+  base: command === 'build' ? '/klipp/example/vanilla/' : '/',
   resolve: {
     alias: {
       // Read the library straight from source during development — no build step in the loop.

@@ -1,0 +1,69 @@
+name: Deploy Example + Docs to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - uses: actions/configure-pages@v5
+        id: pages
+
+      # example/ and vanilla-example/ read GitHub Pages' own base path from their `vite.config.ts` (hardcoded
+      # to /klipp/example/ and /klipp/example/vanilla/) - only the docs build needs it injected at build time,
+      # since it's shared, reusable tooling with no knowledge of this repo's own layout.
+      - run: pnpm --filter example run build
+
+      - run: pnpm --filter vanilla-example run build
+
+      - run: |
+          mkdir -p site
+          cp -r example/dist site/example
+          mkdir -p site/example/vanilla
+          cp -r vanilla-example/dist/. site/example/vanilla/
+
+      - run: >
+          npx -y @pmndrs/docs@4 build docs site/docs --format website
+          --libname "Klipp" --libname-short "klipp"
+          --home-redirect "/introduction"
+          --icon "📹"
+          --github "https://github.com/kvvasuu/klipp"
+          --base-path "${{ steps.pages.outputs.base_path }}/docs"
+          --url "${{ steps.pages.outputs.base_url }}/docs"
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

@@ -4,8 +4,9 @@ import react from '@vitejs/plugin-react';
 
 // https://vite.dev/config/
 export default defineConfig(({ command }) => ({
-  // GitHub Pages serves a repo (non-user/org) site under /<repo>/, not /
-  base: command === 'build' ? '/klipp/' : '/',
+  // GitHub Pages serves a repo (non-user/org) site under /<repo>/, not / - example/ itself lives at
+  // /klipp/example/, alongside docs/ at /klipp/docs/ on the same Pages site
+  base: command === 'build' ? '/klipp/example/' : '/',
   plugins: [react()],
   resolve: {
     alias: {
