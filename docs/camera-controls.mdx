@@ -1,0 +1,56 @@
+---
+title: CameraControls
+description: Adapter around camera-controls for user-driven orbiting.
+nav: 45
+---
+
+An adapter around [`camera-controls`](https://github.com/yomotsu/camera-controls) for user-driven orbiting - drag to orbit, scroll to dolly, the input model `<VirtualCamera>` itself doesn't have an equivalent for. It's an opt-in, separate subpath (`@kvvasuu/klipp/react/camera-controls`), not part of the main `@kvvasuu/klipp/react` entry - `camera-controls` stays out of your bundle unless you actually import it.
+
+```tsx
+import { CameraControls } from '@kvvasuu/klipp/react/camera-controls';
+
+<VirtualCamera name="orbit-cam" priority={10}>
+  <CameraControls target={ballRef} />
+</VirtualCamera>
+```
+
+## Why it's not a `Body`
+
+It genuinely does write into the Body slot (`registerBody`) - but it's the **one deliberate exception** to "Body never computes rotation": an orbit camera always looks at its target, position and rotation are inherently coupled, so it writes both `out.position` and `out.quaternion`. See [Core Concepts](/getting-started/core-concepts) for the rest of the Body/Aim split it's the exception to.
+
+## Locked vs. free
+
+- **With a `target`** - locked orbit/dolly, re-anchored via `moveTo` every frame so panning drift never pulls it away, and the camera keeps following if `target` itself moves.
+- **Without a `target`** - full free `camera-controls`, orbit *and* pan *and* dolly, nothing locked, the same as a bare drei `<CameraControls />`.
+
+## Props
+
+Beyond what a bare `camera-controls` instance already takes (every other prop passes straight through onto the real instance, drei-style), klipp adds:
+
+| Prop               | Type      | Default | |
+| ------------------- | --------- | ------- | - |
+| `target`            | `Target`  | -       | Locks orbit/dolly onto this target. Omitted = full free control. |
+| `initialPosition`   | `Vector3` | -       | World-space starting position, applied once at construction, independent of `target`. This Body owns a private internal camera and never reads the outer `CameraState` as input, so `<VirtualCamera initialState>` has no effect here - this is the only way to seed its starting pose. |
+| `enableTransition`  | `boolean` | `false` | `camera-controls`' own transition-easing argument, applied to every call this makes. |
+| `waitForBlend`      | `boolean` | `true`  | Wait for an in-progress blend *into* this camera to finish before listening to input - see below. |
+| `regress`           | `boolean` | `false` | Also lowers r3f's render quality while dragging/transitioning (`performance.regress()`). |
+| `impl`              | `typeof CameraControlsImpl` | base class | A custom `CameraControlsImpl` subclass to instantiate instead. |
+
+Plus `onControlStart`/`onControl`/`onControlEnd`/`onTransitionStart`/`onUpdate`/`onWake`/`onRest`/`onSleep`, mirroring `camera-controls`' own events.
+
+## Input only listens while this camera is live
+
+Dragging/scrolling only take effect while this `<VirtualCamera>` is actually **live** - the same `useIsActiveVirtualCamera`/`useIsLiveVirtualCamera` distinction from [Core Concepts](/getting-started/core-concepts). `waitForBlend` (default `true`) picks which one gates listening:
+
+- `true` - waits until any blend this camera has actually finished. Dragging mid-blend has no effect; input resumes exactly where the finished blend landed.
+- `false` - listens as soon as this camera wins arbitration, even while still mid-blend into it.
+
+Either way, `update()` itself keeps running every frame regardless - the target never gets lost in the background, only the input listeners connect/disconnect.
+
+## `ref`
+
+```tsx
+const controlsRef = useRef<CameraControlsBody>(null);
+```
+
+Gives you the underlying `CameraControlsBody` - `.controls` is the real `CameraControlsImpl` instance, for any of its dozens of options (`minDistance`/`maxDistance`, `minPolarAngle`/`maxPolarAngle`, `dollySpeed`, ...) klipp doesn't wrap with its own prop.

@@ -1,0 +1,33 @@
+---
+title: RotateWithFollowTarget
+description: Mirrors a target's own rotation directly onto the camera.
+nav: 22
+---
+
+Sets the camera's rotation to exactly `target`'s own world rotation - "glued" child-like, the way a camera rigidly mounted to a character's back would move. Unlike every other Aim, it never looks at the target's *position* at all, only its rotation.
+
+That makes it a genuinely different tool from `HardLookAt`/`RotationComposer`, not just a variant - with an offset in front of a character, for example, the camera ends up facing the *same* way the character faces (i.e. away from it, a first-person-ish view), not looking back at it like a chase cam would.
+
+```tsx
+<VirtualCamera name="chase-cam" priority={10}>
+  <Body.Follow target={playerRef} offset={[0, 1, -5]} bindingMode={BindingModes.lockToTarget} />
+  <Aim.RotateWithFollowTarget target={playerRef} damping={0.3} />
+</VirtualCamera>
+```
+
+## Props
+
+| Prop      | Type              | Default | |
+| --------- | ----------------- | ------- | - |
+| `target`  | `Target`          | -       | Rotation source - the camera's rotation becomes this object's world rotation. A fixed-point target (no rotation), `null`/`undefined`/omitted are all a no-op. |
+| `damping` | `DampingConstant` | `0`     | Seconds to catch up to the target's rotation (or `{ into, from }` for asymmetric damping). `0` = hard, instant match. |
+
+Damping here tracks the shortest angular delta every frame using a single `Damper` on the rotation angle itself (not a per-axis Euler decomposition), so it stays continuous and gimbal-lock-free even while chasing a target that's rotating quickly and continuously.
+
+## `ref`
+
+```tsx
+const aimRef = useRef<RotateWithFollowTargetAim>(null);
+```
+
+Gives you the underlying `RotateWithFollowTargetAim` - read or write `.target`/`.damping` directly.

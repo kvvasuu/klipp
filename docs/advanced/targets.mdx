@@ -1,0 +1,34 @@
+---
+title: Targets
+description: How target props resolve Object3D refs and the r3f Vector3 shorthand.
+nav: 72
+---
+
+Every `target` prop across Body/Aim shares one type and one resolution behavior, so a target can be a live object, a ref to one that mounts later, or a fixed point - interchangeably, with no caller-side branching.
+
+## `Target`
+
+```ts
+type Target = Object3D | RefObject<Object3D | null> | Vector3Like | null | undefined;
+```
+
+- An `Object3D` - tracked live, including its own movement/rotation.
+- A `RefObject<Object3D | null>` - the same, but tolerant of the ref not being mounted yet.
+- The r3f `Vector3` shorthand (`Vector3Like = THREE.Vector3 | [x, y, z] | number`) - a fixed point, no rotation to speak of.
+- `null`/`undefined` - a no-op, the exact same as an unmounted ref. A nullable piece of React state can be passed straight through without a `? :` coercion at the call site.
+
+## Resolving one
+
+```ts
+function resolveTargetPosition(out: Vector3, target: Target): boolean;
+function resolveTargetRotation(out: Quaternion, target: Target): boolean;
+```
+
+Both write into `out` in place and return whether they resolved anything - `false` (leaving `out` untouched) for `null`/`undefined`/an unmounted ref/a fixed point with no rotation to give. This is the shared "did the target resolve, and to what" step every Body/Aim uses internally, and the one to reach for in a [custom Extension](/advanced/custom-extensions) that needs to read a `Target` prop itself.
+
+```ts
+function resolveVector3(out: Vector3, value: Vector3Like): Vector3;
+function isVector3Like(value: unknown): value is Vector3Like;
+```
+
+The lower-level piece behind the `Vector3` shorthand itself (an instance, a 3-tuple, or a single number broadcast to all three axes) - the exact same convention r3f uses for a plain `<mesh position>`.

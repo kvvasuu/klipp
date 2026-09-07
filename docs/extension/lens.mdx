@@ -1,0 +1,40 @@
+---
+title: Lens
+description: Overrides fov/near/far after Body/Aim/Noise, each independently damped.
+nav: 42
+---
+
+Nothing else in klipp's pipeline writes `fov`/`near`/`far` (`initialState`/blending aside) - without `Lens` claiming them, an external `useFrame` mutating `camera.fov` directly would get silently overwritten by `<Klipp>`'s own driver every frame. A field left `undefined` is a no-op - whatever `initialState`/blending already set stays untouched.
+
+```tsx
+<VirtualCamera name="follow-cam" priority={10}>
+  <Body.Follow target={playerRef} offset={[0, 3, 8]} damping={0.5} />
+  <Aim.HardLookAt target={playerRef} />
+  <Extension.Lens fov={speedBasedFov} fovDamping={0.4} />
+</VirtualCamera>
+```
+
+## Props
+
+| Prop           | Type              | Default | |
+| -------------- | ----------------- | ------- | - |
+| `fov`          | `number`          | -       | Overrides the camera's field of view, in degrees. `undefined` = untouched. |
+| `near`         | `number`          | -       | Overrides the near clip plane. `undefined` = untouched. |
+| `far`          | `number`          | -       | Overrides the far clip plane. `undefined` = untouched. |
+| `fovDamping`   | `DampingConstant` | `0`     | Seconds to catch up to `fov` as it changes. `0` = hard, instant. |
+| `nearDamping`  | `DampingConstant` | `0`     | Seconds to catch up to `near` as it changes. `0` = hard, instant. |
+| `farDamping`   | `DampingConstant` | `0`     | Seconds to catch up to `far` as it changes. `0` = hard, instant. |
+
+Each field damps independently - `fov` can be easing in over half a second while `near`/`far` snap instantly, since they're three separate `Damper`s under the hood.
+
+## Prop vs. `ref`
+
+Both `fov={x}` and `lensRef.current.fov = x` set the exact same underlying field - there's no special casing between them. The prop exists for a reactive, one-shot jump (with automatic, smooth damping like everywhere else in klipp); `ref` exists for mutating the value every frame from an external `useFrame` without forcing a React re-render for it. Pick whichever fits how the value changes in your scene.
+
+## `ref`
+
+```tsx
+const lensRef = useRef<LensExtension>(null);
+```
+
+Gives you the underlying `LensExtension` - read or write `.fov`/`.near`/`.far`/`.fovDamping`/`.nearDamping`/`.farDamping` directly.

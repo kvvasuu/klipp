@@ -1,0 +1,32 @@
+---
+title: CameraFrustumHelper
+description: Visualizing a VirtualCamera's frustum in the scene.
+nav: 61
+---
+
+Draws a `THREE.CameraHelper` synced from the nearest `<VirtualCamera>`'s own raw `CameraState` - a 3D, in-scene frustum cone, visible from any angle, not a canvas overlay. Since arbitration never stops a camera's Body/Aim/Extension/Noise from running, this stays accurate even for a camera that isn't currently winning.
+
+```tsx
+<VirtualCamera name="orbit-cam" priority={10}>
+  <CameraControls target={ballRef} />
+  <CameraFrustumHelper color="orange" />
+</VirtualCamera>
+```
+
+Mount it as a sibling inside the `<VirtualCamera>` you want to visualize - it reads that camera's state via context, the same way Body/Aim/Noise/Extension do.
+
+## Props
+
+| Prop           | Type                 | Default   | |
+| -------------- | --------------------- | --------- | - |
+| `color`        | `ColorRepresentation`  | `THREE.CameraHelper`'s own built-in colors | Single color for the whole helper. |
+| `maxDistance`  | `number`               | `1`       | Caps how far the drawn frustum extends, regardless of the camera's own (often much larger) `far` - keeps the cone a sane on-screen size. |
+| `hideWhenLive` | `boolean`              | `true`    | Hides the helper while this is the camera actually on screen right now - its own frustum would radiate from the viewer's own eye at that point, more noise than signal. |
+
+## `ref`
+
+```tsx
+const helperRef = useRef<CameraHelper>(null);
+```
+
+Gives you the underlying `THREE.CameraHelper` directly.

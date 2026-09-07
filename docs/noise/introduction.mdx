@@ -1,0 +1,24 @@
+---
+title: Noise
+description: Additive shake stacked on top of whatever Body/Aim already computed.
+nav: 30
+---
+
+Noise adds an offset on top of whatever Body and Aim already produced - it runs last in the pipeline, so shake lands on an already-correctly-framed shot instead of one that might still get adjusted out from under it. Unlike Body/Aim, Noise is a **stacking** slot: mount as many as you like on the same `<VirtualCamera>`.
+
+```tsx
+<VirtualCamera name="follow-cam" priority={10}>
+  <Body.Follow target={playerRef} offset={[0, 3, 8]} damping={0.5} />
+  <Aim.HardLookAt target={playerRef} />
+  <Noise.BasicMultiChannelPerlin positionAmplitude={[0.1, 0.1, 0]} rotationAmplitude={[0.5, 0.5, 0]} />
+</VirtualCamera>
+```
+
+## What's here
+
+- [`BasicMultiChannelPerlin`](/noise/basic-multi-channel-perlin) - continuous, procedural shake with independent amplitude/frequency per position and rotation axis.
+- [`Impulse`](/noise/impulse) - event-driven, one-shot reactions (explosions, impacts) instead of continuous shake - `ImpulseListenerNoise`/`Noise.ImpulseListener` plug into this same stacking slot.
+
+## Layering multiple frequency bands
+
+For a shake that mixes a slow, heavy sway with a fast, subtle jitter, mount two `<Noise.BasicMultiChannelPerlin>` with different `frequency`/`amplitude` instead of configuring several bands inside one component - Noise already being a stacking slot gives you that layering for free.

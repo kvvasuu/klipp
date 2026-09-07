@@ -1,0 +1,23 @@
+---
+title: Blend Hints
+description: Bitmask flags that change how a specific transition blends.
+nav: 51
+---
+
+A bitmask set via `<VirtualCamera hints={...}>` - OR'd together from **both** cameras on either side of a transition, so either the outgoing or the incoming camera can request a different blend shape.
+
+```tsx
+<VirtualCamera name="orbit-cam" priority={10} hints={BlendHints.sphericalPosition}>
+```
+
+## Flags
+
+| Flag                              | Honored? | |
+| ---------------------------------- | -------- | - |
+| `sphericalPosition`                | ✅        | Interpolates the camera's offset from its tracking target as a spherical coordinate (radius/azimuth/polar) instead of a straight line - the camera arcs around the target instead of cutting through it. |
+| `cylindricalPosition`              | ✅        | Same idea, but the vertical offset lerps linearly while the horizontal offset arcs - only differs from `sphericalPosition` once the two cameras' offsets sit at different heights. |
+| `ignoreTarget`                     | ✅        | Falls back to a plain slerp between the two cameras' own rotations, instead of tracking the smoothly-interpolated look-at target throughout the blend. |
+
+## Without either position hint
+
+The default is a straight linear interpolation between the two cameras' positions - simple, but it can cut straight through whatever the tracking target actually is if the two offsets sit on opposite sides of it. Add one of the position hints when that's visible.

@@ -1,0 +1,40 @@
+---
+title: Installation
+description: Package layout, entry points, and the optional CameraControls subpath.
+nav: 1
+---
+
+```bash
+npm install @kvvasuu/klipp
+```
+
+> [!NOTE]
+> klipp is built for [React Three Fiber](https://github.com/pmndrs/react-three-fiber) - but `react`/`@react-three/fiber` are optional peers, so if you want it, the engine also works vanilla, with no React dependency at all.
+
+## Entry points
+
+klipp ships as three separate entry points, so you only pull in what you actually use:
+
+| Import                              | Needs                              | What's in it                                                                    |
+| ------------------------------------ | ----------------------------------- | -------------------------------------------------------------------------------- |
+| `@kvvasuu/klipp`                     | `three`                             | The framework-agnostic engine - `KlippCore`, `CameraState`, blending, damping. No React. |
+| `@kvvasuu/klipp/react`               | `react`, `@react-three/fiber`       | `<Klipp>`, `<VirtualCamera>`, and every `Body`/`Aim`/`Noise`/`Extension` component. |
+| `@kvvasuu/klipp/react/camera-controls` | `camera-controls`                 | `<CameraControls>`, the user-driven orbit adapter - opt-in since it pulls in its own dependency. |
+
+Most projects only ever need `@kvvasuu/klipp/react`:
+
+```tsx
+import { Klipp, VirtualCamera, Body, Aim } from '@kvvasuu/klipp/react';
+```
+
+If you also want `<CameraControls>`, install its dependency and import from the dedicated subpath:
+
+```bash
+npm install camera-controls
+```
+
+```tsx
+import { CameraControls } from '@kvvasuu/klipp/react/camera-controls';
+```
+
+`three`, `react`, `@react-three/fiber`, and `camera-controls` are all `peerDependencies` - klipp never bundles its own copy, so your app's versions are always the ones actually running.

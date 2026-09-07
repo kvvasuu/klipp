@@ -1,0 +1,42 @@
+---
+title: BasicMultiChannelPerlin
+description: Additive Perlin shake on position and rotation, independent per axis.
+nav: 31
+---
+
+Six independently-seeded Perlin channels - position X/Y/Z (camera-local: X = left/right, Y = up/down, Z = push/pull) and rotation X/Y/Z (degrees, camera-local pitch/yaw/roll) - added on top of whatever Body/Aim already computed.
+
+```tsx
+<Noise.BasicMultiChannelPerlin
+  positionAmplitude={[0.05, 0.05, 0]}
+  rotationAmplitude={[0.3, 0.3, 0]}
+  frequencyGain={2}
+/>
+```
+
+## Props
+
+| Prop                | Type              | Default     | |
+| ------------------- | ----------------- | ----------- | - |
+| `positionAmplitude` | `Vector3`         | `(0, 0, 0)` | Per-axis shake amplitude, camera-local space. `(0,0,0)` = no shake until dialed in. |
+| `positionFrequency` | `Vector3`         | `(1, 1, 1)` | Per-axis oscillation speed for position noise. |
+| `rotationAmplitude` | `Vector3`         | `(0, 0, 0)` | Per-axis shake amplitude, in degrees. |
+| `rotationFrequency` | `Vector3`         | `(1, 1, 1)` | Per-axis oscillation speed for rotation noise. |
+| `amplitudeGain`     | `number`          | `1`         | Multiplies every amplitude at once. |
+| `frequencyGain`     | `number`          | `1`         | Multiplies every frequency at once (how fast the internal clock advances). |
+| `seed`              | `number`          | random      | Seeds the 6 channels - same seed reproduces identical noise. Chosen once, on mount; changing it later has no effect. |
+| `amplitudeDamping`  | `DampingConstant` | `0`         | Seconds to ease `amplitudeGain` changes instead of cutting instantly. `0` = instant. |
+
+All amplitudes default to `0` - nothing shakes until you dial one in, the same "0 disables it" convention as `deadZone`/`hardLimit`/`damping` elsewhere in klipp.
+
+## Fading in/out (`amplitudeDamping`)
+
+Noise has no state that persists between frames the way Body/Aim's damping does - the offset is always a fresh `sample × amplitude`, with nothing to "coast" from when you turn it off. Without `amplitudeDamping`, dropping `amplitudeGain` to `0` cuts the shake dead on the very next frame; with it, the *effective* gain eases toward the new value instead, so turning shake off reads as the effect settling down, not a hard cut. Frequency/character of the noise itself doesn't change - only how loud it currently is.
+
+## `ref`
+
+```tsx
+const noiseRef = useRef<BasicMultiChannelPerlinNoise>(null);
+```
+
+Gives you the underlying `BasicMultiChannelPerlinNoise` - read or write any prop's field directly.

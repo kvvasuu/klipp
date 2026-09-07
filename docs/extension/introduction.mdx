@@ -1,0 +1,22 @@
+---
+title: Extension
+description: Adjustments that run after Body+Aim and before Noise.
+nav: 40
+---
+
+An Extension runs after Body+Aim (so it already knows the shot's final orientation) and before Noise (so shake lands on an already-adjusted shot). Like Noise, it's a **stacking** slot - mount as many as you need on the same `<VirtualCamera>`.
+
+```tsx
+<VirtualCamera name="follow-cam" priority={10}>
+  <Body.Follow target={boxRef} offset={[0, 2, 5]} damping={0} />
+  <Aim.HardLookAt target={boxRef} />
+  <Extension.GroupFraming members={[{ target: boxRef }]} padding={1} />
+</VirtualCamera>
+```
+
+## What's here
+
+- [`GroupFraming`](/extension/group-framing) - keeps a weighted group of targets in frame as a distance ceiling, dollying the camera back only as far as needed.
+- [`Lens`](/extension/lens) - overrides `fov`/`near`/`far` after the rest of the pipeline runs, each independently damped.
+
+Both touch `CameraState` fields that Body/Aim don't (or shouldn't) own themselves - `GroupFraming` adjusts `position` further along the camera's *own* view axis without touching rotation, and `Lens` claims the lens fields nothing else in the pipeline writes to at all.
