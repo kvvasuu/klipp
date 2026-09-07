@@ -31,14 +31,14 @@ A `<VirtualCamera>` is a candidate, not necessarily what's on screen - `name` an
 
 Each `<VirtualCamera>` owns one mutable `CameraState` (see below) that its children write into, always in this order:
 
-1. **Body** computes **position**. At most one per `<VirtualCamera>` - `HardLockToTarget`, `Follow`, `PositionComposer`, or [`CameraControls`](/camera-controls)*.
+1. **Body** computes **position**. At most one per `<VirtualCamera>` - `HardLockToTarget`, `Follow`, `PositionComposer`, or [`CameraControls`](/camera-controls/introduction)*.
 2. **Aim** computes **rotation**, reading whatever position Body just wrote. At most one - `HardLookAt`, `RotateWithFollowTarget`, or `RotationComposer`.
 3. **Extension** runs after Body+Aim, since it needs the shot's final orientation - `GroupFraming` dollies along the camera's own current view axis, `Lens` overrides `fov`/`near`/`far`. Unlike Body/Aim, this slot **stacks**: mount as many as you need.
 4. **Noise** runs last, adding shake on top of an already-correctly-framed shot instead of one an Extension might still adjust out from under it. Also a stacking slot.
 
 Body never touches rotation and Aim never touches position - they're deliberately independent, so you can follow one target with one damping curve while looking at a completely different one.
 
-\* `CameraControls` is the one deliberate exception: orbiting couples position and rotation inherently (an orbit camera always looks at its target), so it writes both. It's an adapter around the [`camera-controls`](https://github.com/yomotsu/camera-controls) library for user-driven input, not one of klipp's own composable pieces - see its [own page](/camera-controls) rather than treating it as just another Body.
+\* `CameraControls` is the one deliberate exception: orbiting couples position and rotation inherently (an orbit camera always looks at its target), so it writes both. It's an adapter around the [`camera-controls`](https://github.com/yomotsu/camera-controls) library for user-driven input, not one of klipp's own composable pieces - see its [own page](/camera-controls/introduction) rather than treating it as just another Body.
 
 ## `CameraState`
 
