@@ -200,7 +200,7 @@ describe('RotationComposerAim', () => {
 
     it('target outside the dead zone with damping <= 0: snaps instantly to the dead zone EDGE, not to screenPosition center', () => {
       const target = new Vector3(20, 0, -20); // far outside the dead zone on X
-      const aim = new RotationComposerAim(target, [0, 0], 1, [0.2, 0.2], 0);
+      const aim = new RotationComposerAim(target, [0, 0], 1, [0.1, 0.1], 0);
       const out = createCameraState();
 
       aim.update(out, 0.1);
@@ -229,7 +229,7 @@ describe('RotationComposerAim', () => {
 
     it('converges to the dead zone edge over repeated ticks with damping enabled', () => {
       const target = new Vector3(20, 0, -20);
-      const aim = new RotationComposerAim(target, [0, 0], 1, [0.2, 0.2], 0.3);
+      const aim = new RotationComposerAim(target, [0, 0], 1, [0.1, 0.1], 0.3);
       const out = createCameraState();
 
       for (let i = 0; i < 300; i++) aim.update(out, 0.016);
@@ -259,7 +259,7 @@ describe('RotationComposerAim', () => {
       let projected = projectToScreen(out, 1, target);
       expect(projected.x).toBeCloseTo(0, 4);
 
-      aim.deadZone = [0.2, 0.2];
+      aim.deadZone = [0.1, 0.1];
       target.set(20, 5, -20); // move well outside the new dead zone (vertically this time)
       aim.update(out, 0.1);
       projected = projectToScreen(out, 1, target);
@@ -270,12 +270,12 @@ describe('RotationComposerAim', () => {
   describe('dead zone with target extent (radius/size)', () => {
     it("a radius makes the dead zone react to the target's EDGE, catching drift a point target would still ignore", () => {
       const target = new Vector3(0, 0, -10);
-      const aim = new RotationComposerAim(target, [0, 0], 1, [0.4, 0.4], 0, [0, 0], new Vector3(), 1); // radius = 1
+      const aim = new RotationComposerAim(target, [0, 0], 1, [0.2, 0.2], 0, [0, 0], new Vector3(), 1); // radius = 1
       const out = createCameraState();
       out.fov = 90; // tan(45°) = 1, so depth-normalized math is clean
       aim.update(out, 0.1); // baseline, dead-center
 
-      target.set(1.5, 0, -10); // point-only offset: 1.5 / depth(10) = 0.15, inside [0.4, 0.4]
+      target.set(1.5, 0, -10); // point-only offset: 1.5 / depth(10) = 0.15, inside [0.2, 0.2]
       aim.update(out, 0.1);
 
       const projected = projectToScreen(out, 1, target);
@@ -286,7 +286,7 @@ describe('RotationComposerAim', () => {
 
     it('the identical nudge with no radius stays inside the dead zone (point-target baseline unaffected)', () => {
       const target = new Vector3(0, 0, -10);
-      const aim = new RotationComposerAim(target, [0, 0], 1, [0.4, 0.4], 0);
+      const aim = new RotationComposerAim(target, [0, 0], 1, [0.2, 0.2], 0);
       const out = createCameraState();
       out.fov = 90;
       aim.update(out, 0.1);
@@ -300,7 +300,7 @@ describe('RotationComposerAim', () => {
 
     it('an axis-aligned size reproduces the same edge as an equivalent radius', () => {
       const target = new Vector3(0, 0, -10);
-      const aim = new RotationComposerAim(target, [0, 0], 1, [0.4, 0.4], 0, [0, 0], new Vector3(), undefined, [2, 2, 2]);
+      const aim = new RotationComposerAim(target, [0, 0], 1, [0.2, 0.2], 0, [0, 0], new Vector3(), undefined, [2, 2, 2]);
       const out = createCameraState();
       out.fov = 90;
       aim.update(out, 0.1);
@@ -321,7 +321,7 @@ describe('RotationComposerAim', () => {
         targetObject,
         [0, 0],
         1,
-        [0.4, 0.4],
+        [0.2, 0.2],
         0,
         [0, 0],
         new Vector3(),
@@ -345,7 +345,7 @@ describe('RotationComposerAim', () => {
       const mesh = new Mesh(new BoxGeometry(2, 2, 2), new MeshBasicMaterial());
       mesh.position.set(0, 0, -10);
 
-      const aim = new RotationComposerAim(mesh, [0, 0], 1, [0.4, 0.4], 0);
+      const aim = new RotationComposerAim(mesh, [0, 0], 1, [0.2, 0.2], 0);
       const out = createCameraState();
       out.fov = 90;
       aim.update(out, 0.1);
@@ -370,7 +370,7 @@ describe('RotationComposerAim', () => {
     it('recalculateSize() reacts to a grown mesh on the very next update() call', () => {
       const mesh = new Mesh(new BoxGeometry(2, 2, 2), new MeshBasicMaterial());
       mesh.position.set(0, 0, -10);
-      const aim = new RotationComposerAim(mesh, [0, 0], 1, [0.4, 0.4], 0);
+      const aim = new RotationComposerAim(mesh, [0, 0], 1, [0.2, 0.2], 0);
       const out = createCameraState();
       out.fov = 90;
       aim.update(out, 0.1);
@@ -410,7 +410,7 @@ describe('RotationComposerAim', () => {
   describe('extent bigger than the reaction zone (real bug in PositionComposer, fixed here from the start)', () => {
     it('a radius larger than the dead zone settles at dead center instead of alternating forever', () => {
       const target = new Vector3(0, 0, -10);
-      const aim = new RotationComposerAim(target, [0, 0], 1, [0.4, 0.4], 0, [0, 0], new Vector3(), 3); // radius 3 > deadZone's own half-width in world units at this depth
+      const aim = new RotationComposerAim(target, [0, 0], 1, [0.2, 0.2], 0, [0, 0], new Vector3(), 3); // radius 3 > deadZone's own half-width in world units at this depth
       const out = createCameraState();
       out.fov = 90;
       aim.update(out, 0.1); // baseline, dead-center
@@ -494,14 +494,14 @@ describe('RotationComposerAim', () => {
   describe('hard limit', () => {
     it('forces the target back inside hardLimit even when heavy damping alone would leave it outside', () => {
       const target = new Vector3(20, 0, -20); // far outside on X
-      const aim = new RotationComposerAim(target, [0, 0], 1, [0.1, 0.1], 5, [0.3, 0.3]);
+      const aim = new RotationComposerAim(target, [0, 0], 1, [0.1, 0.1], 5, [0.15, 0.15]);
       aim.update(createCameraState(), 0.1); // consume the first-ever-update hard snap on a throwaway state
       const out = createCameraState();
 
       aim.update(out, 0.1);
 
       const projected = projectToScreen(out, 1, target);
-      expect(projected.x).toBeCloseTo(0.15, 4); // clamped to the hard limit's edge (0.3 / 2)
+      expect(projected.x).toBeCloseTo(0.15, 4); // clamped to the hard limit's edge
     });
 
     it('hardLimit=[0,0] (default): no enforcement, an unclamped damped result can lag past where a hard limit would clamp it', () => {
@@ -512,14 +512,14 @@ describe('RotationComposerAim', () => {
       const withoutLimit = createCameraState();
       aimWithoutLimit.update(withoutLimit, 0.1);
 
-      const aimWithLimit = new RotationComposerAim(target, [0, 0], 1, [0.1, 0.1], 5, [0.3, 0.3]);
+      const aimWithLimit = new RotationComposerAim(target, [0, 0], 1, [0.1, 0.1], 5, [0.15, 0.15]);
       aimWithLimit.update(createCameraState(), 0.1); // consume the first-ever-update hard snap
       const withLimit = createCameraState();
       aimWithLimit.update(withLimit, 0.1);
 
       expect(withoutLimit.quaternion.equals(withLimit.quaternion)).toBe(false);
       const projected = projectToScreen(withoutLimit, 1, target);
-      expect(Math.abs(projected.x)).toBeGreaterThan(0.15); // past where hardLimit=[0.3,0.3] would have clamped it
+      expect(Math.abs(projected.x)).toBeGreaterThan(0.15); // past where hardLimit=[0.15,0.15] would have clamped it
     });
 
     it('does nothing when the damped result already sits inside a generous hardLimit', () => {

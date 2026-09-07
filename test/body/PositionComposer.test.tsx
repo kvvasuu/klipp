@@ -150,7 +150,7 @@ describe('PositionComposer (React wrapper)', () => {
             cameraDistance={10}
             deadZone={[0.1, 0.1]}
             damping={5}
-            hardLimit={[0.3, 0.3]}
+            hardLimit={[0.15, 0.15]}
           />
         </VirtualCamera>
       </Klipp>

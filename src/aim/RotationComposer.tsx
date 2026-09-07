@@ -16,15 +16,16 @@ export type RotationComposerProps = {
   /** Where the target should land on screen: `[x, y]`, `0` = center, `±1` = edge. Default `[0, 0]`
    *  (dead center, same result as `HardLookAt`). */
   screenPosition?: [number, number];
-  /** Box (`[width, height]`, screen fractions) around `screenPosition` where the target can sit with NO
-   *  camera reaction at all. Default `[0, 0]` (none — always reacts, same as `HardLookAt`). */
+  /** How far (`[x, y]`) the target can drift from `screenPosition` with NO camera reaction at all — same
+   *  unit as `screenPosition` itself (`1` reaches the frame edge). Default `[0, 0]` (none — always
+   *  reacts, same as `HardLookAt`). */
   deadZone?: [number, number];
   /** Seconds to catch up to the dead zone's edge once the target steps outside it (or `{into, from}` for
    *  asymmetric damping). Only matters when `deadZone` is non-zero. `0` (default) = hard, instant snap
    *  to the edge. */
   damping?: DampingConstant;
-  /** A SECOND, normally wider box (`[width, height]`, same units as `deadZone`) the target may never
-   *  visually leave — enforced instantly (bypassing `damping`) after the damped dead zone reaction runs.
+  /** A SECOND, normally larger reach (`[x, y]`, same unit as `deadZone`) the target may never visually
+   *  drift past — enforced instantly (bypassing `damping`) after the damped dead zone reaction runs.
    *  Default `[0, 0]` (none). */
   hardLimit?: [number, number];
   /** Translation applied to the target's position, in the target's own local rotation space, before all
@@ -91,7 +92,12 @@ export function RotationComposer({
 
   if (!debug) return null;
   const zones: DebugZone[] = [];
-  if (hardLimit[0] > 0 || hardLimit[1] > 0) zones.push({ screenPosition, size: hardLimit, color: '#cc3333' });
-  if (deadZone[0] > 0 || deadZone[1] > 0) zones.push({ screenPosition, size: deadZone, color: '#33cc33' });
+  // deadZone/hardLimit are a half-reach from screenPosition, DebugZoneOverlay wants a full box size
+  if (hardLimit[0] > 0 || hardLimit[1] > 0) {
+    zones.push({ screenPosition, size: [hardLimit[0] * 2, hardLimit[1] * 2], color: '#cc3333' });
+  }
+  if (deadZone[0] > 0 || deadZone[1] > 0) {
+    zones.push({ screenPosition, size: [deadZone[0] * 2, deadZone[1] * 2], color: '#33cc33' });
+  }
   return <DebugZoneOverlay zones={zones} />;
 }

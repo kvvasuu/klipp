@@ -97,7 +97,7 @@ function ZigzagTarget({ targetRef }: { targetRef: RefObject<Object3D | null> }) 
 
 function HardLimitScene({ hardLimitEnabled }: { hardLimitEnabled: boolean }) {
   const targetRef = useRef<Object3D>(null);
-  const hardLimit: [number, number] = hardLimitEnabled ? [0.6, 0.6] : [0, 0];
+  const hardLimit: [number, number] = hardLimitEnabled ? [0.3, 0.3] : [0, 0];
 
   return (
     <>
@@ -111,7 +111,7 @@ function HardLimitScene({ hardLimitEnabled }: { hardLimitEnabled: boolean }) {
         {/* Heavy damping alone would let a fast zigzagging target lag arbitrarily far off-center;
             hardLimit forces it back inside its (wider) box every frame it strays past that, undamped. */}
         <VirtualCamera name="hardLimit-demo" active={true} priority={10}>
-          <Body.PositionComposer target={targetRef} deadZone={[0.4, 0.4]} damping={0.2} hardLimit={hardLimit} />
+          <Body.PositionComposer target={targetRef} deadZone={[0.2, 0.2]} damping={0.2} hardLimit={hardLimit} />
         </VirtualCamera>
       </Klipp>
     </>
@@ -156,7 +156,7 @@ function TargetExtentScene({ mode }: { mode: TargetExtentMode }) {
         <VirtualCamera name="targetExtent-demo" active={true} priority={10}>
           <Body.PositionComposer
             target={targetRef}
-            deadZone={[0.4, 0.4]}
+            deadZone={[0.2, 0.2]}
             damping={0.2}
             radius={mode === 'point' ? 0 : mode === 'radius' ? 2 : undefined}
           />
@@ -190,7 +190,7 @@ function RotationExtentScene({ mode }: { mode: RotationExtentMode }) {
           <Body.HardLockToTarget target={rotationExtentCameraPosition} />
           <Aim.RotationComposer
             target={targetRef}
-            deadZone={[0.4, 0.4]}
+            deadZone={[0.2, 0.2]}
             damping={0.2}
             radius={mode === 'point' ? 0 : mode === 'radius' ? 2 : undefined}
           />
@@ -530,7 +530,7 @@ function ReactivationSnapScene({ targetKey, cameraActive }: { targetKey: 'A' | '
               instant/undamped by design, which would show as "jump, then the lateral part eases in",
               muddying what this scene is actually testing (unrelated to justActivated). */}
           <Body.Follow target={targetPosition} offset={[0, 5, 16]} damping={1.5} />
-          <Aim.RotationComposer target={targetPosition} deadZone={[0.2, 0.2]} damping={1.5} />
+          <Aim.RotationComposer target={targetPosition} deadZone={[0.1, 0.1]} damping={1.5} />
         </VirtualCamera>
       </Klipp>
     </>
@@ -822,7 +822,7 @@ function InitialStateScene({ mode, seeded }: { mode: InitialStateMode; seeded: b
               ? { position: initialStateTopdownEye, quaternion: initialStateTopdownQuaternion, fov: 80 }
               : undefined
           }>
-          <Body.PositionComposer target={playerRef} cameraDistance={15} deadZone={[0.4, 0.4]} />
+          <Body.PositionComposer target={playerRef} cameraDistance={15} deadZone={[0.2, 0.2]} />
           <Aim.HardLookAt target={playerRef} />
         </VirtualCamera>
       </Klipp>

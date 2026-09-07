@@ -188,7 +188,7 @@ describe('RotationComposer (React wrapper)', () => {
         <CoreReader onRead={(c) => (core = c)} />
         <AspectReader onRead={(a) => (aspect = a)} />
         <VirtualCamera name="a" priority={10}>
-          <RotationComposer target={target} deadZone={[0.1, 0.1]} damping={5} hardLimit={[0.3, 0.3]} />
+          <RotationComposer target={target} deadZone={[0.1, 0.1]} damping={5} hardLimit={[0.15, 0.15]} />
         </VirtualCamera>
       </Klipp>
     );
