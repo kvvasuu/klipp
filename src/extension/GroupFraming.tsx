@@ -41,7 +41,15 @@ export type GroupFramingProps = {
  * `TargetGroup` (position/bounds from `members`). Only works correctly when this `VirtualCamera`'s Aim
  * already looks straight at the same group's position.
  */
-export function GroupFraming({ members, positionMode, padding, damping, screenPosition, debug = false, ref }: GroupFramingProps) {
+export function GroupFraming({
+  members,
+  positionMode = 'groupCenter',
+  padding = 0,
+  damping = 0,
+  screenPosition = [0, 0],
+  debug = false,
+  ref,
+}: GroupFramingProps) {
   const slots = useVirtualCameraSlots();
   const size = useThree((state) => state.size);
   const [group] = useState(() => new TargetGroup(members, positionMode));
@@ -50,14 +58,12 @@ export function GroupFraming({ members, positionMode, padding, damping, screenPo
   );
 
   group.members = members;
-  // only synced when actually passed - otherwise this would fight a ref-based imperative mutation on
-  // every unrelated re-render
-  if (positionMode !== undefined) group.positionMode = positionMode;
-  if (padding !== undefined) extension.padding = padding;
+  group.positionMode = positionMode;
+  extension.padding = padding;
   extension.viewportWidth = size.width;
   extension.viewportHeight = size.height;
-  if (damping !== undefined) extension.damping = damping;
-  if (screenPosition !== undefined) extension.screenPosition = screenPosition;
+  extension.damping = damping;
+  extension.screenPosition = screenPosition;
 
   useImperativeHandle(ref, () => extension, [extension]);
   useEffect(() => slots.registerExtension(extension.update), [slots, extension]);
@@ -78,8 +84,8 @@ export function GroupFraming({ members, positionMode, padding, damping, screenPo
     // fraction convention matches deadZone/hardLimit's ([2, 2] = full frame) - clamped so a padding
     // bigger than the frame itself doesn't invert the box
     const next: [number, number] = [
-      clamp(1 - extension.padding / halfWidth, 0, 1) * 2,
-      clamp(1 - extension.padding / halfHeight, 0, 1) * 2,
+      clamp(1 - padding / halfWidth, 0, 1) * 2,
+      clamp(1 - padding / halfHeight, 0, 1) * 2,
     ];
     setPaddingBox((previous) =>
       previous && Math.abs(previous[0] - next[0]) < DEBUG_BOX_EPSILON && Math.abs(previous[1] - next[1]) < DEBUG_BOX_EPSILON
@@ -89,6 +95,6 @@ export function GroupFraming({ members, positionMode, padding, damping, screenPo
   });
 
   if (!debug || !paddingBox) return null;
-  const zones: DebugZone[] = [{ screenPosition: extension.screenPosition, size: paddingBox, color: '#3399cc' }];
+  const zones: DebugZone[] = [{ screenPosition, size: paddingBox, color: '#3399cc' }];
   return <DebugZoneOverlay zones={zones} />;
 }

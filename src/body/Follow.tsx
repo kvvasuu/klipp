@@ -5,8 +5,10 @@ import type { DampingConstant } from '../damping/Damper';
 import type { Target } from '../resolve/Target';
 import { resolveVector3 } from '../resolve/resolveVector3';
 import { useVirtualCameraSlots } from '../VirtualCamera';
-import type { BindingMode } from './BindingModes';
+import { BindingModes, type BindingMode } from './BindingModes';
 import { FollowBody } from './FollowBody';
+
+const defaultOffset: Vector3Like = [0, 0, 10];
 
 export type FollowProps = {
   /** Tracking Target — the camera keeps a fixed `offset` from this position/object's world transform.
@@ -28,17 +30,19 @@ export type FollowProps = {
 
 /** Constant offset from the Tracking Target, rotated per `bindingMode` and optionally damped. Thin
  *  wrapper — the actual logic lives in `FollowBody`. */
-export function Follow({ target, offset, damping, bindingMode, ref }: FollowProps) {
+export function Follow({
+  target,
+  offset = defaultOffset,
+  damping = 0,
+  bindingMode = BindingModes.lockToTarget,
+  ref,
+}: FollowProps) {
   const slots = useVirtualCameraSlots();
-  const [body] = useState(
-    () => new FollowBody(target, offset !== undefined ? resolveVector3(new Vector3(), offset) : undefined, damping, bindingMode),
-  );
+  const [body] = useState(() => new FollowBody(target, new Vector3()));
   body.target = target;
-  // only synced when actually passed - otherwise this would fight a ref-based imperative mutation on
-  // every unrelated re-render
-  if (offset !== undefined) resolveVector3(body.offset, offset);
-  if (damping !== undefined) body.damping = damping;
-  if (bindingMode !== undefined) body.bindingMode = bindingMode;
+  resolveVector3(body.offset, offset);
+  body.damping = damping;
+  body.bindingMode = bindingMode;
 
   useImperativeHandle(ref, () => body, [body]);
   useEffect(() => slots.registerBody(body.update), [slots, body]);
