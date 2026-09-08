@@ -159,6 +159,75 @@ describe('PositionComposerBody', () => {
     expect(() => update(out, 0.1)).not.toThrow();
   });
 
+  describe('depth dead zone + damping', () => {
+    it('target inside the depth dead zone: zero dolly reaction', () => {
+      const target = new Vector3(0, 0, -10); // exactly at cameraDistance
+      const body = new PositionComposerBody(target, 10, [0, 0], 1);
+      body.depthDeadZone = 2;
+      const out = createCameraState();
+      body.update(out, 0.1);
+
+      const afterFirstUpdate = out.position.clone();
+      target.set(0, 0, -11.5); // depth now 11.5, within the depth dead zone (2) around cameraDistance (10)
+      body.update(out, 0.1);
+
+      expect(out.position.equals(afterFirstUpdate)).toBe(true);
+    });
+
+    it('target outside the depth dead zone with damping <= 0: snaps instantly to the dead zone edge, not to cameraDistance exactly', () => {
+      const target = new Vector3(0, 0, -20); // depth 20, far outside
+      const body = new PositionComposerBody(target, 10, [0, 0], 1);
+      body.depthDeadZone = 3;
+      const out = createCameraState();
+
+      body.update(out, 0.1);
+
+      const depth = target.clone().sub(out.position).dot(new Vector3(0, 0, -1));
+      expect(depth).toBeCloseTo(13, 4); // clamped to cameraDistance(10) + depthDeadZone(3), not all the way to 10
+    });
+
+    it('target outside the depth dead zone with damping > 0: catches up gradually, not instantly', () => {
+      const target = new Vector3(0, 0, -20);
+
+      const undamped = createCameraState();
+      new PositionComposerBody(target, 10, [0, 0], 1).update(undamped, 0.016);
+
+      const body = new PositionComposerBody(target, 10, [0, 0], 1, [0, 0], 0.5);
+      body.update(createCameraState(), 0.016); // consume the first-ever-update hard snap on a throwaway state
+      const out = createCameraState();
+      body.update(out, 0.016);
+
+      expect(out.position.distanceTo(undamped.position)).toBeGreaterThan(0.01);
+    });
+
+    it('converges to cameraDistance over repeated ticks with damping enabled', () => {
+      const target = new Vector3(0, 0, -20);
+      const body = new PositionComposerBody(target, 10, [0, 0], 1, [0, 0], 0.3);
+      const out = createCameraState();
+
+      for (let i = 0; i < 300; i++) body.update(out, 0.016);
+
+      const depth = target.clone().sub(out.position).dot(new Vector3(0, 0, -1));
+      expect(depth).toBeCloseTo(10, 2);
+    });
+
+    it('justActivated skips the depth dead zone check', () => {
+      const target = new Vector3(0, 0, -10);
+      const body = new PositionComposerBody(target, 10, [0, 0], 1);
+      body.depthDeadZone = 5;
+      const out = createCameraState();
+      body.update(out, 0.016, true); // settles at depth exactly cameraDistance
+
+      // a later, unrelated session: out.position frozen where the first session left it, target moved
+      // just enough that a real dead-zone check would call it "inside" and never react
+      target.set(0, 0, -13);
+      body.update(out, 0.016, true);
+
+      const depth = target.clone().sub(out.position).dot(new Vector3(0, 0, -1));
+      expect(depth).toBeCloseTo(10, 4); // reacted fully, not clamped to the dead zone edge
+    });
+  });
+
   describe('dead zone + damping', () => {
     it('target inside the dead zone: zero lateral reaction — position unchanged by stage 2', () => {
       const target = new Vector3(0, 0, -20);
@@ -510,7 +579,7 @@ describe('PositionComposerBody', () => {
 
   describe('hard limit', () => {
     it('forces the target back inside hardLimit even when heavy damping alone would leave it outside', () => {
-      const target = new Vector3(20, 0, -20); // far outside on X
+      const target = new Vector3(20, 0, -10); // far outside on X, already at cameraDistance in Z
       const body = new PositionComposerBody(target, 10, [0, 0], 1, [0.1, 0.1], 5, [0.15, 0.15]);
       body.update(createCameraState(), 0.1); // consume the first-ever-update hard snap on a throwaway state
       const out = createCameraState();
@@ -522,7 +591,7 @@ describe('PositionComposerBody', () => {
     });
 
     it("a radius pulls hardLimit enforcement in earlier, clamping the target's EDGE to the limit boundary", () => {
-      const target = new Vector3(20, 0, -20); // far outside on X
+      const target = new Vector3(20, 0, -10); // far outside on X, already at cameraDistance in Z
       const body = new PositionComposerBody(target, 10, [0, 0], 1, [0.1, 0.1], 5, [0.15, 0.15], 1); // radius = 1
       body.update(createCameraState(), 0.1); // consume the first-ever-update hard snap on a throwaway state
       const out = createCameraState();

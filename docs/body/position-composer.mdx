@@ -4,7 +4,7 @@ description: Keeps a target at a chosen screen position with a dead zone, hard l
 nav: 13
 ---
 
-Two-stage positioning: first dollies along the camera's own forward axis until `target` sits at `cameraDistance`, then shifts sideways until it lands at `screenPosition` - with a dead zone, hard limit, and damping on that second stage, the same framing model as [`RotationComposer`](/aim/rotation-composer).
+Two-stage positioning: first dollies along the camera's own forward axis until `target` sits at `cameraDistance` (or the `depthDeadZone` edge), then shifts sideways until it lands at `screenPosition` (or the `deadZone`/`hardLimit` edge) - the lateral stage uses the same framing model as [`RotationComposer`](/aim/rotation-composer). `damping` eases both stages.
 
 It's the natural fit for a camera whose **rotation stays fixed** - a top-down or 2.5D side-scroller, following the player positionally without ever re-aiming. A `<VirtualCamera>` doesn't require an Aim at all; with none mounted, rotation just stays wherever it started (the real camera's own pristine config, or `initialState`):
 
@@ -22,15 +22,16 @@ See [Ordering with Aim](#ordering-with-aim) below for why pairing this with an A
 | -------------- | -------------------- | --------- | - |
 | `target`       | `Target`             | -         | Tracking Target - the camera composes its shot around this position/object's world position. |
 | `cameraDistance` | `number`           | `10`      | Desired distance from the camera to the target, along the camera's own forward axis. |
+| `depthDeadZone` | `number`            | `0`       | How far the target's depth can drift from `cameraDistance` with no dolly reaction at all - world units along the camera's forward axis. `0` = none, always reacts. |
 | `screenPosition` | `[number, number]` | `[0, 0]`  | Where the target should land on screen. `0` = center, `±1` = edge. |
 | `deadZone`     | `[number, number]`   | `[0, 0]`  | How far the target can drift from `screenPosition` with no lateral reaction at all - same unit as `screenPosition` itself (`1` reaches the frame edge). `[0, 0]` = none, always reacts. |
-| `damping`      | `DampingConstant`    | `0`       | Seconds to catch up once the target steps outside the dead zone. `0` = hard, instant snap to the edge. |
+| `damping`      | `DampingConstant`    | `0`       | Seconds to catch up to the desired depth and the dead zone's edge once the target steps outside either - the dolly stage reacts to `depthDeadZone`, the lateral stage to `deadZone`. `0` = hard, instant snap to both. |
 | `hardLimit`    | `[number, number]`   | `[0, 0]`  | A second, normally larger reach the target may never visually drift past - enforced instantly, bypassing `damping`, after the damped dead-zone pass. `[0, 0]` = no enforcement. |
 | `radius`       | `number`             | -         | Target's own bounding-sphere radius - `deadZone`/`hardLimit` react to its nearest edge, not its center. Ignored if `size` is given. |
 | `size`         | `Vector3`            | -         | Target's full box dimensions - takes priority over `radius`. Auto-detected from a `Mesh`/`Line`/`Points` target's own geometry when neither is given. |
 | `debug`        | `boolean`            | `false`   | Draws `deadZone`/`hardLimit` as bordered, dimmed boxes over the canvas - see [Debug Zones](/debugging/debug-zones). |
 
-The distance stage (the dolly) is always exact - the dead zone only ever applies to the screen-space placement, since distance isn't a 2D screen concept.
+`depthDeadZone` and `deadZone` react to different quantities - world-space distance versus screen-space position - so they don't share a threshold, and a target can sit well inside one while triggering the other. At a camera angle far from 0° (straight ahead) or 90° (straight down), the same world-space movement can register very differently on each axis, so keep both at a comparable scale rather than leaving one at `0` and the other generous - otherwise one axis reacts to everything while the other stays quiet, which reads as the camera switching behavior depending on where the target is on screen. `depthDeadZone` has no visual representation in `debug` - it isn't a screen-space rectangle like `deadZone`/`hardLimit`.
 
 ## Ordering with Aim
 
