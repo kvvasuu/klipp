@@ -2,7 +2,7 @@ import type { Vector3 as Vector3Like } from '@react-three/fiber';
 import { clamp, degreesToRadians } from 'math';
 import { Vector3 } from 'three';
 import type { CameraState } from '../CameraState';
-import type { DampingConstant } from '../damping/Damper';
+import { Damper, type DampingConstant } from '../damping/Damper';
 import { Vector3Damper } from '../damping/Vector3Damper';
 import { resolveTargetHalfExtents, resolveTargetPosition, type Target } from '../resolve/Target';
 
@@ -17,7 +17,8 @@ const scratchExtents: [number, number] = [0, 0];
 
 /**
  * Two-stage, position-only Body: dollies to `cameraDistance`, then shifts laterally to put the target at
- * `screenPosition` (or the `deadZone`/`hardLimit` edge).
+ * `screenPosition` (or the `deadZone`/`hardLimit` edge). `damping` eases both stages; the dolly stage also
+ * gets its own `depthDeadZone` tolerance before it reacts at all.
  *
  * Reads `out.quaternion`/`out.fov` as whatever Aim wrote LAST frame (Body runs before Aim) — one frame
  * stale. On a fresh activation, the dolly axis instead comes from `VirtualCamera`'s `initialState` (or the
@@ -39,10 +40,12 @@ export class PositionComposerBody {
   deadZone: [number, number];
   damping: DampingConstant;
   hardLimit: [number, number];
+  depthDeadZone: number;
   radius?: number;
   size?: Vector3Like;
 
   private readonly damper = new Vector3Damper();
+  private readonly depthDamper = new Damper();
   private forceSizeRecalculation = false;
 
   constructor(
@@ -55,6 +58,7 @@ export class PositionComposerBody {
     hardLimit: [number, number] = [0, 0],
     radius?: number,
     size?: Vector3Like,
+    depthDeadZone = 0,
   ) {
     this.target = target;
     this.cameraDistance = cameraDistance;
@@ -65,6 +69,7 @@ export class PositionComposerBody {
     this.hardLimit = hardLimit;
     this.radius = radius;
     this.size = size;
+    this.depthDeadZone = depthDeadZone;
   }
 
   /** Forces the auto-detected `size` to be re-measured on the NEXT `update()` call, then goes back to the
@@ -82,17 +87,46 @@ export class PositionComposerBody {
     scratchRight.set(1, 0, 0).applyQuaternion(out.quaternion);
     scratchUp.set(0, 1, 0).applyQuaternion(out.quaternion);
 
-    // stage 1: dolly to cameraDistance
     scratchRelative.copy(scratchTargetPosition).sub(out.position);
     const currentDepth = scratchRelative.dot(scratchForward);
-    out.position.addScaledVector(scratchForward, currentDepth - this.cameraDistance);
+
+    let desiredDepth = this.cameraDistance;
+    let insideDepthDeadZone = false;
+
+    // justActivated skips the dead zone check entirely - same reasoning as the lateral one below: it
+    // judges drift in out.position, which on a fresh activation is whatever an earlier, unrelated
+    // activation left behind, not a meaningful "current" to stay near
+    if (!justActivated && this.depthDeadZone > 0) {
+      const depthError = currentDepth - this.cameraDistance;
+      insideDepthDeadZone = Math.abs(depthError) <= this.depthDeadZone;
+      if (!insideDepthDeadZone) {
+        desiredDepth = this.cameraDistance + clamp(depthError, -this.depthDeadZone, this.depthDeadZone);
+      }
+    }
+
+    if (!insideDepthDeadZone) {
+      if (justActivated) this.depthDamper.reset();
+      const instant = typeof this.damping === 'number' && this.damping <= 0;
+      const dampedDepth = instant
+        ? desiredDepth
+        : this.depthDamper.update(currentDepth, desiredDepth, this.damping, dt);
+      out.position.addScaledVector(scratchForward, currentDepth - dampedDepth);
+    }
 
     // stage 2: shift laterally to screenPosition (or the dead zone edge)
     scratchRelative.copy(scratchTargetPosition).sub(out.position);
     const halfHeight = this.cameraDistance * Math.tan(degreesToRadians(out.fov) / 2);
     const halfWidth = halfHeight * this.aspect;
 
-    resolveTargetHalfExtents(scratchExtents, this.target, this.size, this.radius, scratchRight, scratchUp, this.forceSizeRecalculation);
+    resolveTargetHalfExtents(
+      scratchExtents,
+      this.target,
+      this.size,
+      this.radius,
+      scratchRight,
+      scratchUp,
+      this.forceSizeRecalculation,
+    );
     this.forceSizeRecalculation = false;
     const extentX = scratchExtents[0] / halfWidth;
     const extentY = scratchExtents[1] / halfHeight;
@@ -163,9 +197,13 @@ export class PositionComposerBody {
     if (Math.abs(limitEdgeErrorX) <= halfLimitWidth && Math.abs(limitEdgeErrorY) <= halfLimitHeight) return;
 
     const clampedX =
-      this.screenPosition[0] + clamp(limitEdgeErrorX, -halfLimitWidth, halfLimitWidth) - Math.sign(limitErrorX) * limitExtentX;
+      this.screenPosition[0] +
+      clamp(limitEdgeErrorX, -halfLimitWidth, halfLimitWidth) -
+      Math.sign(limitErrorX) * limitExtentX;
     const clampedY =
-      this.screenPosition[1] + clamp(limitEdgeErrorY, -halfLimitHeight, halfLimitHeight) - Math.sign(limitErrorY) * limitExtentY;
+      this.screenPosition[1] +
+      clamp(limitEdgeErrorY, -halfLimitHeight, halfLimitHeight) -
+      Math.sign(limitErrorY) * limitExtentY;
     out.position
       .addScaledVector(scratchRight, afterRight - clampedX * halfWidth)
       .addScaledVector(scratchUp, afterUp - clampedY * halfHeight);

@@ -1,8 +1,8 @@
 import type { Vector3 as Vector3Like } from '@react-three/fiber';
 import { useThree } from '@react-three/fiber';
 import { useEffect, useImperativeHandle, useState, type Ref } from 'react';
-import { DebugZoneOverlay, type DebugZone } from '../DebugZoneOverlay';
 import type { DampingConstant } from '../damping/Damper';
+import { DebugZoneOverlay, type DebugZone } from '../DebugZoneOverlay';
 import type { Target } from '../resolve/Target';
 import { useVirtualCameraSlots } from '../VirtualCamera';
 import { PositionComposerBody } from './PositionComposerBody';
@@ -13,6 +13,9 @@ export type PositionComposerProps = {
   target?: Target;
   /** Desired distance from the camera to the target, along the camera's own forward axis. Default `10`. */
   cameraDistance?: number;
+  /** How far the target's depth can drift from `cameraDistance` with NO dolly reaction at all - world
+   *  units along the camera's forward axis. Default `0` (none — always reacts). */
+  depthDeadZone?: number;
   /** Where the target should land on screen: `[x, y]`, `0` = center, `±1` = edge. Default `[0, 0]`
    *  (dead center). */
   screenPosition?: [number, number];
@@ -20,9 +23,9 @@ export type PositionComposerProps = {
    *  all — same unit as `screenPosition` itself (`1` reaches the frame edge). Default `[0, 0]` (none —
    *  always reacts). */
   deadZone?: [number, number];
-  /** Seconds to catch up to the dead zone's edge once the target steps outside it (or `{into, from}` for
-   *  asymmetric damping). Only matters when `deadZone` is non-zero. `0` (default) = hard, instant snap
-   *  to the edge. */
+  /** Seconds to catch up to the desired depth and the dead zone's edge (or `{into, from}` for asymmetric
+   *  damping) — the dolly stage reacts to `depthDeadZone`, the lateral stage to `deadZone`. `0` (default)
+   *  = hard, instant snap to both. */
   damping?: DampingConstant;
   /** A SECOND, normally larger reach (`[x, y]`, same unit as `deadZone`) the target may never visually
    *  drift past — enforced instantly (bypassing `damping`) after the damped dead zone reaction runs.
@@ -38,10 +41,10 @@ export type PositionComposerProps = {
    *  `VirtualCamera` is actually the one on screen. Default `false`. */
   debug?: boolean;
   /** Imperative access to the underlying `PositionComposerBody`, for reading/writing
-   *  `target`/`cameraDistance`/`screenPosition`/`deadZone`/`damping`/`hardLimit`/`radius`/`size` directly
-   *  instead of through props, and for calling `recalculateSize()` on a target that deformed (a
-   *  `SkinnedMesh` bone animation, a mutated `BufferGeometry`) - auto-detected `size` is otherwise only
-   *  measured once. */
+   *  `target`/`cameraDistance`/`screenPosition`/`deadZone`/`damping`/`hardLimit`/`depthDeadZone`/`radius`/
+   *  `size` directly instead of through props, and for calling `recalculateSize()` on a target that
+   *  deformed (a `SkinnedMesh` bone animation, a mutated `BufferGeometry`) - auto-detected `size` is
+   *  otherwise only measured once. */
   ref?: Ref<PositionComposerBody>;
 };
 
@@ -59,6 +62,7 @@ export function PositionComposer({
   hardLimit,
   radius,
   size,
+  depthDeadZone,
   debug = false,
   ref,
 }: PositionComposerProps) {
@@ -66,7 +70,18 @@ export function PositionComposer({
   const aspect = useThree((state) => state.viewport.aspect);
   const [body] = useState(
     () =>
-      new PositionComposerBody(target, cameraDistance, screenPosition, aspect, deadZone, damping, hardLimit, radius, size),
+      new PositionComposerBody(
+        target,
+        cameraDistance,
+        screenPosition,
+        aspect,
+        deadZone,
+        damping,
+        hardLimit,
+        radius,
+        size,
+        depthDeadZone,
+      ),
   );
   body.target = target;
   // only synced when actually passed - otherwise this would fight a ref-based imperative mutation on
@@ -79,6 +94,7 @@ export function PositionComposer({
   if (hardLimit !== undefined) body.hardLimit = hardLimit;
   if (radius !== undefined) body.radius = radius;
   if (size !== undefined) body.size = size;
+  if (depthDeadZone !== undefined) body.depthDeadZone = depthDeadZone;
 
   useImperativeHandle(ref, () => body, [body]);
   useEffect(() => slots.registerBody(body.update), [slots, body]);
@@ -88,10 +104,18 @@ export function PositionComposer({
   // reads off body's own fields (not the raw props) so this also reflects a ref-driven value -
   // deadZone/hardLimit are a half-reach from screenPosition, DebugZoneOverlay wants a full box size
   if (body.hardLimit[0] > 0 || body.hardLimit[1] > 0) {
-    zones.push({ screenPosition: body.screenPosition, size: [body.hardLimit[0] * 2, body.hardLimit[1] * 2], color: '#cc3333' });
+    zones.push({
+      screenPosition: body.screenPosition,
+      size: [body.hardLimit[0] * 2, body.hardLimit[1] * 2],
+      color: '#cc3333',
+    });
   }
   if (body.deadZone[0] > 0 || body.deadZone[1] > 0) {
-    zones.push({ screenPosition: body.screenPosition, size: [body.deadZone[0] * 2, body.deadZone[1] * 2], color: '#33cc33' });
+    zones.push({
+      screenPosition: body.screenPosition,
+      size: [body.deadZone[0] * 2, body.deadZone[1] * 2],
+      color: '#33cc33',
+    });
   }
   return <DebugZoneOverlay zones={zones} />;
 }
