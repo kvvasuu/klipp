@@ -49,11 +49,6 @@ export type RotationComposerProps = {
   ref?: Ref<RotationComposerAim>;
 };
 
-const defaultScreenPosition: [number, number] = [0, 0];
-const defaultDeadZone: [number, number] = [0, 0];
-const defaultHardLimit: [number, number] = [0, 0];
-const defaultTargetOffset: Vector3Like = [0, 0, 0];
-
 /**
  * Rotation-only Aim, see `RotationComposerAim`'s doc comment for the algorithm. Thin wrapper — the actual
  * logic lives there. `aspect` is read reactively from the canvas (`useThree`), since `CameraState` has no
@@ -61,11 +56,11 @@ const defaultTargetOffset: Vector3Like = [0, 0, 0];
  */
 export function RotationComposer({
   target,
-  screenPosition = defaultScreenPosition,
-  deadZone = defaultDeadZone,
-  damping = 0,
-  hardLimit = defaultHardLimit,
-  targetOffset = defaultTargetOffset,
+  screenPosition,
+  deadZone,
+  damping,
+  hardLimit,
+  targetOffset,
   radius,
   size,
   debug = false,
@@ -75,29 +70,42 @@ export function RotationComposer({
   const aspect = useThree((state) => state.viewport.aspect);
   const [aim] = useState(
     () =>
-      new RotationComposerAim(target, screenPosition, aspect, deadZone, damping, hardLimit, new Vector3(), radius, size),
+      new RotationComposerAim(
+        target,
+        screenPosition,
+        aspect,
+        deadZone,
+        damping,
+        hardLimit,
+        targetOffset !== undefined ? resolveVector3(new Vector3(), targetOffset) : undefined,
+        radius,
+        size,
+      ),
   );
   aim.target = target;
-  aim.screenPosition = screenPosition;
+  // only synced when actually passed - otherwise this would fight a ref-based imperative mutation on
+  // every unrelated re-render
+  if (screenPosition !== undefined) aim.screenPosition = screenPosition;
   aim.aspect = aspect;
-  aim.deadZone = deadZone;
-  aim.damping = damping;
-  aim.hardLimit = hardLimit;
-  aim.radius = radius;
-  aim.size = size;
-  resolveVector3(aim.targetOffset, targetOffset);
+  if (deadZone !== undefined) aim.deadZone = deadZone;
+  if (damping !== undefined) aim.damping = damping;
+  if (hardLimit !== undefined) aim.hardLimit = hardLimit;
+  if (radius !== undefined) aim.radius = radius;
+  if (size !== undefined) aim.size = size;
+  if (targetOffset !== undefined) resolveVector3(aim.targetOffset, targetOffset);
 
   useImperativeHandle(ref, () => aim, [aim]);
   useEffect(() => slots.registerAim(aim.update), [slots, aim]);
 
   if (!debug) return null;
   const zones: DebugZone[] = [];
+  // reads off aim's own fields (not the raw props) so this also reflects a ref-driven value -
   // deadZone/hardLimit are a half-reach from screenPosition, DebugZoneOverlay wants a full box size
-  if (hardLimit[0] > 0 || hardLimit[1] > 0) {
-    zones.push({ screenPosition, size: [hardLimit[0] * 2, hardLimit[1] * 2], color: '#cc3333' });
+  if (aim.hardLimit[0] > 0 || aim.hardLimit[1] > 0) {
+    zones.push({ screenPosition: aim.screenPosition, size: [aim.hardLimit[0] * 2, aim.hardLimit[1] * 2], color: '#cc3333' });
   }
-  if (deadZone[0] > 0 || deadZone[1] > 0) {
-    zones.push({ screenPosition, size: [deadZone[0] * 2, deadZone[1] * 2], color: '#33cc33' });
+  if (aim.deadZone[0] > 0 || aim.deadZone[1] > 0) {
+    zones.push({ screenPosition: aim.screenPosition, size: [aim.deadZone[0] * 2, aim.deadZone[1] * 2], color: '#33cc33' });
   }
   return <DebugZoneOverlay zones={zones} />;
 }

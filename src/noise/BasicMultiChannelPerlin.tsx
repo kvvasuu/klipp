@@ -6,12 +6,11 @@ import { resolveVector3 } from '../resolve/resolveVector3';
 import { useVirtualCameraSlots } from '../VirtualCamera';
 import { BasicMultiChannelPerlinNoise } from './BasicMultiChannelPerlinNoise';
 
-const defaultAmplitude: Vector3Like = [0, 0, 0];
-const defaultFrequency: Vector3Like = [1, 1, 1];
-
 export type BasicMultiChannelPerlinProps = {
   /** Per-axis shake amplitude in camera-LOCAL space (X = right/left, Y = up/down, Z = push/pull).
-   *  Default `(0, 0, 0)` — no shake until dialed in. */
+   *  Default `(0, 0, 0)` — no shake until dialed in. Omit entirely (not even a default value) to drive it
+   *  imperatively through `ref` instead — a prop that's always applied, even at its default, would fight
+   *  a `ref`-based mutation on the next unrelated re-render. */
   positionAmplitude?: Vector3Like;
   /** Per-axis oscillation speed for position noise. Default `(1, 1, 1)`. */
   positionFrequency?: Vector3Like;
@@ -42,37 +41,39 @@ export type BasicMultiChannelPerlinProps = {
  * exclusive one.
  */
 export function BasicMultiChannelPerlin({
-  positionAmplitude = defaultAmplitude,
-  positionFrequency = defaultFrequency,
-  rotationAmplitude = defaultAmplitude,
-  rotationFrequency = defaultFrequency,
-  amplitudeGain = 1,
-  frequencyGain = 1,
+  positionAmplitude,
+  positionFrequency,
+  rotationAmplitude,
+  rotationFrequency,
+  amplitudeGain,
+  frequencyGain,
   seed,
-  amplitudeDamping = 0,
+  amplitudeDamping,
   ref,
 }: BasicMultiChannelPerlinProps) {
   const slots = useVirtualCameraSlots();
   const [noise] = useState(
     () =>
       new BasicMultiChannelPerlinNoise(
-        new Vector3(),
-        new Vector3(),
-        new Vector3(),
-        new Vector3(),
+        positionAmplitude !== undefined ? resolveVector3(new Vector3(), positionAmplitude) : undefined,
+        positionFrequency !== undefined ? resolveVector3(new Vector3(), positionFrequency) : undefined,
+        rotationAmplitude !== undefined ? resolveVector3(new Vector3(), rotationAmplitude) : undefined,
+        rotationFrequency !== undefined ? resolveVector3(new Vector3(), rotationFrequency) : undefined,
         amplitudeGain,
         frequencyGain,
         seed,
         amplitudeDamping,
       ),
   );
-  resolveVector3(noise.positionAmplitude, positionAmplitude);
-  resolveVector3(noise.positionFrequency, positionFrequency);
-  resolveVector3(noise.rotationAmplitude, rotationAmplitude);
-  resolveVector3(noise.rotationFrequency, rotationFrequency);
-  noise.amplitudeGain = amplitudeGain;
-  noise.frequencyGain = frequencyGain;
-  noise.amplitudeDamping = amplitudeDamping;
+  // only synced when the caller actually passes a value - otherwise this would fight a ref-based
+  // imperative mutation (e.g. damping positionFrequency in an external useFrame) on every unrelated re-render
+  if (positionAmplitude !== undefined) resolveVector3(noise.positionAmplitude, positionAmplitude);
+  if (positionFrequency !== undefined) resolveVector3(noise.positionFrequency, positionFrequency);
+  if (rotationAmplitude !== undefined) resolveVector3(noise.rotationAmplitude, rotationAmplitude);
+  if (rotationFrequency !== undefined) resolveVector3(noise.rotationFrequency, rotationFrequency);
+  if (amplitudeGain !== undefined) noise.amplitudeGain = amplitudeGain;
+  if (frequencyGain !== undefined) noise.frequencyGain = frequencyGain;
+  if (amplitudeDamping !== undefined) noise.amplitudeDamping = amplitudeDamping;
 
   useImperativeHandle(ref, () => noise, [noise]);
   useEffect(() => slots.registerNoise(noise.update), [slots, noise]);
