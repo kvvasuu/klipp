@@ -48,6 +48,10 @@ export type PositionComposerProps = {
   ref?: Ref<PositionComposerBody>;
 };
 
+const defaultScreenPosition: [number, number] = [0, 0];
+const defaultDeadZone: [number, number] = [0, 0];
+const defaultHardLimit: [number, number] = [0, 0];
+
 /**
  * Two-stage, position-only Body, see `PositionComposerBody`'s doc comment for the algorithm. Thin wrapper
  * — the actual logic lives there. `aspect` is read reactively from the canvas (`useThree`), since
@@ -55,14 +59,14 @@ export type PositionComposerProps = {
  */
 export function PositionComposer({
   target,
-  cameraDistance,
-  screenPosition,
-  deadZone,
-  damping,
-  hardLimit,
+  cameraDistance = 10,
+  screenPosition = defaultScreenPosition,
+  deadZone = defaultDeadZone,
+  damping = 0,
+  hardLimit = defaultHardLimit,
   radius,
   size,
-  depthDeadZone,
+  depthDeadZone = 0,
   debug = false,
   ref,
 }: PositionComposerProps) {
@@ -84,38 +88,27 @@ export function PositionComposer({
       ),
   );
   body.target = target;
-  // only synced when actually passed - otherwise this would fight a ref-based imperative mutation on
-  // every unrelated re-render
-  if (cameraDistance !== undefined) body.cameraDistance = cameraDistance;
-  if (screenPosition !== undefined) body.screenPosition = screenPosition;
+  body.cameraDistance = cameraDistance;
+  body.screenPosition = screenPosition;
   body.aspect = aspect;
-  if (deadZone !== undefined) body.deadZone = deadZone;
-  if (damping !== undefined) body.damping = damping;
-  if (hardLimit !== undefined) body.hardLimit = hardLimit;
-  if (radius !== undefined) body.radius = radius;
-  if (size !== undefined) body.size = size;
-  if (depthDeadZone !== undefined) body.depthDeadZone = depthDeadZone;
+  body.deadZone = deadZone;
+  body.damping = damping;
+  body.hardLimit = hardLimit;
+  body.radius = radius;
+  body.size = size;
+  body.depthDeadZone = depthDeadZone;
 
   useImperativeHandle(ref, () => body, [body]);
   useEffect(() => slots.registerBody(body.update), [slots, body]);
 
   if (!debug) return null;
   const zones: DebugZone[] = [];
-  // reads off body's own fields (not the raw props) so this also reflects a ref-driven value -
   // deadZone/hardLimit are a half-reach from screenPosition, DebugZoneOverlay wants a full box size
-  if (body.hardLimit[0] > 0 || body.hardLimit[1] > 0) {
-    zones.push({
-      screenPosition: body.screenPosition,
-      size: [body.hardLimit[0] * 2, body.hardLimit[1] * 2],
-      color: '#cc3333',
-    });
+  if (hardLimit[0] > 0 || hardLimit[1] > 0) {
+    zones.push({ screenPosition, size: [hardLimit[0] * 2, hardLimit[1] * 2], color: '#cc3333' });
   }
-  if (body.deadZone[0] > 0 || body.deadZone[1] > 0) {
-    zones.push({
-      screenPosition: body.screenPosition,
-      size: [body.deadZone[0] * 2, body.deadZone[1] * 2],
-      color: '#33cc33',
-    });
+  if (deadZone[0] > 0 || deadZone[1] > 0) {
+    zones.push({ screenPosition, size: [deadZone[0] * 2, deadZone[1] * 2], color: '#33cc33' });
   }
   return <DebugZoneOverlay zones={zones} />;
 }
