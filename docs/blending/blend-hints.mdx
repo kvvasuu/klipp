@@ -12,11 +12,11 @@ A bitmask set via `<VirtualCamera hints={...}>` - OR'd together from **both** ca
 
 ## Flags
 
-| Flag                              | Honored? | |
-| ---------------------------------- | -------- | - |
-| `sphericalPosition`                | ✅        | Interpolates the camera's offset from its tracking target as a spherical coordinate (radius/azimuth/polar) instead of a straight line - the camera arcs around the target instead of cutting through it. |
-| `cylindricalPosition`              | ✅        | Same idea, but the vertical offset lerps linearly while the horizontal offset arcs - only differs from `sphericalPosition` once the two cameras' offsets sit at different heights. |
-| `ignoreTarget`                     | ✅        | Falls back to a plain slerp between the two cameras' own rotations, instead of tracking the smoothly-interpolated look-at target throughout the blend. |
+| Flag                              | |
+| ---------------------------------- | - |
+| `sphericalPosition`                | Interpolates the camera's offset from its tracking target as a spherical coordinate (radius/azimuth/polar) instead of a straight line - the camera arcs around the target instead of cutting through it. |
+| `cylindricalPosition`              | Same idea, but the vertical offset lerps linearly while the horizontal offset arcs - only differs from `sphericalPosition` once the two cameras' offsets sit at different heights. |
+| `ignoreTarget`                     | Falls back to a plain slerp between the two cameras' own rotations, instead of tracking the smoothly-interpolated look-at target throughout the blend. |
 
 ## Without either position hint
 
