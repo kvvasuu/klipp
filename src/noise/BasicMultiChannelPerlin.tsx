@@ -20,7 +20,7 @@ export type BasicMultiChannelPerlinProps = {
   rotationFrequency?: Vector3Like;
   /** Multiplies every amplitude at once. Default `1`. */
   amplitudeGain?: number;
-  /** Multiplies every frequency at once (how fast the internal clock advances). Default `1`. */
+  /** Multiplies every frequency at once (how fast every channel's phase advances). Default `1`. */
   frequencyGain?: number;
   /** Seeds the 6 independent Perlin channels — same seed reproduces identical noise. Default: random,
    *  chosen ONCE on mount. Unlike the other props, changing this later has no effect — the seeded
