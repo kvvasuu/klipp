@@ -28,16 +28,18 @@ export type LensProps = {
  * pipeline claims `fov`/`near`/`far`, so this is the only way to animate them without an external
  * `useFrame` fighting Klipp's own driver every frame.
  */
-export function Lens({ fov, near, far, fovDamping = 0, nearDamping = 0, farDamping = 0, ref }: LensProps) {
+export function Lens({ fov, near, far, fovDamping, nearDamping, farDamping, ref }: LensProps) {
   const slots = useVirtualCameraSlots();
   const invalidate = useThree((state) => state.invalidate);
   const [extension] = useState(() => new LensExtension(fov, near, far, fovDamping, nearDamping, farDamping));
-  extension.fov = fov;
-  extension.near = near;
-  extension.far = far;
-  extension.fovDamping = fovDamping;
-  extension.nearDamping = nearDamping;
-  extension.farDamping = farDamping;
+  // only synced when actually passed - otherwise this would fight a ref-based imperative mutation on
+  // every unrelated re-render
+  if (fov !== undefined) extension.fov = fov;
+  if (near !== undefined) extension.near = near;
+  if (far !== undefined) extension.far = far;
+  if (fovDamping !== undefined) extension.fovDamping = fovDamping;
+  if (nearDamping !== undefined) extension.nearDamping = nearDamping;
+  if (farDamping !== undefined) extension.farDamping = farDamping;
 
   useImperativeHandle(ref, () => extension, [extension]);
   useEffect(() => slots.registerExtension(extension.update), [slots, extension]);

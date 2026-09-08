@@ -53,7 +53,8 @@ export class BasicMultiChannelPerlinNoise {
   private readonly channels: Channels;
   private readonly amplitudeGainDamper = new Damper();
   private effectiveAmplitudeGain: number;
-  private time = 0;
+  private readonly positionPhase = new Vector3();
+  private readonly rotationPhase = new Vector3();
 
   constructor(
     positionAmplitude = new Vector3(),
@@ -77,7 +78,13 @@ export class BasicMultiChannelPerlinNoise {
   }
 
   update = (out: CameraState, dt: number, justActivated: boolean): void => {
-    this.time += dt * this.frequencyGain;
+    const frequencyStep = dt * this.frequencyGain;
+    this.positionPhase.x += frequencyStep * this.positionFrequency.x;
+    this.positionPhase.y += frequencyStep * this.positionFrequency.y;
+    this.positionPhase.z += frequencyStep * this.positionFrequency.z;
+    this.rotationPhase.x += frequencyStep * this.rotationFrequency.x;
+    this.rotationPhase.y += frequencyStep * this.rotationFrequency.y;
+    this.rotationPhase.z += frequencyStep * this.rotationFrequency.z;
 
     // re-arms the damper's own first-call snap — on reactivation, effectiveAmplitudeGain is frozen at
     // wherever an earlier, unrelated activation left it, so easing from there would resume a fade that
@@ -91,24 +98,21 @@ export class BasicMultiChannelPerlinNoise {
 
     scratchPositionOffset
       .set(
-        perlin2d.sample(this.channels[0], this.time * this.positionFrequency.x, sampleY) * this.positionAmplitude.x,
-        perlin2d.sample(this.channels[1], this.time * this.positionFrequency.y, sampleY) * this.positionAmplitude.y,
-        perlin2d.sample(this.channels[2], this.time * this.positionFrequency.z, sampleY) * this.positionAmplitude.z,
+        perlin2d.sample(this.channels[0], this.positionPhase.x, sampleY) * this.positionAmplitude.x,
+        perlin2d.sample(this.channels[1], this.positionPhase.y, sampleY) * this.positionAmplitude.y,
+        perlin2d.sample(this.channels[2], this.positionPhase.z, sampleY) * this.positionAmplitude.z,
       )
       .multiplyScalar(this.effectiveAmplitudeGain)
       .applyQuaternion(out.quaternion); // camera-local shake, rotated into world
     out.position.add(scratchPositionOffset);
 
     scratchEuler.set(
-      degreesToRadians(
-        perlin2d.sample(this.channels[3], this.time * this.rotationFrequency.x, sampleY) * this.rotationAmplitude.x,
-      ) * this.effectiveAmplitudeGain,
-      degreesToRadians(
-        perlin2d.sample(this.channels[4], this.time * this.rotationFrequency.y, sampleY) * this.rotationAmplitude.y,
-      ) * this.effectiveAmplitudeGain,
-      degreesToRadians(
-        perlin2d.sample(this.channels[5], this.time * this.rotationFrequency.z, sampleY) * this.rotationAmplitude.z,
-      ) * this.effectiveAmplitudeGain,
+      degreesToRadians(perlin2d.sample(this.channels[3], this.rotationPhase.x, sampleY) * this.rotationAmplitude.x) *
+        this.effectiveAmplitudeGain,
+      degreesToRadians(perlin2d.sample(this.channels[4], this.rotationPhase.y, sampleY) * this.rotationAmplitude.y) *
+        this.effectiveAmplitudeGain,
+      degreesToRadians(perlin2d.sample(this.channels[5], this.rotationPhase.z, sampleY) * this.rotationAmplitude.z) *
+        this.effectiveAmplitudeGain,
     );
     scratchRotationOffset.setFromEuler(scratchEuler);
     out.quaternion.multiply(scratchRotationOffset); // camera-local rotation perturbation

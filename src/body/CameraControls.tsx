@@ -61,7 +61,7 @@ export type CameraControlsProps = Omit<
 export function CameraControls({
   target,
   initialPosition,
-  enableTransition = false,
+  enableTransition,
   impl = CameraControlsImpl,
   waitForBlend = true,
   ref,
@@ -96,7 +96,7 @@ export function CameraControls({
   );
   body.target = target;
   body.aspect = aspect;
-  body.enableTransition = enableTransition;
+  if (enableTransition !== undefined) body.enableTransition = enableTransition;
 
   useImperativeHandle(ref, () => body, [body]);
   useEffect(() => slots.registerBody(body.update), [slots, body]);

@@ -17,11 +17,11 @@ export type RotateWithFollowTargetProps = {
 };
 
 /** Thin wrapper — the actual logic lives in `RotateWithFollowTargetAim`. */
-export function RotateWithFollowTarget({ target, damping = 0, ref }: RotateWithFollowTargetProps) {
+export function RotateWithFollowTarget({ target, damping, ref }: RotateWithFollowTargetProps) {
   const slots = useVirtualCameraSlots();
   const [aim] = useState(() => new RotateWithFollowTargetAim(target, damping));
   aim.target = target;
-  aim.damping = damping;
+  if (damping !== undefined) aim.damping = damping;
 
   useImperativeHandle(ref, () => aim, [aim]);
   useEffect(() => slots.registerAim(aim.update), [slots, aim]);
