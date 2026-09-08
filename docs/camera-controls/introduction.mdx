@@ -33,6 +33,7 @@ Beyond what a bare `camera-controls` instance already takes (every other prop pa
 | `initialPosition`   | `Vector3` | -       | World-space starting position, applied once at construction, independent of `target`. This Body owns a private internal camera and never reads the outer `CameraState` as input, so `<VirtualCamera initialState>` has no effect here - this is the only way to seed its starting pose. |
 | `enableTransition`  | `boolean` | `false` | `camera-controls`' own transition-easing argument, applied to every call this makes. |
 | `waitForBlend`      | `boolean` | `true`  | Wait for an in-progress blend *into* this camera to finish before listening to input - see below. |
+| `makeDefault`       | `boolean` | `false` | Registers this instance as r3f's `state.controls` while it's actually listening for input (same gating as `waitForBlend`) - restores whatever was there before once it stops. |
 | `regress`           | `boolean` | `false` | Also lowers r3f's render quality while dragging/transitioning (`performance.regress()`). |
 | `impl`              | `typeof CameraControlsImpl` | base class | A custom `CameraControlsImpl` subclass to instantiate instead. |
 
@@ -45,7 +46,7 @@ Dragging/scrolling only take effect while this `<VirtualCamera>` is actually **l
 - `true` - waits until any blend this camera has actually finished. Dragging mid-blend has no effect; input resumes exactly where the finished blend landed.
 - `false` - listens as soon as this camera wins arbitration, even while still mid-blend into it.
 
-Either way, `update()` itself keeps running every frame regardless - the target never gets lost in the background, only the input listeners connect/disconnect.
+Either way, `update()` itself keeps running every frame regardless - the target never gets lost in the background, only the input listeners connect/disconnect. `makeDefault` uses this same gate, so `state.controls` only ever points at an instance that's actually accepting input right now - useful for other tools that read it (e.g. drei's `<GizmoHelper>`), same idea as drei's own `makeDefault` on `<OrbitControls>`/`<CameraControls>`.
 
 ## `ref`
 
