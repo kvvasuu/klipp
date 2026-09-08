@@ -2,7 +2,7 @@ import type { ThreeElement, Vector3 as Vector3Like } from '@react-three/fiber';
 import { useThree } from '@react-three/fiber';
 import CameraControlsImpl, { EventDispatcher } from 'camera-controls';
 import { useEffect, useImperativeHandle, useState, type Ref } from 'react';
-import { Vector3 } from 'three';
+import { EventDispatcher as ThreeEventDispatcher, Vector3 } from 'three';
 import { resolveVector3 } from '../resolve/resolveVector3';
 import type { Target } from '../resolve/Target';
 import { useIsActiveVirtualCamera, useIsLiveVirtualCamera, useVirtualCameraSlots } from '../VirtualCamera';
@@ -24,6 +24,9 @@ export type CameraControlsProps = Omit<
       impl?: typeof CameraControlsImpl;
       /** Wait for an in-progress blend into this camera before listening to input. Default `true`. */
       waitForBlend?: boolean;
+      /** Registers this instance as r3f's `state.controls` while it's actually listening for input (see
+       *  `waitForBlend`) - restores whatever was there before once it stops. Default `false`. */
+      makeDefault?: boolean;
       /** Imperative access to the underlying `CameraControlsBody` (`.controls` is the real `CameraControlsImpl`). */
       ref?: Ref<CameraControlsBody>;
       /** Also lowers r3f's render quality while dragging/transitioning. Default `false`. */
@@ -64,6 +67,7 @@ export function CameraControls({
   enableTransition = false,
   impl = CameraControlsImpl,
   waitForBlend = true,
+  makeDefault = false,
   ref,
   regress = false,
   onControlStart,
@@ -84,6 +88,8 @@ export function CameraControls({
   const domElement = useThree((state) => state.gl.domElement);
   const invalidate = useThree((state) => state.invalidate);
   const performance = useThree((state) => state.performance);
+  const set = useThree((state) => state.set);
+  const get = useThree((state) => state.get);
   const [body] = useState(
     () =>
       new CameraControlsBody(
@@ -100,6 +106,15 @@ export function CameraControls({
 
   useImperativeHandle(ref, () => body, [body]);
   useEffect(() => slots.registerBody(body.update), [slots, body]);
+  useEffect(() => {
+    // gated on the same condition as input listening below - other tools reading state.controls
+    // shouldn't see an instance that isn't actually accepting input yet
+    if (!makeDefault || !shouldConnect) return;
+    const previous = get().controls;
+    set({ controls: body.controls as unknown as ThreeEventDispatcher });
+    return () => set({ controls: previous });
+  }, [makeDefault, shouldConnect, body, set, get]);
+
   useEffect(() => {
     if (!shouldConnect) return;
     body.controls.connect(domElement);

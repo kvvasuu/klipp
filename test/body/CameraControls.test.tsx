@@ -1,6 +1,7 @@
 import { useThree } from '@react-three/fiber';
 import { create } from '@react-three/test-renderer';
 import CameraControlsImpl from 'camera-controls';
+import { useEffect } from 'react';
 import { Vector3 } from 'three';
 import { describe, expect, it, vi } from 'vitest';
 import { HardLockToTarget } from '../../src/body/HardLockToTarget';
@@ -205,6 +206,96 @@ describe('CameraControls (React wrapper)', () => {
     await renderer.advanceFrames(1, 0.05); // still well within that blend-out
 
     expect(disconnectSpy).toHaveBeenCalledTimes(1);
+  });
+
+  describe('makeDefault', () => {
+    function ControlsReader({ onRead }: { onRead: (controls: unknown) => void }) {
+      onRead(useThree((state) => state.controls));
+      return null;
+    }
+
+    it('false (default): never touches state.controls, even while connected', async () => {
+      let controls: unknown;
+
+      const scene = (
+        <Klipp>
+          <ControlsReader onRead={(c) => (controls = c)} />
+          <VirtualCamera name="a" priority={10}>
+            <CameraControls target={new Vector3(0, 0, -10)} />
+          </VirtualCamera>
+        </Klipp>
+      );
+
+      const renderer = await create(scene);
+      await renderer.advanceFrames(1, 0.05);
+
+      expect(controls).toBeNull();
+    });
+
+    it('true: sets state.controls to the real CameraControlsImpl once connected, restores the previous value once it loses priority', async () => {
+      let controlsBody: CameraControlsBody | null = null;
+      let controls: unknown;
+
+      const scene = (orbitalPriority: number) => (
+        <Klipp>
+          <ControlsReader onRead={(c) => (controls = c)} />
+          <VirtualCamera name="orbital" priority={orbitalPriority}>
+            <CameraControls target={new Vector3(0, 0, -10)} makeDefault waitForBlend={false} ref={(b) => (controlsBody = b)} />
+          </VirtualCamera>
+          <VirtualCamera name="other" priority={5}>
+            <HardLockToTarget target={[0, 0, 0]} />
+          </VirtualCamera>
+        </Klipp>
+      );
+
+      const renderer = await create(scene(1)); // orbital starts losing — not connected yet
+      await renderer.advanceFrames(1, 0.05);
+      expect(controls).toBeNull();
+
+      await renderer.update(scene(10)); // orbital wins, connects (waitForBlend=false: instantly)
+      await renderer.advanceFrames(1, 0.05);
+      expect(controls).toBe(controlsBody!.controls);
+
+      await renderer.update(scene(1)); // orbital loses again, disconnects
+      await renderer.advanceFrames(1, 0.05);
+      expect(controls).toBeNull();
+    });
+
+    it('true: restores whatever state.controls held before, not always null', async () => {
+      const preExisting = {};
+      let controls: unknown;
+
+      function PreExistingControlsSetter() {
+        const set = useThree((state) => state.set);
+        useEffect(() => set({ controls: preExisting as never }), [set]);
+        return null;
+      }
+
+      const scene = (active: boolean) => (
+        <Klipp>
+          <PreExistingControlsSetter />
+          <ControlsReader onRead={(c) => (controls = c)} />
+          <VirtualCamera name="a" priority={active ? 10 : 1}>
+            <CameraControls target={new Vector3(0, 0, -10)} makeDefault waitForBlend={false} />
+          </VirtualCamera>
+          <VirtualCamera name="other" priority={5}>
+            <HardLockToTarget target={[0, 0, 0]} />
+          </VirtualCamera>
+        </Klipp>
+      );
+
+      const renderer = await create(scene(false));
+      await renderer.advanceFrames(1, 0.05);
+      expect(controls).toBe(preExisting);
+
+      await renderer.update(scene(true));
+      await renderer.advanceFrames(1, 0.05);
+      expect(controls).not.toBe(preExisting);
+
+      await renderer.update(scene(false));
+      await renderer.advanceFrames(1, 0.05);
+      expect(controls).toBe(preExisting);
+    });
   });
 
   describe('pointer lock survives losing and regaining priority', () => {
