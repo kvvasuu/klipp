@@ -38,14 +38,22 @@ export type RotationComposerProps = {
   /** Target's full box dimensions — takes priority over `radius`. Auto-detected from a `Mesh` target's own
    *  geometry bounds when neither is given. */
   size?: Vector3Like;
+  /** Seconds to extrapolate the target's tracked position ahead by, based on its recent velocity. Default
+   *  `0` (none). Independent of `PositionComposer`'s own `lookaheadTime` - each keeps its own predictor. */
+  lookaheadTime?: number;
+  /** Smooth-time budget (seconds) for the velocity estimate driving `lookaheadTime`. Default `1`. */
+  lookaheadSmoothing?: number;
+  /** Zeroes the Y component of the predicted offset - keeps lookahead horizontal for a target that bobs
+   *  or jumps vertically. Default `false`. */
+  lookaheadIgnoreY?: boolean;
   /** Draws `deadZone`/`hardLimit` as bordered rectangles over the canvas - only while this
    *  `VirtualCamera` is actually the one on screen. Default `false`. */
   debug?: boolean;
   /** Imperative access to the underlying `RotationComposerAim`, for reading/writing
-   *  `target`/`screenPosition`/`deadZone`/`damping`/`hardLimit`/`targetOffset`/`radius`/`size` directly
-   *  instead of through props, and for calling `recalculateSize()` on a target that deformed (a
-   *  `SkinnedMesh` bone animation, a mutated `BufferGeometry`) - auto-detected `size` is otherwise only
-   *  measured once. */
+   *  `target`/`screenPosition`/`deadZone`/`damping`/`hardLimit`/`targetOffset`/`radius`/`size`/
+   *  `lookaheadTime`/`lookaheadSmoothing`/`lookaheadIgnoreY` directly instead of through props, and for
+   *  calling `recalculateSize()` on a target that deformed (a `SkinnedMesh` bone animation, a mutated
+   *  `BufferGeometry`) - auto-detected `size` is otherwise only measured once. */
   ref?: Ref<RotationComposerAim>;
 };
 
@@ -68,6 +76,9 @@ export function RotationComposer({
   targetOffset = defaultTargetOffset,
   radius,
   size,
+  lookaheadTime = 0,
+  lookaheadSmoothing = 1,
+  lookaheadIgnoreY = false,
   debug = false,
   ref,
 }: RotationComposerProps) {
@@ -75,7 +86,20 @@ export function RotationComposer({
   const aspect = useThree((state) => state.viewport.aspect);
   const [aim] = useState(
     () =>
-      new RotationComposerAim(target, screenPosition, aspect, deadZone, damping, hardLimit, new Vector3(), radius, size),
+      new RotationComposerAim(
+        target,
+        screenPosition,
+        aspect,
+        deadZone,
+        damping,
+        hardLimit,
+        new Vector3(),
+        radius,
+        size,
+        lookaheadTime,
+        lookaheadSmoothing,
+        lookaheadIgnoreY,
+      ),
   );
   aim.target = target;
   aim.screenPosition = screenPosition;
@@ -85,6 +109,9 @@ export function RotationComposer({
   aim.hardLimit = hardLimit;
   aim.radius = radius;
   aim.size = size;
+  aim.lookaheadTime = lookaheadTime;
+  aim.lookaheadSmoothing = lookaheadSmoothing;
+  aim.lookaheadIgnoreY = lookaheadIgnoreY;
   resolveVector3(aim.targetOffset, targetOffset);
 
   useImperativeHandle(ref, () => aim, [aim]);
@@ -94,10 +121,10 @@ export function RotationComposer({
   const zones: DebugZone[] = [];
   // deadZone/hardLimit are a half-reach from screenPosition, DebugZoneOverlay wants a full box size
   if (hardLimit[0] > 0 || hardLimit[1] > 0) {
-    zones.push({ screenPosition, size: [hardLimit[0] * 2, hardLimit[1] * 2], color: '#cc3333' });
+    zones.push({ screenPosition, size: [hardLimit[0] * 2, hardLimit[1] * 2], className: 'klipp-debug-hardlimit' });
   }
   if (deadZone[0] > 0 || deadZone[1] > 0) {
-    zones.push({ screenPosition, size: [deadZone[0] * 2, deadZone[1] * 2], color: '#33cc33' });
+    zones.push({ screenPosition, size: [deadZone[0] * 2, deadZone[1] * 2], className: 'klipp-debug-deadzone' });
   }
-  return <DebugZoneOverlay zones={zones} />;
+  return <DebugZoneOverlay zones={zones} crosshair={screenPosition} />;
 }

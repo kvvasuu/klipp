@@ -1,10 +1,10 @@
 ---
 title: Debug Zones
-description: Visualizing deadZone/hardLimit/padding directly on the canvas.
+description: Visualizing deadZone/hardLimit/padding/screenPosition directly on the canvas.
 nav: 60
 ---
 
-[`PositionComposer`](/body/position-composer), [`RotationComposer`](/aim/rotation-composer), and [`GroupFraming`](/extension/group-framing) all take a `debug` prop that draws their zones as bordered boxes directly over the canvas, dimming everything outside them - the same visual language as Unity's Game View overlays.
+[`PositionComposer`](/body/position-composer), [`RotationComposer`](/aim/rotation-composer), and [`GroupFraming`](/extension/group-framing) all take a `debug` prop that draws their zones as bordered boxes directly over the canvas, dimming everything outside them, plus a crosshair marking `screenPosition` itself - the same visual language as Unity's Game View overlays.
 
 ```tsx
 <Body.PositionComposer target={playerRef} deadZone={[0.4, 0.4]} hardLimit={[0.7, 0.7]} debug />
@@ -12,14 +12,28 @@ nav: 60
 
 | Component           | Draws |
 | -------------------- | ----- |
-| `PositionComposer`   | `hardLimit` (red) and `deadZone` (green), if either is non-zero. |
-| `RotationComposer`   | Same as `PositionComposer` - `hardLimit`/`deadZone`. |
-| `GroupFraming`       | `padding` (blue), inset from the frame edges. |
+| `PositionComposer`   | `hardLimit` (red) and `deadZone` (green), if either is non-zero, plus a crosshair at `screenPosition`. |
+| `RotationComposer`   | Same as `PositionComposer` - `hardLimit`/`deadZone`/crosshair. |
+| `GroupFraming`       | `padding` (blue), inset from the frame edges. No crosshair (`screenPosition` there shifts the whole frustum, not a point to compose toward). |
 
-## Only while this camera is live
+## Crosshair
 
-The overlay only renders while its `<VirtualCamera>` is the one `<Klipp>` is actually showing right now (`useIsLiveVirtualCamera`) - debugging a camera that currently isn't on screen would draw boxes over whatever *is* showing, which makes no sense to look at.
+A full-viewport vertical + horizontal line through `screenPosition` - a fixed reference line makes it much easier to see a target drift off `screenPosition` than eyeballing it against the raw scene alone, especially useful alongside [Lookahead](/body/position-composer#lookahead) where the composed point is expected to lead the target rather than sit exactly on it.
+
+## Timing
+
+The overlay appears the instant its `<VirtualCamera>` wins arbitration and disappears the instant it loses, independent of any blend in progress.
+
+## Styling
+
+Each drawn element gets an ordinary CSS class - `klipp-debug-deadzone`, `klipp-debug-hardlimit`, `klipp-debug-groupframing`, `klipp-debug-crosshair` - styled by a stylesheet klipp injects once (idempotently, into `document.head`) with sensible defaults. Override colors, border width, or anything else with your own CSS at the same or higher specificity:
+
+```css
+.klipp-debug-deadzone { border-color: lime; border-width: 4px; }
+.klipp-debug-hardlimit { border-color: orange; }
+.klipp-debug-crosshair { background: cyan; }
+```
 
 ## Implementation
 
-Plain, imperative DOM manipulation (`document.createElement`/`appendChild`), not JSX or a `react-dom` portal.
+Plain, imperative DOM manipulation (`document.createElement`/`appendChild`), not JSX or a `react-dom` portal - inserted as a sibling of the canvas itself (`state.gl.domElement.parentElement`).

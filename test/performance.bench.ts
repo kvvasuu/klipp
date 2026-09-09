@@ -82,6 +82,32 @@ group('Body.update @body', () => {
     };
   });
 
+  // isolates the Predictor's own added cost - compare against the deadZone+hardLimit bench above, which
+  // is identical except lookahead is off
+  bench('PositionComposer (deadZone + hardLimit + lookahead)', function* () {
+    const { object, step } = makeMovingTarget();
+    const body = new PositionComposerBody(
+      object,
+      10,
+      [0, 0],
+      16 / 9,
+      [0.2, 0.2],
+      0.5,
+      [0.4, 0.4],
+      undefined,
+      undefined,
+      0,
+      0.3,
+      1,
+    );
+    const out = createCameraState();
+    yield () => {
+      step();
+      body.update(out, 0.016, false);
+      return out.position.x;
+    };
+  });
+
   // radius/size give deadZone/hardLimit a screen-space EDGE instead of a point - the radius path skips
   // resolveTargetRotation entirely, while size (explicit or auto-detected) projects a rotated box every
   // frame instead; all three should still show ~0 bytes/iter, same as the plain point-target bench above
@@ -135,6 +161,32 @@ group('Aim.update @aim', () => {
   bench('RotationComposer (deadZone + hardLimit)', function* () {
     const { object, step } = makeMovingTarget();
     const aim = new RotationComposerAim(object, [0, 0], 16 / 9, [0.2, 0.2], 0.5, [0.4, 0.4]);
+    const out = createCameraState();
+    out.position.set(0, 2, 15);
+    yield () => {
+      step();
+      aim.update(out, 0.016, false);
+      return out.quaternion.x;
+    };
+  });
+
+  // isolates the Predictor's own added cost - compare against the deadZone+hardLimit bench above, which
+  // is identical except lookahead is off
+  bench('RotationComposer (deadZone + hardLimit + lookahead)', function* () {
+    const { object, step } = makeMovingTarget();
+    const aim = new RotationComposerAim(
+      object,
+      [0, 0],
+      16 / 9,
+      [0.2, 0.2],
+      0.5,
+      [0.4, 0.4],
+      new Vector3(),
+      undefined,
+      undefined,
+      0.3,
+      1,
+    );
     const out = createCameraState();
     out.position.set(0, 2, 15);
     yield () => {

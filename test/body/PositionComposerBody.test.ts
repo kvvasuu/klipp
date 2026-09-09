@@ -159,6 +159,65 @@ describe('PositionComposerBody', () => {
     expect(() => update(out, 0.1)).not.toThrow();
   });
 
+  describe('dead zone residual velocity (coasting)', () => {
+    it('keeps easing after the target settles inside the dead zone, instead of freezing instantly', () => {
+      const target = new Vector3(20, 0, -20);
+      const body = new PositionComposerBody(target, 10, [0, 0], 1, [0.15, 0.15], 0.3);
+      const out = createCameraState();
+      const dt = 0.016;
+
+      // several frames outside the dead zone - damper builds up real lag, doesn't fully catch up
+      for (let i = 0; i < 5; i++) body.update(out, dt);
+      const beforeSettle = out.position.clone();
+
+      // target jumps to dead-center - well inside the dead zone from here on
+      target.set(0, 0, -20);
+      body.update(out, dt);
+
+      expect(out.position.equals(beforeSettle)).toBe(false); // kept easing, didn't freeze outright
+    });
+
+    it('eventually converges and stays put once fully settled inside the dead zone', () => {
+      const target = new Vector3(20, 0, -20);
+      const body = new PositionComposerBody(target, 10, [0, 0], 1, [0.15, 0.15], 0.3);
+      const out = createCameraState();
+      const dt = 0.016;
+
+      for (let i = 0; i < 5; i++) body.update(out, dt);
+      target.set(0, 0, -20);
+      for (let i = 0; i < 300; i++) body.update(out, dt); // plenty of time to fully settle
+
+      const settled = out.position.clone();
+      body.update(out, dt);
+      expect(out.position.equals(settled)).toBe(true);
+    });
+
+    it('does not backtrack toward the old direction when the target reverses after settling inside the dead zone (real bug: stale damper velocity surviving the freeze)', () => {
+      const target = new Vector3(0, 0, -20);
+      const body = new PositionComposerBody(target, 10, [0, 0], 1, [0.15, 0.15], 0.3);
+      const out = createCameraState();
+      const dt = 0.016;
+
+      // steady rightward motion, well outside the dead zone - builds up real rightward velocity
+      for (let i = 0; i < 40; i++) {
+        target.x += 0.3;
+        body.update(out, dt);
+      }
+
+      // target stops - let everything fully settle inside the dead zone
+      for (let i = 0; i < 300; i++) body.update(out, dt);
+
+      // now reverses direction - camera must never tick back toward the old (rightward) direction
+      let previousX = out.position.x;
+      for (let i = 0; i < 60; i++) {
+        target.x -= 0.3;
+        body.update(out, dt);
+        expect(out.position.x).toBeLessThanOrEqual(previousX + 1e-9);
+        previousX = out.position.x;
+      }
+    });
+  });
+
   describe('depth dead zone + damping', () => {
     it('target inside the depth dead zone: zero dolly reaction', () => {
       const target = new Vector3(0, 0, -10); // exactly at cameraDistance
@@ -170,6 +229,23 @@ describe('PositionComposerBody', () => {
       const afterFirstUpdate = out.position.clone();
       target.set(0, 0, -11.5); // depth now 11.5, within the depth dead zone (2) around cameraDistance (10)
       body.update(out, 0.1);
+
+      expect(out.position.equals(afterFirstUpdate)).toBe(true);
+    });
+
+    it('keeps tolerating gradual in-zone drift over many frames with damping enabled (real bug: a frozen desired depth fought the target instead of tolerating it)', () => {
+      const target = new Vector3(0, 0, -10); // exactly at cameraDistance
+      const body = new PositionComposerBody(target, 10, [0, 0], 1, [0, 0], 0.3);
+      body.depthDeadZone = 20;
+      const out = createCameraState();
+      const dt = 0.016;
+      body.update(out, dt);
+
+      const afterFirstUpdate = out.position.clone();
+      for (let i = 0; i < 20; i++) {
+        target.z -= 0.3; // depth keeps growing (10 -> 16), but stays within the ±20 tolerance throughout
+        body.update(out, dt);
+      }
 
       expect(out.position.equals(afterFirstUpdate)).toBe(true);
     });
@@ -632,6 +708,95 @@ describe('PositionComposerBody', () => {
       new PositionComposerBody(target, 10, [0, 0], 1, [0.2, 0.2], 0.3, [1000, 1000]).update(withLimit, 0.016);
 
       expect(withLimit.position.equals(withoutLimit.position)).toBe(true);
+    });
+  });
+
+  describe('lookahead', () => {
+    const dt = 1 / 60;
+
+    it('lookaheadTime 0 (default) leaves out.target at the raw target position', () => {
+      const target = new Vector3(0, 0, -20);
+      const body = new PositionComposerBody(target, 10);
+      const out = createCameraState();
+
+      body.update(out, dt, true);
+      target.set(5, 0, -20);
+      body.update(out, dt, false);
+
+      expect(out.target.equals(target)).toBe(true);
+    });
+
+    it('extrapolates out.target ahead of a target moving at constant velocity', () => {
+      const target = new Vector3();
+      const body = new PositionComposerBody(target, 10);
+      body.lookaheadTime = 0.5;
+      body.lookaheadSmoothing = 10;
+      const out = createCameraState();
+
+      body.update(out, dt, true); // activation: predictor reset, records the first sample only
+      for (let i = 0; i < 120; i++) {
+        target.x += 10 * dt; // constant velocity, 10 units/s
+        body.update(out, dt, false);
+      }
+
+      // steady state: predicted 0.5s ahead at 10 units/s = +5 beyond the raw target
+      expect(out.target.x - target.x).toBeCloseTo(5, 1);
+    });
+
+    it('a fresh activation resets the predictor — the first frame after it predicts nothing yet', () => {
+      const target = new Vector3();
+      const body = new PositionComposerBody(target, 10);
+      body.lookaheadTime = 0.5;
+      body.lookaheadSmoothing = 10;
+      const out = createCameraState();
+
+      body.update(out, dt, true);
+      for (let i = 0; i < 60; i++) {
+        target.x += 10 * dt;
+        body.update(out, dt, false);
+      }
+      expect(out.target.x - target.x).not.toBeCloseTo(0, 1); // built up a real lookahead offset
+
+      // a later, unrelated activation — same still-moving target, but the predictor shouldn't carry over
+      body.update(out, dt, true);
+      expect(out.target.x).toBeCloseTo(target.x, 4);
+    });
+
+    it('retargeting to a different reference resets the predictor too, even without justActivated', () => {
+      const targetA = new Vector3();
+      const body = new PositionComposerBody(targetA, 10);
+      body.lookaheadTime = 0.5;
+      body.lookaheadSmoothing = 10;
+      const out = createCameraState();
+
+      body.update(out, dt, true);
+      for (let i = 0; i < 60; i++) {
+        targetA.x += 10 * dt;
+        body.update(out, dt, false);
+      }
+
+      const targetB = new Vector3(100, 0, -20);
+      body.target = targetB;
+      body.update(out, dt, false); // no justActivated — only the target reference changed
+
+      expect(out.target.equals(targetB)).toBe(true); // no offset carried over from targetA's velocity
+    });
+
+    it('ignoreY zeroes the vertical component of the predicted offset', () => {
+      const target = new Vector3();
+      const body = new PositionComposerBody(target, 10);
+      body.lookaheadTime = 0.5;
+      body.lookaheadSmoothing = 10;
+      body.lookaheadIgnoreY = true;
+      const out = createCameraState();
+
+      body.update(out, dt, true);
+      for (let i = 0; i < 120; i++) {
+        target.y += 10 * dt; // moving straight up
+        body.update(out, dt, false);
+      }
+
+      expect(out.target.y).toBeCloseTo(target.y, 4); // vertical lookahead suppressed
     });
   });
 });

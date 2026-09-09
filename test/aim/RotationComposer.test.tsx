@@ -204,10 +204,15 @@ describe('RotationComposer (React wrapper)', () => {
   });
 
   describe('debug', () => {
-    function readBoxColors(): string[] {
+    function readBoxClasses(): string[] {
       const canvas = document.querySelector('canvas');
       const root = canvas?.parentElement?.querySelector('div');
-      return root ? Array.from(root.children).map((el) => (el as HTMLDivElement).style.borderColor) : [];
+      // excludes the crosshair lines (a different class - see DebugZoneOverlay.test.tsx for those)
+      return root
+        ? Array.from(root.children)
+            .map((el) => (el as HTMLDivElement).className)
+            .filter((className) => className !== 'klipp-debug-crosshair')
+        : [];
     }
 
     it('draws nothing (default false)', async () => {
@@ -221,7 +226,7 @@ describe('RotationComposer (React wrapper)', () => {
       );
       await renderer.advanceFrames(1, 0.1);
 
-      expect(readBoxColors()).toHaveLength(0);
+      expect(readBoxClasses()).toHaveLength(0);
       document.body.replaceChildren();
     });
 
@@ -236,7 +241,7 @@ describe('RotationComposer (React wrapper)', () => {
       );
       await renderer.advanceFrames(1, 0.1);
 
-      expect(readBoxColors()).toHaveLength(2);
+      expect(readBoxClasses()).toEqual(['klipp-debug-hardlimit', 'klipp-debug-deadzone']);
       document.body.replaceChildren();
     });
   });

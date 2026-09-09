@@ -29,6 +29,19 @@ Bundle three independent `Damper`s (Cartesian x/y/z) and a rotation-aware varian
 
 `QuaternionDamper` is gimbal-lock-free: each call, it recomputes the *shortest* rotation from `out`'s current value to `target`, splits it into axis + angle, and only runs the angle through a plain `Damper` - never decomposing into per-axis Euler angles. Recomputing that delta fresh off `out`'s current value every call (not a frozen reference) is what keeps it jump-free while chasing a continuously rotating target.
 
+## `Predictor`
+
+The primitive behind [`PositionComposer`](/body/position-composer#lookahead) and [`RotationComposer`](/aim/rotation-composer#lookahead)'s `lookaheadTime`/`lookaheadSmoothing` - tracks a moving point's velocity across calls, then extrapolates `velocity * time` ahead of it.
+
+```ts
+predictor.addPosition(position: Vector3, dt: number, smoothing: number): void
+predictor.predictPositionDelta(out: Vector3, time: number): Vector3
+```
+
+The velocity estimate is smoothed *asymmetrically*: it reacts faster while the raw velocity is shrinking than while it's growing (`smoothing / 30` versus `smoothing / 10`), so a target that suddenly stops doesn't keep carrying a stale, overshooting prediction, while a sudden burst of speed doesn't yank the predicted point forward instantly. It reuses `Vector3Damper` for the actual smoothing step - the asymmetry is just which smooth-time gets passed in for that frame, decided by comparing this frame's raw velocity against the last smoothed one.
+
+Call `.reset()` on activation or when the tracked target's reference changes, same as `Damper` - otherwise the first sample after a gap would compute a spurious velocity from wherever the point last was.
+
 ## Writing your own damped field
 
 If you're building a [custom Extension](/advanced/custom-extensions) with its own damped value, reuse `Damper` (or `Vector3Damper`/`QuaternionDamper`) rather than hand-rolling a lerp - it gets you the snap-on-first-call and snap-below-epsilon behavior for free, consistent with every other damped field a user of your Extension will already be used to.
