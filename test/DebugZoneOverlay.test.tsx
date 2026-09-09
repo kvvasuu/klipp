@@ -98,4 +98,56 @@ describe('DebugZoneOverlay', () => {
 
     expect(readBoxes()).toHaveLength(0);
   });
+
+  it('draws no crosshair when omitted', async () => {
+    const renderer = await createAttached(
+      <Klipp>
+        <VirtualCamera name="a" priority={10}>
+          <DebugZoneOverlay zones={[]} />
+        </VirtualCamera>
+      </Klipp>,
+    );
+    await renderer.advanceFrames(1, 0.1);
+
+    expect(readBoxes()).toHaveLength(0);
+  });
+
+  it('draws a full-viewport vertical + horizontal line at the crosshair screenPosition', async () => {
+    const renderer = await createAttached(
+      <Klipp>
+        <VirtualCamera name="a" priority={10}>
+          <DebugZoneOverlay zones={[]} crosshair={[0.5, -0.5]} />
+        </VirtualCamera>
+      </Klipp>,
+    );
+    await renderer.advanceFrames(1, 0.1);
+
+    const lines = readBoxes();
+    expect(lines).toHaveLength(2);
+
+    // vertical line: fixed X (screenPosition[0]=0.5 -> 75%), full height
+    expect(lines[0].style.left).toBe('75%');
+    expect(lines[0].style.top).toBe('0px');
+    expect(lines[0].style.bottom).toBe('0px');
+    expect(lines[0].style.width).toBe('1px');
+
+    // horizontal line: fixed Y (screenPosition[1]=-0.5, Y-inverted -> 75%), full width
+    expect(lines[1].style.top).toBe('75%');
+    expect(lines[1].style.left).toBe('0px');
+    expect(lines[1].style.right).toBe('0px');
+    expect(lines[1].style.height).toBe('1px');
+  });
+
+  it('draws the crosshair alongside zone boxes, not instead of them', async () => {
+    const renderer = await createAttached(
+      <Klipp>
+        <VirtualCamera name="a" priority={10}>
+          <DebugZoneOverlay zones={[{ screenPosition: [0, 0], size: [0.4, 0.4], color: 'lime' }]} crosshair={[0, 0]} />
+        </VirtualCamera>
+      </Klipp>,
+    );
+    await renderer.advanceFrames(1, 0.1);
+
+    expect(readBoxes()).toHaveLength(3); // 1 zone box + 2 crosshair lines
+  });
 });

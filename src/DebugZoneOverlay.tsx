@@ -11,6 +11,8 @@ export type DebugZone = {
   color: string;
 };
 
+const CROSSHAIR_COLOR = '#ffcc00';
+
 /** NDC (`-1` = one edge, `+1` = the other) to a CSS percentage - `invertY` flips the Y axis, since CSS
  *  `top` grows downward while `screenPosition`'s `+1` means up. */
 function ndcToPercent(ndc: number, invertY: boolean): number {
@@ -18,12 +20,14 @@ function ndcToPercent(ndc: number, invertY: boolean): number {
 }
 
 /**
- * Debug gizmo: a bordered box per zone, dimming everything outside it. Plain DOM
- * manipulation, always returning `null` to react-three-fiber - its reconciler can't render raw DOM nodes,
- * and a `react-dom` portal from within its own tree needs a bridging layer (like drei's `<Html>`) this
- * avoids depending on. Shown only while this `<VirtualCamera>` is the one actually on screen.
+ * Debug gizmo: a bordered box per zone (dimming everything outside it), plus an optional full-viewport
+ * crosshair at `crosshair`'s screenPosition - a fixed reference line makes it much easier to see a target
+ * drift off `screenPosition` than eyeballing it against the raw scene alone. Plain DOM manipulation,
+ * always returning `null` to react-three-fiber - its reconciler can't render raw DOM nodes, and a
+ * `react-dom` portal from within its own tree needs a bridging layer (like drei's `<Html>`) this avoids
+ * depending on. Shown only while this `<VirtualCamera>` is the one actually on screen.
  */
-export function DebugZoneOverlay({ zones }: { zones: DebugZone[] }): null {
+export function DebugZoneOverlay({ zones, crosshair }: { zones: DebugZone[]; crosshair?: [number, number] }): null {
   const isLive = useIsLiveVirtualCamera();
   const container = useThree((state) => state.gl.domElement.parentElement);
   const rootRef = useRef<HTMLDivElement | null>(null);
@@ -65,6 +69,26 @@ export function DebugZoneOverlay({ zones }: { zones: DebugZone[] }): null {
       box.style.boxSizing = 'border-box';
       box.style.boxShadow = `0 0 0 100vmax color-mix(in srgb, ${zone.color} 5%, transparent)`;
       root.appendChild(box);
+    }
+
+    if (crosshair) {
+      const vertical = document.createElement('div');
+      vertical.style.position = 'absolute';
+      vertical.style.left = `${ndcToPercent(crosshair[0], false)}%`;
+      vertical.style.top = '0';
+      vertical.style.bottom = '0';
+      vertical.style.width = '1px';
+      vertical.style.background = CROSSHAIR_COLOR;
+      root.appendChild(vertical);
+
+      const horizontal = document.createElement('div');
+      horizontal.style.position = 'absolute';
+      horizontal.style.top = `${ndcToPercent(crosshair[1], true)}%`;
+      horizontal.style.left = '0';
+      horizontal.style.right = '0';
+      horizontal.style.height = '1px';
+      horizontal.style.background = CROSSHAIR_COLOR;
+      root.appendChild(horizontal);
     }
   });
 

@@ -207,7 +207,12 @@ describe('RotationComposer (React wrapper)', () => {
     function readBoxColors(): string[] {
       const canvas = document.querySelector('canvas');
       const root = canvas?.parentElement?.querySelector('div');
-      return root ? Array.from(root.children).map((el) => (el as HTMLDivElement).style.borderColor) : [];
+      // excludes the crosshair lines (no border - see DebugZoneOverlay.test.tsx for those)
+      return root
+        ? Array.from(root.children)
+            .map((el) => (el as HTMLDivElement).style.borderColor)
+            .filter(Boolean)
+        : [];
     }
 
     it('draws nothing (default false)', async () => {

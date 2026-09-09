@@ -127,5 +127,5 @@ export function PositionComposer({
   if (deadZone[0] > 0 || deadZone[1] > 0) {
     zones.push({ screenPosition, size: [deadZone[0] * 2, deadZone[1] * 2], color: '#33cc33' });
   }
-  return <DebugZoneOverlay zones={zones} />;
+  return <DebugZoneOverlay zones={zones} crosshair={screenPosition} />;
 }
