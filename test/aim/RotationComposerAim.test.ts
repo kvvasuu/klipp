@@ -616,4 +616,96 @@ describe('RotationComposerAim', () => {
       expect(projected.x).toBeCloseTo(0, 5); // reacted anyway — justActivated bypasses the dead zone
     });
   });
+
+  describe('lookahead', () => {
+    const dt = 1 / 60;
+
+    it('lookaheadTime 0 (default) leaves out.lookAtTarget at the raw target position', () => {
+      const target = new Vector3(0, 0, -20);
+      const aim = new RotationComposerAim(target);
+      const out = createCameraState();
+
+      aim.update(out, dt, true);
+      target.set(5, 0, -20);
+      aim.update(out, dt, false);
+
+      expect(out.lookAtTarget.equals(target)).toBe(true);
+    });
+
+    it('extrapolates out.lookAtTarget ahead of a target moving at constant velocity', () => {
+      const target = new Vector3();
+      const aim = new RotationComposerAim(target);
+      aim.lookaheadTime = 0.5;
+      aim.lookaheadSmoothing = 10;
+      const out = createCameraState();
+
+      aim.update(out, dt, true); // activation: predictor reset, records the first sample only
+      for (let i = 0; i < 120; i++) {
+        target.x += 10 * dt; // constant velocity, 10 units/s
+        aim.update(out, dt, false);
+      }
+
+      // steady state: predicted 0.5s ahead at 10 units/s = +5 beyond the raw target
+      expect(out.lookAtTarget.x - target.x).toBeCloseTo(5, 1);
+    });
+
+    it('a fresh activation resets the predictor - the first frame after it predicts nothing yet', () => {
+      const target = new Vector3();
+      const aim = new RotationComposerAim(target);
+      aim.lookaheadTime = 0.5;
+      aim.lookaheadSmoothing = 10;
+      const out = createCameraState();
+
+      aim.update(out, dt, true);
+      for (let i = 0; i < 60; i++) {
+        target.x += 10 * dt;
+        aim.update(out, dt, false);
+      }
+      expect(out.lookAtTarget.x - target.x).not.toBeCloseTo(0, 1); // built up a real lookahead offset
+
+      // a later, unrelated activation - same still-moving target, but the predictor shouldn't carry over
+      aim.update(out, dt, true);
+      expect(out.lookAtTarget.x).toBeCloseTo(target.x, 4);
+    });
+
+    it('retargeting to a different reference resets the predictor too, even without justActivated', () => {
+      const targetA = new Vector3();
+      const aim = new RotationComposerAim(targetA);
+      aim.lookaheadTime = 0.5;
+      aim.lookaheadSmoothing = 10;
+      const out = createCameraState();
+
+      aim.update(out, dt, true);
+      for (let i = 0; i < 60; i++) {
+        targetA.x += 10 * dt;
+        aim.update(out, dt, false);
+      }
+
+      const targetB = new Vector3(100, 0, -20);
+      aim.target = targetB;
+      aim.update(out, dt, false); // no justActivated - only the target reference changed
+
+      // out.lookAtTarget is reconstructed through its own direction+distance damper (unlike out.target's
+      // direct passthrough), so a huge jump leaves a tiny numeric residual even at damping 0 - a few
+      // hundredths is still far below the ~5 unit lookahead offset a stale predictor would have added
+      expect(out.lookAtTarget.distanceTo(targetB)).toBeLessThan(0.01);
+    });
+
+    it('ignoreY zeroes the vertical component of the predicted offset', () => {
+      const target = new Vector3();
+      const aim = new RotationComposerAim(target);
+      aim.lookaheadTime = 0.5;
+      aim.lookaheadSmoothing = 10;
+      aim.lookaheadIgnoreY = true;
+      const out = createCameraState();
+
+      aim.update(out, dt, true);
+      for (let i = 0; i < 120; i++) {
+        target.y += 10 * dt; // moving straight up
+        aim.update(out, dt, false);
+      }
+
+      expect(out.lookAtTarget.y).toBeCloseTo(target.y, 4); // vertical lookahead suppressed
+    });
+  });
 });

@@ -3,6 +3,7 @@ import { clamp, degreesToRadians } from 'math';
 import { Matrix4, Quaternion, Vector3 } from 'three';
 import type { CameraState } from '../CameraState';
 import { Damper, type DampingConstant } from '../damping/Damper';
+import { Predictor } from '../damping/Predictor';
 import { QuaternionDamper } from '../damping/QuaternionDamper';
 import { resolveTargetHalfExtents, resolveTargetPosition, resolveTargetRotation, type Target } from '../resolve/Target';
 
@@ -30,6 +31,7 @@ const DISTANCE_EPSILON = 1e-4;
 /** `[x, y, depth]` of a world point in a camera's local screen space — reused scratch, no allocation.
  *  `depth <= 0` means the point is behind the camera (degenerate). */
 const scratchScreenPoint: [number, number, number] = [0, 0, 0];
+const scratchLookaheadDelta = new Vector3();
 
 function computeScreenPoint(
   cameraPosition: Vector3,
@@ -83,6 +85,9 @@ function composeQuaternionForScreenPoint(
  * its nearest edge, capped to the zone's own half-size so an oversized target settles on dead center
  * instead of oscillating - same idea as `PositionComposerBody`'s, but converted through the target's
  * actual, possibly-changing distance (`computeScreenPoint`'s `depth`) rather than a fixed `cameraDistance`.
+ *
+ * `lookaheadTime` > 0 aims toward the target's extrapolated position instead of its raw one -
+ * `out.lookAtTarget` sees the shifted point too.
  */
 export class RotationComposerAim {
   target: Target;
@@ -94,6 +99,15 @@ export class RotationComposerAim {
   targetOffset: Vector3;
   radius?: number;
   size?: Vector3Like;
+  /** Seconds to extrapolate the target's tracked position ahead by, based on its recent velocity - `0`
+   *  (default) predicts nothing. Independent of `PositionComposer`'s own `lookaheadTime` - each keeps its
+   *  own predictor, so pairing them on the same target can settle on slightly different points. */
+  lookaheadTime: number;
+  /** Smooth-time budget (seconds) for the velocity estimate driving `lookaheadTime`. Default `1`. */
+  lookaheadSmoothing: number;
+  /** Zeroes the Y component of the predicted offset - keeps lookahead horizontal for a target that bobs
+   *  or jumps vertically. Default `false`. */
+  lookaheadIgnoreY: boolean;
 
   private readonly damper = new QuaternionDamper();
   /** Direction is damped as a ROTATION, not by lerping the point: a straight line between two look-at
@@ -108,6 +122,8 @@ export class RotationComposerAim {
    *  `hasActiveDesiredRotation === false` means there's no reference yet - falls back to zero correction. */
   private hasActiveDesiredRotation = false;
   private readonly lastActiveDesiredRotation = new Quaternion();
+  private readonly predictor = new Predictor();
+  private lastLookaheadTarget: Target = undefined;
 
   constructor(
     target: Target,
@@ -119,6 +135,9 @@ export class RotationComposerAim {
     targetOffset: Vector3 = new Vector3(),
     radius?: number,
     size?: Vector3Like,
+    lookaheadTime = 0,
+    lookaheadSmoothing = 1,
+    lookaheadIgnoreY = false,
   ) {
     this.target = target;
     this.screenPosition = screenPosition;
@@ -129,6 +148,9 @@ export class RotationComposerAim {
     this.targetOffset = targetOffset;
     this.radius = radius;
     this.size = size;
+    this.lookaheadTime = lookaheadTime;
+    this.lookaheadSmoothing = lookaheadSmoothing;
+    this.lookaheadIgnoreY = lookaheadIgnoreY;
   }
 
   /** Forces the auto-detected `size` to be re-measured on the NEXT `update()` call, then goes back to the
@@ -142,6 +164,17 @@ export class RotationComposerAim {
     // captured up front so an early return below can't leave it lit for a later, unrelated frame
     const recalculateSizeThisFrame = this.forceSizeRecalculation;
     this.forceSizeRecalculation = false;
+
+    if (justActivated || this.target !== this.lastLookaheadTarget) {
+      this.lastLookaheadTarget = this.target;
+      this.predictor.reset();
+    }
+    this.predictor.addPosition(scratchTargetPosition, dt, this.lookaheadSmoothing);
+    if (this.lookaheadTime > 0) {
+      this.predictor.predictPositionDelta(scratchLookaheadDelta, this.lookaheadTime);
+      if (this.lookaheadIgnoreY) scratchLookaheadDelta.y = 0;
+      scratchTargetPosition.add(scratchLookaheadDelta);
+    }
 
     if (!resolveTargetRotation(scratchTargetRotation, this.target)) scratchTargetRotation.identity();
     scratchTargetPosition.add(scratchOffset.copy(this.targetOffset).applyQuaternion(scratchTargetRotation));
