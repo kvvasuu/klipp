@@ -37,14 +37,22 @@ export type PositionComposerProps = {
   /** Target's full box dimensions — takes priority over `radius`. Auto-detected from a `Mesh` target's own
    *  geometry bounds when neither is given. */
   size?: Vector3Like;
+  /** Seconds to extrapolate the target's tracked position ahead by, based on its recent velocity. Default
+   *  `0` (none). */
+  lookaheadTime?: number;
+  /** Smooth-time budget (seconds) for the velocity estimate driving `lookaheadTime`. Default `1`. */
+  lookaheadSmoothing?: number;
+  /** Zeroes the Y component of the predicted offset - keeps lookahead horizontal for a target that bobs
+   *  or jumps vertically. Default `false`. */
+  lookaheadIgnoreY?: boolean;
   /** Draws `deadZone`/`hardLimit` as bordered rectangles over the canvas - only while this
    *  `VirtualCamera` is actually the one on screen. Default `false`. */
   debug?: boolean;
   /** Imperative access to the underlying `PositionComposerBody`, for reading/writing
    *  `target`/`cameraDistance`/`screenPosition`/`deadZone`/`damping`/`hardLimit`/`depthDeadZone`/`radius`/
-   *  `size` directly instead of through props, and for calling `recalculateSize()` on a target that
-   *  deformed (a `SkinnedMesh` bone animation, a mutated `BufferGeometry`) - auto-detected `size` is
-   *  otherwise only measured once. */
+   *  `size`/`lookaheadTime`/`lookaheadSmoothing`/`lookaheadIgnoreY` directly instead of through props, and
+   *  for calling `recalculateSize()` on a target that deformed (a `SkinnedMesh` bone animation, a mutated
+   *  `BufferGeometry`) - auto-detected `size` is otherwise only measured once. */
   ref?: Ref<PositionComposerBody>;
 };
 
@@ -67,6 +75,9 @@ export function PositionComposer({
   radius,
   size,
   depthDeadZone = 0,
+  lookaheadTime = 0,
+  lookaheadSmoothing = 1,
+  lookaheadIgnoreY = false,
   debug = false,
   ref,
 }: PositionComposerProps) {
@@ -85,6 +96,9 @@ export function PositionComposer({
         radius,
         size,
         depthDeadZone,
+        lookaheadTime,
+        lookaheadSmoothing,
+        lookaheadIgnoreY,
       ),
   );
   body.target = target;
@@ -97,6 +111,9 @@ export function PositionComposer({
   body.radius = radius;
   body.size = size;
   body.depthDeadZone = depthDeadZone;
+  body.lookaheadTime = lookaheadTime;
+  body.lookaheadSmoothing = lookaheadSmoothing;
+  body.lookaheadIgnoreY = lookaheadIgnoreY;
 
   useImperativeHandle(ref, () => body, [body]);
   useEffect(() => slots.registerBody(body.update), [slots, body]);

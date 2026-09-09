@@ -634,4 +634,93 @@ describe('PositionComposerBody', () => {
       expect(withLimit.position.equals(withoutLimit.position)).toBe(true);
     });
   });
+
+  describe('lookahead', () => {
+    const dt = 1 / 60;
+
+    it('lookaheadTime 0 (default) leaves out.target at the raw target position', () => {
+      const target = new Vector3(0, 0, -20);
+      const body = new PositionComposerBody(target, 10);
+      const out = createCameraState();
+
+      body.update(out, dt, true);
+      target.set(5, 0, -20);
+      body.update(out, dt, false);
+
+      expect(out.target.equals(target)).toBe(true);
+    });
+
+    it('extrapolates out.target ahead of a target moving at constant velocity', () => {
+      const target = new Vector3();
+      const body = new PositionComposerBody(target, 10);
+      body.lookaheadTime = 0.5;
+      body.lookaheadSmoothing = 10;
+      const out = createCameraState();
+
+      body.update(out, dt, true); // activation: predictor reset, records the first sample only
+      for (let i = 0; i < 120; i++) {
+        target.x += 10 * dt; // constant velocity, 10 units/s
+        body.update(out, dt, false);
+      }
+
+      // steady state: predicted 0.5s ahead at 10 units/s = +5 beyond the raw target
+      expect(out.target.x - target.x).toBeCloseTo(5, 1);
+    });
+
+    it('a fresh activation resets the predictor — the first frame after it predicts nothing yet', () => {
+      const target = new Vector3();
+      const body = new PositionComposerBody(target, 10);
+      body.lookaheadTime = 0.5;
+      body.lookaheadSmoothing = 10;
+      const out = createCameraState();
+
+      body.update(out, dt, true);
+      for (let i = 0; i < 60; i++) {
+        target.x += 10 * dt;
+        body.update(out, dt, false);
+      }
+      expect(out.target.x - target.x).not.toBeCloseTo(0, 1); // built up a real lookahead offset
+
+      // a later, unrelated activation — same still-moving target, but the predictor shouldn't carry over
+      body.update(out, dt, true);
+      expect(out.target.x).toBeCloseTo(target.x, 4);
+    });
+
+    it('retargeting to a different reference resets the predictor too, even without justActivated', () => {
+      const targetA = new Vector3();
+      const body = new PositionComposerBody(targetA, 10);
+      body.lookaheadTime = 0.5;
+      body.lookaheadSmoothing = 10;
+      const out = createCameraState();
+
+      body.update(out, dt, true);
+      for (let i = 0; i < 60; i++) {
+        targetA.x += 10 * dt;
+        body.update(out, dt, false);
+      }
+
+      const targetB = new Vector3(100, 0, -20);
+      body.target = targetB;
+      body.update(out, dt, false); // no justActivated — only the target reference changed
+
+      expect(out.target.equals(targetB)).toBe(true); // no offset carried over from targetA's velocity
+    });
+
+    it('ignoreY zeroes the vertical component of the predicted offset', () => {
+      const target = new Vector3();
+      const body = new PositionComposerBody(target, 10);
+      body.lookaheadTime = 0.5;
+      body.lookaheadSmoothing = 10;
+      body.lookaheadIgnoreY = true;
+      const out = createCameraState();
+
+      body.update(out, dt, true);
+      for (let i = 0; i < 120; i++) {
+        target.y += 10 * dt; // moving straight up
+        body.update(out, dt, false);
+      }
+
+      expect(out.target.y).toBeCloseTo(target.y, 4); // vertical lookahead suppressed
+    });
+  });
 });
