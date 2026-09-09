@@ -103,6 +103,11 @@ export class RotationComposerAim {
   private readonly publishedLookRotation = new Quaternion();
   private publishedDistance = 0;
   private forceSizeRecalculation = false;
+  /** Last actively-computed (outside-the-dead-zone) desired rotation - reused as the damper's target
+   *  while inside the zone, so residual velocity eases to a stop instead of being cut off.
+   *  `hasActiveDesiredRotation === false` means there's no reference yet - falls back to zero correction. */
+  private hasActiveDesiredRotation = false;
+  private readonly lastActiveDesiredRotation = new Quaternion();
 
   constructor(
     target: Target,
@@ -220,10 +225,10 @@ export class RotationComposerAim {
       // depth <= 0 (target behind camera): degenerate, fall through and correct all the way to screenPosition
     }
 
-    // still falls through to the hardLimit pass below even when inside the dead zone (no reaction here)
-    // — hardLimit is a SEPARATE, wider box that must hold regardless of the dead zone, not just when the
-    // dead zone itself happened to react this frame (e.g. a misconfigured hardLimit smaller than
-    // deadZone would otherwise never actually enforce anything)
+    // still falls through to the hardLimit pass below even when inside the dead zone - hardLimit is a
+    // SEPARATE, wider box that must hold regardless of the dead zone, not just when the dead zone itself
+    // happened to react this frame (e.g. a misconfigured hardLimit smaller than deadZone would otherwise
+    // never actually enforce anything)
     if (!insideDeadZone) {
       composeQuaternionForScreenPoint(
         scratchTargetQuaternion,
@@ -234,9 +239,18 @@ export class RotationComposerAim {
         tanHalfFovH,
         tanHalfFovV,
       );
-      if (justActivated) this.damper.reset();
-      this.damper.update(out.quaternion, scratchTargetQuaternion, this.damping, dt);
+      this.lastActiveDesiredRotation.copy(scratchTargetQuaternion);
+      this.hasActiveDesiredRotation = true;
+    } else if (this.hasActiveDesiredRotation) {
+      // chase the last REAL desired rotation instead of the camera's own current one, so residual
+      // velocity eases to a stop instead of being cut off the instant the zone is re-entered
+      scratchTargetQuaternion.copy(this.lastActiveDesiredRotation);
+    } else {
+      scratchTargetQuaternion.copy(out.quaternion); // no prior reference yet - zero correction
     }
+
+    if (justActivated) this.damper.reset();
+    this.damper.update(out.quaternion, scratchTargetQuaternion, this.damping, dt);
 
     if (this.hardLimit[0] <= 0 && this.hardLimit[1] <= 0) return;
 

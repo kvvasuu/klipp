@@ -1,4 +1,4 @@
-import { BoxGeometry, Mesh, MeshBasicMaterial, Object3D, PerspectiveCamera, Quaternion, Vector3 } from 'three';
+import { BoxGeometry, Euler, Mesh, MeshBasicMaterial, Object3D, PerspectiveCamera, Quaternion, Vector3 } from 'three';
 import { describe, expect, it } from 'vitest';
 import { createCameraState } from '../../src/CameraState';
 import { RotationComposerAim } from '../../src/aim/RotationComposerAim';
@@ -264,6 +264,40 @@ describe('RotationComposerAim', () => {
       aim.update(out, 0.1);
       projected = projectToScreen(out, 1, target);
       expect(projected.y).toBeCloseTo(0.1, 2);
+    });
+
+    it('does not backtrack toward the old direction when the target reverses after settling inside the dead zone (real bug: stale damper velocity surviving the freeze)', () => {
+      const target = new Vector3(0, 0, -20);
+      const aim = new RotationComposerAim(target, [0, 0], 1, [0.15, 0.15], 0.3);
+      const out = createCameraState();
+      const dt = 0.016;
+
+      // steady rightward motion, well outside the dead zone - builds up real rotational velocity
+      for (let i = 0; i < 40; i++) {
+        target.x += 0.3;
+        aim.update(out, dt);
+      }
+
+      // target stops - let everything fully settle inside the dead zone
+      for (let i = 0; i < 300; i++) aim.update(out, dt);
+
+      // now reverses direction - once the camera starts turning back, it must keep turning the SAME way
+      // (a stale, still-rightward damper velocity would show up as an opposite-signed blip right when
+      // reaction resumes)
+      let previousYaw = new Euler().setFromQuaternion(out.quaternion, 'YXZ').y;
+      let firstChangeSign = 0;
+      for (let i = 0; i < 60; i++) {
+        target.x -= 0.3;
+        aim.update(out, dt);
+        const yaw = new Euler().setFromQuaternion(out.quaternion, 'YXZ').y;
+        const delta = yaw - previousYaw;
+        if (Math.abs(delta) > 1e-9) {
+          if (firstChangeSign === 0) firstChangeSign = Math.sign(delta);
+          else expect(Math.sign(delta)).not.toBe(-firstChangeSign);
+        }
+        previousYaw = yaw;
+      }
+      expect(firstChangeSign).not.toBe(0); // sanity: it did eventually react
     });
   });
 

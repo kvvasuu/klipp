@@ -64,6 +64,11 @@ export class PositionComposerBody {
   private readonly predictor = new Predictor();
   private lastLookaheadTarget: Target = undefined;
   private forceSizeRecalculation = false;
+  /** Last actively-computed (outside-the-dead-zone) desired lateral position - reused as the damper's
+   *  target while inside the zone, so residual velocity eases to a stop instead of being cut off.
+   *  `hasActiveDesiredPosition === false` means there's no reference yet - falls back to zero correction. */
+  private hasActiveDesiredPosition = false;
+  private readonly lastActiveDesiredPosition = new Vector3();
 
   constructor(
     target: Target,
@@ -139,6 +144,8 @@ export class PositionComposerBody {
       }
     }
 
+    // unlike the lateral stage below, currentDepth is a fresh reading of the target's own motion each
+    // frame, not a camera-controlled value - freezing desiredDepth would fight ordinary in-zone drift
     if (!insideDepthDeadZone) {
       if (justActivated) this.depthDamper.reset();
       const instant = typeof this.damping === 'number' && this.damping <= 0;
@@ -198,19 +205,27 @@ export class PositionComposerBody {
       }
     }
 
-    // still falls through to the hardLimit pass below even when inside the dead zone (no lateral
-    // reaction here) — hardLimit is a SEPARATE, wider box that must hold regardless of the dead zone, not
-    // just when the dead zone itself happened to react this frame (e.g. a misconfigured hardLimit smaller
-    // than deadZone would otherwise never actually enforce anything)
+    // still falls through to the hardLimit pass below even when inside the dead zone - hardLimit is a
+    // SEPARATE, wider box that must hold regardless of the dead zone, not just when the dead zone itself
+    // happened to react this frame (e.g. a misconfigured hardLimit smaller than deadZone would otherwise
+    // never actually enforce anything)
     if (!insideDeadZone) {
       scratchDesiredPosition
         .copy(out.position)
         .addScaledVector(scratchRight, currentRight - desiredScreenX * halfWidth)
         .addScaledVector(scratchUp, currentUp - desiredScreenY * halfHeight);
-
-      if (justActivated) this.damper.reset();
-      this.damper.update(out.position, scratchDesiredPosition, this.damping, dt);
+      this.lastActiveDesiredPosition.copy(scratchDesiredPosition);
+      this.hasActiveDesiredPosition = true;
+    } else if (this.hasActiveDesiredPosition) {
+      // chase the last REAL desired position instead of the camera's own current one, so residual
+      // velocity eases to a stop instead of being cut off the instant the zone is re-entered
+      scratchDesiredPosition.copy(this.lastActiveDesiredPosition);
+    } else {
+      scratchDesiredPosition.copy(out.position); // no prior reference yet - zero correction
     }
+
+    if (justActivated) this.damper.reset();
+    this.damper.update(out.position, scratchDesiredPosition, this.damping, dt);
 
     if (this.hardLimit[0] <= 0 && this.hardLimit[1] <= 0) return;
 
