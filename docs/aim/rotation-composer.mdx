@@ -25,7 +25,10 @@ The rotation counterpart to [`PositionComposer`](/body/position-composer): inste
 | `targetOffset` | `Vector3`            | `[0,0,0]` | Offset applied to the target's position, in the target's own local rotation space, before the rest of the math - e.g. aim at a character's head instead of its feet. Degrades to a plain world-space offset for a target with no rotation. |
 | `radius`       | `number`             | -         | Target's own bounding-sphere radius - `deadZone`/`hardLimit` then react to its nearest edge, not its center. Ignored if `size` is given. |
 | `size`         | `Vector3`            | -         | Target's full box dimensions - takes priority over `radius`. Auto-detected from a `Mesh`/`Line`/`Points` target's own geometry when neither is given. |
-| `debug`        | `boolean`            | `false`   | Draws `deadZone`/`hardLimit` as bordered, dimmed boxes over the canvas - see [Debug Zones](/debugging/debug-zones). |
+| `lookaheadTime` | `number`            | `0`       | Seconds to extrapolate the target's tracked position ahead by, based on its recent velocity. `0` = no prediction. |
+| `lookaheadSmoothing` | `number`       | `1`       | Smooth-time budget (seconds) for the velocity estimate driving `lookaheadTime` - reacts faster while the target is slowing down than while it's speeding up, so a sudden burst of speed doesn't yank the predicted point forward instantly. |
+| `lookaheadIgnoreY` | `boolean`        | `false`   | Zeroes the Y component of the predicted offset - keeps lookahead horizontal for a target that bobs or jumps vertically. |
+| `debug`        | `boolean`            | `false`   | Draws `deadZone`/`hardLimit` as bordered, dimmed boxes over the canvas, plus a crosshair at `screenPosition` - see [Debug Zones](/debugging/debug-zones). |
 
 ## Combining with `PositionComposer`
 
@@ -34,6 +37,10 @@ Pairing this with `PositionComposer` on the *same* non-zero `screenPosition` nee
 ## Target extent (`radius`/`size`)
 
 Without `radius`/`size`, `deadZone`/`hardLimit` react to the target's exact center point, so a target with real, on-screen size can visually leave the zone well before its center does. `radius`/`size` measure the **angular** extent instead - the world-space half-extent projected against the target's actual, changing distance from the camera - so a large or nearby target reacts from its true edge no matter how far away it is. Auto-detection recomputes the bounds only once by default; call `recalculateSize()` (via `ref`) after a target deforms (a `SkinnedMesh` bone animation, a mutated `BufferGeometry`) to force a fresh measurement on the next frame.
+
+## Lookahead
+
+With `lookaheadTime` above `0`, this aims toward the target's *extrapolated* position instead of its raw one - `out.lookAtTarget` sees the shifted point too, so a camera pairing this with a blend hint like `sphericalPosition` still arcs around the point it's actually looking at.
 
 ## `ref`
 

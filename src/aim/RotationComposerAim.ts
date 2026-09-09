@@ -118,7 +118,7 @@ export class RotationComposerAim {
   private publishedDistance = 0;
   private forceSizeRecalculation = false;
   /** Last actively-computed (outside-the-dead-zone) desired rotation - reused as the damper's target
-   *  while inside the zone, so residual velocity eases to a stop instead of being cut off.
+   *  while inside the zone, so it keeps running and any residual velocity decays naturally toward rest.
    *  `hasActiveDesiredRotation === false` means there's no reference yet - falls back to zero correction. */
   private hasActiveDesiredRotation = false;
   private readonly lastActiveDesiredRotation = new Quaternion();
@@ -275,8 +275,8 @@ export class RotationComposerAim {
       this.lastActiveDesiredRotation.copy(scratchTargetQuaternion);
       this.hasActiveDesiredRotation = true;
     } else if (this.hasActiveDesiredRotation) {
-      // chase the last REAL desired rotation instead of the camera's own current one, so residual
-      // velocity eases to a stop instead of being cut off the instant the zone is re-entered
+      // chase the last REAL desired rotation instead of the camera's own current one, so the damper
+      // keeps easing toward a stable point and any residual velocity decays naturally
       scratchTargetQuaternion.copy(this.lastActiveDesiredRotation);
     } else {
       scratchTargetQuaternion.copy(out.quaternion); // no prior reference yet - zero correction

@@ -29,7 +29,10 @@ See [Ordering with Aim](#ordering-with-aim) below for why pairing this with an A
 | `hardLimit`    | `[number, number]`   | `[0, 0]`  | A second, normally larger reach the target may never visually drift past - enforced instantly, bypassing `damping`, after the damped dead-zone pass. `[0, 0]` = no enforcement. |
 | `radius`       | `number`             | -         | Target's own bounding-sphere radius - `deadZone`/`hardLimit` react to its nearest edge, not its center. Ignored if `size` is given. |
 | `size`         | `Vector3`            | -         | Target's full box dimensions - takes priority over `radius`. Auto-detected from a `Mesh`/`Line`/`Points` target's own geometry when neither is given. |
-| `debug`        | `boolean`            | `false`   | Draws `deadZone`/`hardLimit` as bordered, dimmed boxes over the canvas - see [Debug Zones](/debugging/debug-zones). |
+| `lookaheadTime` | `number`            | `0`       | Seconds to extrapolate the target's tracked position ahead by, based on its recent velocity. `0` = no prediction. |
+| `lookaheadSmoothing` | `number`       | `1`       | Smooth-time budget (seconds) for the velocity estimate driving `lookaheadTime` - reacts faster while the target is slowing down than while it's speeding up, so a sudden burst of speed doesn't yank the predicted point forward instantly. |
+| `lookaheadIgnoreY` | `boolean`        | `false`   | Zeroes the Y component of the predicted offset - keeps lookahead horizontal for a target that bobs or jumps vertically. |
+| `debug`        | `boolean`            | `false`   | Draws `deadZone`/`hardLimit` as bordered, dimmed boxes over the canvas, plus a crosshair at `screenPosition` - see [Debug Zones](/debugging/debug-zones). |
 
 `depthDeadZone` and `deadZone` react to different quantities - world-space distance versus screen-space position - so they don't share a threshold, and a target can sit well inside one while triggering the other. At a camera angle far from 0° (straight ahead) or 90° (straight down), the same world-space movement can register very differently on each axis, so keep both at a comparable scale rather than leaving one at `0` and the other generous - otherwise one axis reacts to everything while the other stays quiet, which reads as the camera switching behavior depending on where the target is on screen. `depthDeadZone` has no visual representation in `debug` - it isn't a screen-space rectangle like `deadZone`/`hardLimit`.
 
@@ -46,6 +49,12 @@ Either way, an Aim that reacts to the target's position at all fights `PositionC
 ## Target extent (`radius`/`size`)
 
 Without `radius`/`size`, `deadZone`/`hardLimit` react to the target's exact center point, so a target with real, on-screen size can visually leave the zone well before its center does. `radius`/`size` react to its true edge instead. Auto-detection recomputes the bounds only once by default; call `recalculateSize()` (via `ref`) after a target deforms (a `SkinnedMesh` bone animation, a mutated `BufferGeometry`) to force a fresh measurement on the next frame.
+
+## Lookahead
+
+With `lookaheadTime` above `0`, both stages (and `out.target`, so [Debug Zones](/debugging/debug-zones)' boxes too) compose around the target's *extrapolated* position instead of its raw one - useful for a camera that should already be leading a fast-moving target rather than catching up to it after the fact.
+
+Internally, a `Predictor` tracks the target's own velocity between frames and smooths it before projecting `velocity * lookaheadTime` ahead - see [Damping](/advanced/damping#predictor) for the algorithm. It resets on activation and whenever `target`'s reference changes, so a fresh camera or a retarget never inherits a stale prediction from an unrelated target.
 
 ## `ref`
 

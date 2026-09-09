@@ -65,8 +65,9 @@ export class PositionComposerBody {
   private lastLookaheadTarget: Target = undefined;
   private forceSizeRecalculation = false;
   /** Last actively-computed (outside-the-dead-zone) desired lateral position - reused as the damper's
-   *  target while inside the zone, so residual velocity eases to a stop instead of being cut off.
-   *  `hasActiveDesiredPosition === false` means there's no reference yet - falls back to zero correction. */
+   *  target while inside the zone, so it keeps running and any residual velocity decays naturally toward
+   *  rest. `hasActiveDesiredPosition === false` means there's no reference yet - falls back to zero
+   *  correction. */
   private hasActiveDesiredPosition = false;
   private readonly lastActiveDesiredPosition = new Vector3();
 
@@ -217,8 +218,8 @@ export class PositionComposerBody {
       this.lastActiveDesiredPosition.copy(scratchDesiredPosition);
       this.hasActiveDesiredPosition = true;
     } else if (this.hasActiveDesiredPosition) {
-      // chase the last REAL desired position instead of the camera's own current one, so residual
-      // velocity eases to a stop instead of being cut off the instant the zone is re-entered
+      // chase the last REAL desired position instead of the camera's own current one, so the damper
+      // keeps easing toward a stable point and any residual velocity decays naturally
       scratchDesiredPosition.copy(this.lastActiveDesiredPosition);
     } else {
       scratchDesiredPosition.copy(out.position); // no prior reference yet - zero correction

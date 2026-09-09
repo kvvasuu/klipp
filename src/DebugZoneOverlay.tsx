@@ -59,9 +59,9 @@ function ndcToPercent(ndc: number, invertY: boolean): number {
  * drift off `screenPosition` than eyeballing it against the raw scene alone. Plain DOM manipulation,
  * always returning `null` to react-three-fiber - its reconciler can't render raw DOM nodes, and a
  * `react-dom` portal from within its own tree needs a bridging layer (like drei's `<Html>`) this avoids
- * depending on. Follows arbitration, not the blend - shown from the instant this `<VirtualCamera>` wins
- * (blend-in still in progress) until it loses (blend-out just starting), since `screenPosition`/`deadZone`
- * are flat overlay constants with nothing to actually wait on a blend for.
+ * depending on. Shown from the instant this `<VirtualCamera>` wins arbitration until the instant it
+ * loses, regardless of any blend still in progress - `screenPosition`/`deadZone` are flat overlay
+ * constants, unaffected by how far a blend has progressed.
  */
 export function DebugZoneOverlay({ zones, crosshair }: { zones: DebugZone[]; crosshair?: [number, number] }): null {
   const isActive = useIsActiveVirtualCamera();
