@@ -122,10 +122,10 @@ export function PositionComposer({
   const zones: DebugZone[] = [];
   // deadZone/hardLimit are a half-reach from screenPosition, DebugZoneOverlay wants a full box size
   if (hardLimit[0] > 0 || hardLimit[1] > 0) {
-    zones.push({ screenPosition, size: [hardLimit[0] * 2, hardLimit[1] * 2], color: '#cc3333' });
+    zones.push({ screenPosition, size: [hardLimit[0] * 2, hardLimit[1] * 2], className: 'klipp-debug-hardlimit' });
   }
   if (deadZone[0] > 0 || deadZone[1] > 0) {
-    zones.push({ screenPosition, size: [deadZone[0] * 2, deadZone[1] * 2], color: '#33cc33' });
+    zones.push({ screenPosition, size: [deadZone[0] * 2, deadZone[1] * 2], className: 'klipp-debug-deadzone' });
   }
   return <DebugZoneOverlay zones={zones} crosshair={screenPosition} />;
 }

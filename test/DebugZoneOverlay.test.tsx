@@ -1,6 +1,7 @@
 import { create } from '@react-three/test-renderer';
 import type { ReactElement } from 'react';
 import { afterEach, describe, expect, it } from 'vitest';
+import { BlendCurves } from '../src/blend/BlendCurves';
 import { DebugZoneOverlay } from '../src/DebugZoneOverlay';
 import { Klipp } from '../src/Klipp';
 import { VirtualCamera } from '../src/VirtualCamera';
@@ -16,19 +17,21 @@ afterEach(() => {
   document.body.replaceChildren();
 });
 
+// one root div per mounted DebugZoneOverlay (only the active one's has any children) - collect across all
+// of them, not just the first, so a scene with more than one overlay still reads correctly
 function readBoxes(): HTMLDivElement[] {
   const canvas = document.querySelector('canvas');
-  const root = canvas?.parentElement?.querySelector('div');
-  return root ? (Array.from(root.children) as HTMLDivElement[]) : [];
+  const roots = canvas?.parentElement?.querySelectorAll(':scope > div') ?? [];
+  return Array.from(roots).flatMap((root) => Array.from(root.children) as HTMLDivElement[]);
 }
 
 describe('DebugZoneOverlay', () => {
-  it('draws nothing while this VirtualCamera is not the live one', async () => {
+  it('draws nothing while this VirtualCamera is not the active one', async () => {
     await createAttached(
       <Klipp>
         <VirtualCamera name="winner" priority={20} />
         <VirtualCamera name="loser" priority={10}>
-          <DebugZoneOverlay zones={[{ screenPosition: [0, 0], size: [0.4, 0.4], color: 'lime' }]} />
+          <DebugZoneOverlay zones={[{ screenPosition: [0, 0], size: [0.4, 0.4], className: 'klipp-debug-deadzone' }]} />
         </VirtualCamera>
       </Klipp>,
     );
@@ -36,14 +39,37 @@ describe('DebugZoneOverlay', () => {
     expect(readBoxes()).toHaveLength(0);
   });
 
-  it('draws one bordered box per zone once live, positioned/sized from screenPosition + size', async () => {
+  it('follows arbitration, not the blend: appears the instant a camera wins, gone the instant it loses', async () => {
+    const scene = (bPriority: number) => (
+      <Klipp defaultBlend={{ curve: BlendCurves.linear, time: 2 }}>
+        <VirtualCamera name="a" priority={10}>
+          <DebugZoneOverlay zones={[{ screenPosition: [0, 0], size: [0.4, 0.4], className: 'klipp-debug-deadzone' }]} />
+        </VirtualCamera>
+        <VirtualCamera name="b" priority={bPriority}>
+          <DebugZoneOverlay zones={[{ screenPosition: [0, 0], size: [0.4, 0.4], className: 'klipp-debug-hardlimit' }]} />
+        </VirtualCamera>
+      </Klipp>
+    );
+
+    const renderer = await createAttached(scene(5));
+    await renderer.advanceFrames(1, 0.05); // 'a' is first-ever: wins immediately, no blend
+    expect(readBoxes()).toHaveLength(1);
+    expect(readBoxes()[0].className).toBe('klipp-debug-deadzone');
+
+    await renderer.update(scene(30)); // 'b' wins priority - 2s blend into it starts
+    await renderer.advanceFrames(1, 0.5); // mid-blend: 'b' already on screen, 'a' still visually present too
+    expect(readBoxes()).toHaveLength(1); // but the debug gizmo already switched to 'b', not waiting on the blend
+    expect(readBoxes()[0].className).toBe('klipp-debug-hardlimit');
+  });
+
+  it('draws one box per zone once active, positioned/sized from screenPosition + size, tagged with its className', async () => {
     const renderer = await createAttached(
       <Klipp>
         <VirtualCamera name="a" priority={10}>
           <DebugZoneOverlay
             zones={[
-              { screenPosition: [0, 0], size: [0.4, 0.4], color: 'lime' },
-              { screenPosition: [0.5, 0], size: [0.2, 0.6], color: 'red' },
+              { screenPosition: [0, 0], size: [0.4, 0.4], className: 'klipp-debug-deadzone' },
+              { screenPosition: [0.5, 0], size: [0.2, 0.6], className: 'klipp-debug-hardlimit' },
             ]}
           />
         </VirtualCamera>
@@ -55,26 +81,26 @@ describe('DebugZoneOverlay', () => {
     expect(boxes).toHaveLength(2);
 
     // zone 1: screenPosition [0,0], size [0.4,0.4] -> half-width/height 0.2 NDC = 10% each side of center
+    expect(boxes[0].className).toBe('klipp-debug-deadzone');
     expect(boxes[0].style.left).toBe('40%');
     expect(boxes[0].style.width).toBe('20%');
     expect(boxes[0].style.top).toBe('40%');
     expect(boxes[0].style.height).toBe('20%');
-    expect(boxes[0].style.border).toContain('lime');
 
     // zone 2: screenPosition [0.5,0], size [0.2,0.6] -> centered at 75% horizontally, 10% wide;
     // vertically centered at 50% (screenPosition[1]=0), 30% tall
+    expect(boxes[1].className).toBe('klipp-debug-hardlimit');
     expect(boxes[1].style.left).toBe('70%');
     expect(boxes[1].style.width).toBe('10%');
     expect(boxes[1].style.top).toBe('35%');
     expect(boxes[1].style.height).toBe('30%');
-    expect(boxes[1].style.border).toContain('red');
   });
 
   it('removes its root element on unmount', async () => {
     const renderer = await createAttached(
       <Klipp>
         <VirtualCamera name="a" priority={10}>
-          <DebugZoneOverlay zones={[{ screenPosition: [0, 0], size: [0.4, 0.4], color: 'lime' }]} />
+          <DebugZoneOverlay zones={[{ screenPosition: [0, 0], size: [0.4, 0.4], className: 'klipp-debug-deadzone' }]} />
         </VirtualCamera>
       </Klipp>,
     );
@@ -125,13 +151,15 @@ describe('DebugZoneOverlay', () => {
     const lines = readBoxes();
     expect(lines).toHaveLength(2);
 
-    // vertical line: fixed X (screenPosition[0]=0.5 -> 75%), full height
+    // vertical line: fixed X (screenPosition[0]=0.5 -> 75%), full height, 1px wide
+    expect(lines[0].className).toBe('klipp-debug-crosshair');
     expect(lines[0].style.left).toBe('75%');
     expect(lines[0].style.top).toBe('0px');
     expect(lines[0].style.bottom).toBe('0px');
     expect(lines[0].style.width).toBe('1px');
 
-    // horizontal line: fixed Y (screenPosition[1]=-0.5, Y-inverted -> 75%), full width
+    // horizontal line: fixed Y (screenPosition[1]=-0.5, Y-inverted -> 75%), full width, 1px tall
+    expect(lines[1].className).toBe('klipp-debug-crosshair');
     expect(lines[1].style.top).toBe('75%');
     expect(lines[1].style.left).toBe('0px');
     expect(lines[1].style.right).toBe('0px');
@@ -142,7 +170,10 @@ describe('DebugZoneOverlay', () => {
     const renderer = await createAttached(
       <Klipp>
         <VirtualCamera name="a" priority={10}>
-          <DebugZoneOverlay zones={[{ screenPosition: [0, 0], size: [0.4, 0.4], color: 'lime' }]} crosshair={[0, 0]} />
+          <DebugZoneOverlay
+            zones={[{ screenPosition: [0, 0], size: [0.4, 0.4], className: 'klipp-debug-deadzone' }]}
+            crosshair={[0, 0]}
+          />
         </VirtualCamera>
       </Klipp>,
     );

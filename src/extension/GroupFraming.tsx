@@ -95,6 +95,6 @@ export function GroupFraming({
   });
 
   if (!debug || !paddingBox) return null;
-  const zones: DebugZone[] = [{ screenPosition, size: paddingBox, color: '#3399cc' }];
+  const zones: DebugZone[] = [{ screenPosition, size: paddingBox, className: 'klipp-debug-groupframing' }];
   return <DebugZoneOverlay zones={zones} />;
 }
