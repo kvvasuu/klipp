@@ -1,11 +1,13 @@
-export { Klipp, useKlippCore, type KlippProps, type KlippMode } from './Klipp';
+export { Klipp, KlippEvents, useKlippCore, type KlippProps, type KlippMode, type KlippEventsProps } from './Klipp';
 export {
   VirtualCamera,
+  VirtualCameraEvents,
   useVirtualCameraSlots,
   useVirtualCameraState,
   useIsActiveVirtualCamera,
   useIsLiveVirtualCamera,
   type VirtualCameraProps,
+  type VirtualCameraEventsProps,
 } from './VirtualCamera';
 export { CameraFrustumHelper, type CameraFrustumHelperProps } from './CameraFrustumHelper';
 

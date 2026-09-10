@@ -1,7 +1,7 @@
 import type { ThreeElement, Vector3 as Vector3Like } from '@react-three/fiber';
 import { useThree } from '@react-three/fiber';
 import CameraControlsImpl, { EventDispatcher } from 'camera-controls';
-import { useEffect, useImperativeHandle, useState, type Ref } from 'react';
+import { useEffect, useEffectEvent, useImperativeHandle, useState, type Ref } from 'react';
 import { EventDispatcher as ThreeEventDispatcher, Vector3 } from 'three';
 import { resolveVector3 } from '../resolve/resolveVector3';
 import type { Target } from '../resolve/Target';
@@ -115,37 +115,37 @@ export function CameraControls({
     return () => set({ controls: previous });
   }, [makeDefault, shouldConnect, body, set, get]);
 
+  const invalidateAndRegress = useEffectEvent((): void => {
+    invalidate();
+    if (regress) performance.regress();
+  });
+  const handleControlStart = useEffectEvent((e: { type: 'controlstart' }): void => {
+    invalidateAndRegress();
+    onControlStart?.(e);
+  });
+  const handleControl = useEffectEvent((e: { type: 'control' }): void => {
+    invalidateAndRegress();
+    onControl?.(e);
+  });
+  const handleControlEnd = useEffectEvent((e: { type: 'controlend' }): void => onControlEnd?.(e));
+  const handleTransitionStart = useEffectEvent((e: { type: 'transitionstart' }): void => {
+    invalidateAndRegress();
+    onTransitionStart?.(e);
+  });
+  const handleUpdate = useEffectEvent((e: { type: 'update' }): void => {
+    invalidateAndRegress();
+    onUpdate?.(e);
+  });
+  const handleWake = useEffectEvent((e: { type: 'wake' }): void => {
+    invalidateAndRegress();
+    onWake?.(e);
+  });
+  const handleRest = useEffectEvent((e: { type: 'rest' }): void => onRest?.(e));
+  const handleSleep = useEffectEvent((e: { type: 'sleep' }): void => onSleep?.(e));
+
   useEffect(() => {
     if (!shouldConnect) return;
     body.controls.connect(domElement);
-
-    const invalidateAndRegress = (): void => {
-      invalidate();
-      if (regress) performance.regress();
-    };
-    const handleControlStart = (e: { type: 'controlstart' }): void => {
-      invalidateAndRegress();
-      onControlStart?.(e);
-    };
-    const handleControl = (e: { type: 'control' }): void => {
-      invalidateAndRegress();
-      onControl?.(e);
-    };
-    const handleControlEnd = (e: { type: 'controlend' }): void => onControlEnd?.(e);
-    const handleTransitionStart = (e: { type: 'transitionstart' }): void => {
-      invalidateAndRegress();
-      onTransitionStart?.(e);
-    };
-    const handleUpdate = (e: { type: 'update' }): void => {
-      invalidateAndRegress();
-      onUpdate?.(e);
-    };
-    const handleWake = (e: { type: 'wake' }): void => {
-      invalidateAndRegress();
-      onWake?.(e);
-    };
-    const handleRest = (e: { type: 'rest' }): void => onRest?.(e);
-    const handleSleep = (e: { type: 'sleep' }): void => onSleep?.(e);
 
     body.controls.addEventListener('controlstart', handleControlStart);
     body.controls.addEventListener('control', handleControl);
@@ -171,22 +171,7 @@ export function CameraControls({
       body.controls.removeEventListener('rest', handleRest);
       body.controls.removeEventListener('sleep', handleSleep);
     };
-  }, [
-    body,
-    domElement,
-    shouldConnect,
-    invalidate,
-    regress,
-    performance,
-    onControlStart,
-    onControl,
-    onControlEnd,
-    onTransitionStart,
-    onUpdate,
-    onWake,
-    onRest,
-    onSleep,
-  ]);
+  }, [body, domElement, shouldConnect]);
 
   return <primitive object={body.controls} {...controlsProps} />;
 }

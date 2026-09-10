@@ -518,5 +518,31 @@ describe('CameraControls (React wrapper)', () => {
 
       expect(calls).toEqual(allTypes);
     });
+
+    it('a new on* callback identity on re-render does not reconnect, and the latest closure still fires', async () => {
+      let controlsBody: CameraControlsBody | null = null;
+      const calls: string[] = [];
+
+      const scene = (onUpdate: () => void) => (
+        <Klipp>
+          <VirtualCamera name="a" priority={10}>
+            <CameraControls target={new Vector3(0, 0, -10)} ref={(b) => (controlsBody = b)} onUpdate={onUpdate} />
+          </VirtualCamera>
+        </Klipp>
+      );
+
+      const renderer = await create(scene(() => calls.push('first')));
+      await renderer.advanceFrames(1, 0.05);
+
+      const connectSpy = vi.spyOn(controlsBody!.controls, 'connect');
+      const disconnectSpy = vi.spyOn(controlsBody!.controls, 'disconnect');
+
+      await renderer.update(scene(() => calls.push('second'))); // a genuinely different closure each time
+      expect(connectSpy).not.toHaveBeenCalled();
+      expect(disconnectSpy).not.toHaveBeenCalled();
+
+      controlsBody!.controls.dispatchEvent({ type: 'update' });
+      expect(calls).toEqual(['second']); // the listener registered once, but still sees the latest closure
+    });
   });
 });

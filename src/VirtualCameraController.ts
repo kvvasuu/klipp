@@ -1,4 +1,6 @@
+import { EventDispatcher } from 'three';
 import type { CameraState } from './CameraState';
+import type { CameraTransitionEventMap, KlippCore } from './KlippCore';
 
 /** Writes into `out` (Body/Aim) or adds on top of it (Noise) — same `out`-parameter convention as the
  *  rest of klipp. Return `true` if there's still work in flight that could change the output on a LATER
@@ -42,8 +44,12 @@ function warnDoubleRegistration(slot: 'Body' | 'Aim', name: string): void {
  * "back", and Noise adds shake on top of a shot that's already correctly composed, not one an
  * extension might still adjust out from under it. At most one Body and one Aim at a time (last
  * registration wins, with a dev-mode warning); Extension and Noise both deliberately stack.
+ *
+ * Also extends `EventDispatcher` - `trackEvents(core)` re-dispatches whichever of `core`'s own
+ * `CameraTransitionEventMap` events involve this specific camera (by current `name`), so a listener here
+ * only ever hears about itself.
  */
-export class VirtualCameraController implements VirtualCameraSlots {
+export class VirtualCameraController extends EventDispatcher<CameraTransitionEventMap> implements VirtualCameraSlots {
   /** Used only for the dev-mode double-registration warning message. */
   name: string;
 
@@ -53,6 +59,7 @@ export class VirtualCameraController implements VirtualCameraSlots {
   private readonly noiseWriters = new Set<CameraStateWriter>();
 
   constructor(name: string) {
+    super();
     this.name = name;
   }
 
@@ -80,6 +87,44 @@ export class VirtualCameraController implements VirtualCameraSlots {
   registerNoise = (writer: CameraStateWriter): (() => void) => {
     this.noiseWriters.add(writer);
     return () => this.noiseWriters.delete(writer);
+  };
+
+  /** Subscribes to `core`, re-dispatching each event only when this camera (by current `name`) actually
+   *  takes part in it: `activated` when it's the incoming one, `deactivated` when it's the one that just
+   *  stopped contributing, `blendCreated`/`cut` when it's either side, `blendFinished` when it's the one
+   *  that just settled live. Returns an unsubscribe function. */
+  trackEvents = (core: KlippCore): (() => void) => {
+    const onActivated = (event: CameraTransitionEventMap['activated']) => {
+      if (event.incoming === this.name) this.dispatchEvent({ type: 'activated', ...event });
+    };
+    const onDeactivated = (event: CameraTransitionEventMap['deactivated']) => {
+      if (event.outgoing === this.name) this.dispatchEvent({ type: 'deactivated', ...event });
+    };
+    const onBlendCreated = (event: CameraTransitionEventMap['blendCreated']) => {
+      if (event.incoming === this.name || event.outgoing === this.name) {
+        this.dispatchEvent({ type: 'blendCreated', ...event });
+      }
+    };
+    const onBlendFinished = (event: CameraTransitionEventMap['blendFinished']) => {
+      if (event.liveId === this.name) this.dispatchEvent({ type: 'blendFinished', ...event });
+    };
+    const onCut = (event: CameraTransitionEventMap['cut']) => {
+      if (event.incoming === this.name || event.outgoing === this.name) {
+        this.dispatchEvent({ type: 'cut', ...event });
+      }
+    };
+    core.addEventListener('activated', onActivated);
+    core.addEventListener('deactivated', onDeactivated);
+    core.addEventListener('blendCreated', onBlendCreated);
+    core.addEventListener('blendFinished', onBlendFinished);
+    core.addEventListener('cut', onCut);
+    return () => {
+      core.removeEventListener('activated', onActivated);
+      core.removeEventListener('deactivated', onDeactivated);
+      core.removeEventListener('blendCreated', onBlendCreated);
+      core.removeEventListener('blendFinished', onBlendFinished);
+      core.removeEventListener('cut', onCut);
+    };
   };
 
   update = (out: CameraState, dt: number, justActivated: boolean): boolean => {

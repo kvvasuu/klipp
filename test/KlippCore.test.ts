@@ -193,6 +193,157 @@ describe('KlippCore — registry & priority arbitration', () => {
       expect(listener).toHaveBeenCalledTimes(1); // ...but still 1 — no further calls after unsubscribing
     });
   });
+
+  describe('activated/deactivated events', () => {
+    it('dispatches activated with the incoming/outgoing ids on each arbitration change', () => {
+      const core = new KlippCore();
+      const listener = vi.fn();
+      core.addEventListener('activated', listener);
+
+      core.registerCamera({ id: 'a', priority: 10, state: createCameraState() });
+      expect(listener).toHaveBeenCalledTimes(1);
+      expect(listener.mock.calls[0][0]).toMatchObject({ incoming: 'a', outgoing: null });
+
+      core.registerCamera({ id: 'b', priority: 20, state: createCameraState() });
+      expect(listener).toHaveBeenCalledTimes(2);
+      expect(listener.mock.calls[1][0]).toMatchObject({ incoming: 'b', outgoing: 'a' });
+    });
+
+    it('does not dispatch activated when the winner becomes null', () => {
+      const core = new KlippCore();
+      const listener = vi.fn();
+      const unregister = core.registerCamera({ id: 'a', priority: 10, state: createCameraState() });
+      core.addEventListener('activated', listener);
+
+      unregister();
+      expect(core.activeCameraId).toBeNull();
+      expect(listener).not.toHaveBeenCalled();
+    });
+
+    it('dispatches deactivated with the outgoing id once its blend out finishes', () => {
+      const core = new KlippCore({ defaultBlend: { curve: BlendCurves.linear, time: 1 } });
+      core.registerCamera({ id: 'a', priority: 10, state: createCameraState() });
+      core.tick(0); // 'a' snaps live
+
+      const listener = vi.fn();
+      core.addEventListener('deactivated', listener);
+      core.registerCamera({ id: 'b', priority: 20, state: createCameraState() });
+
+      core.tick(0.5); // mid-blend
+      expect(listener).not.toHaveBeenCalled();
+
+      core.tick(0.6); // blend finishes
+      expect(listener).toHaveBeenCalledTimes(1);
+      expect(listener.mock.calls[0][0]).toMatchObject({ outgoing: 'a' });
+    });
+
+    it('does not dispatch deactivated for the very first camera going live', () => {
+      const core = new KlippCore();
+      const listener = vi.fn();
+      core.addEventListener('deactivated', listener);
+
+      core.registerCamera({ id: 'a', priority: 10, state: createCameraState() });
+      core.tick(0);
+      expect(listener).not.toHaveBeenCalled();
+    });
+
+    it('removeEventListener stops further notifications', () => {
+      const core = new KlippCore();
+      const listener = vi.fn();
+      core.addEventListener('activated', listener);
+      core.registerCamera({ id: 'a', priority: 10, state: createCameraState() });
+      expect(listener).toHaveBeenCalledTimes(1);
+
+      core.removeEventListener('activated', listener);
+      core.registerCamera({ id: 'b', priority: 20, state: createCameraState() });
+      expect(listener).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('blendCreated/blendFinished/cut events', () => {
+    it('dispatches cut (not blendCreated/blendFinished) for the very first camera going live', () => {
+      const core = new KlippCore();
+      const onCut = vi.fn();
+      const onBlendCreated = vi.fn();
+      const onBlendFinished = vi.fn();
+      core.addEventListener('cut', onCut);
+      core.addEventListener('blendCreated', onBlendCreated);
+      core.addEventListener('blendFinished', onBlendFinished);
+
+      core.registerCamera({ id: 'a', priority: 10, state: createCameraState() });
+      core.tick(0);
+
+      expect(onCut).toHaveBeenCalledTimes(1);
+      expect(onCut.mock.calls[0][0]).toMatchObject({ incoming: 'a', outgoing: null });
+      expect(onBlendCreated).not.toHaveBeenCalled();
+      expect(onBlendFinished).not.toHaveBeenCalled();
+    });
+
+    it('dispatches blendCreated when a real blend starts and blendFinished once it completes, never cut', () => {
+      const core = new KlippCore({ defaultBlend: { curve: BlendCurves.linear, time: 1 } });
+      core.registerCamera({ id: 'a', priority: 10, state: createCameraState() });
+      core.tick(0); // 'a' snaps live - the first-ever cut, not under test here
+
+      const onCreated = vi.fn();
+      const onFinished = vi.fn();
+      const onCut = vi.fn();
+      core.addEventListener('blendCreated', onCreated);
+      core.addEventListener('blendFinished', onFinished);
+      core.addEventListener('cut', onCut);
+
+      core.registerCamera({ id: 'b', priority: 20, state: createCameraState() });
+      core.tick(0); // blend created this tick
+      expect(onCreated).toHaveBeenCalledTimes(1);
+      expect(onCreated.mock.calls[0][0]).toMatchObject({ incoming: 'b', outgoing: 'a' });
+      expect(onFinished).not.toHaveBeenCalled();
+
+      core.tick(0.5); // mid-blend
+      expect(onFinished).not.toHaveBeenCalled();
+
+      core.tick(0.6); // past the 1s duration
+      expect(onFinished).toHaveBeenCalledTimes(1);
+      expect(onFinished.mock.calls[0][0]).toMatchObject({ liveId: 'b' });
+      expect(onCut).not.toHaveBeenCalled();
+    });
+
+    it('a zero-length blend after the first camera fires blendCreated and cut, but not blendFinished', () => {
+      const core = new KlippCore({ defaultBlend: { curve: BlendCurves.linear, time: 0 } });
+      core.registerCamera({ id: 'a', priority: 10, state: createCameraState() });
+      core.tick(0); // 'a' snaps live - the first-ever cut, not under test here
+
+      const onCreated = vi.fn();
+      const onFinished = vi.fn();
+      const onCut = vi.fn();
+      core.addEventListener('blendCreated', onCreated);
+      core.addEventListener('blendFinished', onFinished);
+      core.addEventListener('cut', onCut);
+
+      core.registerCamera({ id: 'b', priority: 20, state: createCameraState() });
+      core.tick(0);
+
+      expect(onCreated).toHaveBeenCalledTimes(1);
+      expect(onCreated.mock.calls[0][0]).toMatchObject({ incoming: 'b', outgoing: 'a' });
+      expect(onCut).toHaveBeenCalledTimes(1);
+      expect(onCut.mock.calls[0][0]).toMatchObject({ incoming: 'b', outgoing: 'a' });
+      expect(onFinished).not.toHaveBeenCalled();
+    });
+
+    it('mid-blend interruption: the new blendCreated\'s outgoing is the just-interrupted TARGET, not the original camera', () => {
+      const core = new KlippCore({ defaultBlend: { curve: BlendCurves.linear, time: 2 } });
+      core.registerCamera({ id: 'a', priority: 10, state: createCameraState() });
+      core.tick(0); // 'a' live
+      core.registerCamera({ id: 'b', priority: 20, state: createCameraState() });
+      core.tick(0.5); // blend a->b in progress, not finished
+
+      const onCreated = vi.fn();
+      core.addEventListener('blendCreated', onCreated);
+      core.registerCamera({ id: 'c', priority: 30, state: createCameraState() });
+      core.tick(0.1); // interrupts a->b with a new blend toward c
+
+      expect(onCreated).toHaveBeenCalledTimes(1);
+      expect(onCreated.mock.calls[0][0]).toMatchObject({ incoming: 'c', outgoing: 'b' });
+    });
+  });
 });
 
 describe('KlippCore — updatePriority', () => {

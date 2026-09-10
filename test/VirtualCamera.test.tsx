@@ -1,10 +1,10 @@
 import { renderHook } from '@testing-library/react';
 import { create } from '@react-three/test-renderer';
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { Quaternion, Vector3 } from 'three';
 import { describe, expect, it, vi } from 'vitest';
 import type { CameraState } from '../src/CameraState';
-import { Klipp, useKlippCore } from '../src/Klipp';
+import { Klipp, KlippEvents, useKlippCore } from '../src/Klipp';
 import type { KlippCore } from '../src/KlippCore';
 import {
   useIsActiveVirtualCamera,
@@ -12,7 +12,9 @@ import {
   useVirtualCameraSlots,
   useVirtualCameraState,
   VirtualCamera,
+  VirtualCameraEvents,
 } from '../src/VirtualCamera';
+import type { VirtualCameraController } from '../src/VirtualCameraController';
 import { BlendCurves } from '../src/blend/BlendCurves';
 import { BlendHints } from '../src/blend/BlendHints';
 
@@ -597,5 +599,243 @@ describe('useIsLiveVirtualCamera', () => {
     );
 
     expect(isLive).toBe(false);
+  });
+});
+
+describe('VirtualCameraEvents', () => {
+  it('calls onActivated only for the camera it is mounted in', async () => {
+    const onAActivated = vi.fn();
+    const onBActivated = vi.fn();
+
+    const scene = (bPriority: number) => (
+      <Klipp>
+        <VirtualCamera name="a" priority={10}>
+          <VirtualCameraEvents onActivated={onAActivated} />
+        </VirtualCamera>
+        <VirtualCamera name="b" priority={bPriority}>
+          <VirtualCameraEvents onActivated={onBActivated} />
+        </VirtualCamera>
+      </Klipp>
+    );
+
+    const renderer = await create(scene(5));
+    expect(onAActivated).toHaveBeenCalledTimes(1);
+    expect(onAActivated.mock.calls[0][0]).toMatchObject({ incoming: 'a', outgoing: null });
+    expect(onBActivated).not.toHaveBeenCalled();
+
+    await renderer.update(scene(30)); // 'b' wins priority
+    expect(onBActivated).toHaveBeenCalledTimes(1);
+    expect(onBActivated.mock.calls[0][0]).toMatchObject({ incoming: 'b', outgoing: 'a' });
+    expect(onAActivated).toHaveBeenCalledTimes(1); // 'a' losing isn't ITS activation
+  });
+
+  it('calls onDeactivated once this camera\'s blend out actually finishes', async () => {
+    const onDeactivated = vi.fn();
+
+    const scene = (bPriority: number) => (
+      <Klipp defaultBlend={{ curve: BlendCurves.linear, time: 2 }}>
+        <VirtualCamera name="a" priority={10}>
+          <VirtualCameraEvents onDeactivated={onDeactivated} />
+        </VirtualCamera>
+        <VirtualCamera name="b" priority={bPriority} />
+      </Klipp>
+    );
+
+    const renderer = await create(scene(5));
+    await renderer.advanceFrames(1, 0.05); // 'a' is first-ever: live immediately
+
+    await renderer.update(scene(30)); // 'b' wins — 2s blend into it starts
+    await renderer.advanceFrames(1, 0.5); // mid-blend
+    expect(onDeactivated).not.toHaveBeenCalled();
+
+    await renderer.advanceFrames(1, 2); // past the 2s blend duration
+    expect(onDeactivated).toHaveBeenCalledTimes(1);
+    expect(onDeactivated.mock.calls[0][0]).toMatchObject({ outgoing: 'a' });
+  });
+
+  it('calls onCut for the very first camera going live', async () => {
+    const onCut = vi.fn();
+
+    const renderer = await create(
+      <Klipp>
+        <VirtualCamera name="a" priority={10}>
+          <VirtualCameraEvents onCut={onCut} />
+        </VirtualCamera>
+      </Klipp>,
+    );
+    await renderer.advanceFrames(1, 0.05);
+
+    expect(onCut).toHaveBeenCalledTimes(1);
+    expect(onCut.mock.calls[0][0]).toMatchObject({ incoming: 'a', outgoing: null });
+  });
+
+  it('calls onBlendCreated/onBlendFinished on both sides of a real blend', async () => {
+    const onCreatedA = vi.fn();
+    const onFinishedA = vi.fn();
+    const onCreatedB = vi.fn();
+    const onFinishedB = vi.fn();
+
+    const scene = (bPriority: number) => (
+      <Klipp defaultBlend={{ curve: BlendCurves.linear, time: 1 }}>
+        <VirtualCamera name="a" priority={10}>
+          <VirtualCameraEvents onBlendCreated={onCreatedA} onBlendFinished={onFinishedA} />
+        </VirtualCamera>
+        <VirtualCamera name="b" priority={bPriority}>
+          <VirtualCameraEvents onBlendCreated={onCreatedB} onBlendFinished={onFinishedB} />
+        </VirtualCamera>
+      </Klipp>
+    );
+
+    const renderer = await create(scene(5));
+    await renderer.advanceFrames(1, 0.05); // 'a' is first-ever: a cut, not a real blend
+
+    await renderer.update(scene(30)); // 'b' wins — 1s blend created
+    await renderer.advanceFrames(1, 0.05);
+    expect(onCreatedA).toHaveBeenCalledTimes(1);
+    expect(onCreatedB).toHaveBeenCalledTimes(1);
+    expect(onFinishedA).not.toHaveBeenCalled();
+    expect(onFinishedB).not.toHaveBeenCalled();
+
+    await renderer.advanceFrames(1, 1); // past the 1s duration
+    expect(onFinishedA).not.toHaveBeenCalled(); // 'a' never settles live again
+    expect(onFinishedB).toHaveBeenCalledTimes(1);
+  });
+
+  it('throws outside a <VirtualCamera> (but inside <Klipp>)', async () => {
+    await expect(create(<Klipp>{<VirtualCameraEvents />}</Klipp>)).rejects.toThrow(
+      /must be used within a <VirtualCamera>/,
+    );
+  });
+
+  it('is also available as VirtualCamera.Events', () => {
+    expect(VirtualCamera.Events).toBe(VirtualCameraEvents);
+  });
+});
+
+describe('VirtualCamera ref', () => {
+  it('gives imperative access to the underlying VirtualCameraController', async () => {
+    let controller: VirtualCameraController | null = null;
+    function RefReader() {
+      const ref = useRef<VirtualCameraController>(null);
+      useEffect(() => {
+        controller = ref.current;
+      });
+      return <VirtualCamera name="a" priority={10} ref={ref} />;
+    }
+
+    await create(
+      <Klipp>
+        <RefReader />
+      </Klipp>,
+    );
+
+    expect(controller).not.toBeNull();
+    expect(controller!.name).toBe('a');
+  });
+
+  it('addEventListener on the ref fires WITHOUT any <VirtualCamera.Events> mounted', async () => {
+    const onDeactivated = vi.fn();
+    let controllerA: VirtualCameraController | null = null;
+
+    const scene = (bPriority: number) => (
+      <Klipp defaultBlend={{ curve: BlendCurves.linear, time: 0 }}>
+        <VirtualCamera
+          name="a"
+          priority={10}
+          ref={(c) => {
+            controllerA = c;
+          }}
+        />
+        <VirtualCamera name="b" priority={bPriority} />
+      </Klipp>
+    );
+
+    const renderer = await create(scene(5));
+    await renderer.advanceFrames(1, 0.05); // 'a' actually goes live before anything else happens
+    controllerA!.addEventListener('deactivated', onDeactivated);
+
+    await renderer.update(scene(30)); // 'b' wins - zero-length blend deactivates 'a' immediately
+    await renderer.advanceFrames(1, 0.05);
+
+    expect(onDeactivated).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('KlippEvents', () => {
+  it('calls onActivated for every camera, not just one', async () => {
+    const onActivated = vi.fn();
+
+    const scene = (bPriority: number) => (
+      <Klipp>
+        <Klipp.Events onActivated={onActivated} />
+        <VirtualCamera name="a" priority={10} />
+        <VirtualCamera name="b" priority={bPriority} />
+      </Klipp>
+    );
+
+    const renderer = await create(scene(5));
+    expect(onActivated).toHaveBeenCalledTimes(1);
+    expect(onActivated.mock.calls[0][0]).toMatchObject({ incoming: 'a', outgoing: null });
+
+    await renderer.update(scene(30)); // 'b' wins priority
+    expect(onActivated).toHaveBeenCalledTimes(2);
+    expect(onActivated.mock.calls[1][0]).toMatchObject({ incoming: 'b', outgoing: 'a' });
+  });
+
+  it('calls onDeactivated once a blend out actually finishes', async () => {
+    const onDeactivated = vi.fn();
+
+    const scene = (bPriority: number) => (
+      <Klipp defaultBlend={{ curve: BlendCurves.linear, time: 2 }}>
+        <KlippEvents onDeactivated={onDeactivated} />
+        <VirtualCamera name="a" priority={10} />
+        <VirtualCamera name="b" priority={bPriority} />
+      </Klipp>
+    );
+
+    const renderer = await create(scene(5));
+    await renderer.advanceFrames(1, 0.05); // 'a' is first-ever: live immediately
+
+    await renderer.update(scene(30)); // 'b' wins — 2s blend into it starts
+    await renderer.advanceFrames(1, 0.5); // mid-blend
+    expect(onDeactivated).not.toHaveBeenCalled();
+
+    await renderer.advanceFrames(1, 2); // past the 2s blend duration
+    expect(onDeactivated).toHaveBeenCalledTimes(1);
+    expect(onDeactivated.mock.calls[0][0]).toMatchObject({ outgoing: 'a' });
+  });
+
+  it('calls onCut for the very first camera, and onBlendCreated/onBlendFinished for a later real blend', async () => {
+    const onCut = vi.fn();
+    const onCreated = vi.fn();
+    const onFinished = vi.fn();
+
+    const scene = (bPriority: number) => (
+      <Klipp defaultBlend={{ curve: BlendCurves.linear, time: 1 }}>
+        <KlippEvents onCut={onCut} onBlendCreated={onCreated} onBlendFinished={onFinished} />
+        <VirtualCamera name="a" priority={10} />
+        <VirtualCamera name="b" priority={bPriority} />
+      </Klipp>
+    );
+
+    const renderer = await create(scene(5));
+    await renderer.advanceFrames(1, 0.05); // 'a' is first-ever: a cut
+    expect(onCut).toHaveBeenCalledTimes(1);
+    expect(onCut.mock.calls[0][0]).toMatchObject({ incoming: 'a', outgoing: null });
+    expect(onCreated).not.toHaveBeenCalled();
+
+    await renderer.update(scene(30)); // 'b' wins — real 1s blend created
+    await renderer.advanceFrames(1, 0.05);
+    expect(onCreated).toHaveBeenCalledTimes(1);
+    expect(onCut).toHaveBeenCalledTimes(1); // still just the first-ever one
+    expect(onFinished).not.toHaveBeenCalled();
+
+    await renderer.advanceFrames(1, 1); // past the 1s duration
+    expect(onFinished).toHaveBeenCalledTimes(1);
+    expect(onFinished.mock.calls[0][0]).toMatchObject({ liveId: 'b' });
+  });
+
+  it('is also available as Klipp.Events', () => {
+    expect(Klipp.Events).toBe(KlippEvents);
   });
 });

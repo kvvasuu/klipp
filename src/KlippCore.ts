@@ -1,3 +1,4 @@
+import { EventDispatcher } from 'three';
 import type { CameraState } from './CameraState';
 import { BlendCurves } from './blend/BlendCurves';
 import { resolveBlendDefinition, type BlendDefinition, type CustomBlend } from './blend/BlendDefinition';
@@ -27,8 +28,31 @@ export type KlippCoreOptions = {
   customBlends?: CustomBlend[];
 };
 
+/** Shared by `KlippCore` (every transition) and `VirtualCameraController` (filtered to transitions one
+ *  specific camera takes part in). */
+export type CameraTransitionEventMap = {
+  /** A camera just won arbitration and started becoming live. `outgoing` is `null` only when nothing was
+   *  previously active. */
+  activated: { incoming: string; outgoing: string | null };
+  /** A camera has fully stopped contributing to the composited output - its blend out finished, or it was
+   *  unregistered before anything replaced it. */
+  deactivated: { outgoing: string };
+  /** A new blend transition started. Also fires for a zero-length one (see `cut`), but never for the
+   *  very first camera ever going live - there's nothing to blend from yet. */
+  blendCreated: { incoming: string; outgoing: string | null };
+  /** A blend transition finished and settled on its target. Not dispatched for a `cut`, which resolves
+   *  before ever visibly blending. */
+  blendFinished: { liveId: string };
+  /** An instant transition with no visible blend - either the very first camera ever going live, or a
+   *  transition whose resolved `BlendDefinition` has zero duration. */
+  cut: { incoming: string; outgoing: string | null };
+};
+
 /**
  * Priority arbitration + blend driver for the active virtual camera.
+ *
+ * Extends `EventDispatcher` - `addEventListener(...)` for `CameraTransitionEventMap`'s
+ * `activated`/`deactivated`/`blendCreated`/`blendFinished`/`cut`.
  *
  * Priority ties break by "most recently activated" — `activatedAt` is a monotonic stamp set on every
  * `registerCamera` call, highest wins on a tie.
@@ -39,7 +63,7 @@ export type KlippCoreOptions = {
  * live in `BlendDriver`, shared with `Sequencer`/`StateDrivenCamera`/`ClearShot` — this class only owns
  * priority arbitration (`recompute`) and `CustomBlend` resolution, then hands the decided winner to it.
  */
-export class KlippCore {
+export class KlippCore extends EventDispatcher<CameraTransitionEventMap> {
   private candidates = new Map<string, Candidate>();
   private activeId: string | null = null;
   private readonly activeIdListeners = new Set<() => void>();
@@ -57,6 +81,7 @@ export class KlippCore {
   private customBlendFromHints: BlendHints = BlendHints.none;
 
   constructor(options: KlippCoreOptions = {}) {
+    super();
     this.defaultBlend = options.defaultBlend ?? DEFAULT_BLEND;
     this.customBlends = options.customBlends ?? [];
     this.driver = new BlendDriver((id) => this.candidates.get(id)!.state);
@@ -172,8 +197,10 @@ export class KlippCore {
     }
     const newActiveId = winner?.id ?? null;
     if (newActiveId === this.activeId) return;
+    const outgoing = this.activeId;
     this.activeId = newActiveId;
     for (const listener of this.activeIdListeners) listener();
+    if (newActiveId !== null) this.dispatchEvent({ type: 'activated', incoming: newActiveId, outgoing });
   }
 
   /** Runs `action`, then notifies `liveIdListeners` if it changed `driver.liveId` as a side effect —
@@ -183,6 +210,7 @@ export class KlippCore {
     action();
     if (this.driver.liveId !== previousLiveId) {
       for (const listener of this.liveIdListeners) listener();
+      if (previousLiveId !== null) this.dispatchEvent({ type: 'deactivated', outgoing: previousLiveId });
     }
   }
 
@@ -202,23 +230,40 @@ export class KlippCore {
     // ever-activation snap changes driver.liveId synchronously, before tick() even runs, so measuring
     // "before" only around tick() would already see the post-snap value and never detect the change
     this.withLiveIdChangeNotification(() => {
+      let justCreatedCut = false;
       if (this.activeId !== null && this.activeId !== this.driver.blendTargetId) {
-        const definition = resolveBlendDefinition(
-          this.customBlends,
-          this.customBlendFromId,
-          this.activeId,
-          this.defaultBlend,
-        );
-        const toHints = this.candidates.get(this.activeId)?.hints ?? BlendHints.none;
+        // captured once - a listener on one of the dispatchEvent calls below could reentrantly call
+        // registerCamera/updatePriority and move this.activeId before the later ones run
+        const incoming = this.activeId;
+        const definition = resolveBlendDefinition(this.customBlends, this.customBlendFromId, incoming, this.defaultBlend);
+        const toHints = this.candidates.get(incoming)?.hints ?? BlendHints.none;
         // prefer the outgoing camera's CURRENT hints (it may have changed since it went live) - the
         // captured customBlendFromHints is only a fallback for when it already unregistered mid-transition
         const fromCandidate = this.customBlendFromId !== null ? this.candidates.get(this.customBlendFromId) : undefined;
         const fromHints = fromCandidate?.hints ?? this.customBlendFromHints;
-        this.driver.setTarget(this.activeId, definition, fromHints | toHints);
-        this.customBlendFromId = this.activeId;
+        const outgoing = this.driver.blendTargetId;
+        const isFirstEver = !this.driver.hasEverActivated;
+        this.driver.setTarget(incoming, definition, fromHints | toHints);
+        this.customBlendFromId = incoming;
         this.customBlendFromHints = toHints;
+
+        if (isFirstEver) {
+          this.dispatchEvent({ type: 'cut', incoming, outgoing: null });
+        } else {
+          this.dispatchEvent({ type: 'blendCreated', incoming, outgoing });
+          if (!('damping' in definition) && definition.time <= 0) {
+            justCreatedCut = true;
+            this.dispatchEvent({ type: 'cut', incoming, outgoing });
+          }
+        }
       }
+
+      const wasBlending = this.driver.isBlending;
       result = this.driver.tick(dt);
+      if (wasBlending && !this.driver.isBlending && !justCreatedCut) {
+        // driver.liveId, not activeId - same reentrancy risk as `incoming` above
+        this.dispatchEvent({ type: 'blendFinished', liveId: this.driver.liveId! });
+      }
     });
     return result;
   }

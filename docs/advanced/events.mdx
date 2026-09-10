@@ -1,0 +1,62 @@
+---
+title: Events
+description: Listening for camera activations, deactivations, and blend transitions.
+nav: 74
+---
+
+`KlippCore` dispatches five events for every transition it arbitrates - `activated`, `deactivated`, `blendCreated`, `blendFinished`, `cut`. Two ways to listen: `<Klipp.Events>` hears every transition across all cameras, `<VirtualCamera.Events>` hears only the ones a specific camera takes part in.
+
+```tsx
+<Klipp>
+  <Klipp.Events onActivated={(e) => console.log(`${e.outgoing ?? '∅'} → ${e.incoming}`)} />
+  <VirtualCamera name="follow-cam" priority={10}>
+    <Body.Follow target={playerRef} />
+    <VirtualCamera.Events onDeactivated={() => console.log('follow-cam handed off')} />
+  </VirtualCamera>
+</Klipp>
+```
+
+Both are optional - neither actually subscribes anything until you mount them with at least one `on*` prop.
+
+## Events
+
+| Event | Payload | Fires when |
+| ----- | ------- | - |
+| `activated` | `{ incoming, outgoing }` | A camera just won priority arbitration and started becoming live. `outgoing` is `null` only for the very first camera ever activated. |
+| `deactivated` | `{ outgoing }` | A camera has fully stopped contributing to the composited output - its blend out finished, or it was unregistered before anything replaced it. |
+| `blendCreated` | `{ incoming, outgoing }` | A new blend transition started. Never fires for the very first camera ever going live - there's nothing to blend from yet. |
+| `blendFinished` | `{ liveId }` | A blend transition finished and settled on `liveId`. Not dispatched for a `cut`. |
+| `cut` | `{ incoming, outgoing }` | An instant transition with no visible blend - either the very first camera ever going live, or a transition whose resolved [`BlendDefinition`](/getting-started/core-concepts) has `time: 0`. |
+
+`incoming`/`outgoing` are `<VirtualCamera name>` strings. A `cut` always fires alongside `activated` (and, unless it's the very first camera, alongside `blendCreated`) - it's an extra signal on top of those, not a replacement for them.
+
+> [!WARNING]
+> `cut` is about a **zero-duration** transition, not [`BlendCurves.cut`](/blending/blend-curves) - `{ curve: BlendCurves.cut, time: 2 }` is a real 2-second blend (frozen until the last instant, then snaps) and fires `blendCreated`/`blendFinished` like any other curve, no `cut` event. Only `time: 0` (with any curve) triggers `cut`.
+
+## `<Klipp.Events>`
+
+Every `on*` prop mirrors the table above (`onActivated`, `onDeactivated`, `onBlendCreated`, `onBlendFinished`, `onCut`), unfiltered - it hears every transition between every camera registered on that `<Klipp>`.
+
+## `<VirtualCamera.Events>`
+
+Same five props, filtered to transitions this specific camera takes part in:
+
+- `onActivated` - only when this camera is `incoming`.
+- `onDeactivated` - only when this camera is `outgoing`.
+- `onBlendCreated`/`onCut` - when this camera is `incoming` **or** `outgoing`, since both sides are part of the same transition.
+- `onBlendFinished` - only when this camera is `liveId`.
+
+## `ref`
+
+`<VirtualCamera>` also takes a `ref` to its underlying `VirtualCameraController`, which is itself an event target - an imperative alternative to `<VirtualCamera.Events>`:
+
+```tsx
+const controllerRef = useRef<VirtualCameraController>(null);
+
+<VirtualCamera name="follow-cam" priority={10} ref={controllerRef}>
+
+// elsewhere
+controllerRef.current?.addEventListener('activated', (e) => { ... });
+```
+
+Filters the same way as `<VirtualCamera.Events>` - the controller only ever sees events for its own camera.
