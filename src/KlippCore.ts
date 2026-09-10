@@ -1,3 +1,4 @@
+import { EventDispatcher } from 'three';
 import type { CameraState } from './CameraState';
 import { BlendCurves } from './blend/BlendCurves';
 import { resolveBlendDefinition, type BlendDefinition, type CustomBlend } from './blend/BlendDefinition';
@@ -27,8 +28,19 @@ export type KlippCoreOptions = {
   customBlends?: CustomBlend[];
 };
 
+export type KlippCoreEventMap = {
+  /** A camera just won arbitration and started becoming live. `outgoing` is `null` only when nothing was
+   *  previously active. */
+  activated: { incoming: string; outgoing: string | null };
+  /** A camera has fully stopped contributing to the composited output - its blend out finished, or it was
+   *  unregistered before anything replaced it. */
+  deactivated: { outgoing: string };
+};
+
 /**
  * Priority arbitration + blend driver for the active virtual camera.
+ *
+ * Extends `EventDispatcher` - `addEventListener('activated' | 'deactivated', ...)` for `KlippCoreEventMap`.
  *
  * Priority ties break by "most recently activated" — `activatedAt` is a monotonic stamp set on every
  * `registerCamera` call, highest wins on a tie.
@@ -39,7 +51,7 @@ export type KlippCoreOptions = {
  * live in `BlendDriver`, shared with `Sequencer`/`StateDrivenCamera`/`ClearShot` — this class only owns
  * priority arbitration (`recompute`) and `CustomBlend` resolution, then hands the decided winner to it.
  */
-export class KlippCore {
+export class KlippCore extends EventDispatcher<KlippCoreEventMap> {
   private candidates = new Map<string, Candidate>();
   private activeId: string | null = null;
   private readonly activeIdListeners = new Set<() => void>();
@@ -57,6 +69,7 @@ export class KlippCore {
   private customBlendFromHints: BlendHints = BlendHints.none;
 
   constructor(options: KlippCoreOptions = {}) {
+    super();
     this.defaultBlend = options.defaultBlend ?? DEFAULT_BLEND;
     this.customBlends = options.customBlends ?? [];
     this.driver = new BlendDriver((id) => this.candidates.get(id)!.state);
@@ -172,8 +185,10 @@ export class KlippCore {
     }
     const newActiveId = winner?.id ?? null;
     if (newActiveId === this.activeId) return;
+    const outgoing = this.activeId;
     this.activeId = newActiveId;
     for (const listener of this.activeIdListeners) listener();
+    if (newActiveId !== null) this.dispatchEvent({ type: 'activated', incoming: newActiveId, outgoing });
   }
 
   /** Runs `action`, then notifies `liveIdListeners` if it changed `driver.liveId` as a side effect —
@@ -183,6 +198,7 @@ export class KlippCore {
     action();
     if (this.driver.liveId !== previousLiveId) {
       for (const listener of this.liveIdListeners) listener();
+      if (previousLiveId !== null) this.dispatchEvent({ type: 'deactivated', outgoing: previousLiveId });
     }
   }
 

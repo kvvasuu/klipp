@@ -193,6 +193,72 @@ describe('KlippCore — registry & priority arbitration', () => {
       expect(listener).toHaveBeenCalledTimes(1); // ...but still 1 — no further calls after unsubscribing
     });
   });
+
+  describe('activated/deactivated events', () => {
+    it('dispatches activated with the incoming/outgoing ids on each arbitration change', () => {
+      const core = new KlippCore();
+      const listener = vi.fn();
+      core.addEventListener('activated', listener);
+
+      core.registerCamera({ id: 'a', priority: 10, state: createCameraState() });
+      expect(listener).toHaveBeenCalledTimes(1);
+      expect(listener.mock.calls[0][0]).toMatchObject({ incoming: 'a', outgoing: null });
+
+      core.registerCamera({ id: 'b', priority: 20, state: createCameraState() });
+      expect(listener).toHaveBeenCalledTimes(2);
+      expect(listener.mock.calls[1][0]).toMatchObject({ incoming: 'b', outgoing: 'a' });
+    });
+
+    it('does not dispatch activated when the winner becomes null', () => {
+      const core = new KlippCore();
+      const listener = vi.fn();
+      const unregister = core.registerCamera({ id: 'a', priority: 10, state: createCameraState() });
+      core.addEventListener('activated', listener);
+
+      unregister();
+      expect(core.activeCameraId).toBeNull();
+      expect(listener).not.toHaveBeenCalled();
+    });
+
+    it('dispatches deactivated with the outgoing id once its blend out finishes', () => {
+      const core = new KlippCore({ defaultBlend: { curve: BlendCurves.linear, time: 1 } });
+      core.registerCamera({ id: 'a', priority: 10, state: createCameraState() });
+      core.tick(0); // 'a' snaps live
+
+      const listener = vi.fn();
+      core.addEventListener('deactivated', listener);
+      core.registerCamera({ id: 'b', priority: 20, state: createCameraState() });
+
+      core.tick(0.5); // mid-blend
+      expect(listener).not.toHaveBeenCalled();
+
+      core.tick(0.6); // blend finishes
+      expect(listener).toHaveBeenCalledTimes(1);
+      expect(listener.mock.calls[0][0]).toMatchObject({ outgoing: 'a' });
+    });
+
+    it('does not dispatch deactivated for the very first camera going live', () => {
+      const core = new KlippCore();
+      const listener = vi.fn();
+      core.addEventListener('deactivated', listener);
+
+      core.registerCamera({ id: 'a', priority: 10, state: createCameraState() });
+      core.tick(0);
+      expect(listener).not.toHaveBeenCalled();
+    });
+
+    it('removeEventListener stops further notifications', () => {
+      const core = new KlippCore();
+      const listener = vi.fn();
+      core.addEventListener('activated', listener);
+      core.registerCamera({ id: 'a', priority: 10, state: createCameraState() });
+      expect(listener).toHaveBeenCalledTimes(1);
+
+      core.removeEventListener('activated', listener);
+      core.registerCamera({ id: 'b', priority: 20, state: createCameraState() });
+      expect(listener).toHaveBeenCalledTimes(1);
+    });
+  });
 });
 
 describe('KlippCore — updatePriority', () => {
