@@ -16,6 +16,7 @@ import { BlendHints } from './blend/BlendHints';
 import type { CameraTransitionEventMap } from './KlippCore';
 import { useKlippCore, useKlippInitialCameraState, useKlippUpdateRegistry } from './Klipp';
 import { resolveVector3 } from './resolve/resolveVector3';
+import { useCameraTransitionEvent } from './useCameraTransitionEvent';
 import { VirtualCameraController, type VirtualCameraSlots } from './VirtualCameraController';
 
 /** Like `CameraState`, but `position`/`target`/`lookAtTarget` accept the r3f Vector3 shorthand
@@ -121,6 +122,9 @@ export function VirtualCamera({
   const [controller] = useState(() => new VirtualCameraController(name));
   controller.name = name;
   useImperativeHandle(ref, () => controller, [controller]);
+  // keeps controller subscribed to core so the ref above can addEventListener directly - cheap, since
+  // dispatch only happens on transitions, never per-frame.
+  useEffect(() => controller.trackEvents(core), [controller, core]);
   const priorityRef = useRef(priority);
   priorityRef.current = priority;
   const hintsRef = useRef(hints);
@@ -181,29 +185,28 @@ export function VirtualCamera({
 export type VirtualCameraEventsProps = {
   onActivated?: (event: CameraTransitionEventMap['activated']) => void;
   onDeactivated?: (event: CameraTransitionEventMap['deactivated']) => void;
+  onBlendCreated?: (event: CameraTransitionEventMap['blendCreated']) => void;
+  onBlendFinished?: (event: CameraTransitionEventMap['blendFinished']) => void;
+  onCut?: (event: CameraTransitionEventMap['cut']) => void;
 };
 
-/** Opt-in - place inside a `<VirtualCamera>` to hear `activated`/`deactivated` events for that one
- *  camera. A camera with nothing listening never subscribes to `KlippCore` at all. Also available as
- *  `VirtualCamera.Events`. */
-export function VirtualCameraEvents({ onActivated, onDeactivated }: VirtualCameraEventsProps) {
-  const core = useKlippCore();
+/** Place inside a `<VirtualCamera>` to hear `CameraTransitionEventMap` events for that one camera as
+ *  callback props - an alternative to a `ref`'s `addEventListener`. Also available as `VirtualCamera.Events`. */
+export function VirtualCameraEvents({
+  onActivated,
+  onDeactivated,
+  onBlendCreated,
+  onBlendFinished,
+  onCut,
+}: VirtualCameraEventsProps) {
   const controller = use(VirtualCameraSlotsContext);
   if (!controller) throw new Error('<VirtualCameraEvents> must be used within a <VirtualCamera>.');
 
-  useEffect(() => controller.trackEvents(core), [controller, core]);
-
-  useEffect(() => {
-    if (!onActivated) return;
-    controller.addEventListener('activated', onActivated);
-    return () => controller.removeEventListener('activated', onActivated);
-  }, [controller, onActivated]);
-
-  useEffect(() => {
-    if (!onDeactivated) return;
-    controller.addEventListener('deactivated', onDeactivated);
-    return () => controller.removeEventListener('deactivated', onDeactivated);
-  }, [controller, onDeactivated]);
+  useCameraTransitionEvent(controller, 'activated', onActivated);
+  useCameraTransitionEvent(controller, 'deactivated', onDeactivated);
+  useCameraTransitionEvent(controller, 'blendCreated', onBlendCreated);
+  useCameraTransitionEvent(controller, 'blendFinished', onBlendFinished);
+  useCameraTransitionEvent(controller, 'cut', onCut);
 
   return null;
 }

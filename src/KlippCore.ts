@@ -37,12 +37,22 @@ export type CameraTransitionEventMap = {
   /** A camera has fully stopped contributing to the composited output - its blend out finished, or it was
    *  unregistered before anything replaced it. */
   deactivated: { outgoing: string };
+  /** A new blend transition started. Also fires for a zero-length one (see `cut`), but never for the
+   *  very first camera ever going live - there's nothing to blend from yet. */
+  blendCreated: { incoming: string; outgoing: string | null };
+  /** A blend transition finished and settled on its target. Not dispatched for a `cut`, which resolves
+   *  before ever visibly blending. */
+  blendFinished: { liveId: string };
+  /** An instant transition with no visible blend - either the very first camera ever going live, or a
+   *  transition whose resolved `BlendDefinition` has zero duration. */
+  cut: { incoming: string; outgoing: string | null };
 };
 
 /**
  * Priority arbitration + blend driver for the active virtual camera.
  *
- * Extends `EventDispatcher` - `addEventListener('activated' | 'deactivated', ...)` for `CameraTransitionEventMap`.
+ * Extends `EventDispatcher` - `addEventListener(...)` for `CameraTransitionEventMap`'s
+ * `activated`/`deactivated`/`blendCreated`/`blendFinished`/`cut`.
  *
  * Priority ties break by "most recently activated" — `activatedAt` is a monotonic stamp set on every
  * `registerCamera` call, highest wins on a tie.
@@ -220,6 +230,7 @@ export class KlippCore extends EventDispatcher<CameraTransitionEventMap> {
     // ever-activation snap changes driver.liveId synchronously, before tick() even runs, so measuring
     // "before" only around tick() would already see the post-snap value and never detect the change
     this.withLiveIdChangeNotification(() => {
+      let justCreatedCut = false;
       if (this.activeId !== null && this.activeId !== this.driver.blendTargetId) {
         const definition = resolveBlendDefinition(
           this.customBlends,
@@ -232,11 +243,28 @@ export class KlippCore extends EventDispatcher<CameraTransitionEventMap> {
         // captured customBlendFromHints is only a fallback for when it already unregistered mid-transition
         const fromCandidate = this.customBlendFromId !== null ? this.candidates.get(this.customBlendFromId) : undefined;
         const fromHints = fromCandidate?.hints ?? this.customBlendFromHints;
+        const outgoing = this.driver.blendTargetId;
+        const isFirstEver = !this.driver.hasEverActivated;
         this.driver.setTarget(this.activeId, definition, fromHints | toHints);
         this.customBlendFromId = this.activeId;
         this.customBlendFromHints = toHints;
+
+        if (isFirstEver) {
+          this.dispatchEvent({ type: 'cut', incoming: this.activeId, outgoing: null });
+        } else {
+          this.dispatchEvent({ type: 'blendCreated', incoming: this.activeId, outgoing });
+          if (!('damping' in definition) && definition.time <= 0) {
+            justCreatedCut = true;
+            this.dispatchEvent({ type: 'cut', incoming: this.activeId, outgoing });
+          }
+        }
       }
+
+      const wasBlending = this.driver.isBlending;
       result = this.driver.tick(dt);
+      if (wasBlending && !this.driver.isBlending && !justCreatedCut) {
+        this.dispatchEvent({ type: 'blendFinished', liveId: this.activeId! });
+      }
     });
     return result;
   }

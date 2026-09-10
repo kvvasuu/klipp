@@ -270,5 +270,50 @@ describe('VirtualCameraController', () => {
       core.registerCamera({ id: 'renamed', priority: 10, state: createCameraState() });
       expect(onActivated).toHaveBeenCalledTimes(1);
     });
+
+    it('re-dispatches blendCreated/cut to BOTH sides of the transition', () => {
+      const core = new KlippCore({ defaultBlend: { curve: BlendCurves.linear, time: 1 } });
+      const a = new VirtualCameraController('a');
+      const b = new VirtualCameraController('b');
+      const c = new VirtualCameraController('c');
+      a.trackEvents(core);
+      b.trackEvents(core);
+      c.trackEvents(core);
+      const onA = vi.fn();
+      const onB = vi.fn();
+      const onC = vi.fn();
+      a.addEventListener('blendCreated', onA);
+      b.addEventListener('blendCreated', onB);
+      c.addEventListener('blendCreated', onC);
+
+      core.registerCamera({ id: 'a', priority: 10, state: createCameraState() });
+      core.tick(0); // 'a' snaps live - first-ever, not a real blend
+      core.registerCamera({ id: 'b', priority: 20, state: createCameraState() });
+      core.tick(0); // blend a -> b created
+
+      expect(onA).toHaveBeenCalledTimes(1);
+      expect(onB).toHaveBeenCalledTimes(1);
+      expect(onC).not.toHaveBeenCalled();
+    });
+
+    it('re-dispatches blendFinished only to the camera that just settled live', () => {
+      const core = new KlippCore({ defaultBlend: { curve: BlendCurves.linear, time: 1 } });
+      const a = new VirtualCameraController('a');
+      const b = new VirtualCameraController('b');
+      a.trackEvents(core);
+      b.trackEvents(core);
+      const onA = vi.fn();
+      const onB = vi.fn();
+      a.addEventListener('blendFinished', onA);
+      b.addEventListener('blendFinished', onB);
+
+      core.registerCamera({ id: 'a', priority: 10, state: createCameraState() });
+      core.tick(0);
+      core.registerCamera({ id: 'b', priority: 20, state: createCameraState() });
+      core.tick(1.1); // blend a -> b finishes
+
+      expect(onA).not.toHaveBeenCalled();
+      expect(onB).toHaveBeenCalledTimes(1);
+    });
   });
 });

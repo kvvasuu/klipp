@@ -46,7 +46,7 @@ function warnDoubleRegistration(slot: 'Body' | 'Aim', name: string): void {
  * registration wins, with a dev-mode warning); Extension and Noise both deliberately stack.
  *
  * Also extends `EventDispatcher` - `trackEvents(core)` re-dispatches whichever of `core`'s own
- * `activated`/`deactivated` events involve this specific camera (by current `name`), so a listener here
+ * `CameraTransitionEventMap` events involve this specific camera (by current `name`), so a listener here
  * only ever hears about itself.
  */
 export class VirtualCameraController extends EventDispatcher<CameraTransitionEventMap> implements VirtualCameraSlots {
@@ -89,9 +89,10 @@ export class VirtualCameraController extends EventDispatcher<CameraTransitionEve
     return () => this.noiseWriters.delete(writer);
   };
 
-  /** Subscribes to `core`, re-dispatching `activated` when this camera (by current `name`) is the
-   *  incoming one and `deactivated` when it's the one that just stopped contributing. Returns an
-   *  unsubscribe function. */
+  /** Subscribes to `core`, re-dispatching each event only when this camera (by current `name`) actually
+   *  takes part in it: `activated` when it's the incoming one, `deactivated` when it's the one that just
+   *  stopped contributing, `blendCreated`/`cut` when it's either side, `blendFinished` when it's the one
+   *  that just settled live. Returns an unsubscribe function. */
   trackEvents = (core: KlippCore): (() => void) => {
     const onActivated = (event: CameraTransitionEventMap['activated']) => {
       if (event.incoming === this.name) this.dispatchEvent({ type: 'activated', ...event });
@@ -99,11 +100,30 @@ export class VirtualCameraController extends EventDispatcher<CameraTransitionEve
     const onDeactivated = (event: CameraTransitionEventMap['deactivated']) => {
       if (event.outgoing === this.name) this.dispatchEvent({ type: 'deactivated', ...event });
     };
+    const onBlendCreated = (event: CameraTransitionEventMap['blendCreated']) => {
+      if (event.incoming === this.name || event.outgoing === this.name) {
+        this.dispatchEvent({ type: 'blendCreated', ...event });
+      }
+    };
+    const onBlendFinished = (event: CameraTransitionEventMap['blendFinished']) => {
+      if (event.liveId === this.name) this.dispatchEvent({ type: 'blendFinished', ...event });
+    };
+    const onCut = (event: CameraTransitionEventMap['cut']) => {
+      if (event.incoming === this.name || event.outgoing === this.name) {
+        this.dispatchEvent({ type: 'cut', ...event });
+      }
+    };
     core.addEventListener('activated', onActivated);
     core.addEventListener('deactivated', onDeactivated);
+    core.addEventListener('blendCreated', onBlendCreated);
+    core.addEventListener('blendFinished', onBlendFinished);
+    core.addEventListener('cut', onCut);
     return () => {
       core.removeEventListener('activated', onActivated);
       core.removeEventListener('deactivated', onDeactivated);
+      core.removeEventListener('blendCreated', onBlendCreated);
+      core.removeEventListener('blendFinished', onBlendFinished);
+      core.removeEventListener('cut', onCut);
     };
   };
 

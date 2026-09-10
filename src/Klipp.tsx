@@ -3,6 +3,7 @@ import { createContext, use, useCallback, useEffect, useMemo, useRef, useState, 
 import type { Camera, PerspectiveCamera } from 'three';
 import { copyCameraState, copyCameraStateFromCamera, createCameraState, type CameraState } from './CameraState';
 import { KlippCore, type CameraTransitionEventMap, type KlippCoreOptions } from './KlippCore';
+import { useCameraTransitionEvent } from './useCameraTransitionEvent';
 
 /** `instanceof PerspectiveCamera` silently fails whenever two copies of the `three` module end up
  *  loaded (a real risk in monorepos/certain bundler setups, not just a test-environment quirk) — each
@@ -214,24 +215,21 @@ export function useKlippInitialCameraState(): CameraState {
 export type KlippEventsProps = {
   onActivated?: (event: CameraTransitionEventMap['activated']) => void;
   onDeactivated?: (event: CameraTransitionEventMap['deactivated']) => void;
+  onBlendCreated?: (event: CameraTransitionEventMap['blendCreated']) => void;
+  onBlendFinished?: (event: CameraTransitionEventMap['blendFinished']) => void;
+  onCut?: (event: CameraTransitionEventMap['cut']) => void;
 };
 
-/** Opt-in - place inside a `<Klipp>` to hear every `activated`/`deactivated` transition across ALL its
+/** Opt-in - place inside a `<Klipp>` to hear every `CameraTransitionEventMap` transition across ALL its
  *  cameras (contrast `VirtualCamera.Events`, scoped to one camera). Also available as `Klipp.Events`. */
-export function KlippEvents({ onActivated, onDeactivated }: KlippEventsProps) {
+export function KlippEvents({ onActivated, onDeactivated, onBlendCreated, onBlendFinished, onCut }: KlippEventsProps) {
   const core = useKlippCore();
 
-  useEffect(() => {
-    if (!onActivated) return;
-    core.addEventListener('activated', onActivated);
-    return () => core.removeEventListener('activated', onActivated);
-  }, [core, onActivated]);
-
-  useEffect(() => {
-    if (!onDeactivated) return;
-    core.addEventListener('deactivated', onDeactivated);
-    return () => core.removeEventListener('deactivated', onDeactivated);
-  }, [core, onDeactivated]);
+  useCameraTransitionEvent(core, 'activated', onActivated);
+  useCameraTransitionEvent(core, 'deactivated', onDeactivated);
+  useCameraTransitionEvent(core, 'blendCreated', onBlendCreated);
+  useCameraTransitionEvent(core, 'blendFinished', onBlendFinished);
+  useCameraTransitionEvent(core, 'cut', onCut);
 
   return null;
 }
