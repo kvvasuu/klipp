@@ -28,7 +28,9 @@ export type KlippCoreOptions = {
   customBlends?: CustomBlend[];
 };
 
-export type KlippCoreEventMap = {
+/** Shared by `KlippCore` (every transition) and `VirtualCameraController` (filtered to transitions one
+ *  specific camera takes part in). */
+export type CameraTransitionEventMap = {
   /** A camera just won arbitration and started becoming live. `outgoing` is `null` only when nothing was
    *  previously active. */
   activated: { incoming: string; outgoing: string | null };
@@ -40,7 +42,7 @@ export type KlippCoreEventMap = {
 /**
  * Priority arbitration + blend driver for the active virtual camera.
  *
- * Extends `EventDispatcher` - `addEventListener('activated' | 'deactivated', ...)` for `KlippCoreEventMap`.
+ * Extends `EventDispatcher` - `addEventListener('activated' | 'deactivated', ...)` for `CameraTransitionEventMap`.
  *
  * Priority ties break by "most recently activated" — `activatedAt` is a monotonic stamp set on every
  * `registerCamera` call, highest wins on a tie.
@@ -51,7 +53,7 @@ export type KlippCoreEventMap = {
  * live in `BlendDriver`, shared with `Sequencer`/`StateDrivenCamera`/`ClearShot` — this class only owns
  * priority arbitration (`recompute`) and `CustomBlend` resolution, then hands the decided winner to it.
  */
-export class KlippCore extends EventDispatcher<KlippCoreEventMap> {
+export class KlippCore extends EventDispatcher<CameraTransitionEventMap> {
   private candidates = new Map<string, Candidate>();
   private activeId: string | null = null;
   private readonly activeIdListeners = new Set<() => void>();

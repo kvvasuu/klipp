@@ -2,7 +2,7 @@ import { useFrame, useThree } from '@react-three/fiber';
 import { createContext, use, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import type { Camera, PerspectiveCamera } from 'three';
 import { copyCameraState, copyCameraStateFromCamera, createCameraState, type CameraState } from './CameraState';
-import { KlippCore, type KlippCoreOptions } from './KlippCore';
+import { KlippCore, type CameraTransitionEventMap, type KlippCoreOptions } from './KlippCore';
 
 /** `instanceof PerspectiveCamera` silently fails whenever two copies of the `three` module end up
  *  loaded (a real risk in monorepos/certain bundler setups, not just a test-environment quirk) — each
@@ -210,3 +210,30 @@ export function useKlippUpdateRegistry(): (update: FrameUpdate) => () => void {
 export function useKlippInitialCameraState(): CameraState {
   return useKlippContext().initialCameraState;
 }
+
+export type KlippEventsProps = {
+  onActivated?: (event: CameraTransitionEventMap['activated']) => void;
+  onDeactivated?: (event: CameraTransitionEventMap['deactivated']) => void;
+};
+
+/** Opt-in - place inside a `<Klipp>` to hear every `activated`/`deactivated` transition across ALL its
+ *  cameras (contrast `VirtualCamera.Events`, scoped to one camera). Also available as `Klipp.Events`. */
+export function KlippEvents({ onActivated, onDeactivated }: KlippEventsProps) {
+  const core = useKlippCore();
+
+  useEffect(() => {
+    if (!onActivated) return;
+    core.addEventListener('activated', onActivated);
+    return () => core.removeEventListener('activated', onActivated);
+  }, [core, onActivated]);
+
+  useEffect(() => {
+    if (!onDeactivated) return;
+    core.addEventListener('deactivated', onDeactivated);
+    return () => core.removeEventListener('deactivated', onDeactivated);
+  }, [core, onDeactivated]);
+
+  return null;
+}
+
+Klipp.Events = KlippEvents;

@@ -1,8 +1,19 @@
 import type { Vector3 as Vector3Like } from '@react-three/fiber';
 import { useThree } from '@react-three/fiber';
-import { createContext, use, useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from 'react';
+import {
+  createContext,
+  use,
+  useEffect,
+  useImperativeHandle,
+  useRef,
+  useState,
+  useSyncExternalStore,
+  type ReactNode,
+  type Ref,
+} from 'react';
 import { copyCameraState, createCameraState, mergeCameraState, type CameraState } from './CameraState';
 import { BlendHints } from './blend/BlendHints';
+import type { CameraTransitionEventMap } from './KlippCore';
 import { useKlippCore, useKlippInitialCameraState, useKlippUpdateRegistry } from './Klipp';
 import { resolveVector3 } from './resolve/resolveVector3';
 import { VirtualCameraController, type VirtualCameraSlots } from './VirtualCameraController';
@@ -15,7 +26,7 @@ export type InitialCameraState = Partial<Omit<CameraState, 'position' | 'target'
   lookAtTarget?: Vector3Like;
 };
 
-const VirtualCameraSlotsContext = createContext<VirtualCameraSlots | null>(null);
+const VirtualCameraSlotsContext = createContext<VirtualCameraController | null>(null);
 const VirtualCameraStateContext = createContext<CameraState | null>(null);
 /** Separate contexts on purpose — each changes at a different cadence (slots/state: never, active: the
  *  instant arbitration picks a winner, live: once that winner's blend finishes), so a Body/Aim/Noise that
@@ -25,9 +36,9 @@ const VirtualCameraLiveContext = createContext<boolean>(false);
 
 /** The nearest `<VirtualCamera>`'s Body/Aim/Noise registration slots. Throws outside one. */
 export function useVirtualCameraSlots(): VirtualCameraSlots {
-  const slots = use(VirtualCameraSlotsContext);
-  if (!slots) throw new Error('useVirtualCameraSlots must be used within a <VirtualCamera>.');
-  return slots;
+  const controller = use(VirtualCameraSlotsContext);
+  if (!controller) throw new Error('useVirtualCameraSlots must be used within a <VirtualCamera>.');
+  return controller;
 }
 
 /** The nearest `<VirtualCamera>`'s own `CameraState` — its raw, un-blended output, updated in place every
@@ -72,6 +83,9 @@ export type VirtualCameraProps = {
    *  at runtime. Only the fields you set are overridden; applied once, at mount. */
   initialState?: InitialCameraState;
   children?: ReactNode;
+  /** Imperative access to the underlying `VirtualCameraController` - e.g. to `addEventListener` directly
+   *  instead of using `<VirtualCamera.Events>`. */
+  ref?: Ref<VirtualCameraController>;
 };
 
 /**
@@ -86,6 +100,7 @@ export function VirtualCamera({
   hints = BlendHints.none,
   initialState,
   children,
+  ref,
 }: VirtualCameraProps) {
   const core = useKlippCore();
   const registerUpdate = useKlippUpdateRegistry();
@@ -105,6 +120,7 @@ export function VirtualCamera({
   });
   const [controller] = useState(() => new VirtualCameraController(name));
   controller.name = name;
+  useImperativeHandle(ref, () => controller, [controller]);
   const priorityRef = useRef(priority);
   priorityRef.current = priority;
   const hintsRef = useRef(hints);
@@ -161,3 +177,35 @@ export function VirtualCamera({
     </VirtualCameraSlotsContext.Provider>
   );
 }
+
+export type VirtualCameraEventsProps = {
+  onActivated?: (event: CameraTransitionEventMap['activated']) => void;
+  onDeactivated?: (event: CameraTransitionEventMap['deactivated']) => void;
+};
+
+/** Opt-in - place inside a `<VirtualCamera>` to hear `activated`/`deactivated` events for that one
+ *  camera. A camera with nothing listening never subscribes to `KlippCore` at all. Also available as
+ *  `VirtualCamera.Events`. */
+export function VirtualCameraEvents({ onActivated, onDeactivated }: VirtualCameraEventsProps) {
+  const core = useKlippCore();
+  const controller = use(VirtualCameraSlotsContext);
+  if (!controller) throw new Error('<VirtualCameraEvents> must be used within a <VirtualCamera>.');
+
+  useEffect(() => controller.trackEvents(core), [controller, core]);
+
+  useEffect(() => {
+    if (!onActivated) return;
+    controller.addEventListener('activated', onActivated);
+    return () => controller.removeEventListener('activated', onActivated);
+  }, [controller, onActivated]);
+
+  useEffect(() => {
+    if (!onDeactivated) return;
+    controller.addEventListener('deactivated', onDeactivated);
+    return () => controller.removeEventListener('deactivated', onDeactivated);
+  }, [controller, onDeactivated]);
+
+  return null;
+}
+
+VirtualCamera.Events = VirtualCameraEvents;

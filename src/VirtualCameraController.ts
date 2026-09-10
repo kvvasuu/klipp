@@ -1,4 +1,6 @@
+import { EventDispatcher } from 'three';
 import type { CameraState } from './CameraState';
+import type { CameraTransitionEventMap, KlippCore } from './KlippCore';
 
 /** Writes into `out` (Body/Aim) or adds on top of it (Noise) — same `out`-parameter convention as the
  *  rest of klipp. Return `true` if there's still work in flight that could change the output on a LATER
@@ -42,8 +44,12 @@ function warnDoubleRegistration(slot: 'Body' | 'Aim', name: string): void {
  * "back", and Noise adds shake on top of a shot that's already correctly composed, not one an
  * extension might still adjust out from under it. At most one Body and one Aim at a time (last
  * registration wins, with a dev-mode warning); Extension and Noise both deliberately stack.
+ *
+ * Also extends `EventDispatcher` - `trackEvents(core)` re-dispatches whichever of `core`'s own
+ * `activated`/`deactivated` events involve this specific camera (by current `name`), so a listener here
+ * only ever hears about itself.
  */
-export class VirtualCameraController implements VirtualCameraSlots {
+export class VirtualCameraController extends EventDispatcher<CameraTransitionEventMap> implements VirtualCameraSlots {
   /** Used only for the dev-mode double-registration warning message. */
   name: string;
 
@@ -53,6 +59,7 @@ export class VirtualCameraController implements VirtualCameraSlots {
   private readonly noiseWriters = new Set<CameraStateWriter>();
 
   constructor(name: string) {
+    super();
     this.name = name;
   }
 
@@ -80,6 +87,24 @@ export class VirtualCameraController implements VirtualCameraSlots {
   registerNoise = (writer: CameraStateWriter): (() => void) => {
     this.noiseWriters.add(writer);
     return () => this.noiseWriters.delete(writer);
+  };
+
+  /** Subscribes to `core`, re-dispatching `activated` when this camera (by current `name`) is the
+   *  incoming one and `deactivated` when it's the one that just stopped contributing. Returns an
+   *  unsubscribe function. */
+  trackEvents = (core: KlippCore): (() => void) => {
+    const onActivated = (event: CameraTransitionEventMap['activated']) => {
+      if (event.incoming === this.name) this.dispatchEvent({ type: 'activated', ...event });
+    };
+    const onDeactivated = (event: CameraTransitionEventMap['deactivated']) => {
+      if (event.outgoing === this.name) this.dispatchEvent({ type: 'deactivated', ...event });
+    };
+    core.addEventListener('activated', onActivated);
+    core.addEventListener('deactivated', onDeactivated);
+    return () => {
+      core.removeEventListener('activated', onActivated);
+      core.removeEventListener('deactivated', onDeactivated);
+    };
   };
 
   update = (out: CameraState, dt: number, justActivated: boolean): boolean => {

@@ -1,5 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { createCameraState } from '../src/CameraState';
+import { BlendCurves } from '../src/blend/BlendCurves';
+import { KlippCore } from '../src/KlippCore';
 import { VirtualCameraController } from '../src/VirtualCameraController';
 
 describe('VirtualCameraController', () => {
@@ -203,6 +205,70 @@ describe('VirtualCameraController', () => {
 
       expect(warn).toHaveBeenCalledWith(expect.stringContaining('name="renamed"'));
       warn.mockRestore();
+    });
+  });
+
+  describe('trackEvents', () => {
+    it('re-dispatches activated only when this camera is the incoming one', () => {
+      const core = new KlippCore();
+      const a = new VirtualCameraController('a');
+      const b = new VirtualCameraController('b');
+      a.trackEvents(core);
+      b.trackEvents(core);
+      const onA = vi.fn();
+      const onB = vi.fn();
+      a.addEventListener('activated', onA);
+      b.addEventListener('activated', onB);
+
+      core.registerCamera({ id: 'a', priority: 10, state: createCameraState() });
+      expect(onA).toHaveBeenCalledTimes(1);
+      expect(onA.mock.calls[0][0]).toMatchObject({ incoming: 'a', outgoing: null });
+      expect(onB).not.toHaveBeenCalled();
+
+      core.registerCamera({ id: 'b', priority: 20, state: createCameraState() });
+      expect(onB).toHaveBeenCalledTimes(1);
+      expect(onB.mock.calls[0][0]).toMatchObject({ incoming: 'b', outgoing: 'a' });
+      expect(onA).toHaveBeenCalledTimes(1); // still 1 — 'a' losing arbitration isn't ITS activation
+    });
+
+    it('re-dispatches deactivated only for the camera whose blend out just finished', () => {
+      const core = new KlippCore({ defaultBlend: { curve: BlendCurves.linear, time: 0 } });
+      const a = new VirtualCameraController('a');
+      a.trackEvents(core);
+      const onDeactivated = vi.fn();
+      a.addEventListener('deactivated', onDeactivated);
+
+      core.registerCamera({ id: 'a', priority: 10, state: createCameraState() });
+      core.tick(0); // 'a' snaps live
+      core.registerCamera({ id: 'b', priority: 20, state: createCameraState() });
+      core.tick(0); // zero-time default blend — finishes immediately
+
+      expect(onDeactivated).toHaveBeenCalledTimes(1);
+      expect(onDeactivated.mock.calls[0][0]).toMatchObject({ outgoing: 'a' });
+    });
+
+    it('the returned unsubscribe function stops further re-dispatching', () => {
+      const core = new KlippCore();
+      const a = new VirtualCameraController('a');
+      const untrack = a.trackEvents(core);
+      const onActivated = vi.fn();
+      a.addEventListener('activated', onActivated);
+
+      untrack();
+      core.registerCamera({ id: 'a', priority: 10, state: createCameraState() });
+      expect(onActivated).not.toHaveBeenCalled();
+    });
+
+    it('filters by the CURRENT name, even if it changed after trackEvents was called', () => {
+      const core = new KlippCore();
+      const controller = new VirtualCameraController('original');
+      controller.trackEvents(core);
+      const onActivated = vi.fn();
+      controller.addEventListener('activated', onActivated);
+
+      controller.name = 'renamed';
+      core.registerCamera({ id: 'renamed', priority: 10, state: createCameraState() });
+      expect(onActivated).toHaveBeenCalledTimes(1);
     });
   });
 });
