@@ -46,7 +46,7 @@ The value threaded through that whole pipeline is a single, plain `CameraState` 
 
 ## Blending and priority arbitration
 
-Only one camera is ever actually **live** - what `<Klipp>` currently writes onto the real camera. When arbitration picks a new winner, `KlippCore` blends from the previous live `CameraState` to the new one, not an instant cut - either a [named curve](/blending/blend-curves) over a fixed duration, or `damping` (seconds), which approaches the new camera asymptotically instead of finishing at a fixed pace, the same spring as every other damped field in klipp. `defaultBlend` on `<Klipp>` sets this globally; [Custom Blends](/blending/custom-blends) override it for specific from→to camera pairs.
+Only one camera is ever actually **live** - what `<Klipp>` currently writes onto the real camera. When arbitration picks a new winner, `KlippCore` blends from the previous live `CameraState` to the new one, not an instant cut - either a [named curve](/blending/blend-curves) over a fixed duration, or `damping` (seconds), which approaches the new camera asymptotically instead of finishing at a fixed pace, the same spring as every other damped field in klipp. `defaultBlend` on `<Klipp>` sets this globally; [Custom Blends](/blending/custom-blends) override it for specific from→to camera pairs. `<Klipp.Events>`/`<VirtualCamera.Events>` let you listen for each transition as it happens - see [Events](/advanced/events).
 
 ## `frameloop="demand"` and re-renders
 
