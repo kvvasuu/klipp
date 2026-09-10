@@ -232,30 +232,28 @@ export class KlippCore extends EventDispatcher<CameraTransitionEventMap> {
     this.withLiveIdChangeNotification(() => {
       let justCreatedCut = false;
       if (this.activeId !== null && this.activeId !== this.driver.blendTargetId) {
-        const definition = resolveBlendDefinition(
-          this.customBlends,
-          this.customBlendFromId,
-          this.activeId,
-          this.defaultBlend,
-        );
-        const toHints = this.candidates.get(this.activeId)?.hints ?? BlendHints.none;
+        // captured once - a listener on one of the dispatchEvent calls below could reentrantly call
+        // registerCamera/updatePriority and move this.activeId before the later ones run
+        const incoming = this.activeId;
+        const definition = resolveBlendDefinition(this.customBlends, this.customBlendFromId, incoming, this.defaultBlend);
+        const toHints = this.candidates.get(incoming)?.hints ?? BlendHints.none;
         // prefer the outgoing camera's CURRENT hints (it may have changed since it went live) - the
         // captured customBlendFromHints is only a fallback for when it already unregistered mid-transition
         const fromCandidate = this.customBlendFromId !== null ? this.candidates.get(this.customBlendFromId) : undefined;
         const fromHints = fromCandidate?.hints ?? this.customBlendFromHints;
         const outgoing = this.driver.blendTargetId;
         const isFirstEver = !this.driver.hasEverActivated;
-        this.driver.setTarget(this.activeId, definition, fromHints | toHints);
-        this.customBlendFromId = this.activeId;
+        this.driver.setTarget(incoming, definition, fromHints | toHints);
+        this.customBlendFromId = incoming;
         this.customBlendFromHints = toHints;
 
         if (isFirstEver) {
-          this.dispatchEvent({ type: 'cut', incoming: this.activeId, outgoing: null });
+          this.dispatchEvent({ type: 'cut', incoming, outgoing: null });
         } else {
-          this.dispatchEvent({ type: 'blendCreated', incoming: this.activeId, outgoing });
+          this.dispatchEvent({ type: 'blendCreated', incoming, outgoing });
           if (!('damping' in definition) && definition.time <= 0) {
             justCreatedCut = true;
-            this.dispatchEvent({ type: 'cut', incoming: this.activeId, outgoing });
+            this.dispatchEvent({ type: 'cut', incoming, outgoing });
           }
         }
       }
@@ -263,7 +261,8 @@ export class KlippCore extends EventDispatcher<CameraTransitionEventMap> {
       const wasBlending = this.driver.isBlending;
       result = this.driver.tick(dt);
       if (wasBlending && !this.driver.isBlending && !justCreatedCut) {
-        this.dispatchEvent({ type: 'blendFinished', liveId: this.activeId! });
+        // driver.liveId, not activeId - same reentrancy risk as `incoming` above
+        this.dispatchEvent({ type: 'blendFinished', liveId: this.driver.liveId! });
       }
     });
     return result;
