@@ -1,5 +1,6 @@
 import { Placeholder } from '../scenes/Placeholder';
 import { HardLookAt } from '../scenes/aim/HardLookAt';
+import { Follow } from '../scenes/body/Follow';
 import { HardLockToTarget } from '../scenes/body/HardLockToTarget';
 import type { ExampleCategory } from './types';
 
@@ -18,7 +19,16 @@ export const categories: ExampleCategory[] = [
           "The simplest Body: the camera's position becomes exactly the target's position, no offset, no framing. Watch the spectator inset - the frustum trails behind the orbiting anchor by exactly `damping` seconds.",
         ready: true,
       },
-      { slug: 'follow', title: 'Follow', Scene: Placeholder, ready: false },
+      {
+        slug: 'follow',
+        title: 'Follow',
+        Scene: Follow,
+        description:
+          "A constant offset from the target, rotated by `bindingMode` before being added to its position - Body never touches rotation, so the camera's own view stays level regardless of the mode. The plane banks and loops continuously; watch the spectator inset to see which parts of its rotation (yaw/pitch/roll) actually move the camera's position.",
+        spectatorPosition: [0, 14, 18],
+        spectatorTarget: [0, 3, 0],
+        ready: true,
+      },
       { slug: 'position-composer', title: 'PositionComposer', Scene: Placeholder, ready: false },
     ],
   },
