@@ -1,4 +1,4 @@
-name: Deploy Example + Docs to GitHub Pages
+name: Deploy Examples + Docs to GitHub Pages
 
 on:
   push:
@@ -32,18 +32,11 @@ jobs:
       - uses: actions/configure-pages@v5
         id: pages
 
-      # example/ and vanilla-example/ read GitHub Pages' own base path from their `vite.config.ts` (hardcoded
-      # to /klipp/example/ and /klipp/example/vanilla/) - only the docs build needs it injected at build time,
-      # since it's shared, reusable tooling with no knowledge of this repo's own layout.
-      - run: pnpm --filter example run build
-
-      - run: pnpm --filter vanilla-example run build
+      - run: pnpm --filter examples run build
 
       - run: |
           mkdir -p site
-          cp -r example/dist site/example
-          mkdir -p site/example/vanilla
-          cp -r vanilla-example/dist/. site/example/vanilla/
+          cp -r examples/dist site/examples
 
       - run: >
           npx -y @pmndrs/docs@4 build docs site/docs --format website

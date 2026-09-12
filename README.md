@@ -41,7 +41,7 @@ Mount a second `<VirtualCamera>` with a higher `priority` and Klipp blends into 
 
 The [full documentation](https://kvvasuu.github.io/klipp/docs/) covers every `Body`/`Aim`/`Noise`/`Extension`, `CameraControls`, blending, debugging, and how to write your own custom pieces.
 
-A live [example testbed](https://kvvasuu.github.io/klipp/example/) covers every combination shipped so far - the same code lives in [`example/`](example).
+A live [examples site](https://kvvasuu.github.io/klipp/examples/) covers every piece of the API - the same code lives in [`examples/`](examples).
 
 ## Support
 
