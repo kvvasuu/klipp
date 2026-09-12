@@ -11,8 +11,8 @@ const flightHeight = 3;
 const flightSpeed = 0.4;
 const verticalAmplitude = 1.5;
 const verticalFrequency = 0.9;
-const bankGain = 0.2;
-const maxBankAngle = 0.6;
+const bankGain = 0.45;
+const maxBankAngle = 0.8;
 const headingEpsilon = 0.05;
 
 const worldUp = new Vector3(0, 1, 0);
@@ -80,18 +80,18 @@ function Airplane({ groupRef }: { groupRef: RefObject<Group | null> }) {
 }
 
 /** The plane flies a figure-eight with an independent vertical bob, always oriented to face its actual
- *  direction of travel plus a bank into turns. `Body` never touches rotation - the camera's own view
- *  stays level regardless of `bindingMode` (that's `Aim.HardLookAt`'s doing). What `bindingMode` changes
- *  is only where the camera SITS: `worldSpace` never rotates the offset, `lockToTarget` swings it with
- *  the plane's full roll+pitch+yaw, `lockToTargetWithWorldUp`/`lockToTargetNoRoll` filter out roll (and
- *  pitch, for the former), and `lockToTargetOnAssign` freezes whatever direction was captured at mount -
- *  watch the spectator inset, not the main view, to see the difference. */
+ *  direction of travel plus a bank into turns. `Body` never touches rotation - `Aim.HardLookAt` pans/tilts
+ *  the camera every frame to keep the plane centered, never rolling with it regardless of `bindingMode`.
+ *  What `bindingMode` changes is only where the camera SITS: `worldSpace` never rotates the offset,
+ *  `lockToTarget` swings it with the plane's full roll+pitch+yaw, `lockToTargetWithWorldUp`/
+ *  `lockToTargetNoRoll` filter out roll (and pitch, for the former), `lockToTargetOnAssign` freezes
+ *  whatever was captured at mount - watch the spectator inset, not the main view, for the difference. */
 export function Follow() {
   const planeRef = useRef<Group>(null);
 
   const { offset, damping, bindingMode } = useControls('Follow', {
-    offset: { x: 0, y: 0, z: 5 },
-    damping: { value: 0.1, min: 0, max: 2, step: 0.05 },
+    offset: { x: 0, y: 0.5, z: 5 },
+    damping: { value: 0, min: 0, max: 2, step: 0.05 },
     bindingMode: { value: BindingModes.lockToTarget as BindingMode, options: Object.values(BindingModes) },
   });
 

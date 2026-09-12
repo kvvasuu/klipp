@@ -24,7 +24,7 @@ export const categories: ExampleCategory[] = [
         title: 'Follow',
         Scene: Follow,
         description:
-          "A constant offset from the target, rotated by `bindingMode` before being added to its position - Body never touches rotation, so the camera's own view stays level regardless of the mode. The plane banks and loops continuously; watch the spectator inset to see which parts of its rotation (yaw/pitch/roll) actually move the camera's position.",
+          'A plane flies a continuous figure-eight with a vertical bob, banking hard into every turn. The camera follows at a fixed offset controlled by `bindingMode`.',
         spectatorPosition: [0, 14, 18],
         spectatorTarget: [0, 3, 0],
         ready: true,
