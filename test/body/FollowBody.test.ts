@@ -150,6 +150,24 @@ describe('FollowBody', () => {
       expect(out.position.x).toBeGreaterThan(0);
       expect(out.position.x).toBeLessThan(10);
     });
+
+    it("with damping mid-catch-up, out.target derives from the DAMPED out.position (position minus the configured offset), not the raw target - a retarget must not distort the offset BlendHints.cylindricalPosition/sphericalPosition read (same class of bug already fixed for HardLockToTargetBody and RotationComposerAim's lookAtTarget)", () => {
+      const target = new Vector3(0, 0, 0);
+      const body = new FollowBody(target, new Vector3(0, 0, 10), 0.5);
+      const out = createCameraState();
+
+      body.update(out, 0.016); // consume the first-ever-update hard snap - out.position = (0, 0, 10)
+      target.set(20, 0, 0); // retarget - desiredPosition jumps to (20, 0, 10), out.position hasn't moved yet
+      body.update(out, 0.016); // now easing - out.position is partway, not at the new desired position yet
+
+      expect(out.position.x).toBeGreaterThan(0);
+      expect(out.position.x).toBeLessThan(20);
+
+      const offset = out.position.clone().sub(out.target);
+      expect(offset.x).toBeCloseTo(0, 10);
+      expect(offset.y).toBeCloseTo(0, 10);
+      expect(offset.z).toBeCloseTo(10, 10); // exactly the configured offset, never distorted by the lag
+    });
   });
 
   describe('justActivated', () => {
