@@ -1,5 +1,6 @@
 import { Placeholder } from '../scenes/Placeholder';
 import { HardLookAt } from '../scenes/aim/HardLookAt';
+import { RotateWithFollowTarget } from '../scenes/aim/RotateWithFollowTarget';
 import { Follow } from '../scenes/body/Follow';
 import { HardLockToTarget } from '../scenes/body/HardLockToTarget';
 import type { ExampleCategory } from './types';
@@ -46,7 +47,16 @@ export const categories: ExampleCategory[] = [
         spectatorTarget: [0, 2, 0],
         ready: true,
       },
-      { slug: 'rotate-with-follow-target', title: 'RotateWithFollowTarget', Scene: Placeholder, ready: false },
+      {
+        slug: 'rotate-with-follow-target',
+        title: 'RotateWithFollowTarget',
+        Scene: RotateWithFollowTarget,
+        description:
+          'A gondola spins and tilts on its own, like a Tilt-A-Whirl car, while the camera rides along and copies its rotation. Toggle `followPosition` off to see the camera stay put and just keep spinning in place.',
+        spectatorPosition: [0, 12, 16],
+        spectatorTarget: [0, 2, 0],
+        ready: true,
+      },
       { slug: 'rotation-composer', title: 'RotationComposer', Scene: Placeholder, ready: false },
     ],
   },
