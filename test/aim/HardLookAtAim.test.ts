@@ -1,4 +1,4 @@
-import { Object3D, PerspectiveCamera, Vector3 } from 'three';
+import { Matrix4, Object3D, PerspectiveCamera, Quaternion, Vector3 } from 'three';
 import { describe, expect, it } from 'vitest';
 import { createCameraState } from '../../src/CameraState';
 import { HardLookAtAim } from '../../src/aim/HardLookAtAim';
@@ -129,5 +129,27 @@ describe('HardLookAtAim', () => {
 
     expect(() => aim.update(out, 0.1)).not.toThrow();
     expectQuaternionsClose(out.quaternion, { x: 0, y: 0, z: 0, w: 1 });
+  });
+
+  it("uses out.referenceUp instead of a fixed world up - e.g. Follow's bindingMode can hand it roll", () => {
+    const target = new Object3D();
+    target.position.set(5, -1, 0);
+    const aim = new HardLookAtAim(target);
+
+    const tiltedUp = new Vector3(1, 1, 0).normalize();
+    const out = createCameraState();
+    out.position.set(1, 2, 3);
+    out.referenceUp.copy(tiltedUp);
+    aim.update(out, 0.1);
+
+    const expected = new Quaternion().setFromRotationMatrix(
+      new Matrix4().lookAt(new Vector3(1, 2, 3), new Vector3(5, -1, 0), tiltedUp),
+    );
+    expectQuaternionsClose(out.quaternion, expected);
+
+    const reference = new PerspectiveCamera(); // default world-up lookAt, for contrast
+    reference.position.set(1, 2, 3);
+    reference.lookAt(5, -1, 0);
+    expect(out.quaternion.equals(reference.quaternion)).toBe(false);
   });
 });

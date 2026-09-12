@@ -20,8 +20,9 @@ A plain object, not a class - a camera's full visual state at one instant, and t
 | `hasTarget`        | `boolean`   | |
 | `lookAtTarget`      | `Vector3`   | The Aim's look-at target world position, distinct from `target` (equal to `position` itself for `HardLockToTarget`, for example). |
 | `hasLookAtTarget`  | `boolean`   | |
+| `referenceUp`      | `Vector3`   | Up reference for whichever Aim builds a `lookAt`-style rotation. Defaults to world up. A Body can write it to hand roll/tilt to an Aim that reads it - see [`Follow`'s bindingMode](/body/follow#roll-and-referenceup) - without either one crossing into the other's concern. |
 
-`position`/`quaternion`/`target`/`lookAtTarget` are each owned by the `CameraState` (never shared refs), so one can be frozen as an independent blend start point without another writer's later mutation leaking into it.
+`position`/`quaternion`/`target`/`lookAtTarget`/`referenceUp` are each owned by the `CameraState` (never shared refs), so one can be frozen as an independent blend start point without another writer's later mutation leaking into it.
 
 ## Functions
 

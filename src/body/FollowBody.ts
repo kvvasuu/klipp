@@ -53,6 +53,7 @@ export class FollowBody {
     this.damper.update(out.position, this.desiredPosition, this.damping, dt);
     out.target.copy(this.targetPosition);
     out.hasTarget = true;
+    out.referenceUp.set(0, 1, 0).applyQuaternion(scratchRotation);
   };
 
   private resolveOffsetRotation(out: Quaternion): void {

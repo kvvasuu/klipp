@@ -26,6 +26,7 @@ function makeState(overrides: Partial<CameraState> = {}): CameraState {
     hasTarget: false,
     lookAtTarget: new Vector3(0, 0, 0),
     hasLookAtTarget: false,
+    referenceUp: new Vector3(0, 1, 0),
     ...overrides,
   };
 }
@@ -87,6 +88,18 @@ describe('lerpCameraState', () => {
     lerpCameraState(out, a, b, 0.5);
     expect(out.viewOffset[0]).toBeCloseTo(50, 10);
     expect(out.viewOffset[1]).toBeCloseTo(-20, 10);
+  });
+
+  it('interpolates referenceUp and re-normalizes it', () => {
+    const tiltedA = makeState({ referenceUp: new Vector3(0, 1, 0) });
+    const tiltedB = makeState({ referenceUp: new Vector3(1, 0, 0) });
+    const out = createCameraState();
+
+    lerpCameraState(out, tiltedA, tiltedB, 0.5);
+
+    expect(out.referenceUp.length()).toBeCloseTo(1, 10);
+    expect(out.referenceUp.x).toBeGreaterThan(0);
+    expect(out.referenceUp.y).toBeGreaterThan(0);
   });
 
   it('clamps t outside [0, 1]', () => {
