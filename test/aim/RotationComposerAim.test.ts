@@ -1,4 +1,4 @@
-import { BoxGeometry, Euler, Mesh, MeshBasicMaterial, Object3D, PerspectiveCamera, Quaternion, Vector3 } from 'three';
+import { BoxGeometry, Euler, Matrix4, Mesh, MeshBasicMaterial, Object3D, PerspectiveCamera, Quaternion, Vector3 } from 'three';
 import { describe, expect, it } from 'vitest';
 import { createCameraState } from '../../src/CameraState';
 import { RotationComposerAim } from '../../src/aim/RotationComposerAim';
@@ -26,6 +26,20 @@ describe('RotationComposerAim', () => {
     const projected = projectToScreen(out, 1, target);
     expect(projected.x).toBeCloseTo(0, 9);
     expect(projected.y).toBeCloseTo(0, 9);
+  });
+
+  it("uses out.referenceUp instead of a fixed world up when centering the target - e.g. Follow's bindingMode can hand it roll", () => {
+    const target = new Vector3(5, 2, -30);
+    const aim = new RotationComposerAim(target);
+    const out = createCameraState();
+    out.position.set(1, 1, 0);
+    const tiltedUp = new Vector3(1, 1, 0).normalize();
+    out.referenceUp.copy(tiltedUp);
+
+    aim.update(out, 0.1);
+
+    const expected = new Quaternion().setFromRotationMatrix(new Matrix4().lookAt(out.position, target, tiltedUp));
+    expect(out.quaternion.angleTo(expected)).toBeLessThan(1e-9);
   });
 
   it("writes the resolved target's world position and hasLookAtTarget onto out, for the blend's always-on lookAt rotation - the raw target, unaffected by screenPosition/deadZone offsets", () => {

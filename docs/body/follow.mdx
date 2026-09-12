@@ -36,6 +36,10 @@ Position = `target`'s world position + a fixed `offset`, optionally rotated alon
 
 `lockToTargetWithWorldUp` and `lockToTargetNoRoll` both rebuild the rotation through a `lookAt`-style matrix rather than stripping roll out of an Euler decomposition afterward - roll is excluded by construction, so there's no gimbal-lock edge case to worry about.
 
+## Roll and `referenceUp`
+
+`Follow` never touches rotation - `Body` only ever computes position. So how does `bindingMode` end up affecting whether the camera visibly rolls? Through `CameraState.referenceUp`: `Follow` writes it, and an Aim reads it instead of a fixed world up when building its own rotation.
+
 ## `ref`
 
 ```tsx

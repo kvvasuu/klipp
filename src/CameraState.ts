@@ -22,6 +22,9 @@ export type CameraState = {
    *  tracking point, e.g. equal to `position` itself for `HardLockToTarget`). */
   lookAtTarget: Vector3;
   hasLookAtTarget: boolean;
+  /** Up reference for whichever Aim builds a lookAt-style rotation - lets a Body hand roll/tilt to an Aim that reads it,
+   *  without either one crossing into the other's concern. Defaults to world up. */
+  referenceUp: Vector3;
 };
 
 /** Allocates a new `CameraState` with default values — call once, not per frame. */
@@ -37,6 +40,7 @@ export function createCameraState(): CameraState {
     hasTarget: false,
     lookAtTarget: new Vector3(),
     hasLookAtTarget: false,
+    referenceUp: new Vector3(0, 1, 0),
   };
 }
 
@@ -54,6 +58,7 @@ export function copyCameraState(out: CameraState, source: CameraState): CameraSt
   out.hasTarget = source.hasTarget;
   out.lookAtTarget.copy(source.lookAtTarget);
   out.hasLookAtTarget = source.hasLookAtTarget;
+  out.referenceUp.copy(source.referenceUp);
   return out;
 }
 
@@ -73,6 +78,7 @@ export function mergeCameraState(out: CameraState, partial: Partial<CameraState>
   if (partial.hasTarget !== undefined) out.hasTarget = partial.hasTarget;
   if (partial.lookAtTarget) out.lookAtTarget.copy(partial.lookAtTarget);
   if (partial.hasLookAtTarget !== undefined) out.hasLookAtTarget = partial.hasLookAtTarget;
+  if (partial.referenceUp) out.referenceUp.copy(partial.referenceUp);
   return out;
 }
 
@@ -90,6 +96,7 @@ export function copyCameraStateFromCamera(out: CameraState, camera: PerspectiveC
   out.viewOffset[1] = camera.view?.enabled ? camera.view.offsetY / (camera.view.fullHeight / 2) : 0;
   out.hasTarget = false;
   out.hasLookAtTarget = false;
+  out.referenceUp.set(0, 1, 0);
   return out;
 }
 

@@ -2,8 +2,6 @@ import { Matrix4, Vector3 } from 'three';
 import type { CameraState } from '../CameraState';
 import { resolveTargetPosition, type Target } from '../resolve/Target';
 
-const worldUp = new Vector3(0, 1, 0);
-
 /**
  * Rotates so the Look At Target is dead-center, zero dead/soft zone. Uses `out.position` as the eye —
  * Body already ran this frame (`<VirtualCamera>` runs Body before Aim), so this looks from wherever the
@@ -24,7 +22,7 @@ export class HardLookAtAim {
 
   update = (out: CameraState): void => {
     if (!resolveTargetPosition(this.scratchTargetPosition, this.target)) return;
-    this.scratchMatrix.lookAt(out.position, this.scratchTargetPosition, worldUp);
+    this.scratchMatrix.lookAt(out.position, this.scratchTargetPosition, out.referenceUp);
     out.quaternion.setFromRotationMatrix(this.scratchMatrix);
     out.lookAtTarget.copy(this.scratchTargetPosition);
     out.hasLookAtTarget = true;
