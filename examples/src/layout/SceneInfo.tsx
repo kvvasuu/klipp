@@ -4,7 +4,7 @@ import { useState } from 'react';
  *  competes with the scene itself for attention. Rendered by `SceneRoute` as a plain DOM overlay
  *  alongside the Canvas, not from inside the scene/r3f tree. */
 export function SceneInfo({ title, description }: { title: string; description: string }) {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(!window.matchMedia('(max-width: 45rem)').matches);
 
   return (
     <div className="scene-info">

@@ -1,4 +1,5 @@
 import { Placeholder } from '../scenes/Placeholder';
+import { HardLookAt } from '../scenes/aim/HardLookAt';
 import { HardLockToTarget } from '../scenes/body/HardLockToTarget';
 import type { ExampleCategory } from './types';
 
@@ -25,7 +26,16 @@ export const categories: ExampleCategory[] = [
     slug: 'aim',
     title: 'Aim',
     examples: [
-      { slug: 'hard-look-at', title: 'HardLookAt', Scene: Placeholder, ready: false },
+      {
+        slug: 'hard-look-at',
+        title: 'HardLookAt',
+        Scene: HardLookAt,
+        description:
+          'The simplest Aim: the camera rotates so the target is dead-center, every frame, with zero damping. The camera never moves.\nSwitch "activeTarget" to see the re-aim snap instantly.',
+        spectatorPosition: [0, 4, 15],
+        spectatorTarget: [0, 2, 0],
+        ready: true,
+      },
       { slug: 'rotate-with-follow-target', title: 'RotateWithFollowTarget', Scene: Placeholder, ready: false },
       { slug: 'rotation-composer', title: 'RotationComposer', Scene: Placeholder, ready: false },
     ],

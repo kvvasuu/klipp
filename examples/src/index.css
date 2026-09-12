@@ -246,6 +246,7 @@ body {
 .scene-info-popover p {
   margin: 0;
   color: var(--text-dim);
+  white-space: pre-wrap;
 }
 
 .source-link {

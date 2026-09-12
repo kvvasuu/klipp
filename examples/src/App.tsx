@@ -5,13 +5,11 @@ import { Layout } from './layout/Layout';
 import { SceneRoute } from './layout/SceneRoute';
 import { Welcome } from './layout/Welcome';
 
-const mobileQuery = '(max-width: 45rem)';
-
 export function App() {
-  const [isMobile, setIsMobile] = useState(() => window.matchMedia(mobileQuery).matches);
+  const [isMobile, setIsMobile] = useState(() => window.matchMedia('(max-width: 45rem)').matches);
 
   useEffect(() => {
-    const mql = window.matchMedia(mobileQuery);
+    const mql = window.matchMedia('(max-width: 45rem)');
     const onChange = () => setIsMobile(mql.matches);
     mql.addEventListener('change', onChange);
     return () => mql.removeEventListener('change', onChange);
