@@ -3,6 +3,7 @@ import { HardLookAt } from '../scenes/aim/HardLookAt';
 import { RotateWithFollowTarget } from '../scenes/aim/RotateWithFollowTarget';
 import { Follow } from '../scenes/body/Follow';
 import { HardLockToTarget } from '../scenes/body/HardLockToTarget';
+import { BasicMultiChannelPerlin } from '../scenes/noise/BasicMultiChannelPerlin';
 import type { ExampleCategory } from './types';
 
 /** Every scene not built yet points at `Placeholder` - see TODO-examples.md for the full plan this
@@ -64,7 +65,16 @@ export const categories: ExampleCategory[] = [
     slug: 'noise',
     title: 'Noise',
     examples: [
-      { slug: 'basic-multi-channel-perlin', title: 'BasicMultiChannelPerlin', Scene: Placeholder, ready: false },
+      {
+        slug: 'basic-multi-channel-perlin',
+        title: 'BasicMultiChannelPerlin',
+        Scene: BasicMultiChannelPerlin,
+        description:
+          'Drag to orbit and scroll to dolly around the subject (via `CameraControls`) while continuous Perlin noise shakes the camera on top.',
+        spectatorPosition: [4, 5, 12],
+        spectatorTarget: [0, 2, 4],
+        ready: true,
+      },
       { slug: 'impulse', title: 'Impulse', Scene: Placeholder, ready: false },
     ],
   },
