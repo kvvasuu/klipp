@@ -1,4 +1,5 @@
 import { Placeholder } from '../scenes/Placeholder';
+import { HardLockToTarget } from '../scenes/body/HardLockToTarget';
 import type { ExampleCategory } from './types';
 
 /** Every scene not built yet points at `Placeholder` - see TODO-examples.md for the full plan this
@@ -8,7 +9,14 @@ export const categories: ExampleCategory[] = [
     slug: 'body',
     title: 'Body',
     examples: [
-      { slug: 'hard-lock-to-target', title: 'HardLockToTarget', Scene: Placeholder, ready: false },
+      {
+        slug: 'hard-lock-to-target',
+        title: 'HardLockToTarget',
+        Scene: HardLockToTarget,
+        description:
+          "The simplest Body: the camera's position becomes exactly the target's position, no offset, no framing. Watch the spectator inset - the frustum trails behind the orbiting anchor by exactly `damping` seconds.",
+        ready: true,
+      },
       { slug: 'follow', title: 'Follow', Scene: Placeholder, ready: false },
       { slug: 'position-composer', title: 'PositionComposer', Scene: Placeholder, ready: false },
     ],
@@ -80,10 +88,20 @@ export const categories: ExampleCategory[] = [
     slug: 'tutorials',
     title: 'Tutorials',
     examples: [
-      { slug: 'third-person-from-scratch', title: 'Third-person camera from scratch', Scene: Placeholder, ready: false },
+      {
+        slug: 'third-person-from-scratch',
+        title: 'Third-person camera from scratch',
+        Scene: Placeholder,
+        ready: false,
+      },
       { slug: 'gameplay-cutscene-handoff', title: 'Gameplay <-> cutscene handoff', Scene: Placeholder, ready: false },
       { slug: 'camera-shake-on-hit', title: 'Camera shake on hit', Scene: Placeholder, ready: false },
-      { slug: 'custom-extension-parallax', title: 'Custom Extension: pointer parallax', Scene: Placeholder, ready: false },
+      {
+        slug: 'custom-extension-parallax',
+        title: 'Custom Extension: pointer parallax',
+        Scene: Placeholder,
+        ready: false,
+      },
       { slug: 'ui-reacting-to-events', title: 'UI reacting to camera events', Scene: Placeholder, ready: false },
       { slug: 'debugging-dead-zones', title: 'Debugging dead zones live', Scene: Placeholder, ready: false },
     ],

@@ -8,6 +8,7 @@ const readyCategories = categories
 
 export function Sidebar() {
   const [query, setQuery] = useState('');
+  const [isOpen, setIsOpen] = useState(false);
 
   const filtered = useMemo(() => {
     const needle = query.trim().toLowerCase();
@@ -23,11 +24,21 @@ export function Sidebar() {
   }, [query]);
 
   return (
-    <nav className="sidebar">
+    <nav className={`sidebar${isOpen ? ' menu-open' : ''}`}>
       <div className="sidebar-header">
         <a href="#/" className="sidebar-logo">
           Klipp - examples
         </a>
+        <button
+          type="button"
+          className="sidebar-menu-toggle"
+          aria-label="Toggle examples menu"
+          aria-expanded={isOpen}
+          onClick={() => setIsOpen((open) => !open)}>
+          <span />
+          <span />
+          <span />
+        </button>
         <a href="https://kvvasuu.github.io/klipp/docs/" target="_blank" rel="noreferrer" className="sidebar-docs-link">
           Documentation ↗
         </a>
@@ -48,7 +59,8 @@ export function Sidebar() {
                 <li key={example.slug}>
                   <NavLink
                     to={`/${category.slug}/${example.slug}`}
-                    className={({ isActive }) => (isActive ? 'active' : undefined)}>
+                    className={({ isActive }) => (isActive ? 'active' : undefined)}
+                    onClick={() => setIsOpen(false)}>
                     {example.title}
                   </NavLink>
                 </li>

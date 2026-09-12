@@ -5,6 +5,9 @@ export type ExampleEntry = {
   slug: string;
   title: string;
   Scene: ComponentType;
+  /** Shown behind the scene-info button in `SceneRoute` - omitted entirely (button included) while a
+   *  scene has no writeup yet. */
+  description?: string;
   /** Required, not defaulted - forces flipping this the moment a real Scene replaces Placeholder.
    *  false hides the entry from the sidebar entirely. */
   ready: boolean;
