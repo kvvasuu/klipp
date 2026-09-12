@@ -1,7 +1,6 @@
 packages:
   - '.'
-  - 'example'
-  - 'vanilla-example'
+  - 'examples'
 allowBuilds:
   esbuild: false
 minimumReleaseAgeExclude:

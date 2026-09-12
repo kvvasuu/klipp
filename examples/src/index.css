@@ -1,0 +1,189 @@
+:root {
+  color-scheme: dark;
+  --accent: hsl(200 85% 55%);
+  /* everything below shares --accent's hue (via CSS relative colors) so re-theming only ever means
+     changing the line above */
+  --bg: hsl(from var(--accent) h 35% 6%);
+  --panel: hsl(from var(--accent) h 28% 10%);
+  --border: hsl(from var(--accent) h 24% 18%);
+  --text: hsl(from var(--accent) h 20% 93%);
+  --text-dim: hsl(from var(--accent) h 10% 62%);
+}
+
+@font-face {
+  font-family: 'Righteous';
+  font-style: normal;
+  font-weight: 400;
+  src: url('./assets/Righteous.ttf') format('truetype');
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family:
+    system-ui,
+    -apple-system,
+    'Segoe UI',
+    sans-serif;
+}
+
+.app {
+  display: flex;
+  height: 100%;
+}
+
+.sidebar {
+  width: 280px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--panel);
+  border-right: 1px solid var(--border);
+  overflow: hidden;
+}
+
+.sidebar-header {
+  padding: 16px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.sidebar-logo {
+  display: block;
+  font-weight: 600;
+  font-size: 15px;
+  color: var(--text);
+  text-decoration: none;
+  margin-bottom: 6px;
+}
+
+.sidebar-docs-link {
+  display: inline-block;
+  font-size: 12px;
+  color: var(--accent);
+  text-decoration: none;
+  margin-bottom: 12px;
+}
+
+.sidebar-docs-link:hover {
+  text-decoration: underline;
+}
+
+.sidebar-search {
+  width: 100%;
+  padding: 8px 10px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  font-size: 13px;
+}
+
+.sidebar-search:focus {
+  outline: 1px solid var(--accent);
+}
+
+.sidebar-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px 0 24px;
+}
+
+.sidebar-category h2 {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-dim);
+  padding: 14px 16px 6px;
+  margin: 0;
+}
+
+.sidebar-category ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.sidebar-category a {
+  display: block;
+  padding: 6px 16px;
+  font-size: 13.5px;
+  color: var(--text);
+  text-decoration: none;
+  border-left: 2px solid transparent;
+}
+
+.sidebar-category a:hover {
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+}
+
+.sidebar-category a.active {
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+  border-left-color: var(--accent);
+  color: #fff;
+}
+
+.sidebar-empty {
+  padding: 12px 16px;
+  color: var(--text-dim);
+  font-size: 13px;
+}
+
+.viewer {
+  flex: 1;
+  position: relative;
+  min-width: 0;
+}
+
+.viewer canvas {
+  display: block;
+}
+
+.source-link {
+  position: absolute;
+  right: 20px;
+  bottom: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  color: var(--text);
+  text-decoration: none;
+}
+
+.source-link:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.welcome,
+.scene-missing {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  color: var(--text-dim);
+  padding: 0 24px;
+}
+
+.welcome h1 {
+  color: var(--text);
+  margin: 0 0 8px;
+}
