@@ -129,8 +129,8 @@ importers:
   .:
     dependencies:
       math:
-        specifier: 1.0.0-canary-5e895055-20260907
-        version: 1.0.0-canary-5e895055-20260907
+        specifier: ^0.1.0
+        version: 0.1.0
     devDependencies:
       '@pmndrs/labs':
         specifier: ^0.9.0
@@ -1661,8 +1661,8 @@ packages:
   magic-string@0.30.21:
     resolution: {integrity: sha512-vd2F4YUyEXKGcLHoq+TEyCjxueSeHnFxyyjNp80yg0XV4vUhnDer/lvvlqM/arB5bXQN5K2/3oinyCRyx8T2CQ==}
 
-  math@1.0.0-canary-5e895055-20260907:
-    resolution: {integrity: sha512-+Ry7UH0dj/f+Eb4Uh/ViREz7w6+Q1SDQTmtL4fWTISHjJbsX87xsiO8g39ui0Oab/2pid8zTV2D80pR7vQ9Ntw==}
+  math@0.1.0:
+    resolution: {integrity: sha512-hq5KkLblFiR8OO8ZYqPK02mBqrXuxJ6hwvhL3ZM9OFkAR82/20n4H768SWl4yVVrufh8VijEm42D4V9N8hDa2g==}
 
   mdn-data@2.27.1:
     resolution: {integrity: sha512-9Yubnt3e8A0OKwxYSXyhLymGW4sCufcLG6VdiDdUGVkPhpqLxlvP5vl1983gQjJl3tqbrM731mjaZaP68AgosQ==}
@@ -3206,7 +3206,7 @@ snapshots:
     dependencies:
       '@jridgewell/sourcemap-codec': 1.5.5
 
-  math@1.0.0-canary-5e895055-20260907: {}
+  math@0.1.0: {}
 
   mdn-data@2.27.1: {}
 

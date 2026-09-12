@@ -7,6 +7,7 @@ import { BlendHints } from '../../src/blend/BlendHints';
 import { createCameraState } from '../../src/CameraState';
 import { KlippCore } from '../../src/KlippCore';
 import { CameraControlsBody } from '../../src/body/CameraControlsBody';
+import { FollowBody } from '../../src/body/FollowBody';
 import { HardLockToTargetBody } from '../../src/body/HardLockToTargetBody';
 
 describe('CameraControlsBody', () => {
@@ -376,11 +377,10 @@ describe('CameraControlsBody', () => {
       const core = new KlippCore({ defaultBlend: { curve: BlendCurves.linear, time: 1 } });
 
       const aState = createCameraState();
-      // damping + a moved target gives a's offset a real, non-zero orbit radius (not a degenerate snap)
-      const aBody = new HardLockToTargetBody(new Vector3(10, 0, 0), 0.5);
-      aBody.update(aState, 0.016, true);
-      aBody.target = new Vector3(20, 5, 0);
-      aBody.update(aState, 0.016, false);
+      // Follow's offset is a real, persistent, non-zero orbit radius - unlike HardLockToTargetBody's,
+      // which is always zero by definition (out.target mirrors out.position exactly, damping or not)
+      const aBody = new FollowBody(new Vector3(0, 0, 0), new Vector3(10, 0, 0));
+      aBody.update(aState, 0.016);
       new HardLookAtAim(new Vector3(0, 0, 0)).update(aState, 0.016);
       core.registerCamera({ id: 'a', priority: 10, state: aState, hints: BlendHints.sphericalPosition });
       core.tick(0);

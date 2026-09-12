@@ -8,6 +8,7 @@ import { BindingModes, type BindingMode } from './BindingModes';
 const worldUp = new Vector3(0, 1, 0);
 const scratchOrigin = new Vector3();
 const scratchRotation = new Quaternion();
+const scratchRotatedOffset = new Vector3();
 const scratchForward = new Vector3();
 const scratchLookMatrix = new Matrix4();
 
@@ -47,12 +48,14 @@ export class FollowBody {
     if (!resolveTargetPosition(this.targetPosition, this.target)) return;
 
     this.resolveOffsetRotation(scratchRotation);
-    this.desiredPosition.copy(this.offset).applyQuaternion(scratchRotation).add(this.targetPosition);
+    scratchRotatedOffset.copy(this.offset).applyQuaternion(scratchRotation);
+    this.desiredPosition.copy(scratchRotatedOffset).add(this.targetPosition);
 
     if (justActivated) this.damper.reset();
     this.damper.update(out.position, this.desiredPosition, this.damping, dt);
-    out.target.copy(this.targetPosition);
+    out.target.copy(out.position).sub(scratchRotatedOffset);
     out.hasTarget = true;
+    out.referenceUp.set(0, 1, 0).applyQuaternion(scratchRotation);
   };
 
   private resolveOffsetRotation(out: Quaternion): void {

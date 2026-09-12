@@ -11,7 +11,6 @@ const scratchOffsetB = new Vector3();
 const scratchSphericalA = new Spherical();
 const scratchSphericalB = new Spherical();
 const scratchLookMatrix = new Matrix4();
-const worldUp = new Vector3(0, 1, 0);
 const scratchLookAtCurrent = new Quaternion();
 const scratchDeltaA = new Quaternion();
 const scratchDeltaB = new Quaternion();
@@ -29,14 +28,15 @@ function lerpLookAtRotation(
   b: CameraState,
   position: Vector3,
   lookAtTarget: Vector3,
+  referenceUp: Vector3,
   t: number,
 ): void {
-  scratchLookMatrix.lookAt(a.position, a.lookAtTarget, worldUp);
+  scratchLookMatrix.lookAt(a.position, a.lookAtTarget, a.referenceUp);
   scratchDeltaA.setFromRotationMatrix(scratchLookMatrix).invert().multiply(a.quaternion);
-  scratchLookMatrix.lookAt(b.position, b.lookAtTarget, worldUp);
+  scratchLookMatrix.lookAt(b.position, b.lookAtTarget, b.referenceUp);
   scratchDeltaB.setFromRotationMatrix(scratchLookMatrix).invert().multiply(b.quaternion);
 
-  scratchLookMatrix.lookAt(position, lookAtTarget, worldUp);
+  scratchLookMatrix.lookAt(position, lookAtTarget, referenceUp);
   scratchLookAtCurrent.setFromRotationMatrix(scratchLookMatrix);
   out.slerpQuaternions(scratchDeltaA, scratchDeltaB, t).premultiply(scratchLookAtCurrent);
 }
@@ -164,9 +164,10 @@ export function lerpCameraState(
   out.hasTarget = hasTarget;
   if (hasLookAtTarget) out.lookAtTarget.lerpVectors(a.lookAtTarget, b.lookAtTarget, clamped);
   out.hasLookAtTarget = hasLookAtTarget;
+  out.referenceUp.lerpVectors(a.referenceUp, b.referenceUp, clamped).normalize();
 
   if (useLookAtRotation) {
-    lerpLookAtRotation(out.quaternion, a, b, out.position, out.lookAtTarget, clamped);
+    lerpLookAtRotation(out.quaternion, a, b, out.position, out.lookAtTarget, out.referenceUp, clamped);
   } else {
     const bQuaternion =
       out.quaternion.dot(b.quaternion) < 0

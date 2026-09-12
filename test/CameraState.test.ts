@@ -22,6 +22,7 @@ describe('copyCameraState', () => {
       hasTarget: true,
       lookAtTarget: new Vector3(7, 8, 9),
       hasLookAtTarget: true,
+      referenceUp: new Vector3(0.1, 0.9, 0.2).normalize(),
     };
     const out = createCameraState();
     const outPosition = out.position;
@@ -42,6 +43,7 @@ describe('copyCameraState', () => {
     expect(out.hasTarget).toBe(true);
     expect(out.lookAtTarget.equals(source.lookAtTarget)).toBe(true);
     expect(out.hasLookAtTarget).toBe(true);
+    expect(out.referenceUp.equals(source.referenceUp)).toBe(true);
   });
 
   it('stays unchanged after the source is mutated — the actual "freeze" guarantee', () => {
@@ -56,6 +58,7 @@ describe('copyCameraState', () => {
       hasTarget: true,
       lookAtTarget: new Vector3(7, 8, 9),
       hasLookAtTarget: true,
+      referenceUp: new Vector3(0, 1, 0),
     };
     const out = createCameraState();
     copyCameraState(out, source);
@@ -91,6 +94,14 @@ describe('mergeCameraState', () => {
     expect(out.position.equals(new Vector3(5, 20, 5))).toBe(true);
     expect(out.fov).toBe(90);
     expect(out.near).toBe(0.1); // untouched
+  });
+
+  it('overwrites referenceUp when present in "partial"', () => {
+    const out = createCameraState();
+
+    mergeCameraState(out, { referenceUp: new Vector3(1, 0, 0) });
+
+    expect(out.referenceUp.equals(new Vector3(1, 0, 0))).toBe(true);
   });
 
   it('.copy()s Vector3/Quaternion fields instead of aliasing the caller\'s own instance', () => {
@@ -179,6 +190,16 @@ describe('copyCameraStateFromCamera', () => {
     copyCameraStateFromCamera(out, camera);
 
     expect(out.viewOffset).toEqual([0, 0]);
+  });
+
+  it('resets referenceUp to world up - a real camera has no opinion on it', () => {
+    const camera = new PerspectiveCamera(60, 1, 0.5, 500);
+    const out = createCameraState();
+    out.referenceUp.set(1, 0, 0);
+
+    copyCameraStateFromCamera(out, camera);
+
+    expect(out.referenceUp.equals(new Vector3(0, 1, 0))).toBe(true);
   });
 
   it('the snapshot is independent of the camera going on to move — freezable mid-blend', () => {

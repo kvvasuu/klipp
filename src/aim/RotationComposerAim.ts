@@ -7,7 +7,6 @@ import { Predictor } from '../damping/Predictor';
 import { QuaternionDamper } from '../damping/QuaternionDamper';
 import { resolveTargetHalfExtents, resolveTargetPosition, resolveTargetRotation, type Target } from '../resolve/Target';
 
-const worldUp = new Vector3(0, 1, 0);
 const forwardAxis = new Vector3(0, 0, -1);
 const scratchTargetPosition = new Vector3();
 const scratchTargetRotation = new Quaternion();
@@ -55,12 +54,13 @@ function composeQuaternionForScreenPoint(
   out: Quaternion,
   cameraPosition: Vector3,
   targetPosition: Vector3,
+  referenceUp: Vector3,
   desiredX: number,
   desiredY: number,
   tanHalfFovH: number,
   tanHalfFovV: number,
 ): void {
-  scratchLookMatrix.lookAt(cameraPosition, targetPosition, worldUp);
+  scratchLookMatrix.lookAt(cameraPosition, targetPosition, referenceUp);
   out.setFromRotationMatrix(scratchLookMatrix);
 
   if (desiredX !== 0 || desiredY !== 0) {
@@ -187,7 +187,7 @@ export class RotationComposerAim {
       this.lookAtDirectionDamper.reset();
       this.lookAtDistanceDamper.reset();
     }
-    scratchLookMatrix.lookAt(out.position, scratchTargetPosition, worldUp);
+    scratchLookMatrix.lookAt(out.position, scratchTargetPosition, out.referenceUp);
     scratchTargetQuaternion.setFromRotationMatrix(scratchLookMatrix);
     this.lookAtDirectionDamper.update(this.publishedLookRotation, scratchTargetQuaternion, this.damping, dt);
     const targetDistance = out.position.distanceTo(scratchTargetPosition);
@@ -267,6 +267,7 @@ export class RotationComposerAim {
         scratchTargetQuaternion,
         out.position,
         scratchTargetPosition,
+        out.referenceUp,
         desiredX,
         desiredY,
         tanHalfFovH,
@@ -318,6 +319,7 @@ export class RotationComposerAim {
       scratchHardLimitQuaternion,
       out.position,
       scratchTargetPosition,
+      out.referenceUp,
       clampedX,
       clampedY,
       tanHalfFovH,

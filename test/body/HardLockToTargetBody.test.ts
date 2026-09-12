@@ -30,6 +30,19 @@ describe('HardLockToTargetBody', () => {
     expect(out.target.equals(new Vector3(2, 3, 4))).toBe(true);
   });
 
+  it("with damping mid-catch-up, out.target tracks the DAMPED out.position, not the raw resolved target - real bug: publishing the raw target let BlendHints.cylindricalPosition/sphericalPosition read the damping lag as a legitimate orbit offset, popping the blend the instant the target moved (same class of bug already fixed for RotationComposerAim's lookAtTarget)", () => {
+    const body = new HardLockToTargetBody(new Vector3(10, 0, 0), 0.5);
+    const out = createCameraState();
+
+    body.update(out, 0.016); // consume the first-ever-update hard snap
+    out.position.set(0, 0, 0); // move back away from target to genuinely exercise damping below
+    body.update(out, 0.016); // now easing - out.position is partway, not at the target yet
+
+    expect(out.position.x).toBeGreaterThan(0);
+    expect(out.position.x).toBeLessThan(10);
+    expect(out.target.equals(out.position)).toBe(true);
+  });
+
   it('target is a mutable field — reassigning it changes what gets tracked, no re-registration needed', () => {
     const a = new Object3D();
     a.position.set(1, 0, 0);

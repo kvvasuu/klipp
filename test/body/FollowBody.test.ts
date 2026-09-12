@@ -150,6 +150,24 @@ describe('FollowBody', () => {
       expect(out.position.x).toBeGreaterThan(0);
       expect(out.position.x).toBeLessThan(10);
     });
+
+    it("with damping mid-catch-up, out.target derives from the DAMPED out.position (position minus the configured offset), not the raw target - a retarget must not distort the offset BlendHints.cylindricalPosition/sphericalPosition read (same class of bug already fixed for HardLockToTargetBody and RotationComposerAim's lookAtTarget)", () => {
+      const target = new Vector3(0, 0, 0);
+      const body = new FollowBody(target, new Vector3(0, 0, 10), 0.5);
+      const out = createCameraState();
+
+      body.update(out, 0.016); // consume the first-ever-update hard snap - out.position = (0, 0, 10)
+      target.set(20, 0, 0); // retarget - desiredPosition jumps to (20, 0, 10), out.position hasn't moved yet
+      body.update(out, 0.016); // now easing - out.position is partway, not at the new desired position yet
+
+      expect(out.position.x).toBeGreaterThan(0);
+      expect(out.position.x).toBeLessThan(20);
+
+      const offset = out.position.clone().sub(out.target);
+      expect(offset.x).toBeCloseTo(0, 10);
+      expect(offset.y).toBeCloseTo(0, 10);
+      expect(offset.z).toBeCloseTo(10, 10); // exactly the configured offset, never distorted by the lag
+    });
   });
 
   describe('justActivated', () => {
@@ -287,6 +305,84 @@ describe('FollowBody', () => {
         // targetB's identity rotation is what got re-locked: offset lands unrotated, translated to targetB
         expect(out.position.x).toBeCloseTo(5, 5);
         expect(out.position.z).toBeCloseTo(10, 5);
+      });
+    });
+
+    describe('referenceUp', () => {
+      it('lockToTarget: rotates fully with the target, roll included - the whole point being that a paired Aim reading referenceUp (e.g. HardLookAt) can show that roll instead of silently leveling it', () => {
+        const target = new Object3D();
+        target.rotateY(0.4);
+        target.rotateX(0.3);
+        target.rotateZ(1.1); // roll
+
+        const body = new FollowBody(target, new Vector3(0, 1, 8)); // default: lockToTarget
+        const out = createCameraState();
+        body.update(out, 0.1);
+
+        const expected = new Vector3(0, 1, 0).applyQuaternion(target.quaternion);
+        expect(out.referenceUp.x).toBeCloseTo(expected.x, 10);
+        expect(out.referenceUp.y).toBeCloseTo(expected.y, 10);
+        expect(out.referenceUp.z).toBeCloseTo(expected.z, 10);
+      });
+
+      it('worldSpace: stays world up regardless of the target rotation', () => {
+        const target = new Object3D();
+        target.rotateY(0.4);
+        target.rotateX(0.3);
+        target.rotateZ(1.1);
+
+        const body = new FollowBody(target, new Vector3(0, 1, 8), 0, BindingModes.worldSpace);
+        const out = createCameraState();
+        body.update(out, 0.1);
+
+        expect(out.referenceUp.equals(new Vector3(0, 1, 0))).toBe(true);
+      });
+
+      it('lockToTargetNoRoll: adding roll afterward has ZERO effect, same as it has none on position', () => {
+        const target = new Object3D();
+        target.rotateY(0.4);
+        target.rotateX(0.5);
+
+        const body = new FollowBody(target, new Vector3(0, 1, 8), 0, BindingModes.lockToTargetNoRoll);
+        const out = createCameraState();
+        body.update(out, 0.1);
+        const beforeRoll = out.referenceUp.clone();
+
+        target.rotateZ(1.2);
+        body.update(out, 0.1);
+
+        expect(out.referenceUp.x).toBeCloseTo(beforeRoll.x, 10);
+        expect(out.referenceUp.y).toBeCloseTo(beforeRoll.y, 10);
+        expect(out.referenceUp.z).toBeCloseTo(beforeRoll.z, 10);
+      });
+
+      it('lockToTargetWithWorldUp: stays exactly world up regardless of yaw, since yaw rotates around the up axis itself', () => {
+        const target = new Object3D();
+        target.rotateY(1.7);
+
+        const body = new FollowBody(target, new Vector3(0, 1, 8), 0, BindingModes.lockToTargetWithWorldUp);
+        const out = createCameraState();
+        body.update(out, 0.1);
+
+        expect(out.referenceUp.equals(new Vector3(0, 1, 0))).toBe(true);
+      });
+
+      it('lockToTargetOnAssign: freezes at whatever rotation was captured, ignoring further target rotation', () => {
+        const target = new Object3D();
+        target.rotateY(0.4);
+        target.rotateZ(0.8);
+
+        const body = new FollowBody(target, new Vector3(0, 1, 8), 0, BindingModes.lockToTargetOnAssign);
+        const out = createCameraState();
+        body.update(out, 0.1);
+        const afterAssign = out.referenceUp.clone();
+
+        target.rotation.set(0, 0, 0);
+        body.update(out, 0.1);
+
+        expect(out.referenceUp.x).toBeCloseTo(afterAssign.x, 10);
+        expect(out.referenceUp.y).toBeCloseTo(afterAssign.y, 10);
+        expect(out.referenceUp.z).toBeCloseTo(afterAssign.z, 10);
       });
     });
 
