@@ -3,6 +3,7 @@ import { HardLookAt } from '../scenes/aim/HardLookAt';
 import { RotateWithFollowTarget } from '../scenes/aim/RotateWithFollowTarget';
 import { Follow } from '../scenes/body/Follow';
 import { HardLockToTarget } from '../scenes/body/HardLockToTarget';
+import { Lens } from '../scenes/extension/Lens';
 import { BasicMultiChannelPerlin } from '../scenes/noise/BasicMultiChannelPerlin';
 import type { ExampleCategory } from './types';
 
@@ -83,7 +84,16 @@ export const categories: ExampleCategory[] = [
     title: 'Extension',
     examples: [
       { slug: 'group-framing', title: 'GroupFraming', Scene: Placeholder, ready: false },
-      { slug: 'lens', title: 'Lens', Scene: Placeholder, ready: false },
+      {
+        slug: 'lens',
+        title: 'Lens',
+        Scene: Lens,
+        description:
+          'A fixed camera looks down a ring tunnel, with a sphere sitting close in front of it. Fov/near/far are all live in the panel: push `near` in to clip the sphere, pull `far` back to clip the far rings, and swing `fov` to stretch or compress the tunnel.',
+        spectatorPosition: [4, 5, 10],
+        spectatorTarget: [0, 1.5, -10],
+        ready: true,
+      },
     ],
   },
   {
