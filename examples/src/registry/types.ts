@@ -15,6 +15,9 @@ export type ExampleEntry = {
   /** Required, not defaulted - forces flipping this the moment a real Scene replaces Placeholder.
    *  false hides the entry from the sidebar entirely. */
   ready: boolean;
+  /** Consecutive entries sharing this value render as one visually connected sub-list in the sidebar,
+   *  instead of separate top-level items - for one component split across several focused scenes. */
+  group?: string;
 };
 
 export type ExampleCategory = {

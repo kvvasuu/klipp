@@ -1,9 +1,35 @@
 import { Klipp, Noise, VirtualCamera } from '@kvvasuu/klipp/react';
 import { CameraControls } from '@kvvasuu/klipp/react/camera-controls';
 import { folder, useControls } from 'leva';
+import { GroundClutter, type GroundBox } from '../../scene/GroundClutter';
 import { SpectatorFrustum } from '../../scene/SpectatorFrustum';
 
 const subjectPosition: [number, number, number] = [0, 2, 0];
+
+const groundBoxes: GroundBox[] = [
+  { x: 2, z: 2, width: 0.7, height: 0.12, depth: 0.7 },
+  { x: -3, z: 4, width: 0.6, height: 0.15, depth: 0.8 },
+  { x: 5, z: -3, width: 0.8, height: 0.1, depth: 0.6, color: '#9a9aa8' },
+  { x: -6, z: -2, width: 0.7, height: 0.12, depth: 0.7 },
+  { x: 0, z: -6, width: 0.6, height: 0.1, depth: 0.9 },
+  { x: 4, z: 5, width: 0.8, height: 0.15, depth: 0.6, color: '#9a9aa8' },
+  { x: -5, z: 4, width: 0.7, height: 0.1, depth: 0.7 },
+  { x: 7, z: 2, width: 0.6, height: 0.13, depth: 0.8 },
+  { x: -2, z: -6, width: 0.8, height: 0.1, depth: 0.6, color: '#9a9aa8' },
+  { x: 3, z: -6, width: 0.7, height: 0.12, depth: 0.7 },
+  { x: 10, z: 2, width: 0.6, height: 1.8, depth: 0.6 },
+  { x: 7, z: 8, width: 0.5, height: 2.4, depth: 0.5, color: '#9a9aa8' },
+  { x: 2, z: 11, width: 0.7, height: 3, depth: 0.7 },
+  { x: -4, z: 10.5, width: 0.6, height: 2, depth: 0.6, color: '#c7c7cf' },
+  { x: -9, z: 6, width: 0.8, height: 2.8, depth: 0.8 },
+  { x: -11, z: -1, width: 0.5, height: 1.6, depth: 0.5, color: '#9a9aa8' },
+  { x: -8, z: -7, width: 0.6, height: 3.2, depth: 0.6 },
+  { x: -3, z: -11, width: 0.7, height: 2.2, depth: 0.7, color: '#c7c7cf' },
+  { x: 3, z: -11, width: 0.5, height: 2.6, depth: 0.5 },
+  { x: 9, z: -6, width: 0.6, height: 1.9, depth: 0.6, color: '#9a9aa8' },
+  { x: 12, z: -2, width: 0.7, height: 3, depth: 0.7 },
+  { x: -12, z: 3, width: 0.5, height: 2.1, depth: 0.5, color: '#c7c7cf' },
+];
 
 /** `CameraControls` drives the camera's base position/rotation (drag to orbit, scroll to dolly around the
  *  subject), and `Noise.BasicMultiChannelPerlin` shakes on top of whatever that base state is. Every
@@ -39,6 +65,8 @@ export function BasicMultiChannelPerlin() {
         <icosahedronGeometry args={[0.8, 0]} />
         <meshStandardMaterial color="#ff6b4a" />
       </mesh>
+
+      <GroundClutter boxes={groundBoxes} />
 
       <Klipp>
         <VirtualCamera name="basic-multi-channel-perlin-demo" priority={10}>
