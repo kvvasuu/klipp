@@ -72,6 +72,26 @@ describe('GroupFramingExtension', () => {
     expect(withPadding.position.z).toBeGreaterThan(noPadding.position.z);
   });
 
+  it('an off-axis sphere member needs the exact per-axis distance, not an isotropic offset.length() (real bug: a member offset mostly along the WIDER axis was penalized as if it could be along the narrower one)', () => {
+    // symmetric about the origin, so groupCenter's AABB midpoint is (0,0,0) and each member's offset is
+    // purely lateral (right axis), zero up/forward - the exact case the old isotropic formula got wrong
+    const group = new TargetGroup([
+      { target: new Vector3(-5, 0, 0), radius: 1 },
+      { target: new Vector3(5, 0, 0), radius: 1 },
+    ]);
+    const extension = new GroupFramingExtension(group, 0, 1000, 100); // wide viewport: vertical stays tight
+    const out = createCameraState();
+    out.fov = 90;
+
+    extension.update(out, 0.1);
+
+    // exact: horizontal = (radius + 5*cos(hHalf)) / sin(hHalf), with hHalf = atan(tan(45°) * 10)
+    expect(out.position.z).toBeCloseTo(1.5049875621120896, 10);
+    // the old isotropic formula (offset.length() + radius = 6, divided by sin of the tighter axis) gave
+    // ~8.49 here - almost 6x farther back than needed for a member that isn't along that axis at all
+    expect(out.position.z).toBeLessThan(2);
+  });
+
   describe('ceiling behavior (does not override Body/Aim unless the padded group would not fit)', () => {
     it('leaves out.position untouched in DISTANCE when Body already placed the camera farther than required', () => {
       const group = new TargetGroup([{ target: new Vector3(0, 0, 0), radius: 1 }]);
@@ -115,6 +135,115 @@ describe('GroupFramingExtension', () => {
       out.position.set(0, 0, 25);
       extension.update(out, 0.1);
       expect(out.position.z).toBeCloseTo(25, 10);
+    });
+  });
+
+  describe("fitMode: 'rigid' (always sits exactly at the fit distance, unlike the default 'ceiling')", () => {
+    it('dollies IN when Body placed the camera farther than the fit requires (ceiling would leave it untouched)', () => {
+      const group = new TargetGroup([{ target: new Vector3(0, 0, 0), radius: 1 }]);
+      const extension = new GroupFramingExtension(group, 0, 100, 100, 0, [0, 0], 'rigid');
+      const out = createCameraState();
+      out.fov = 90;
+      out.quaternion.identity();
+      out.position.set(0, 0, 50); // Body placed the camera way farther than the fit requires
+
+      extension.update(out, 0.1);
+
+      const expectedDistance = 1 / Math.sin(Math.PI / 4);
+      expect(out.position.z).toBeCloseTo(expectedDistance, 10);
+    });
+
+    it('tracks a shrinking group back in, instead of staying at whatever distance it last reached', () => {
+      const group = new TargetGroup([{ target: new Vector3(0, 0, 0), radius: 10 }]);
+      const extension = new GroupFramingExtension(group, 0, 100, 100, 0, [0, 0], 'rigid');
+      const out = createCameraState();
+      out.fov = 90;
+      out.quaternion.identity();
+
+      extension.update(out, 0.1);
+      const farDistance = out.position.z;
+
+      group.members[0].radius = 1; // group shrinks
+      extension.update(out, 0.1);
+
+      const nearDistance = 1 / Math.sin(Math.PI / 4);
+      expect(out.position.z).toBeCloseTo(nearDistance, 10);
+      expect(out.position.z).toBeLessThan(farDistance);
+    });
+  });
+
+  describe('minDistance/maxDistance', () => {
+    it('maxDistance clamps the fit distance in rigid mode', () => {
+      const group = new TargetGroup([{ target: new Vector3(0, 0, 0), radius: 100 }]);
+      const extension = new GroupFramingExtension(group, 0, 100, 100, 0, [0, 0], 'rigid', 0, 5);
+      const out = createCameraState();
+      out.fov = 90;
+      out.quaternion.identity();
+
+      extension.update(out, 0.1);
+
+      expect(out.position.z).toBeCloseTo(5, 10);
+    });
+
+    it('minDistance forces a floor on the fit distance, even for a tiny group', () => {
+      const group = new TargetGroup([{ target: new Vector3(0, 0, 0), radius: 0.01 }]);
+      const extension = new GroupFramingExtension(group, 0, 100, 100, 0, [0, 0], 'rigid', 10);
+      const out = createCameraState();
+      out.fov = 90;
+      out.quaternion.identity();
+
+      extension.update(out, 0.1);
+
+      expect(out.position.z).toBeCloseTo(10, 10);
+    });
+
+    it("maxDistance clamps only this extension's own fit, not Body/Aim's placement in 'ceiling' mode", () => {
+      const group = new TargetGroup([{ target: new Vector3(0, 0, 0), radius: 1 }]);
+      const extension = new GroupFramingExtension(group, 0, 100, 100, 0, [0, 0], 'ceiling', 0, 5);
+      const out = createCameraState();
+      out.fov = 90;
+      out.quaternion.identity();
+      out.position.set(0, 0, 50); // Body placed the camera much farther than maxDistance
+
+      extension.update(out, 0.1);
+
+      expect(out.position.z).toBeCloseTo(50, 10);
+    });
+  });
+
+  describe('framingMode', () => {
+    it("'horizontal' ignores an offset that's purely vertical", () => {
+      const group = new TargetGroup([
+        { target: new Vector3(0, -1000, 0), radius: 1 },
+        { target: new Vector3(0, 1000, 0), radius: 1 },
+      ]);
+      const extension = new GroupFramingExtension(group, 0, 100, 100, 0, [0, 0], 'ceiling', 0, Infinity, 'horizontal');
+      const out = createCameraState();
+      out.fov = 90;
+      out.quaternion.identity();
+      out.position.set(0, 0, 0.5);
+
+      extension.update(out, 0.1);
+
+      const expectedDistance = 1 / Math.sin(Math.PI / 4);
+      expect(out.position.z).toBeCloseTo(expectedDistance, 10);
+    });
+
+    it("'vertical' ignores an offset that's purely horizontal", () => {
+      const group = new TargetGroup([
+        { target: new Vector3(-1000, 0, 0), radius: 1 },
+        { target: new Vector3(1000, 0, 0), radius: 1 },
+      ]);
+      const extension = new GroupFramingExtension(group, 0, 100, 100, 0, [0, 0], 'ceiling', 0, Infinity, 'vertical');
+      const out = createCameraState();
+      out.fov = 90;
+      out.quaternion.identity();
+      out.position.set(0, 0, 0.5);
+
+      extension.update(out, 0.1);
+
+      const expectedDistance = 1 / Math.sin(Math.PI / 4);
+      expect(out.position.z).toBeCloseTo(expectedDistance, 10);
     });
   });
 

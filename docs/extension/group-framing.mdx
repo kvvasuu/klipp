@@ -1,10 +1,10 @@
 ---
 title: GroupFraming
-description: Keeps a weighted group of targets in frame as a distance ceiling.
+description: Keeps a weighted group of targets in frame by dollying the camera.
 nav: 41
 ---
 
-Dollies the camera back along its own current view axis just far enough to keep every member of `members` (plus `padding`) inside the frame - a **ceiling** on distance, not a rigid fit. It never moves the camera *closer* than Body/Aim already placed it, and never touches rotation or FOV - it needs an Aim that's already looking at the group.
+Dollies the camera back along its own current view axis just far enough to keep every member of `members` (plus `padding`) inside the frame. `fitMode` decides whether it can also dolly *closer*: `'ceiling'` (default) never moves the camera closer than Body/Aim already placed it, `'rigid'` always sits exactly at the fit distance. Never touches rotation or FOV either way - it needs an Aim that's already looking at the group.
 
 ```tsx
 <VirtualCamera name="follow-cam" priority={10}>
@@ -23,6 +23,10 @@ Dollies the camera back along its own current view axis just far enough to keep 
 | `padding`       | `number`                 | `0`            | Margin kept clear around the group's members, in world units. |
 | `damping`       | `DampingConstant`        | `0`            | Seconds to catch up to the distance ceiling (and `screenPosition`) as they change. `0` = hard, instant. |
 | `screenPosition` | `[number, number]`      | `[0, 0]`       | Shifts the frustum without moving/rotating the camera - e.g. to keep the group visually centered in the space left over after reserving room for UI on one side. Same convention as `PositionComposer`'s `screenPosition`, not pixels. |
+| `fitMode`       | `'ceiling' \| 'rigid'`   | `'ceiling'`    | `ceiling` - only dollies back, never closer than Body/Aim already placed the camera. `rigid` - always sits exactly at the fit distance, dollying in as the group shrinks too. |
+| `minDistance`   | `number`                 | `0`            | Clamps the fit distance this extension computes - not Body/Aim's own placement in `ceiling` mode. |
+| `maxDistance`   | `number`                 | `Infinity`     | Same clamp, upper bound. |
+| `framingMode`   | `'horizontal' \| 'vertical' \| 'horizontalAndVertical'` | `'horizontalAndVertical'` | Which screen dimension(s) the fit distance has to satisfy - the excluded axis's spread is ignored entirely. |
 | `debug`         | `boolean`                | `false`        | Draws `padding` as a bordered, inset box - see [Debug Zones](/debugging/debug-zones). |
 
 ### `TargetGroupMember`
@@ -36,7 +40,7 @@ Dollies the camera back along its own current view axis just far enough to keep 
 
 ## Sphere vs. box members
 
-A member with `radius` (or a dimensionless point, `radius: 0`) uses the exact tangent formula for how far back a sphere needs to be to fit in frame. A member with `size` checks all 8 corners of its rotated box against the camera's current axes and takes the worst case - a corner's own depth affects how close it can get, so height/width and depth aren't independent, and rotation matters.
+Both use the exact frustum-plane distance against the camera's current up/right/forward, checked separately per axis - an offset mostly along one axis isn't penalized as if it could be along the other. A member with `size` additionally checks all 8 corners of its rotated box - a corner's own depth affects how close it can get, so height/width and depth aren't independent, and rotation matters.
 
 ## `ref`
 

@@ -5,12 +5,17 @@ import { Vector3 } from 'three';
 import { DebugZoneOverlay, type DebugZone } from '../DebugZoneOverlay';
 import type { DampingConstant } from '../damping/Damper';
 import { useVirtualCameraSlots, useVirtualCameraState } from '../VirtualCamera';
-import { GroupFramingExtension } from './GroupFramingExtension';
+import { GroupFramingExtension, type GroupFramingFitMode, type GroupFramingMode } from './GroupFramingExtension';
 import { TargetGroup, type TargetGroupMember, type TargetGroupPositionMode } from './TargetGroup';
 
 const scratchGroupPosition = new Vector3();
 /** Below this change, a re-render isn't worth it - the box would visually look identical anyway. */
 const DEBUG_BOX_EPSILON = 0.002;
+
+// matches GroupFramingExtension's own per-axis plane distance (sin), not a flat point's (tan)
+function paddingBoxEdgeFraction(halfFov: number, distance: number, padding: number): number {
+  return clamp(1 - padding / (distance * Math.sin(halfFov)), 0, 1);
+}
 
 export type GroupFramingProps = {
   /** Targets to keep framed, each with its own Weight/Radius/Size — see `TargetGroupMember`. */
@@ -26,6 +31,14 @@ export type GroupFramingProps = {
    *  centered in the space left over after reserving room for UI on one side. Same convention as
    *  `PositionComposer`'s `screenPosition` (0 = center, ±1 = frame edge), not pixels. Default `[0, 0]`. */
   screenPosition?: [number, number];
+  /** See `GroupFramingFitMode`. Default `'ceiling'`. */
+  fitMode?: GroupFramingFitMode;
+  /** Clamps the fit distance this extension computes - not Body/Aim's own placement in `'ceiling'` mode.
+   *  Defaults `0`/`Infinity` (no clamp). */
+  minDistance?: number;
+  maxDistance?: number;
+  /** See `GroupFramingMode`. Default `'horizontalAndVertical'`. */
+  framingMode?: GroupFramingMode;
   /** Draws `padding` as a bordered box inset from the frame edges - only while this `VirtualCamera` is on
    *  screen. Unlike `deadZone`/`hardLimit`'s fixed fraction, `padding` is a world-unit margin, so its
    *  on-screen size is re-measured every frame. Default `false`. */
@@ -47,6 +60,10 @@ export function GroupFraming({
   padding = 0,
   damping = 0,
   screenPosition = [0, 0],
+  fitMode = 'ceiling',
+  minDistance = 0,
+  maxDistance = Infinity,
+  framingMode = 'horizontalAndVertical',
   debug = false,
   ref,
 }: GroupFramingProps) {
@@ -54,7 +71,19 @@ export function GroupFraming({
   const size = useThree((state) => state.size);
   const [group] = useState(() => new TargetGroup(members, positionMode));
   const [extension] = useState(
-    () => new GroupFramingExtension(group, padding, size.width, size.height, damping, screenPosition),
+    () =>
+      new GroupFramingExtension(
+        group,
+        padding,
+        size.width,
+        size.height,
+        damping,
+        screenPosition,
+        fitMode,
+        minDistance,
+        maxDistance,
+        framingMode,
+      ),
   );
 
   group.members = members;
@@ -64,6 +93,10 @@ export function GroupFraming({
   extension.viewportHeight = size.height;
   extension.damping = damping;
   extension.screenPosition = screenPosition;
+  extension.fitMode = fitMode;
+  extension.minDistance = minDistance;
+  extension.maxDistance = maxDistance;
+  extension.framingMode = framingMode;
 
   useImperativeHandle(ref, () => extension, [extension]);
   useEffect(() => slots.registerExtension(extension.update), [slots, extension]);
@@ -79,13 +112,12 @@ export function GroupFraming({
       return;
     }
     const distance = cameraState.position.distanceTo(scratchGroupPosition);
-    const halfHeight = distance * Math.tan(degreesToRadians(cameraState.fov) / 2);
-    const halfWidth = halfHeight * (size.width / size.height);
-    // fraction convention matches deadZone/hardLimit's ([2, 2] = full frame) - clamped so a padding
-    // bigger than the frame itself doesn't invert the box
+    const verticalHalfFov = degreesToRadians(cameraState.fov) / 2;
+    const horizontalHalfFov = Math.atan(Math.tan(verticalHalfFov) * (size.width / size.height));
+    // an excluded axis has no padding boundary to show - full frame, not a fabricated constraint
     const next: [number, number] = [
-      clamp(1 - padding / halfWidth, 0, 1) * 2,
-      clamp(1 - padding / halfHeight, 0, 1) * 2,
+      framingMode === 'vertical' ? 2 : paddingBoxEdgeFraction(horizontalHalfFov, distance, padding) * 2,
+      framingMode === 'horizontal' ? 2 : paddingBoxEdgeFraction(verticalHalfFov, distance, padding) * 2,
     ];
     setPaddingBox((previous) =>
       previous && Math.abs(previous[0] - next[0]) < DEBUG_BOX_EPSILON && Math.abs(previous[1] - next[1]) < DEBUG_BOX_EPSILON
