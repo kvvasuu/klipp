@@ -52,5 +52,5 @@ export { ImpulseManager, impulseManager, type GenerateImpulseOptions } from './i
 export { ImpulseListenerNoise } from './impulse/ImpulseListenerNoise';
 
 export { TargetGroup, type TargetGroupMember, type TargetGroupPositionMode } from './extension/TargetGroup';
-export { GroupFramingExtension } from './extension/GroupFramingExtension';
+export { GroupFramingExtension, type GroupFramingFitMode } from './extension/GroupFramingExtension';
 export { LensExtension } from './extension/LensExtension';

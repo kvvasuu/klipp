@@ -20,15 +20,18 @@ const scratchAxisY = new Vector3();
 const scratchAxisZ = new Vector3();
 const CORNER_SIGNS = [-1, 1] as const;
 
+/** `'ceiling'` - only dollies back, never closer than Body/Aim already placed the camera. `'rigid'` -
+ *  always sits exactly at the fit distance, dollying in as the group shrinks too. */
+export type GroupFramingFitMode = 'ceiling' | 'rigid';
+
 /**
- * Camera extension: a CEILING on distance, not a rigid fit - dollies `out.position` back along the
- * camera's current view axis just far enough to keep `group`'s members (plus `padding`, world units)
- * inside the frame, never closer than Body/Aim already placed it. Both spheres (`radius`) and boxes
- * (`size`) get the exact per-axis frustum-plane distance against the camera's current up/right/forward,
- * not an isotropic bound - an offset mostly along one axis isn't penalized as if it could be along the
- * other. Boxes additionally check all 8 corners, since a corner's own depth affects how close it can get.
- * Never touches `out.quaternion`/`out.fov`, so it needs Aim already looking at `group`. `screenPosition`
- * shifts `out.viewOffset` separately.
+ * Camera extension: dollies `out.position` back along the camera's current view axis just far enough to
+ * keep `group`'s members (plus `padding`, world units) inside the frame - `fitMode` decides whether it can
+ * also dolly closer. Both spheres (`radius`) and boxes (`size`) get the exact per-axis frustum-plane
+ * distance against the camera's current up/right/forward, not an isotropic bound - an offset mostly along
+ * one axis isn't penalized as if it could be along the other. Boxes additionally check all 8 corners,
+ * since a corner's own depth affects how close it can get. Never touches `out.quaternion`/`out.fov`, so it
+ * needs Aim already looking at `group`. `screenPosition` shifts `out.viewOffset` separately.
  */
 export class GroupFramingExtension {
   group: TargetGroup;
@@ -43,6 +46,8 @@ export class GroupFramingExtension {
   /** Shifts the frustum without moving/rotating the camera - same convention as `PositionComposer`'s
    *  `screenPosition` (0 = center, ±1 = frame edge). */
   screenPosition: [number, number];
+  /** See `GroupFramingFitMode`. Default `'ceiling'`. */
+  fitMode: GroupFramingFitMode;
 
   private readonly distanceDamper = new Damper();
   private currentDistance = 0;
@@ -58,6 +63,7 @@ export class GroupFramingExtension {
     viewportHeight = 1,
     damping: DampingConstant = 0,
     screenPosition: [number, number] = [0, 0],
+    fitMode: GroupFramingFitMode = 'ceiling',
   ) {
     this.group = group;
     this.padding = padding;
@@ -65,6 +71,7 @@ export class GroupFramingExtension {
     this.viewportHeight = viewportHeight;
     this.damping = damping;
     this.screenPosition = screenPosition;
+    this.fitMode = fitMode;
   }
 
   /** Forces every member's auto-detected `size` to be re-measured on the NEXT `update()` call, then goes
@@ -149,8 +156,10 @@ export class GroupFramingExtension {
       }
     }
 
-    const bodyDistance = out.position.distanceTo(scratchGroupPosition);
-    const distance = Math.max(bodyDistance, requiredDistance);
+    const distance =
+      this.fitMode === 'rigid'
+        ? requiredDistance
+        : Math.max(out.position.distanceTo(scratchGroupPosition), requiredDistance);
 
     const instant = typeof this.damping === 'number' && this.damping <= 0;
 

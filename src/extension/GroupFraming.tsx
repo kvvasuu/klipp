@@ -5,7 +5,7 @@ import { Vector3 } from 'three';
 import { DebugZoneOverlay, type DebugZone } from '../DebugZoneOverlay';
 import type { DampingConstant } from '../damping/Damper';
 import { useVirtualCameraSlots, useVirtualCameraState } from '../VirtualCamera';
-import { GroupFramingExtension } from './GroupFramingExtension';
+import { GroupFramingExtension, type GroupFramingFitMode } from './GroupFramingExtension';
 import { TargetGroup, type TargetGroupMember, type TargetGroupPositionMode } from './TargetGroup';
 
 const scratchGroupPosition = new Vector3();
@@ -31,6 +31,8 @@ export type GroupFramingProps = {
    *  centered in the space left over after reserving room for UI on one side. Same convention as
    *  `PositionComposer`'s `screenPosition` (0 = center, ±1 = frame edge), not pixels. Default `[0, 0]`. */
   screenPosition?: [number, number];
+  /** See `GroupFramingFitMode`. Default `'ceiling'`. */
+  fitMode?: GroupFramingFitMode;
   /** Draws `padding` as a bordered box inset from the frame edges - only while this `VirtualCamera` is on
    *  screen. Unlike `deadZone`/`hardLimit`'s fixed fraction, `padding` is a world-unit margin, so its
    *  on-screen size is re-measured every frame. Default `false`. */
@@ -52,6 +54,7 @@ export function GroupFraming({
   padding = 0,
   damping = 0,
   screenPosition = [0, 0],
+  fitMode = 'ceiling',
   debug = false,
   ref,
 }: GroupFramingProps) {
@@ -59,7 +62,7 @@ export function GroupFraming({
   const size = useThree((state) => state.size);
   const [group] = useState(() => new TargetGroup(members, positionMode));
   const [extension] = useState(
-    () => new GroupFramingExtension(group, padding, size.width, size.height, damping, screenPosition),
+    () => new GroupFramingExtension(group, padding, size.width, size.height, damping, screenPosition, fitMode),
   );
 
   group.members = members;
@@ -69,6 +72,7 @@ export function GroupFraming({
   extension.viewportHeight = size.height;
   extension.damping = damping;
   extension.screenPosition = screenPosition;
+  extension.fitMode = fitMode;
 
   useImperativeHandle(ref, () => extension, [extension]);
   useEffect(() => slots.registerExtension(extension.update), [slots, extension]);

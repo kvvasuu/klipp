@@ -138,6 +138,40 @@ describe('GroupFramingExtension', () => {
     });
   });
 
+  describe("fitMode: 'rigid' (always sits exactly at the fit distance, unlike the default 'ceiling')", () => {
+    it('dollies IN when Body placed the camera farther than the fit requires (ceiling would leave it untouched)', () => {
+      const group = new TargetGroup([{ target: new Vector3(0, 0, 0), radius: 1 }]);
+      const extension = new GroupFramingExtension(group, 0, 100, 100, 0, [0, 0], 'rigid');
+      const out = createCameraState();
+      out.fov = 90;
+      out.quaternion.identity();
+      out.position.set(0, 0, 50); // Body placed the camera way farther than the fit requires
+
+      extension.update(out, 0.1);
+
+      const expectedDistance = 1 / Math.sin(Math.PI / 4);
+      expect(out.position.z).toBeCloseTo(expectedDistance, 10);
+    });
+
+    it('tracks a shrinking group back in, instead of staying at whatever distance it last reached', () => {
+      const group = new TargetGroup([{ target: new Vector3(0, 0, 0), radius: 10 }]);
+      const extension = new GroupFramingExtension(group, 0, 100, 100, 0, [0, 0], 'rigid');
+      const out = createCameraState();
+      out.fov = 90;
+      out.quaternion.identity();
+
+      extension.update(out, 0.1);
+      const farDistance = out.position.z;
+
+      group.members[0].radius = 1; // group shrinks
+      extension.update(out, 0.1);
+
+      const nearDistance = 1 / Math.sin(Math.PI / 4);
+      expect(out.position.z).toBeCloseTo(nearDistance, 10);
+      expect(out.position.z).toBeLessThan(farDistance);
+    });
+  });
+
   describe('box members (size)', () => {
     it('fits a face-on box to its actual width/height, not the corner-to-corner sphere (real bug this fixes)', () => {
       const group = new TargetGroup([{ target: new Vector3(0, 0, 0), size: [2, 2, 2] }]);
