@@ -4,12 +4,34 @@ import { useFrame } from '@react-three/fiber';
 import { useControls } from 'leva';
 import { useRef, useState, type RefObject } from 'react';
 import { Group, Matrix4, Quaternion, Vector3 } from 'three';
+import { GroundClutter, type GroundBox } from '../../scene/GroundClutter';
 import { SpectatorFrustum } from '../../scene/SpectatorFrustum';
 
 const figureEightRadius = 6;
 const flightHeight = 3;
 const flightSpeed = 0.4;
 const verticalAmplitude = 1.5;
+// flightHeight - verticalAmplitude is the plane's lowest point; clutter under its figure-eight stays
+// well below that, so a roll/pitch never brings it into visible contact
+const groundBoxes: GroundBox[] = [
+  { x: -4, z: 0, width: 1, height: 0.6, depth: 1 },
+  { x: 0, z: 1.5, width: 1.4, height: 0.5, depth: 0.8, color: '#9a9aa8' },
+  { x: 4, z: -1, width: 0.8, height: 0.8, depth: 0.8 },
+  { x: -2, z: -2, width: 1.2, height: 0.4, depth: 1.2, color: '#9a9aa8' },
+  { x: 2, z: 2, width: 1, height: 0.7, depth: 1 },
+  { x: -9, z: 5, width: 1.5, height: 2.5, depth: 1.5, color: '#9a9aa8' },
+  { x: 9, z: -4, width: 1.2, height: 3, depth: 1.2 },
+  { x: -8, z: -6, width: 1.8, height: 2, depth: 1.8, color: '#c7c7cf' },
+  { x: 8, z: 6, width: 1.4, height: 2.8, depth: 1.4 },
+  { x: 0, z: -8, width: 2, height: 2.2, depth: 2, color: '#9a9aa8' },
+  { x: -6, z: 8, width: 1.3, height: 1.8, depth: 1.3 },
+  { x: 6, z: -8, width: 1.6, height: 2.4, depth: 1.6, color: '#c7c7cf' },
+  { x: -11, z: 0, width: 0.6, height: 2.2, depth: 0.6, color: '#9a9aa8' },
+  { x: 11, z: 2, width: 0.5, height: 2.8, depth: 0.5 },
+  { x: -10, z: -8, width: 0.6, height: 1.6, depth: 0.6, color: '#c7c7cf' },
+  { x: 10, z: 9, width: 0.5, height: 2.4, depth: 0.5 },
+  { x: 0, z: -10, width: 0.6, height: 2, depth: 0.6, color: '#9a9aa8' },
+];
 const verticalFrequency = 0.9;
 const bankGain = 0.45;
 const maxBankAngle = 0.8;
@@ -97,6 +119,7 @@ export function Follow() {
 
   return (
     <>
+      <GroundClutter boxes={groundBoxes} />
       <Airplane groupRef={planeRef} />
 
       <Klipp>

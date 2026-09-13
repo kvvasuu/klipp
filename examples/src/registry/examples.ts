@@ -3,6 +3,9 @@ import { HardLookAt } from '../scenes/aim/HardLookAt';
 import { RotateWithFollowTarget } from '../scenes/aim/RotateWithFollowTarget';
 import { Follow } from '../scenes/body/Follow';
 import { HardLockToTarget } from '../scenes/body/HardLockToTarget';
+import { PositionComposer } from '../scenes/body/PositionComposer';
+import { PositionComposerDolly } from '../scenes/body/PositionComposerDolly';
+import { PositionComposerLookahead } from '../scenes/body/PositionComposerLookahead';
 import { GroupFraming } from '../scenes/extension/GroupFraming';
 import { Lens } from '../scenes/extension/Lens';
 import { BasicMultiChannelPerlin } from '../scenes/noise/BasicMultiChannelPerlin';
@@ -33,7 +36,39 @@ export const categories: ExampleCategory[] = [
         spectatorTarget: [0, 3, 0],
         ready: true,
       },
-      { slug: 'position-composer', title: 'PositionComposer', Scene: Placeholder, ready: false },
+      {
+        slug: 'position-composer',
+        title: 'PositionComposer',
+        group: 'position-composer',
+        Scene: PositionComposer,
+        description:
+          "A unit wanders a ground plane below a straight-down camera, which shifts sideways to keep it inside `deadZone`, clamped at `hardLimit`.",
+        spectatorPosition: [16, 20, 16],
+        spectatorTarget: [0, 0, 0],
+        ready: true,
+      },
+      {
+        slug: 'position-composer-dolly',
+        title: 'PositionComposer: Dolly',
+        group: 'position-composer',
+        Scene: PositionComposerDolly,
+        description:
+          'A target drifts toward and away from a fixed-rotation camera, which dollies to hold `cameraDistance`, ignoring anything inside `depthDeadZone` (the rings).',
+        spectatorPosition: [12, 6, 14],
+        spectatorTarget: [0, 0, 0],
+        ready: true,
+      },
+      {
+        slug: 'position-composer-lookahead',
+        title: 'PositionComposer: Lookahead',
+        group: 'position-composer',
+        Scene: PositionComposerLookahead,
+        description:
+          'A ball loops at varying speed with a vertical bob, trailing off the center crosshair opposite its direction of travel thanks to `lookaheadTime` - drop it to 0 to pin the ball dead-center instead.',
+        spectatorPosition: [0, 16, 22],
+        spectatorTarget: [0, 1, 0],
+        ready: true,
+      },
     ],
   },
   {

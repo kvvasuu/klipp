@@ -1,10 +1,23 @@
 import { useMemo, useState } from 'react';
 import { NavLink } from 'react-router';
 import { categories } from '../registry';
+import type { ExampleEntry } from '../registry/types';
 
 const readyCategories = categories
   .map((category) => ({ ...category, examples: category.examples.filter((example) => example.ready) }))
   .filter((category) => category.examples.length > 0);
+
+/** Collapses consecutive same-`group` entries into one block, so the sidebar can render them as a
+ *  visually connected sub-list instead of separate top-level items. */
+function groupExamples(examples: ExampleEntry[]): ExampleEntry[][] {
+  const blocks: ExampleEntry[][] = [];
+  for (const example of examples) {
+    const last = blocks[blocks.length - 1];
+    if (example.group && last?.[0].group === example.group) last.push(example);
+    else blocks.push([example]);
+  }
+  return blocks;
+}
 
 export function Sidebar() {
   const [query, setQuery] = useState('');
@@ -55,16 +68,39 @@ export function Sidebar() {
           <section key={category.slug} className="sidebar-category">
             <h2>{category.title}</h2>
             <ul>
-              {category.examples.map((example) => (
-                <li key={example.slug}>
-                  <NavLink
-                    to={`/${category.slug}/${example.slug}`}
-                    className={({ isActive }) => (isActive ? 'active' : undefined)}
-                    onClick={() => setIsOpen(false)}>
-                    {example.title}
-                  </NavLink>
-                </li>
-              ))}
+              {groupExamples(category.examples).map((block) =>
+                block.length > 1 ? (
+                  <li key={block[0].group} className="example-group">
+                    <NavLink
+                      to={`/${category.slug}/${block[0].slug}`}
+                      className={({ isActive }) => (isActive ? 'active' : undefined)}
+                      onClick={() => setIsOpen(false)}>
+                      {block[0].title}
+                    </NavLink>
+                    <ul className="example-subgroup">
+                      {block.slice(1).map((example) => (
+                        <li key={example.slug}>
+                          <NavLink
+                            to={`/${category.slug}/${example.slug}`}
+                            className={({ isActive }) => (isActive ? 'active' : undefined)}
+                            onClick={() => setIsOpen(false)}>
+                            {example.title}
+                          </NavLink>
+                        </li>
+                      ))}
+                    </ul>
+                  </li>
+                ) : (
+                  <li key={block[0].slug}>
+                    <NavLink
+                      to={`/${category.slug}/${block[0].slug}`}
+                      className={({ isActive }) => (isActive ? 'active' : undefined)}
+                      onClick={() => setIsOpen(false)}>
+                      {block[0].title}
+                    </NavLink>
+                  </li>
+                ),
+              )}
             </ul>
           </section>
         ))}

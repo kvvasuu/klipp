@@ -156,6 +156,28 @@ body {
   color: #fff;
 }
 
+/* one component split across several focused scenes - the subgroup's left border brackets its variants
+   under the family's own link, so they read as one thing, not unrelated top-level entries */
+/* extra specificity to win over .sidebar-category ul's own margin: 0 */
+.sidebar-category .example-subgroup {
+  margin-left: 1.25rem;
+  border-left: 1px solid var(--border);
+}
+
+.example-subgroup a {
+  padding: 0.25rem 0.75rem;
+  font-size: 0.78125rem;
+  color: var(--text-dim);
+}
+
+.example-subgroup a:hover {
+  color: var(--text);
+}
+
+.example-subgroup a.active {
+  color: #fff;
+}
+
 .sidebar-empty {
   padding: 0.75rem 1rem;
   color: var(--text-dim);
