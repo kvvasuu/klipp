@@ -3,6 +3,7 @@ import { HardLookAt } from '../scenes/aim/HardLookAt';
 import { RotateWithFollowTarget } from '../scenes/aim/RotateWithFollowTarget';
 import { Follow } from '../scenes/body/Follow';
 import { HardLockToTarget } from '../scenes/body/HardLockToTarget';
+import { GroupFraming } from '../scenes/extension/GroupFraming';
 import { Lens } from '../scenes/extension/Lens';
 import { BasicMultiChannelPerlin } from '../scenes/noise/BasicMultiChannelPerlin';
 import type { ExampleCategory } from './types';
@@ -83,7 +84,16 @@ export const categories: ExampleCategory[] = [
     slug: 'extension',
     title: 'Extension',
     examples: [
-      { slug: 'group-framing', title: 'GroupFraming', Scene: Placeholder, ready: false },
+      {
+        slug: 'group-framing',
+        title: 'GroupFraming',
+        Scene: GroupFraming,
+        description:
+          'Four spheres orbit independently, sometimes clustering and sometimes spreading wide. The camera dollies to fit everyone plus `padding` - toggle `fitMode` between only backing away (`ceiling`) and always sitting exactly at the fit distance (`rigid`).',
+        spectatorPosition: [16, 12, 20],
+        spectatorTarget: [0, 0, 0],
+        ready: true,
+      },
       {
         slug: 'lens',
         title: 'Lens',
