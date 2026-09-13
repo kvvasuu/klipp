@@ -211,6 +211,42 @@ describe('GroupFramingExtension', () => {
     });
   });
 
+  describe('framingMode', () => {
+    it("'horizontal' ignores an offset that's purely vertical", () => {
+      const group = new TargetGroup([
+        { target: new Vector3(0, -1000, 0), radius: 1 },
+        { target: new Vector3(0, 1000, 0), radius: 1 },
+      ]);
+      const extension = new GroupFramingExtension(group, 0, 100, 100, 0, [0, 0], 'ceiling', 0, Infinity, 'horizontal');
+      const out = createCameraState();
+      out.fov = 90;
+      out.quaternion.identity();
+      out.position.set(0, 0, 0.5);
+
+      extension.update(out, 0.1);
+
+      const expectedDistance = 1 / Math.sin(Math.PI / 4);
+      expect(out.position.z).toBeCloseTo(expectedDistance, 10);
+    });
+
+    it("'vertical' ignores an offset that's purely horizontal", () => {
+      const group = new TargetGroup([
+        { target: new Vector3(-1000, 0, 0), radius: 1 },
+        { target: new Vector3(1000, 0, 0), radius: 1 },
+      ]);
+      const extension = new GroupFramingExtension(group, 0, 100, 100, 0, [0, 0], 'ceiling', 0, Infinity, 'vertical');
+      const out = createCameraState();
+      out.fov = 90;
+      out.quaternion.identity();
+      out.position.set(0, 0, 0.5);
+
+      extension.update(out, 0.1);
+
+      const expectedDistance = 1 / Math.sin(Math.PI / 4);
+      expect(out.position.z).toBeCloseTo(expectedDistance, 10);
+    });
+  });
+
   describe('box members (size)', () => {
     it('fits a face-on box to its actual width/height, not the corner-to-corner sphere (real bug this fixes)', () => {
       const group = new TargetGroup([{ target: new Vector3(0, 0, 0), size: [2, 2, 2] }]);

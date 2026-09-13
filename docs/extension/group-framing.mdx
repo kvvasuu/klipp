@@ -26,6 +26,7 @@ Dollies the camera back along its own current view axis just far enough to keep 
 | `fitMode`       | `'ceiling' \| 'rigid'`   | `'ceiling'`    | `ceiling` - only dollies back, never closer than Body/Aim already placed the camera. `rigid` - always sits exactly at the fit distance, dollying in as the group shrinks too. |
 | `minDistance`   | `number`                 | `0`            | Clamps the fit distance this extension computes - not Body/Aim's own placement in `ceiling` mode. |
 | `maxDistance`   | `number`                 | `Infinity`     | Same clamp, upper bound. |
+| `framingMode`   | `'horizontal' \| 'vertical' \| 'horizontalAndVertical'` | `'horizontalAndVertical'` | Which screen dimension(s) the fit distance has to satisfy - the excluded axis's spread is ignored entirely. |
 | `debug`         | `boolean`                | `false`        | Draws `padding` as a bordered, inset box - see [Debug Zones](/debugging/debug-zones). |
 
 ### `TargetGroupMember`

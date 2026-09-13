@@ -24,6 +24,9 @@ const CORNER_SIGNS = [-1, 1] as const;
  *  always sits exactly at the fit distance, dollying in as the group shrinks too. */
 export type GroupFramingFitMode = 'ceiling' | 'rigid';
 
+/** Which screen dimension(s) the fit distance has to satisfy. Default `'horizontalAndVertical'`. */
+export type GroupFramingMode = 'horizontal' | 'vertical' | 'horizontalAndVertical';
+
 /**
  * Camera extension: dollies `out.position` back along the camera's current view axis just far enough to
  * keep `group`'s members (plus `padding`, world units) inside the frame - `fitMode` decides whether it can
@@ -52,6 +55,8 @@ export class GroupFramingExtension {
    *  Defaults `0`/`Infinity` (no clamp). */
   minDistance: number;
   maxDistance: number;
+  /** See `GroupFramingMode`. Default `'horizontalAndVertical'`. */
+  framingMode: GroupFramingMode;
 
   private readonly distanceDamper = new Damper();
   private currentDistance = 0;
@@ -70,6 +75,7 @@ export class GroupFramingExtension {
     fitMode: GroupFramingFitMode = 'ceiling',
     minDistance = 0,
     maxDistance = Infinity,
+    framingMode: GroupFramingMode = 'horizontalAndVertical',
   ) {
     this.group = group;
     this.padding = padding;
@@ -80,6 +86,7 @@ export class GroupFramingExtension {
     this.fitMode = fitMode;
     this.minDistance = minDistance;
     this.maxDistance = maxDistance;
+    this.framingMode = framingMode;
   }
 
   /** Forces every member's auto-detected `size` to be re-measured on the NEXT `update()` call, then goes
@@ -106,6 +113,8 @@ export class GroupFramingExtension {
     scratchUp.set(0, 1, 0).applyQuaternion(out.quaternion);
     scratchForward.set(0, 0, -1).applyQuaternion(out.quaternion);
 
+    const includeVertical = this.framingMode !== 'horizontal';
+    const includeHorizontal = this.framingMode !== 'vertical';
     const padding = Math.max(0, this.padding);
     const tanVertical = Math.tan(verticalHalfFov);
     const tanHorizontal = Math.tan(horizontalHalfFov);
@@ -148,9 +157,15 @@ export class GroupFramingExtension {
               const cornerUp = offsetUp + sx * axisXUp + sy * axisYUp + sz * axisZUp;
               const cornerRight = offsetRight + sx * axisXRight + sy * axisYRight + sz * axisZRight;
               const cornerForward = offsetForward + sx * axisXForward + sy * axisYForward + sz * axisZForward;
-              const vertical = (Math.abs(cornerUp) + padding) / tanVertical - cornerForward;
-              const horizontal = (Math.abs(cornerRight) + padding) / tanHorizontal - cornerForward;
-              requiredDistance = Math.max(requiredDistance, vertical, horizontal);
+              if (includeVertical) {
+                requiredDistance = Math.max(requiredDistance, (Math.abs(cornerUp) + padding) / tanVertical - cornerForward);
+              }
+              if (includeHorizontal) {
+                requiredDistance = Math.max(
+                  requiredDistance,
+                  (Math.abs(cornerRight) + padding) / tanHorizontal - cornerForward,
+                );
+              }
             }
           }
         }
@@ -158,9 +173,14 @@ export class GroupFramingExtension {
         // exact per-axis sphere/frustum-plane distance, not an isotropic offset.length() - an offset
         // mostly along the WIDER axis shouldn't be penalized as if it could be along the narrower one.
         const effectiveRadius = (member.radius ?? 0) + padding;
-        const vertical = (effectiveRadius + Math.abs(offsetUp) * cosVertical) / sinVertical - offsetForward;
-        const horizontal = (effectiveRadius + Math.abs(offsetRight) * cosHorizontal) / sinHorizontal - offsetForward;
-        requiredDistance = Math.max(requiredDistance, vertical, horizontal);
+        if (includeVertical) {
+          const vertical = (effectiveRadius + Math.abs(offsetUp) * cosVertical) / sinVertical - offsetForward;
+          requiredDistance = Math.max(requiredDistance, vertical);
+        }
+        if (includeHorizontal) {
+          const horizontal = (effectiveRadius + Math.abs(offsetRight) * cosHorizontal) / sinHorizontal - offsetForward;
+          requiredDistance = Math.max(requiredDistance, horizontal);
+        }
       }
     }
 

@@ -5,7 +5,7 @@ import { Vector3 } from 'three';
 import { DebugZoneOverlay, type DebugZone } from '../DebugZoneOverlay';
 import type { DampingConstant } from '../damping/Damper';
 import { useVirtualCameraSlots, useVirtualCameraState } from '../VirtualCamera';
-import { GroupFramingExtension, type GroupFramingFitMode } from './GroupFramingExtension';
+import { GroupFramingExtension, type GroupFramingFitMode, type GroupFramingMode } from './GroupFramingExtension';
 import { TargetGroup, type TargetGroupMember, type TargetGroupPositionMode } from './TargetGroup';
 
 const scratchGroupPosition = new Vector3();
@@ -37,6 +37,8 @@ export type GroupFramingProps = {
    *  Defaults `0`/`Infinity` (no clamp). */
   minDistance?: number;
   maxDistance?: number;
+  /** See `GroupFramingMode`. Default `'horizontalAndVertical'`. */
+  framingMode?: GroupFramingMode;
   /** Draws `padding` as a bordered box inset from the frame edges - only while this `VirtualCamera` is on
    *  screen. Unlike `deadZone`/`hardLimit`'s fixed fraction, `padding` is a world-unit margin, so its
    *  on-screen size is re-measured every frame. Default `false`. */
@@ -61,6 +63,7 @@ export function GroupFraming({
   fitMode = 'ceiling',
   minDistance = 0,
   maxDistance = Infinity,
+  framingMode = 'horizontalAndVertical',
   debug = false,
   ref,
 }: GroupFramingProps) {
@@ -79,6 +82,7 @@ export function GroupFraming({
         fitMode,
         minDistance,
         maxDistance,
+        framingMode,
       ),
   );
 
@@ -92,6 +96,7 @@ export function GroupFraming({
   extension.fitMode = fitMode;
   extension.minDistance = minDistance;
   extension.maxDistance = maxDistance;
+  extension.framingMode = framingMode;
 
   useImperativeHandle(ref, () => extension, [extension]);
   useEffect(() => slots.registerExtension(extension.update), [slots, extension]);
@@ -109,9 +114,10 @@ export function GroupFraming({
     const distance = cameraState.position.distanceTo(scratchGroupPosition);
     const verticalHalfFov = degreesToRadians(cameraState.fov) / 2;
     const horizontalHalfFov = Math.atan(Math.tan(verticalHalfFov) * (size.width / size.height));
+    // an excluded axis has no padding boundary to show - full frame, not a fabricated constraint
     const next: [number, number] = [
-      paddingBoxEdgeFraction(horizontalHalfFov, distance, padding) * 2,
-      paddingBoxEdgeFraction(verticalHalfFov, distance, padding) * 2,
+      framingMode === 'vertical' ? 2 : paddingBoxEdgeFraction(horizontalHalfFov, distance, padding) * 2,
+      framingMode === 'horizontal' ? 2 : paddingBoxEdgeFraction(verticalHalfFov, distance, padding) * 2,
     ];
     setPaddingBox((previous) =>
       previous && Math.abs(previous[0] - next[0]) < DEBUG_BOX_EPSILON && Math.abs(previous[1] - next[1]) < DEBUG_BOX_EPSILON
