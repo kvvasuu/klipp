@@ -89,8 +89,8 @@ export const categories: ExampleCategory[] = [
         title: 'GroupFraming',
         Scene: GroupFraming,
         description:
-          'Four spheres orbit independently, sometimes clustering and sometimes spreading wide. The camera dollies to fit everyone plus `padding` - toggle `fitMode` between only backing away (`ceiling`) and always sitting exactly at the fit distance (`rigid`).',
-        spectatorPosition: [16, 12, 20],
+          'Four spheres orbit independently, sometimes clustering and sometimes spreading wide - the camera dollies to keep everyone in frame.',
+        spectatorPosition: [26, 19, 32],
         spectatorTarget: [0, 0, 0],
         ready: true,
       },
