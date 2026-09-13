@@ -172,6 +172,45 @@ describe('GroupFramingExtension', () => {
     });
   });
 
+  describe('minDistance/maxDistance', () => {
+    it('maxDistance clamps the fit distance in rigid mode', () => {
+      const group = new TargetGroup([{ target: new Vector3(0, 0, 0), radius: 100 }]);
+      const extension = new GroupFramingExtension(group, 0, 100, 100, 0, [0, 0], 'rigid', 0, 5);
+      const out = createCameraState();
+      out.fov = 90;
+      out.quaternion.identity();
+
+      extension.update(out, 0.1);
+
+      expect(out.position.z).toBeCloseTo(5, 10);
+    });
+
+    it('minDistance forces a floor on the fit distance, even for a tiny group', () => {
+      const group = new TargetGroup([{ target: new Vector3(0, 0, 0), radius: 0.01 }]);
+      const extension = new GroupFramingExtension(group, 0, 100, 100, 0, [0, 0], 'rigid', 10);
+      const out = createCameraState();
+      out.fov = 90;
+      out.quaternion.identity();
+
+      extension.update(out, 0.1);
+
+      expect(out.position.z).toBeCloseTo(10, 10);
+    });
+
+    it("maxDistance clamps only this extension's own fit, not Body/Aim's placement in 'ceiling' mode", () => {
+      const group = new TargetGroup([{ target: new Vector3(0, 0, 0), radius: 1 }]);
+      const extension = new GroupFramingExtension(group, 0, 100, 100, 0, [0, 0], 'ceiling', 0, 5);
+      const out = createCameraState();
+      out.fov = 90;
+      out.quaternion.identity();
+      out.position.set(0, 0, 50); // Body placed the camera much farther than maxDistance
+
+      extension.update(out, 0.1);
+
+      expect(out.position.z).toBeCloseTo(50, 10);
+    });
+  });
+
   describe('box members (size)', () => {
     it('fits a face-on box to its actual width/height, not the corner-to-corner sphere (real bug this fixes)', () => {
       const group = new TargetGroup([{ target: new Vector3(0, 0, 0), size: [2, 2, 2] }]);

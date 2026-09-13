@@ -33,6 +33,10 @@ export type GroupFramingProps = {
   screenPosition?: [number, number];
   /** See `GroupFramingFitMode`. Default `'ceiling'`. */
   fitMode?: GroupFramingFitMode;
+  /** Clamps the fit distance this extension computes - not Body/Aim's own placement in `'ceiling'` mode.
+   *  Defaults `0`/`Infinity` (no clamp). */
+  minDistance?: number;
+  maxDistance?: number;
   /** Draws `padding` as a bordered box inset from the frame edges - only while this `VirtualCamera` is on
    *  screen. Unlike `deadZone`/`hardLimit`'s fixed fraction, `padding` is a world-unit margin, so its
    *  on-screen size is re-measured every frame. Default `false`. */
@@ -55,6 +59,8 @@ export function GroupFraming({
   damping = 0,
   screenPosition = [0, 0],
   fitMode = 'ceiling',
+  minDistance = 0,
+  maxDistance = Infinity,
   debug = false,
   ref,
 }: GroupFramingProps) {
@@ -62,7 +68,18 @@ export function GroupFraming({
   const size = useThree((state) => state.size);
   const [group] = useState(() => new TargetGroup(members, positionMode));
   const [extension] = useState(
-    () => new GroupFramingExtension(group, padding, size.width, size.height, damping, screenPosition, fitMode),
+    () =>
+      new GroupFramingExtension(
+        group,
+        padding,
+        size.width,
+        size.height,
+        damping,
+        screenPosition,
+        fitMode,
+        minDistance,
+        maxDistance,
+      ),
   );
 
   group.members = members;
@@ -73,6 +90,8 @@ export function GroupFraming({
   extension.damping = damping;
   extension.screenPosition = screenPosition;
   extension.fitMode = fitMode;
+  extension.minDistance = minDistance;
+  extension.maxDistance = maxDistance;
 
   useImperativeHandle(ref, () => extension, [extension]);
   useEffect(() => slots.registerExtension(extension.update), [slots, extension]);

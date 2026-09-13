@@ -1,4 +1,4 @@
-import { degreesToRadians } from 'math';
+import { clamp, degreesToRadians } from 'math';
 import { Quaternion, Vector3 } from 'three';
 import type { CameraState } from '../CameraState';
 import { Damper, type DampingConstant } from '../damping/Damper';
@@ -48,6 +48,10 @@ export class GroupFramingExtension {
   screenPosition: [number, number];
   /** See `GroupFramingFitMode`. Default `'ceiling'`. */
   fitMode: GroupFramingFitMode;
+  /** Clamps the fit distance this extension computes - not Body/Aim's own placement in `'ceiling'` mode.
+   *  Defaults `0`/`Infinity` (no clamp). */
+  minDistance: number;
+  maxDistance: number;
 
   private readonly distanceDamper = new Damper();
   private currentDistance = 0;
@@ -64,6 +68,8 @@ export class GroupFramingExtension {
     damping: DampingConstant = 0,
     screenPosition: [number, number] = [0, 0],
     fitMode: GroupFramingFitMode = 'ceiling',
+    minDistance = 0,
+    maxDistance = Infinity,
   ) {
     this.group = group;
     this.padding = padding;
@@ -72,6 +78,8 @@ export class GroupFramingExtension {
     this.damping = damping;
     this.screenPosition = screenPosition;
     this.fitMode = fitMode;
+    this.minDistance = minDistance;
+    this.maxDistance = maxDistance;
   }
 
   /** Forces every member's auto-detected `size` to be re-measured on the NEXT `update()` call, then goes
@@ -156,10 +164,11 @@ export class GroupFramingExtension {
       }
     }
 
+    const clampedRequiredDistance = clamp(requiredDistance, this.minDistance, this.maxDistance);
     const distance =
       this.fitMode === 'rigid'
-        ? requiredDistance
-        : Math.max(out.position.distanceTo(scratchGroupPosition), requiredDistance);
+        ? clampedRequiredDistance
+        : Math.max(out.position.distanceTo(scratchGroupPosition), clampedRequiredDistance);
 
     const instant = typeof this.damping === 'number' && this.damping <= 0;
 
