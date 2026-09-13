@@ -72,6 +72,26 @@ describe('GroupFramingExtension', () => {
     expect(withPadding.position.z).toBeGreaterThan(noPadding.position.z);
   });
 
+  it('an off-axis sphere member needs the exact per-axis distance, not an isotropic offset.length() (real bug: a member offset mostly along the WIDER axis was penalized as if it could be along the narrower one)', () => {
+    // symmetric about the origin, so groupCenter's AABB midpoint is (0,0,0) and each member's offset is
+    // purely lateral (right axis), zero up/forward - the exact case the old isotropic formula got wrong
+    const group = new TargetGroup([
+      { target: new Vector3(-5, 0, 0), radius: 1 },
+      { target: new Vector3(5, 0, 0), radius: 1 },
+    ]);
+    const extension = new GroupFramingExtension(group, 0, 1000, 100); // wide viewport: vertical stays tight
+    const out = createCameraState();
+    out.fov = 90;
+
+    extension.update(out, 0.1);
+
+    // exact: horizontal = (radius + 5*cos(hHalf)) / sin(hHalf), with hHalf = atan(tan(45°) * 10)
+    expect(out.position.z).toBeCloseTo(1.5049875621120896, 10);
+    // the old isotropic formula (offset.length() + radius = 6, divided by sin of the tighter axis) gave
+    // ~8.49 here - almost 6x farther back than needed for a member that isn't along that axis at all
+    expect(out.position.z).toBeLessThan(2);
+  });
+
   describe('ceiling behavior (does not override Body/Aim unless the padded group would not fit)', () => {
     it('leaves out.position untouched in DISTANCE when Body already placed the camera farther than required', () => {
       const group = new TargetGroup([{ target: new Vector3(0, 0, 0), radius: 1 }]);

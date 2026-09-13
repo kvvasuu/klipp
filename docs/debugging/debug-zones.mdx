@@ -16,6 +16,8 @@ nav: 60
 | `RotationComposer`   | Same as `PositionComposer` - `hardLimit`/`deadZone`/crosshair. |
 | `GroupFraming`       | `padding` (blue), inset from the frame edges. No crosshair (`screenPosition` there shifts the whole frustum, not a point to compose toward). |
 
+`GroupFraming`'s box marks the `padding` boundary for a dimensionless point, not any specific member's own visual size - a member with a real `radius` sits somewhat inside the drawn line, since its own radius (like `padding`) also pushes the camera back. It's a guide for where the margin starts, not a pixel-exact outline of every member's silhouette.
+
 ## Crosshair
 
 A full-viewport vertical + horizontal line through `screenPosition` - a fixed reference line makes it much easier to see a target drift off `screenPosition` than eyeballing it against the raw scene alone, especially useful alongside [Lookahead](/body/position-composer#lookahead) where the composed point is expected to lead the target rather than sit exactly on it.

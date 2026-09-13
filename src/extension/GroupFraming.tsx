@@ -12,6 +12,11 @@ const scratchGroupPosition = new Vector3();
 /** Below this change, a re-render isn't worth it - the box would visually look identical anyway. */
 const DEBUG_BOX_EPSILON = 0.002;
 
+// matches GroupFramingExtension's own per-axis plane distance (sin), not a flat point's (tan)
+function paddingBoxEdgeFraction(halfFov: number, distance: number, padding: number): number {
+  return clamp(1 - padding / (distance * Math.sin(halfFov)), 0, 1);
+}
+
 export type GroupFramingProps = {
   /** Targets to keep framed, each with its own Weight/Radius/Size — see `TargetGroupMember`. */
   members: TargetGroupMember[];
@@ -79,13 +84,11 @@ export function GroupFraming({
       return;
     }
     const distance = cameraState.position.distanceTo(scratchGroupPosition);
-    const halfHeight = distance * Math.tan(degreesToRadians(cameraState.fov) / 2);
-    const halfWidth = halfHeight * (size.width / size.height);
-    // fraction convention matches deadZone/hardLimit's ([2, 2] = full frame) - clamped so a padding
-    // bigger than the frame itself doesn't invert the box
+    const verticalHalfFov = degreesToRadians(cameraState.fov) / 2;
+    const horizontalHalfFov = Math.atan(Math.tan(verticalHalfFov) * (size.width / size.height));
     const next: [number, number] = [
-      clamp(1 - padding / halfWidth, 0, 1) * 2,
-      clamp(1 - padding / halfHeight, 0, 1) * 2,
+      paddingBoxEdgeFraction(horizontalHalfFov, distance, padding) * 2,
+      paddingBoxEdgeFraction(verticalHalfFov, distance, padding) * 2,
     ];
     setPaddingBox((previous) =>
       previous && Math.abs(previous[0] - next[0]) < DEBUG_BOX_EPSILON && Math.abs(previous[1] - next[1]) < DEBUG_BOX_EPSILON

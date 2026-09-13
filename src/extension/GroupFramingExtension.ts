@@ -21,13 +21,14 @@ const scratchAxisZ = new Vector3();
 const CORNER_SIGNS = [-1, 1] as const;
 
 /**
- * Camera extension: a CEILING on distance, not a rigid fit — dollies `out.position` back along the
- * camera's current view axis only as far as needed to keep `group`'s members (plus `padding`, world
- * units) inside the frame, never closer than Body/Aim already placed it. Spheres (`radius`) use the exact
- * tangent formula (`sin`); boxes (`size`) check all 8 corners against the camera's current axes and take
- * the worst case (`tan`) — a corner's own depth affects how close it can get, so height/width and depth
- * can't just be added. "Dolly Only": never touches `out.quaternion`/`out.fov`, so it needs Aim already
- * looking at `group`. `screenPosition` shifts `out.viewOffset` separately.
+ * Camera extension: a CEILING on distance, not a rigid fit - dollies `out.position` back along the
+ * camera's current view axis just far enough to keep `group`'s members (plus `padding`, world units)
+ * inside the frame, never closer than Body/Aim already placed it. Both spheres (`radius`) and boxes
+ * (`size`) get the exact per-axis frustum-plane distance against the camera's current up/right/forward,
+ * not an isotropic bound - an offset mostly along one axis isn't penalized as if it could be along the
+ * other. Boxes additionally check all 8 corners, since a corner's own depth affects how close it can get.
+ * Never touches `out.quaternion`/`out.fov`, so it needs Aim already looking at `group`. `screenPosition`
+ * shifts `out.viewOffset` separately.
  */
 export class GroupFramingExtension {
   group: TargetGroup;
@@ -93,17 +94,21 @@ export class GroupFramingExtension {
     const padding = Math.max(0, this.padding);
     const tanVertical = Math.tan(verticalHalfFov);
     const tanHorizontal = Math.tan(horizontalHalfFov);
+    const sinVertical = Math.sin(verticalHalfFov);
+    const sinHorizontal = Math.sin(horizontalHalfFov);
+    const cosVertical = Math.cos(verticalHalfFov);
+    const cosHorizontal = Math.cos(horizontalHalfFov);
 
-    let sphereReach = 0;
-    let hasBoxMember = false;
-    let boxRequiredDistance = Number.NEGATIVE_INFINITY;
+    let requiredDistance = 0;
 
     for (const member of this.group.members) {
       if (!resolveTargetPosition(scratchMemberPosition, member.target)) continue;
       scratchOffset.subVectors(scratchMemberPosition, scratchGroupPosition);
+      const offsetUp = scratchOffset.dot(scratchUp);
+      const offsetRight = scratchOffset.dot(scratchRight);
+      const offsetForward = scratchOffset.dot(scratchForward);
 
       if (this.group.resolveMemberSize(scratchSize, member, dynamicSize)) {
-        hasBoxMember = true;
         if (!resolveTargetRotation(scratchMemberQuaternion, member.target)) scratchMemberQuaternion.identity();
         scratchHalfSize.copy(scratchSize).multiplyScalar(0.5);
         scratchAxisX.set(scratchHalfSize.x, 0, 0).applyQuaternion(scratchMemberQuaternion);
@@ -119,9 +124,6 @@ export class GroupFramingExtension {
         const axisXForward = scratchAxisX.dot(scratchForward);
         const axisYForward = scratchAxisY.dot(scratchForward);
         const axisZForward = scratchAxisZ.dot(scratchForward);
-        const offsetUp = scratchOffset.dot(scratchUp);
-        const offsetRight = scratchOffset.dot(scratchRight);
-        const offsetForward = scratchOffset.dot(scratchForward);
 
         // A corner's own depth affects how close it can get before clipping, so height/width and depth
         // aren't independent worst cases — check all 8 corners directly and take the true max.
@@ -133,26 +135,19 @@ export class GroupFramingExtension {
               const cornerForward = offsetForward + sx * axisXForward + sy * axisYForward + sz * axisZForward;
               const vertical = (Math.abs(cornerUp) + padding) / tanVertical - cornerForward;
               const horizontal = (Math.abs(cornerRight) + padding) / tanHorizontal - cornerForward;
-              boxRequiredDistance = Math.max(boxRequiredDistance, vertical, horizontal);
+              requiredDistance = Math.max(requiredDistance, vertical, horizontal);
             }
           }
         }
       } else {
-        const reach = scratchOffset.length() + (member.radius ?? 0);
-        if (reach > sphereReach) sphereReach = reach;
+        // exact per-axis sphere/frustum-plane distance, not an isotropic offset.length() - an offset
+        // mostly along the WIDER axis shouldn't be penalized as if it could be along the narrower one.
+        const effectiveRadius = (member.radius ?? 0) + padding;
+        const vertical = (effectiveRadius + Math.abs(offsetUp) * cosVertical) / sinVertical - offsetForward;
+        const horizontal = (effectiveRadius + Math.abs(offsetRight) * cosHorizontal) / sinHorizontal - offsetForward;
+        requiredDistance = Math.max(requiredDistance, vertical, horizontal);
       }
     }
-
-    let requiredDistance = 0;
-    if (sphereReach > 0) {
-      const effectiveRadius = sphereReach + padding;
-      requiredDistance = Math.max(
-        requiredDistance,
-        effectiveRadius / Math.sin(verticalHalfFov),
-        effectiveRadius / Math.sin(horizontalHalfFov),
-      );
-    }
-    if (hasBoxMember) requiredDistance = Math.max(requiredDistance, boxRequiredDistance);
 
     const bodyDistance = out.position.distanceTo(scratchGroupPosition);
     const distance = Math.max(bodyDistance, requiredDistance);

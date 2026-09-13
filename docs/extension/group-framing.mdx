@@ -36,7 +36,7 @@ Dollies the camera back along its own current view axis just far enough to keep 
 
 ## Sphere vs. box members
 
-A member with `radius` (or a dimensionless point, `radius: 0`) uses the exact tangent formula for how far back a sphere needs to be to fit in frame. A member with `size` checks all 8 corners of its rotated box against the camera's current axes and takes the worst case - a corner's own depth affects how close it can get, so height/width and depth aren't independent, and rotation matters.
+Both use the exact frustum-plane distance against the camera's current up/right/forward, checked separately per axis - an offset mostly along one axis isn't penalized as if it could be along the other. A member with `size` additionally checks all 8 corners of its rotated box - a corner's own depth affects how close it can get, so height/width and depth aren't independent, and rotation matters.
 
 ## `ref`
 
