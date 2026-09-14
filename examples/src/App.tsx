@@ -17,8 +17,11 @@ export function App() {
 
   return (
     <HashRouter>
-      {/* nudged down on mobile via titleBar.position - Leva's own header bar would otherwise sit under it */}
-      <Leva collapsed={isMobile} titleBar={{ position: isMobile ? { x: 0, y: 60 } : undefined }} />
+      <Leva
+        collapsed={isMobile}
+        titleBar={{ position: isMobile ? { x: 0, y: 60 } : undefined }}
+        theme={{ sizes: { rootWidth: '20rem' } }}
+      />
       <Routes>
         <Route path="/" element={<Layout />}>
           <Route index element={<Welcome />} />

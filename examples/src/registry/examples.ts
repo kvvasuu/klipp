@@ -1,6 +1,9 @@
 import { Placeholder } from '../scenes/Placeholder';
 import { HardLookAt } from '../scenes/aim/HardLookAt';
 import { RotateWithFollowTarget } from '../scenes/aim/RotateWithFollowTarget';
+import { RotationComposer } from '../scenes/aim/RotationComposer';
+import { RotationComposerLookahead } from '../scenes/aim/RotationComposerLookahead';
+import { RotationComposerTargetOffset } from '../scenes/aim/RotationComposerTargetOffset';
 import { Follow } from '../scenes/body/Follow';
 import { HardLockToTarget } from '../scenes/body/HardLockToTarget';
 import { PositionComposer } from '../scenes/body/PositionComposer';
@@ -95,7 +98,39 @@ export const categories: ExampleCategory[] = [
         spectatorTarget: [0, 2, 0],
         ready: true,
       },
-      { slug: 'rotation-composer', title: 'RotationComposer', Scene: Placeholder, ready: false },
+      {
+        slug: 'rotation-composer',
+        title: 'RotationComposer',
+        group: 'rotation-composer',
+        Scene: RotationComposer,
+        description:
+          'A target wanders in front of a fixed camera, which only rotates once it steps past `deadZone`, clamped at `hardLimit`.',
+        spectatorPosition: [0, 6, 18],
+        spectatorTarget: [0, 2, 0],
+        ready: true,
+      },
+      {
+        slug: 'rotation-composer-lookahead',
+        title: 'RotationComposer: Lookahead',
+        group: 'rotation-composer',
+        Scene: RotationComposerLookahead,
+        description:
+          'A ball loops at varying speed with a vertical bob, trailing off the center crosshair opposite its direction of travel thanks to `lookaheadTime` - the camera never moves, only rotates.',
+        spectatorPosition: [0, 16, 22],
+        spectatorTarget: [0, 1, 0],
+        ready: true,
+      },
+      {
+        slug: 'rotation-composer-target-offset',
+        title: 'RotationComposer: Target Offset',
+        group: 'rotation-composer',
+        Scene: RotationComposerTargetOffset,
+        description:
+          "A box wanders and tumbles on two axes with an arrow marking `targetOffset` - its tip stays pinned to the center crosshair through all of it, since the offset tracks the box's own local space, not the world's.",
+        spectatorPosition: [0, 6, 14],
+        spectatorTarget: [0, 2, 0],
+        ready: true,
+      },
     ],
   },
   {
