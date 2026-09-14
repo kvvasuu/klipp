@@ -80,7 +80,7 @@ export function GroupFraming() {
       screenPositionY: { value: 0, min: -1, max: 1, step: 0.05 },
       fitMode: { value: 'rigid' as GroupFramingFitMode, options: ['ceiling', 'rigid'] as GroupFramingFitMode[] },
       minDistance: { value: 0, min: 0, max: 50, step: 0.5 },
-      maxDistance: { value: 50, min: 10, max: 50, step: 0.5 },
+      maxDistance: { value: 200, min: 10, max: 200, step: 0.5 },
       framingMode: {
         value: 'horizontalAndVertical' as GroupFramingMode,
         options: ['horizontal', 'vertical', 'horizontalAndVertical'] as GroupFramingMode[],
