@@ -1,36 +1,56 @@
 import { Vector3 } from 'three';
 import type { CameraState } from '../CameraState';
-import { impulseManager, type ImpulseManager } from './ImpulseManager';
+import type { BasicMultiChannelPerlinNoise } from '../noise/BasicMultiChannelPerlinNoise';
+import { impulseField, type ImpulseField } from './ImpulseField';
 
-const scratchOffset = new Vector3();
+const scratchPositionOffset = new Vector3();
 
-/** Additive position offset from in-flight impulse events (explosions, footsteps, anything that calls
- *  `manager.generate(...)`) — position-only, no rotation. `manager` defaults to the shared `impulseManager`
- *  singleton — pass your own instance only for isolated impulse "worlds" (e.g. split-screen). */
+/**
+ * Additive position offset from in-flight impulse events (explosions, footsteps, anything that calls
+ * `field.generate(...)`), plus an optional secondary `shake` - a `BasicMultiChannelPerlinNoise` whose
+ * `amplitudeGain` this drives every frame from the impulse's current strength.
+ *
+ * `field` defaults to the shared `impulseField` singleton - pass your own instance only for isolated
+ * impulse "worlds" (e.g. split-screen).
+ */
 export class ImpulseListenerNoise {
-  manager: ImpulseManager;
+  field: ImpulseField;
   channelMask: number;
   gain: number;
+  shake?: BasicMultiChannelPerlinNoise;
+  cameraSpace: boolean;
 
-  constructor(manager: ImpulseManager = impulseManager, channelMask = 1, gain = 1) {
-    this.manager = manager;
+  constructor(
+    field: ImpulseField = impulseField,
+    channelMask = 1,
+    gain = 1,
+    shake?: BasicMultiChannelPerlinNoise,
+    cameraSpace = false,
+  ) {
+    this.field = field;
     this.channelMask = channelMask;
     this.gain = gain;
+    this.shake = shake;
+    this.cameraSpace = cameraSpace;
   }
 
-  /** `now` (seconds, same clock as `ImpulseManager.generate`/`sampleAt` — real time by default) is a
-   *  4th, optional param, NOT `dt` — `registerNoise` never passes it, so production code gets the real
-   *  clock automatically; tests pass it explicitly for determinism instead of depending on wall time.
-   *  `justActivated` doesn't apply here — an impulse offset has no persistent damping state to snap, it's
-   *  freshly sampled from `manager` every call, same "no state between frames" shape as
-   *  `BasicMultiChannelPerlinNoise`.
+  /** `now` (seconds, same clock as `ImpulseField.generate`/`sampleAt` - real time by default) is a 5th,
+   *  optional param, NOT `dt` - `registerNoise` never passes it, so production code gets the real clock
+   *  automatically; tests pass it explicitly for determinism instead of depending on wall time.
    *
-   *  Returns whether `manager` still has an event in flight — an event's constant-amplitude sustain
-   *  phase can hold the exact same offset across several frames without being done, so klipp can't infer
+   *  Returns whether `field` still has an event in flight - an event's constant-amplitude sustain phase
+   *  can hold the exact same offset across several frames without being done, so klipp can't infer
    *  "settled" from this frame's output alone (see `CameraStateWriter` in `VirtualCameraController.ts`). */
-  update = (out: CameraState, _dt: number, _justActivated: boolean, now?: number): boolean => {
-    this.manager.sampleAt(scratchOffset, out.position, this.channelMask, now);
-    out.position.addScaledVector(scratchOffset, this.gain);
-    return this.manager.hasEvents;
+  update = (out: CameraState, dt: number, justActivated: boolean, now?: number): boolean => {
+    const strength = this.field.sampleAt(scratchPositionOffset, out.position, this.channelMask, this.gain, now);
+    if (this.cameraSpace) scratchPositionOffset.applyQuaternion(out.quaternion);
+    out.position.add(scratchPositionOffset);
+
+    if (this.shake) {
+      this.shake.amplitudeGain = strength;
+      this.shake.update(out, dt, justActivated);
+    }
+
+    return this.field.hasEvents;
   };
 }

@@ -17,7 +17,8 @@ Noise adds an offset on top of whatever Body and Aim already produced - it runs 
 ## What's here
 
 - [`BasicMultiChannelPerlin`](/noise/basic-multi-channel-perlin) - continuous, procedural shake with independent amplitude/frequency per position and rotation axis.
-- [`Impulse`](/noise/impulse) - event-driven, one-shot reactions (explosions, impacts) instead of continuous shake - `ImpulseListenerNoise`/`Noise.ImpulseListener` plug into this same stacking slot.
+
+For event-driven, one-shot reactions (explosions, impacts) instead of continuous shake, see [Impulse](/impulse/introduction) - `ImpulseListener` plugs into this same stacking slot, and can drive a `BasicMultiChannelPerlinNoise` of its own for the rattle.
 
 ## Layering multiple frequency bands
 

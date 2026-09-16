@@ -24,7 +24,7 @@ export { Aim } from './aim/Aim';
 export { BasicMultiChannelPerlin, type BasicMultiChannelPerlinProps } from './noise/BasicMultiChannelPerlin';
 export { Noise } from './noise/Noise';
 
-export { ImpulseListener, type ImpulseListenerProps } from './impulse/ImpulseListener';
+export { ImpulseListener, type ImpulseListenerProps, type ImpulseShakeProps } from './impulse/ImpulseListener';
 
 export { GroupFraming, type GroupFramingProps } from './extension/GroupFraming';
 export { Lens, type LensProps } from './extension/Lens';
