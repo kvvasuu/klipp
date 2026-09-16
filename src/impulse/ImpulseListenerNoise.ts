@@ -18,12 +18,20 @@ export class ImpulseListenerNoise {
   channelMask: number;
   gain: number;
   shake?: BasicMultiChannelPerlinNoise;
+  cameraSpace: boolean;
 
-  constructor(field: ImpulseField = impulseField, channelMask = 1, gain = 1, shake?: BasicMultiChannelPerlinNoise) {
+  constructor(
+    field: ImpulseField = impulseField,
+    channelMask = 1,
+    gain = 1,
+    shake?: BasicMultiChannelPerlinNoise,
+    cameraSpace = false,
+  ) {
     this.field = field;
     this.channelMask = channelMask;
     this.gain = gain;
     this.shake = shake;
+    this.cameraSpace = cameraSpace;
   }
 
   /** `now` (seconds, same clock as `ImpulseField.generate`/`sampleAt` - real time by default) is a 5th,
@@ -35,6 +43,7 @@ export class ImpulseListenerNoise {
    *  "settled" from this frame's output alone (see `CameraStateWriter` in `VirtualCameraController.ts`). */
   update = (out: CameraState, dt: number, justActivated: boolean, now?: number): boolean => {
     const strength = this.field.sampleAt(scratchPositionOffset, out.position, this.channelMask, this.gain, now);
+    if (this.cameraSpace) scratchPositionOffset.applyQuaternion(out.quaternion);
     out.position.add(scratchPositionOffset);
 
     if (this.shake) {

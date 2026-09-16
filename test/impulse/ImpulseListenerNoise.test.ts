@@ -205,4 +205,49 @@ describe('ImpulseListenerNoise', () => {
       expect(shake.amplitudeGain).toBeCloseTo(0.4, 5);
     });
   });
+
+  describe('cameraSpace', () => {
+    it('false by default - direction is a fixed world-space vector, ignoring listener orientation', () => {
+      const field = new ImpulseField();
+      field.generate({ position: [0, 0, 0], direction: [1, 0, 0], shape: always, duration: 10 }, 0);
+
+      const listener = new ImpulseListenerNoise(field);
+      const out = createCameraState();
+      out.quaternion.setFromAxisAngle(new Vector3(0, 1, 0), Math.PI / 2); // yawed 90°
+
+      listener.update(out, 0.1, false, 0.5);
+
+      expect(out.position.x).toBeCloseTo(1, 5);
+      expect(out.position.z).toBeCloseTo(0, 5);
+    });
+
+    it("true: rotates the sampled offset by the listener's current orientation", () => {
+      const field = new ImpulseField();
+      field.generate({ position: [0, 0, 0], direction: [1, 0, 0], shape: always, duration: 10 }, 0);
+
+      const listener = new ImpulseListenerNoise(field, 1, 1, undefined, true);
+      const out = createCameraState();
+      out.quaternion.setFromAxisAngle(new Vector3(0, 1, 0), Math.PI / 2); // yawed 90°
+
+      listener.update(out, 0.1, false, 0.5);
+
+      // the listener's local +X becomes world -Z once yawed 90° around Y
+      expect(out.position.x).toBeCloseTo(0, 5);
+      expect(out.position.z).toBeCloseTo(-1, 5);
+    });
+
+    it('is a mutable field - can be toggled after construction', () => {
+      const field = new ImpulseField();
+      field.generate({ position: [0, 0, 0], direction: [1, 0, 0], shape: always, duration: 10 }, 0);
+
+      const listener = new ImpulseListenerNoise(field);
+      listener.cameraSpace = true;
+      const out = createCameraState();
+      out.quaternion.setFromAxisAngle(new Vector3(0, 1, 0), Math.PI / 2);
+
+      listener.update(out, 0.1, false, 0.5);
+
+      expect(out.position.z).toBeCloseTo(-1, 5);
+    });
+  });
 });

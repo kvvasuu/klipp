@@ -54,6 +54,7 @@ function onExplosion(position: Vector3) {
 | `channelMask` | `number`            | `1`                                | Only reacts to events where `(event.channel & channelMask) !== 0`. |
 | `gain`        | `number`            | `1`                                | Multiplies the sampled offset. `0` mutes this listener entirely. |
 | `shake`       | `ImpulseShakeProps` | none                               | Secondary rattle, riding on top of the kick - see below. |
+| `cameraSpace` | `boolean`           | `false`                            | Rotates the sampled offset by the camera's current orientation - see below. |
 
 ## Adding rotation with `shake`
 
@@ -63,10 +64,22 @@ The kick itself (`direction` shaped by `shape`) is position-only. For the rattle
 <ImpulseListener shake={{ positionAmplitude: [0.1, 0.1, 0.1], rotationAmplitude: [4, 4, 4] }} />
 ```
 
+## World-space vs `cameraSpace`
+
+`direction` is a world-space vector by default - right for an explosion that should push the camera away from wherever it actually happened, regardless of which way the camera is facing. For an event that's always about the camera itself - weapon recoil, a landing thump - `cameraSpace` reinterprets the same `direction` relative to the camera's current orientation instead, so a fixed vector always kicks the same way no matter where the camera is or looks:
+
+```tsx
+function onFire() {
+  impulseField.generate({ position: [0, 0, 0], direction: [0, 0.3, 0.1], shape: ImpulseShapes.recoil });
+}
+
+<ImpulseListener cameraSpace />
+```
+
 ## `ref`
 
 ```tsx
 const listenerRef = useRef<ImpulseListenerNoise>(null);
 ```
 
-Gives you the underlying `ImpulseListenerNoise` - read or write `.field`/`.channelMask`/`.gain`/`.shake` directly.
+Gives you the underlying `ImpulseListenerNoise` - read or write `.field`/`.channelMask`/`.gain`/`.shake`/`.cameraSpace` directly.
