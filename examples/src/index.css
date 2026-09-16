@@ -292,6 +292,54 @@ body {
   border-color: var(--accent);
 }
 
+.blend-progress {
+  position: absolute;
+  top: 1rem;
+  left: 50%;
+  transform: translateX(-50%);
+  pointer-events: none;
+  width: 22rem;
+  max-width: calc(100% - 2rem);
+  padding: 0.75rem 1rem;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  font-size: 0.75rem;
+  color: var(--text-dim);
+}
+
+.blend-progress-label {
+  margin-bottom: 0.5rem;
+  letter-spacing: 0.04em;
+}
+
+.blend-progress-track {
+  position: relative;
+  height: 0.5rem;
+  border-radius: 999px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  overflow: hidden;
+}
+
+.blend-progress-fill {
+  position: absolute;
+  inset: 0;
+  width: 0%;
+  background: var(--accent);
+  border-radius: inherit;
+}
+
+.blend-progress-marker {
+  position: absolute;
+  top: -0.1875rem;
+  left: 0%;
+  width: 0.125rem;
+  height: 0.875rem;
+  background: #fff;
+  transform: translateX(-50%);
+}
+
 .welcome,
 .scene-missing {
   height: 100%;
@@ -392,5 +440,11 @@ body {
     bottom: 0.75rem;
     width: 2.25rem;
     height: 2.25rem;
+  }
+
+  /* Leva's expanded panel height varies per scene and can reach down over this - no reliable spot left
+     for it once the sidebar, Leva and spectator-inset all claim their own corner of a phone screen */
+  .blend-progress {
+    display: none;
   }
 }
