@@ -4,6 +4,7 @@ import { RotateWithFollowTarget } from '../scenes/aim/RotateWithFollowTarget';
 import { RotationComposer } from '../scenes/aim/RotationComposer';
 import { RotationComposerLookahead } from '../scenes/aim/RotationComposerLookahead';
 import { RotationComposerTargetOffset } from '../scenes/aim/RotationComposerTargetOffset';
+import { BlendCurves } from '../scenes/blending/BlendCurves';
 import { Follow } from '../scenes/body/Follow';
 import { HardLockToTarget } from '../scenes/body/HardLockToTarget';
 import { PositionComposer } from '../scenes/body/PositionComposer';
@@ -46,7 +47,7 @@ export const categories: ExampleCategory[] = [
         group: 'position-composer',
         Scene: PositionComposer,
         description:
-          "A unit wanders a ground plane below a straight-down camera, which shifts sideways to keep it inside `deadZone`, clamped at `hardLimit`.",
+          'A unit wanders a ground plane below a straight-down camera, which shifts sideways to keep it inside `deadZone`, clamped at `hardLimit`.',
         spectatorPosition: [16, 20, 16],
         spectatorTarget: [0, 0, 0],
         ready: true,
@@ -209,7 +210,16 @@ export const categories: ExampleCategory[] = [
     slug: 'blending',
     title: 'Blending',
     examples: [
-      { slug: 'blend-curves', title: 'BlendCurves', Scene: Placeholder, ready: false },
+      {
+        slug: 'blend-curves',
+        title: 'BlendCurves',
+        Scene: BlendCurves,
+        description:
+          "Five fixed shots, picked via the camera select or Prev/Next - two orbit their subject through Follow's lockToTarget binding. The bar plots curve(t) live (white tick is raw linear time) so a blend's shape reads directly, not just by eye.",
+        spectatorPosition: [8, 10, 14],
+        spectatorTarget: [0, 1.5, 0],
+        ready: true,
+      },
       { slug: 'blend-hints', title: 'BlendHints', Scene: Placeholder, ready: false },
       { slug: 'custom-blends', title: 'CustomBlends', Scene: Placeholder, ready: false },
     ],
