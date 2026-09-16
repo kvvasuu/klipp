@@ -11,6 +11,7 @@ import { PositionComposerDolly } from '../scenes/body/PositionComposerDolly';
 import { PositionComposerLookahead } from '../scenes/body/PositionComposerLookahead';
 import { GroupFraming } from '../scenes/extension/GroupFraming';
 import { Lens } from '../scenes/extension/Lens';
+import { Impulse } from '../scenes/impulse/Impulse';
 import { BasicMultiChannelPerlin } from '../scenes/noise/BasicMultiChannelPerlin';
 import type { ExampleCategory } from './types';
 
@@ -147,7 +148,22 @@ export const categories: ExampleCategory[] = [
         spectatorTarget: [0, 2, 4],
         ready: true,
       },
-      { slug: 'impulse', title: 'Impulse', Scene: Placeholder, ready: false },
+    ],
+  },
+  {
+    slug: 'impulse',
+    title: 'Impulse',
+    examples: [
+      {
+        slug: 'impulse',
+        title: 'Impulse',
+        Scene: Impulse,
+        description:
+          'One button per built-in `ImpulseShapes` preset (Recoil/Bump/Explosion/Rumble), plus a fifth with a custom shape drawn as a Bezier curve, `cameraSpace` toggling between world- and camera-relative kicks, and an optional secondary shake.',
+        spectatorPosition: [10, 8, 16],
+        spectatorTarget: [0, 1, -3],
+        ready: true,
+      },
     ],
   },
   {
