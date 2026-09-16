@@ -12,7 +12,11 @@ import { HardLockToTargetBody } from '../src/body/HardLockToTargetBody';
 import { PositionComposerBody } from '../src/body/PositionComposerBody';
 import { GroupFramingExtension } from '../src/extension/GroupFramingExtension';
 import { TargetGroup } from '../src/extension/TargetGroup';
+import { ImpulseField } from '../src/impulse/ImpulseField';
+import { ImpulseListenerNoise } from '../src/impulse/ImpulseListenerNoise';
 import { BasicMultiChannelPerlinNoise } from '../src/noise/BasicMultiChannelPerlinNoise';
+
+const always = () => 1;
 
 /** A moving Object3D target — same shape a real scene's tracked character/prop would be, exercising
  *  `resolveTargetPosition`/`resolveTargetRotation`'s Object3D path (matrixWorld reads), not just a bare
@@ -236,6 +240,96 @@ group('Noise/Extension.update @noise', () => {
     yield () => {
       groupFraming.update(out, 0.016, false);
       return out.position.z;
+    };
+  });
+});
+
+group('ImpulseField.sampleAt @impulse', () => {
+  function makeFieldWithEvents(count: number): ImpulseField {
+    const field = new ImpulseField();
+    for (let i = 0; i < count; i++) {
+      field.generate({ position: [i, 0, 0], direction: [1, 0, 0], shape: always, duration: 1000 }, 0);
+    }
+    return field;
+  }
+
+  bench('1 concurrent event', function* () {
+    const field = makeFieldWithEvents(1);
+    const out = new Vector3();
+    const samplePosition = new Vector3();
+    let now = 0;
+    yield () => {
+      now += 0.016;
+      field.sampleAt(out, samplePosition, 1, 1, now);
+      return out.x;
+    };
+  });
+
+  bench('10 concurrent events', function* () {
+    const field = makeFieldWithEvents(10);
+    const out = new Vector3();
+    const samplePosition = new Vector3();
+    let now = 0;
+    yield () => {
+      now += 0.016;
+      field.sampleAt(out, samplePosition, 1, 1, now);
+      return out.x;
+    };
+  });
+
+  bench('50 concurrent events', function* () {
+    const field = makeFieldWithEvents(50);
+    const out = new Vector3();
+    const samplePosition = new Vector3();
+    let now = 0;
+    yield () => {
+      now += 0.016;
+      field.sampleAt(out, samplePosition, 1, 1, now);
+      return out.x;
+    };
+  });
+});
+
+group('ImpulseListenerNoise.update @impulse', () => {
+  bench('kick only', function* () {
+    const field = new ImpulseField();
+    field.generate({ position: [0, 0, 0], direction: [1, 0, 0], shape: always, duration: 1000 }, 0);
+    const listener = new ImpulseListenerNoise(field);
+    const out = createCameraState();
+    let now = 0;
+    yield () => {
+      now += 0.016;
+      listener.update(out, 0.016, false, now);
+      return out.position.x;
+    };
+  });
+
+  // isolates shake's own added cost - compare against the kick-only bench above
+  bench('kick + shake', function* () {
+    const field = new ImpulseField();
+    field.generate({ position: [0, 0, 0], direction: [1, 0, 0], shape: always, duration: 1000 }, 0);
+    const shake = new BasicMultiChannelPerlinNoise(new Vector3(0.1, 0.1, 0.1), undefined, new Vector3(3, 3, 3));
+    const listener = new ImpulseListenerNoise(field, 1, 1, shake);
+    const out = createCameraState();
+    let now = 0;
+    yield () => {
+      now += 0.016;
+      listener.update(out, 0.016, false, now);
+      return out.position.x;
+    };
+  });
+
+  // isolates cameraSpace's own added cost (one applyQuaternion call) - compare against kick-only above
+  bench('kick + cameraSpace', function* () {
+    const field = new ImpulseField();
+    field.generate({ position: [0, 0, 0], direction: [1, 0, 0], shape: always, duration: 1000 }, 0);
+    const listener = new ImpulseListenerNoise(field, 1, 1, undefined, true);
+    const out = createCameraState();
+    let now = 0;
+    yield () => {
+      now += 0.016;
+      listener.update(out, 0.016, false, now);
+      return out.position.x;
     };
   });
 });
