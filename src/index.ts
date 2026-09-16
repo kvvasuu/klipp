@@ -48,7 +48,13 @@ export { RotationComposerAim } from './aim/RotationComposerAim';
 
 export { BasicMultiChannelPerlinNoise } from './noise/BasicMultiChannelPerlinNoise';
 
-export { ImpulseManager, impulseManager, type GenerateImpulseOptions } from './impulse/ImpulseManager';
+export {
+  ImpulseField,
+  impulseField,
+  ImpulseShapes,
+  type GenerateImpulseOptions,
+  type ImpulseShape,
+} from './impulse/ImpulseField';
 export { ImpulseListenerNoise } from './impulse/ImpulseListenerNoise';
 
 export { TargetGroup, type TargetGroupMember, type TargetGroupPositionMode } from './extension/TargetGroup';
