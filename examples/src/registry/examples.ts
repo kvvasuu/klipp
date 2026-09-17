@@ -5,6 +5,7 @@ import { RotationComposer } from '../scenes/aim/RotationComposer';
 import { RotationComposerLookahead } from '../scenes/aim/RotationComposerLookahead';
 import { RotationComposerTargetOffset } from '../scenes/aim/RotationComposerTargetOffset';
 import { BlendCurves } from '../scenes/blending/BlendCurves';
+import { BlendHints } from '../scenes/blending/BlendHints';
 import { Follow } from '../scenes/body/Follow';
 import { HardLockToTarget } from '../scenes/body/HardLockToTarget';
 import { PositionComposer } from '../scenes/body/PositionComposer';
@@ -220,7 +221,16 @@ export const categories: ExampleCategory[] = [
         spectatorTarget: [0, 1.5, 0],
         ready: true,
       },
-      { slug: 'blend-hints', title: 'BlendHints', Scene: Placeholder, ready: false },
+      {
+        slug: 'blend-hints',
+        title: 'BlendHints',
+        Scene: BlendHints,
+        description:
+          'Two shots at very different heights, each on its own subject - PathCurve plots the actual position interpolation as a static curve (dashed gray is always the plain straight line), so sphericalPosition/cylindricalPosition reshape something visible at a glance instead of only mid-blend. ignoreTarget swaps the rotation blend for a plain slerp.',
+        spectatorPosition: [-22, 10, -2],
+        spectatorTarget: [0, 6, 0],
+        ready: true,
+      },
       { slug: 'custom-blends', title: 'CustomBlends', Scene: Placeholder, ready: false },
     ],
   },
