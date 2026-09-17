@@ -3,9 +3,10 @@ import { CameraFrustumHelper, Follow, HardLookAt, Klipp, VirtualCamera } from '@
 import { useFrame } from '@react-three/fiber';
 import { button, useControls } from 'leva';
 import { useRef, type RefObject } from 'react';
-import { Matrix4, Mesh, Quaternion, Vector3 } from 'three';
+import { Mesh } from 'three';
 import { CanvasOverlay } from '../../scene/CanvasOverlay';
 import { GroundClutter, type GroundBox } from '../../scene/GroundClutter';
+import { addOffset, lookAtQuaternion } from '../../scene/lookAtQuaternion';
 import { SpectatorFrustum } from '../../scene/SpectatorFrustum';
 
 const subjectPosition: [number, number, number] = [0, 1.5, 0];
@@ -16,18 +17,6 @@ type CurveName = (typeof curveOptions)[number];
 
 const cameraNames = ['shot-wide', 'shot-close', 'shot-high', 'shot-alt-a', 'shot-alt-b'] as const;
 type CameraName = (typeof cameraNames)[number];
-
-const lookMatrix = new Matrix4();
-
-/** Matches `HardLookAt`'s own math - a plain `Object3D.lookAt()` would orient a camera 180° backwards. */
-function lookAtQuaternion(position: [number, number, number], target: [number, number, number]): Quaternion {
-  lookMatrix.lookAt(new Vector3(...position), new Vector3(...target), new Vector3(0, 1, 0));
-  return new Quaternion().setFromRotationMatrix(lookMatrix);
-}
-
-function addOffset(base: [number, number, number], offset: [number, number, number]): [number, number, number] {
-  return [base[0] + offset[0], base[1] + offset[1], base[2] + offset[2]];
-}
 
 /** Reused below to seed `initialState`, so a camera's `CameraFrustumHelper` shows its real pose even
  *  before it's ever been picked - `active={false}` means its Follow/HardLookAt haven't ticked yet. */

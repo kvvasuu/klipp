@@ -1,0 +1,147 @@
+import { BindingModes, BlendCurves, BlendHints as Hints, createCameraState, lerpCameraState } from '@kvvasuu/klipp';
+import { Follow, HardLookAt, Klipp, VirtualCamera } from '@kvvasuu/klipp/react';
+import { Line } from '@react-three/drei';
+import { useFrame } from '@react-three/fiber';
+import { button, useControls } from 'leva';
+import { useMemo, useRef, useState } from 'react';
+import { Mesh } from 'three';
+import { GroundClutter, type GroundBox } from '../../scene/GroundClutter';
+import { addOffset, lookAtQuaternion } from '../../scene/lookAtQuaternion';
+import { SpectatorFrustum } from '../../scene/SpectatorFrustum';
+
+const subjectPosition: [number, number, number] = [0, 1.5, 0];
+const secondSubjectPosition: [number, number, number] = [5, 1.3, -5];
+
+// opposing radius/angle trends make spherical's height rise above both endpoints mid-blend, not just arc
+// wider; ~140° apart in azimuth (not ~180°) keeps forward/reverse transitions on the same side.
+const highOffset: [number, number, number] = [1, 10, 3];
+const highPosition = addOffset(secondSubjectPosition, highOffset);
+const highQuaternion = lookAtQuaternion(highPosition, secondSubjectPosition);
+
+const lowOffset: [number, number, number] = [-10, 2.7, -7];
+const lowPosition = addOffset(subjectPosition, lowOffset);
+const lowQuaternion = lookAtQuaternion(lowPosition, subjectPosition);
+
+const pathA = createCameraState();
+pathA.position.set(...highPosition);
+pathA.target.set(...secondSubjectPosition);
+pathA.hasTarget = true;
+
+const pathB = createCameraState();
+pathB.position.set(...lowPosition);
+pathB.target.set(...subjectPosition);
+pathB.hasTarget = true;
+
+const PATH_SAMPLES = 40;
+const scratchPathState = createCameraState();
+
+// Samples the actual library interpolation, not a lookalike - toggling a hint reshapes this curve exactly
+// like it reshapes the real blend, just all at once instead of over `time` seconds.
+function samplePath(hints: number): [number, number, number][] {
+  const points: [number, number, number][] = [];
+  for (let i = 0; i <= PATH_SAMPLES; i++) {
+    lerpCameraState(scratchPathState, pathA, pathB, i / PATH_SAMPLES, hints);
+    points.push([scratchPathState.position.x, scratchPathState.position.y, scratchPathState.position.z]);
+  }
+  return points;
+}
+
+const straightLinePoints = samplePath(Hints.none);
+
+function PathCurve({ hints }: { hints: number }) {
+  const points = useMemo(() => samplePath(hints), [hints]);
+  return (
+    <>
+      <Line points={straightLinePoints} color="#666666" lineWidth={1} dashed dashSize={0.3} gapSize={0.2} />
+      <Line points={points} color="#4fc3c7" lineWidth={2.5} />
+    </>
+  );
+}
+
+const groundBoxes: GroundBox[] = [
+  { x: -9, z: 3, width: 1.5, height: 1.8, depth: 1.5, color: '#9a9aa8' },
+  { x: 9, z: -4, width: 1.3, height: 2.4, depth: 1.3 },
+  { x: -8, z: -6, width: 1.6, height: 1.4, depth: 1.6, color: '#c7c7cf' },
+  { x: 8, z: 6, width: 1.4, height: 2, depth: 1.4 },
+  { x: 0, z: -9, width: 1.8, height: 1.6, depth: 1.8, color: '#9a9aa8' },
+  { x: 0, z: 9, width: 1.7, height: 2.6, depth: 1.7 },
+];
+
+function Subject() {
+  const meshRef = useRef<Mesh>(null);
+  useFrame((_, delta) => {
+    if (meshRef.current) meshRef.current.rotation.y += delta * 0.3;
+  });
+  return (
+    <mesh ref={meshRef} position={subjectPosition}>
+      <icosahedronGeometry args={[1, 0]} />
+      <meshStandardMaterial color="#ffd23f" />
+    </mesh>
+  );
+}
+
+function SecondSubject() {
+  const meshRef = useRef<Mesh>(null);
+  useFrame((_, delta) => {
+    if (meshRef.current) meshRef.current.rotation.y += delta * 0.3;
+  });
+  return (
+    <mesh ref={meshRef} position={secondSubjectPosition}>
+      <octahedronGeometry args={[1, 0]} />
+      <meshStandardMaterial color="#c77dff" />
+    </mesh>
+  );
+}
+
+/** Two fixed shots at very different heights, each on its own subject, switched via "Switch Camera".
+ *  `PathCurve` plots the position interpolation as a static curve (dashed gray is always the plain straight
+ *  line), so `spherical`/`cylindrical` reshape something visible at a glance, not just mid-blend.
+ *  `ignoreTarget` only swaps the rotation blend for a plain slerp - it doesn't touch the curve. */
+export function BlendHints() {
+  const [camera, setCamera] = useState<'shot-high' | 'shot-low'>('shot-low');
+
+  const { cylindrical, spherical, ignoreTarget } = useControls('BlendHints', {
+    ignoreTarget: false,
+    cylindrical: false,
+    spherical: false,
+    'Switch Camera': button(() => setCamera((c) => (c === 'shot-high' ? 'shot-low' : 'shot-high'))),
+  });
+
+  const hints =
+    (spherical ? Hints.sphericalPosition : Hints.none) |
+    (cylindrical ? Hints.cylindricalPosition : Hints.none) |
+    (ignoreTarget ? Hints.ignoreTarget : Hints.none);
+
+  return (
+    <>
+      <Subject />
+      <SecondSubject />
+      <GroundClutter boxes={groundBoxes} />
+      <PathCurve hints={hints} />
+
+      <Klipp defaultBlend={{ curve: BlendCurves.easeInOut, time: 2.5 }}>
+        <VirtualCamera
+          name="shot-high"
+          priority={10}
+          active={camera === 'shot-high'}
+          hints={hints}
+          initialState={{ position: highPosition, quaternion: highQuaternion }}>
+          <Follow target={secondSubjectPosition} offset={highOffset} bindingMode={BindingModes.worldSpace} />
+          <HardLookAt target={secondSubjectPosition} />
+          <SpectatorFrustum color="#21a9e0" />
+        </VirtualCamera>
+
+        <VirtualCamera
+          name="shot-low"
+          priority={10}
+          active={camera === 'shot-low'}
+          hints={hints}
+          initialState={{ position: lowPosition, quaternion: lowQuaternion }}>
+          <Follow target={subjectPosition} offset={lowOffset} bindingMode={BindingModes.worldSpace} />
+          <HardLookAt target={subjectPosition} />
+          <SpectatorFrustum color="#ff6b4a" />
+        </VirtualCamera>
+      </Klipp>
+    </>
+  );
+}
