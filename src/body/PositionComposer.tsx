@@ -23,9 +23,9 @@ export type PositionComposerProps = {
    *  all — same unit as `screenPosition` itself (`1` reaches the frame edge). Default `[0, 0]` (none —
    *  always reacts). */
   deadZone?: [number, number];
-  /** Seconds to catch up to the desired depth and the dead zone's edge (or `{into, from}` for asymmetric
-   *  damping) — the dolly stage reacts to `depthDeadZone`, the lateral stage to `deadZone`. `0` (default)
-   *  = hard, instant snap to both. */
+  /** Spring response time to the desired depth and the dead zone's edge (or `{into, from}` for
+   *  asymmetric damping) - the dolly stage reacts to `depthDeadZone`, the lateral stage to `deadZone`.
+   *  `0` (default) = hard, instant snap to both. */
   damping?: DampingConstant;
   /** A SECOND, normally larger reach (`[x, y]`, same unit as `deadZone`) the target may never visually
    *  drift past — enforced instantly (bypassing `damping`) after the damped dead zone reaction runs.

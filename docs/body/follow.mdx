@@ -19,7 +19,7 @@ Position = `target`'s world position + a fixed `offset`, optionally rotated alon
 | ------------- | ----------------- | -------------- | - |
 | `target`      | `Target`          | -              | Tracking Target - the camera keeps a fixed `offset` from this position/object's world transform. |
 | `offset`      | `Vector3`          | `(0, 0, 10)`   | Offset from the target, rotated according to `bindingMode` before being added to its position. |
-| `damping`     | `DampingConstant` | `0`            | Seconds to catch up to the desired position, per axis (or `{ into, from }`). `0` = hard, instant follow. |
+| `damping`     | `DampingConstant` | `0`            | Spring response time to the desired position, per axis (or `{ into, from }`) - see [Damping](/advanced/damping). `0` = hard, instant follow. |
 | `bindingMode` | `BindingMode`     | `BindingModes.lockToTarget` | Which rotation, if any, `offset` is interpreted in - see below. |
 
 `target` degrades gracefully to a plain world-space offset when it's a bare `Vector3` (no rotation to apply `bindingMode` to at all).

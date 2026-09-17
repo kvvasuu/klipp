@@ -27,5 +27,5 @@ import { Body } from '@kvvasuu/klipp/react';
 Every Body shares the same shape:
 
 - **`target`** accepts an `Object3D`, a `RefObject<Object3D | null>`, or the r3f `Vector3` shorthand (`THREE.Vector3 | [x, y, z] | number`) - the same convention as a plain `<mesh position>`. `null`/`undefined`/an unmounted ref is a no-op, not an error.
-- **`damping`** is either a plain number (seconds to catch up) or `{ into, from }` for asymmetric easing - `0` (the default almost everywhere) means hard, instant snapping.
+- **`damping`** is either a plain number (a spring response time in seconds - see [Damping](/advanced/damping)) or `{ into, from }` for asymmetric easing - `0` (the default almost everywhere) means hard, instant snapping.
 - **`ref`** gives you the underlying class (`FollowBody`, `PositionComposerBody`, ...) for reading or writing its fields directly, or calling methods a prop can't express - `recalculateSize()` on `PositionComposerBody`, for instance.

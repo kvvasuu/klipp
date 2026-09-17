@@ -8,7 +8,7 @@ export type RotateWithFollowTargetProps = {
   /** Rotation source — the camera's rotation becomes this object's world rotation. A fixed-point target
    *  (no rotation), `null`/`undefined`/omitted are all a no-op. */
   target?: Target;
-  /** Seconds to catch up to the target's rotation (or `{into, from}` for asymmetric damping). `0`
+  /** Spring response time to the target's rotation (or `{into, from}` for asymmetric damping). `0`
    *  (default) = hard, instant match. */
   damping?: DampingConstant;
   /** Imperative access to the underlying `RotateWithFollowTargetAim`, for reading/writing

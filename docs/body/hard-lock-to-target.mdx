@@ -18,7 +18,7 @@ Position = `target`'s world position, 1:1 - no offset, no framing. The simplest 
 | Prop      | Type              | Default | |
 | --------- | ----------------- | ------- | - |
 | `target`  | `Target`          | -       | Tracking Target - the camera's position becomes this position/object's world position. `null`/`undefined`/omitted is a no-op, same as an unmounted ref. |
-| `damping` | `DampingConstant` | `0`     | Seconds to catch up to the target's position, per axis (or `{ into, from }` for asymmetric damping). `0` = hard, instant lock. |
+| `damping` | `DampingConstant` | `0`     | Spring response time to the target's position, per axis (or `{ into, from }` for asymmetric damping) - see [Damping](/advanced/damping). `0` = hard, instant lock. |
 
 ## `ref`
 

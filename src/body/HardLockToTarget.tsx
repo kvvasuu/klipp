@@ -8,8 +8,8 @@ export type HardLockToTargetProps = {
   /** Tracking Target — the camera's position becomes this position/object's world position. `null`/
    *  `undefined`/omitted is a no-op, same as an unmounted ref. */
   target?: Target;
-  /** Seconds to catch up to the target's position, per axis (or `{into, from}` for asymmetric damping).
-   *  `0` (default) = hard, instant lock. */
+  /** Spring response time to the target's position, per axis (or `{into, from}` for asymmetric
+   *  damping). `0` (default) = hard, instant lock. */
   damping?: DampingConstant;
   /** Imperative access to the underlying `HardLockToTargetBody`, for reading/writing `target`/`damping`
    *  directly instead of through props. */

@@ -24,7 +24,7 @@ export type GroupFramingProps = {
   positionMode?: TargetGroupPositionMode;
   /** Margin kept clear around the group's members, in world units. Default `0`. */
   padding?: number;
-  /** Seconds to catch up to the distance ceiling (and `screenPosition`) as they change. `0` (default)
+  /** Spring response time to the distance ceiling (and `screenPosition`) as they change. `0` (default)
    *  = hard, instant. */
   damping?: DampingConstant;
   /** Shifts the frustum without moving/rotating the camera — e.g. to keep the framed group visually
