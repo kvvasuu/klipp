@@ -20,7 +20,7 @@ That makes it a genuinely different tool from `HardLookAt`/`RotationComposer`, n
 | Prop      | Type              | Default | |
 | --------- | ----------------- | ------- | - |
 | `target`  | `Target`          | -       | Rotation source - the camera's rotation becomes this object's world rotation. A fixed-point target (no rotation), `null`/`undefined`/omitted are all a no-op. |
-| `damping` | `DampingConstant` | `0`     | Seconds to catch up to the target's rotation (or `{ into, from }` for asymmetric damping). `0` = hard, instant match. |
+| `damping` | `DampingConstant` | `0`     | Spring response time to the target's rotation (or `{ into, from }` for asymmetric damping) - see [Damping](/advanced/damping). `0` = hard, instant match. |
 
 Damping here tracks the shortest angular delta every frame using a single `Damper` on the rotation angle itself (not a per-axis Euler decomposition), so it stays continuous and gimbal-lock-free even while chasing a target that's rotating quickly and continuously.
 

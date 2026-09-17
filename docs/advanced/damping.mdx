@@ -12,7 +12,7 @@ Every `damping` prop across klipp - `Follow`'s offset, `PositionComposer`'s dead
 type DampingConstant = number | { into: number; from: number };
 ```
 
-A plain number is seconds to (roughly) catch up. `{ into, from }` gives asymmetric easing: `into` applies while the gap to the target is *widening*, `from` while it's *narrowing* - useful whenever a snappy reaction should recover more gently than it triggered, or vice versa.
+A plain number is a spring time constant in seconds - it's roughly how quickly the spring *starts* responding, not when it's done. Because the approach is exponential, fully closing the gap (down to `Damper`'s tiny `epsilon`) always takes noticeably more than the value itself - how much more depends on how big the gap is, since a bigger gap needs more of these time constants to shrink to that same tiny absolute threshold. In practice this doesn't matter: the motion reads as fully settled well before that technical finish, since the last sliver of an exponential decay is imperceptible. `{ into, from }` gives asymmetric easing: `into` applies while the gap to the target is *widening*, `from` while it's *narrowing* - useful whenever a snappy reaction should recover more gently than it triggered, or vice versa.
 
 ## `Damper`
 

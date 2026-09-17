@@ -12,11 +12,11 @@ export type LensProps = {
   near?: number;
   /** Overrides the far clip plane. `undefined` (default) - untouched. */
   far?: number;
-  /** Seconds to catch up to `fov` as it changes. `0` (default) = hard, instant. */
+  /** Spring response time to `fov` as it changes. `0` (default) = hard, instant. */
   fovDamping?: DampingConstant;
-  /** Seconds to catch up to `near` as it changes. `0` (default) = hard, instant. */
+  /** Spring response time to `near` as it changes. `0` (default) = hard, instant. */
   nearDamping?: DampingConstant;
-  /** Seconds to catch up to `far` as it changes. `0` (default) = hard, instant. */
+  /** Spring response time to `far` as it changes. `0` (default) = hard, instant. */
   farDamping?: DampingConstant;
   /** Imperative access to the underlying `LensExtension`, for mutating `fov`/`near`/`far` every frame
    *  from an external `useFrame` without forcing a React re-render. */

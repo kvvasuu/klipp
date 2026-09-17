@@ -17,7 +17,7 @@ export type FollowProps = {
   /** Offset from the target, rotated according to `bindingMode` before being added to its position.
    *  Default `(0, 0, 10)` — a positive Z sits the camera behind the target, not in front of it. */
   offset?: Vector3Like;
-  /** Seconds to catch up to the desired position, per axis (or `{into, from}` for asymmetric damping).
+  /** Spring response time to the desired position, per axis (or `{into, from}` for asymmetric damping).
    *  `0` (default) = hard, instant follow. */
   damping?: DampingConstant;
   /** Which rotation, if any, `offset` is interpreted in. Default `BindingModes.lockToTarget` (the

@@ -20,7 +20,7 @@ export type RotationComposerProps = {
    *  unit as `screenPosition` itself (`1` reaches the frame edge). Default `[0, 0]` (none — always
    *  reacts, same as `HardLookAt`). */
   deadZone?: [number, number];
-  /** Seconds to catch up to the dead zone's edge once the target steps outside it (or `{into, from}` for
+  /** Spring response time to the dead zone's edge once the target steps outside it (or `{into, from}` for
    *  asymmetric damping). Only matters when `deadZone` is non-zero. `0` (default) = hard, instant snap
    *  to the edge. */
   damping?: DampingConstant;

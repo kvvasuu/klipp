@@ -43,7 +43,7 @@ export class GroupFramingExtension {
   /** Current canvas size in pixels, for the viewport's aspect ratio. */
   viewportWidth: number;
   viewportHeight: number;
-  /** Seconds to catch up to the distance ceiling (and `screenPosition`) as they change. `0` (default)
+  /** Spring response time to the distance ceiling (and `screenPosition`) as they change. `0` (default)
    *  = hard, instant. */
   damping: DampingConstant;
   /** Shifts the frustum without moving/rotating the camera - same convention as `PositionComposer`'s

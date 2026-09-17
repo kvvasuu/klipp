@@ -21,9 +21,9 @@ Nothing else in klipp's pipeline writes `fov`/`near`/`far` (`initialState`/blend
 | `fov`          | `number`          | -       | Overrides the camera's field of view, in degrees. `undefined` = untouched. |
 | `near`         | `number`          | -       | Overrides the near clip plane. `undefined` = untouched. |
 | `far`          | `number`          | -       | Overrides the far clip plane. `undefined` = untouched. |
-| `fovDamping`   | `DampingConstant` | `0`     | Seconds to catch up to `fov` as it changes. `0` = hard, instant. |
-| `nearDamping`  | `DampingConstant` | `0`     | Seconds to catch up to `near` as it changes. `0` = hard, instant. |
-| `farDamping`   | `DampingConstant` | `0`     | Seconds to catch up to `far` as it changes. `0` = hard, instant. |
+| `fovDamping`   | `DampingConstant` | `0`     | Spring response time to `fov` as it changes - see [Damping](/advanced/damping). `0` = hard, instant. |
+| `nearDamping`  | `DampingConstant` | `0`     | Spring response time to `near` as it changes. `0` = hard, instant. |
+| `farDamping`   | `DampingConstant` | `0`     | Spring response time to `far` as it changes. `0` = hard, instant. |
 
 Each field damps independently - `fov` can be easing in over half a second while `near`/`far` snap instantly, since they're three separate `Damper`s under the hood.
 
