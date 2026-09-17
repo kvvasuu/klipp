@@ -5,7 +5,9 @@ import { RotationComposer } from '../scenes/aim/RotationComposer';
 import { RotationComposerLookahead } from '../scenes/aim/RotationComposerLookahead';
 import { RotationComposerTargetOffset } from '../scenes/aim/RotationComposerTargetOffset';
 import { BlendCurves } from '../scenes/blending/BlendCurves';
+import { BlendCurvesDamping } from '../scenes/blending/BlendCurvesDamping';
 import { BlendHints } from '../scenes/blending/BlendHints';
+import { CustomBlends } from '../scenes/blending/CustomBlends';
 import { Follow } from '../scenes/body/Follow';
 import { HardLockToTarget } from '../scenes/body/HardLockToTarget';
 import { PositionComposer } from '../scenes/body/PositionComposer';
@@ -214,10 +216,22 @@ export const categories: ExampleCategory[] = [
       {
         slug: 'blend-curves',
         title: 'BlendCurves',
+        group: 'blend-curves',
         Scene: BlendCurves,
         description:
           "Five fixed shots, picked via the camera select or Prev/Next - two orbit their subject through Follow's lockToTarget binding. The bar plots curve(t) live (white tick is raw linear time) so a blend's shape reads directly, not just by eye.",
         spectatorPosition: [8, 10, 14],
+        spectatorTarget: [0, 1.5, 0],
+        ready: true,
+      },
+      {
+        slug: 'blend-curves-damping',
+        title: 'BlendCurves: Damping',
+        group: 'blend-curves',
+        Scene: BlendCurvesDamping,
+        description:
+          'The same wide/close transition replayed under two BlendDefinition shapes - { curve, time } always finishes at exactly time seconds, while { damping } has no fixed finish and eases forever closer via the same spring as Damper. The fill bar traces whichever real algorithm is picked, so curve mode caps out right on its own time while damping trails off instead of stopping.',
+        spectatorPosition: [10, 8, 14],
         spectatorTarget: [0, 1.5, 0],
         ready: true,
       },
@@ -231,7 +245,16 @@ export const categories: ExampleCategory[] = [
         spectatorTarget: [0, 6, 0],
         ready: true,
       },
-      { slug: 'custom-blends', title: 'CustomBlends', Scene: Placeholder, ready: false },
+      {
+        slug: 'custom-blends',
+        title: 'CustomBlends',
+        Scene: CustomBlends,
+        description:
+          'Four fixed shots - picking one from `pick` triggers a real transition resolved by the same `resolveBlendDefinition` the library uses, against a fixed `customBlends` list covering all three specificity levels (exact, to-only, from-only) plus the `defaultBlend` fallback. The label shows which one actually won.',
+        spectatorPosition: [14, 12, -10],
+        spectatorTarget: [0, 2, 0],
+        ready: true,
+      },
     ],
   },
   {
