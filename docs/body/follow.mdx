@@ -20,6 +20,7 @@ Position = `target`'s world position + a fixed `offset`, optionally rotated alon
 | `target`      | `Target`          | -              | Tracking Target - the camera keeps a fixed `offset` from this position/object's world transform. |
 | `offset`      | `Vector3`          | `(0, 0, 10)`   | Offset from the target, rotated according to `bindingMode` before being added to its position. |
 | `damping`     | `DampingConstant` | `0`            | Spring response time to the desired position, per axis (or `{ into, from }`) - see [Damping](/advanced/damping). `0` = hard, instant follow. |
+| `maxSpeed`    | `number`          | `Infinity`     | Caps how fast `damping` can close the gap, in world units/sec. |
 | `bindingMode` | `BindingMode`     | `BindingModes.lockToTarget` | Which rotation, if any, `offset` is interpreted in - see below. |
 
 `target` degrades gracefully to a plain world-space offset when it's a bare `Vector3` (no rotation to apply `bindingMode` to at all).
@@ -46,4 +47,4 @@ Position = `target`'s world position + a fixed `offset`, optionally rotated alon
 const bodyRef = useRef<FollowBody>(null);
 ```
 
-Gives you the underlying `FollowBody` - read or write `.target`/`.offset`/`.damping`/`.bindingMode` directly.
+Gives you the underlying `FollowBody` - read or write `.target`/`.offset`/`.damping`/`.maxSpeed`/`.bindingMode` directly.
