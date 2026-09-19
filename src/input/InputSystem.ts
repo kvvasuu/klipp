@@ -58,6 +58,10 @@ export type ConsumedInput = {
   touchTwoDy: number;
   /** Two-finger distance change - positive as the fingers spread apart */
   touchPinchDelta: number;
+  /** Three-finger centroid movement (truck) - a third finger joining suspends `touchTwoDx/Dy`/
+   *  `touchPinchDelta`/`touchRotateDelta` the same way a second finger suspends `touchOneDx/Dy`. */
+  touchThreeDx: number;
+  touchThreeDy: number;
   /** Two-finger twist, in radians - `Math.atan2`'s sign, so positive turns clockwise on screen.
    *  Shortest-path per move, so a gesture can spin past +/-180° without a 360° jump.
    *  Also carries Safari's native trackpad gesture rotation, degrees converted. */
@@ -96,6 +100,7 @@ export class InputSystem {
   private activePointer: ActivePointer | null = null;
   private touchPointer: ActivePointer | null = null;
   private touchPointer2: ActivePointer | null = null;
+  private touchPointer3: ActivePointer | null = null;
   private touchPinchDistance = 0;
   private touchAngle = 0;
   private touchGestureStartDistance = 0;
@@ -118,6 +123,8 @@ export class InputSystem {
   private touchOneDy = 0;
   private touchTwoDx = 0;
   private touchTwoDy = 0;
+  private touchThreeDx = 0;
+  private touchThreeDy = 0;
   private touchPinchDelta = 0;
   private touchRotateDelta = 0;
   private gestureZoomDelta = 0;
@@ -170,6 +177,7 @@ export class InputSystem {
     this.activePointer = null;
     this.touchPointer = null;
     this.touchPointer2 = null;
+    this.touchPointer3 = null;
     this.gestureActive = false;
     this.locked = false;
   };
@@ -193,6 +201,8 @@ export class InputSystem {
     out.touchOneDy = this.touchOneDy;
     out.touchTwoDx = this.touchTwoDx;
     out.touchTwoDy = this.touchTwoDy;
+    out.touchThreeDx = this.touchThreeDx;
+    out.touchThreeDy = this.touchThreeDy;
     out.touchPinchDelta = this.touchPinchDelta;
     out.touchRotateDelta = this.touchRotateDelta;
     out.gestureZoomDelta = this.gestureZoomDelta;
@@ -211,6 +221,8 @@ export class InputSystem {
     this.touchOneDy = 0;
     this.touchTwoDx = 0;
     this.touchTwoDy = 0;
+    this.touchThreeDx = 0;
+    this.touchThreeDy = 0;
     this.touchPinchDelta = 0;
     this.touchRotateDelta = 0;
     this.gestureZoomDelta = 0;
@@ -234,6 +246,17 @@ export class InputSystem {
     return x >= area.x && x <= area.x + area.width && y >= area.y && y <= area.y + area.height;
   }
 
+  // re-baselines touchPinchDelta/touchRotateDelta/lockTouchAxis for a fresh two-finger gesture -
+  // called both when the second finger joins and when a third finger lifts back down to two
+  private resetTwoFingerGestureState(): void {
+    if (!this.touchPointer || !this.touchPointer2) return;
+    this.touchPinchDistance = distanceBetween(this.touchPointer, this.touchPointer2);
+    this.touchAngle = angleBetween(this.touchPointer, this.touchPointer2);
+    this.touchGestureStartDistance = this.touchPinchDistance;
+    this.touchGestureRotateTotal = 0;
+    this.touchAxisLock = null;
+  }
+
   private onPointerDown = (event: PointerEvent): void => {
     if (!this.isInsideInteractiveArea(event.clientX, event.clientY)) return;
     if (event.pointerType === 'touch') {
@@ -241,13 +264,16 @@ export class InputSystem {
         this.touchPointer = { pointerId: event.pointerId, x: event.clientX, y: event.clientY };
       } else if (!this.touchPointer2 && event.pointerId !== this.touchPointer.pointerId) {
         this.touchPointer2 = { pointerId: event.pointerId, x: event.clientX, y: event.clientY };
-        this.touchPinchDistance = distanceBetween(this.touchPointer, this.touchPointer2);
-        this.touchAngle = angleBetween(this.touchPointer, this.touchPointer2);
-        this.touchGestureStartDistance = this.touchPinchDistance;
-        this.touchGestureRotateTotal = 0;
-        this.touchAxisLock = null;
+        this.resetTwoFingerGestureState();
+      } else if (
+        !this.touchPointer3 &&
+        this.touchPointer2 &&
+        event.pointerId !== this.touchPointer.pointerId &&
+        event.pointerId !== this.touchPointer2.pointerId
+      ) {
+        this.touchPointer3 = { pointerId: event.pointerId, x: event.clientX, y: event.clientY };
       } else {
-        // a third finger, or a duplicate pointerId ignored
+        // a fourth finger, or a duplicate pointerId ignored
         return;
       }
     } else if (event.pointerType === 'mouse') {
@@ -274,6 +300,26 @@ export class InputSystem {
   private onPointerMove = (event: PointerEvent): void => {
     if (event.pointerType === 'touch') {
       if (!this.touchPointer) return;
+      if (this.touchPointer3) {
+        if (!this.touchPointer2) return;
+        const moving =
+          event.pointerId === this.touchPointer.pointerId
+            ? this.touchPointer
+            : event.pointerId === this.touchPointer2.pointerId
+              ? this.touchPointer2
+              : event.pointerId === this.touchPointer3.pointerId
+                ? this.touchPointer3
+                : null;
+        if (!moving) return; // a fourth finger's stray move - ignored
+
+        const oldCentroidX = (this.touchPointer.x + this.touchPointer2.x + this.touchPointer3.x) / 3;
+        const oldCentroidY = (this.touchPointer.y + this.touchPointer2.y + this.touchPointer3.y) / 3;
+        moving.x = event.clientX;
+        moving.y = event.clientY;
+        this.touchThreeDx += (this.touchPointer.x + this.touchPointer2.x + this.touchPointer3.x) / 3 - oldCentroidX;
+        this.touchThreeDy += (this.touchPointer.y + this.touchPointer2.y + this.touchPointer3.y) / 3 - oldCentroidY;
+        return;
+      }
       if (this.touchPointer2) {
         const moving =
           event.pointerId === this.touchPointer.pointerId
@@ -364,13 +410,20 @@ export class InputSystem {
 
   private onPointerUp = (event: PointerEvent): void => {
     if (event.pointerType === 'touch') {
-      if (this.touchPointer2?.pointerId === event.pointerId) {
-        this.touchPointer2 = null;
+      if (this.touchPointer3?.pointerId === event.pointerId) {
+        this.touchPointer3 = null;
+        this.resetTwoFingerGestureState();
+      } else if (this.touchPointer2?.pointerId === event.pointerId) {
+        this.touchPointer2 = this.touchPointer3;
+        this.touchPointer3 = null;
+        this.resetTwoFingerGestureState();
       } else if (this.touchPointer?.pointerId === event.pointerId) {
-        // promote the second finger (if any) to sole tracked finger - no jump, its position is
-        // already current, a fresh one-finger drag just continues from wherever it already is
+        // promote the remaining finger(s) down a slot - no jump, their positions are already
+        // current, a fresh one/two-finger gesture just continues from wherever they already are
         this.touchPointer = this.touchPointer2;
-        this.touchPointer2 = null;
+        this.touchPointer2 = this.touchPointer3;
+        this.touchPointer3 = null;
+        this.resetTwoFingerGestureState();
       }
       return;
     }
@@ -417,6 +470,7 @@ export class InputSystem {
       this.activePointer = null;
       this.touchPointer = null;
       this.touchPointer2 = null;
+      this.touchPointer3 = null;
       this.gestureActive = false;
     }
   };

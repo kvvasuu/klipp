@@ -60,6 +60,8 @@ function emptyInput(): ConsumedInput {
     touchOneDy: 0,
     touchTwoDx: 0,
     touchTwoDy: 0,
+    touchThreeDx: 0,
+    touchThreeDy: 0,
     touchPinchDelta: 0,
     touchRotateDelta: 0,
     gestureZoomDelta: 0,
@@ -438,19 +440,69 @@ describe('InputSystem', () => {
     expect(out.touchRotateDelta).toBe(0);
   });
 
-  it('a third finger touching down while two are tracked is ignored - the two keep going', () => {
+  it('a third finger joining starts three-finger tracking - touchTwoDx/Dy stops, touchThreeDx/Dy takes over', () => {
     const el = setup();
 
     touch(el, 'pointerdown', 0, 0, 1);
     touch(el, 'pointerdown', 100, 0, 2);
-    touch(el, 'pointerdown', 50, 50, 3); // third finger - ignored entirely
-    touch(el, 'pointermove', 10, 0, 1);
-    touch(el, 'pointermove', 999, 999, 3); // must not affect the buffer
+    touch(el, 'pointermove', 10, 0, 1); // two-finger mode: centroid 50 -> 55
+    touch(el, 'pointerdown', 50, 50, 3); // third finger joins - now three-finger mode
+    touch(el, 'pointermove', 60, 50, 3); // finger 3 moves +10 in x
 
     const out = emptyInput();
     system.consume(out);
 
-    expect(out.touchTwoDx).toBeCloseTo(5, 5); // centroid: 50 -> 55, from finger 1 alone moving
+    expect(out.touchTwoDx).toBeCloseTo(5, 5); // unchanged since the third finger joined
+    expect(out.touchThreeDx).toBeCloseTo(10 / 3, 5); // centroid: (10+100+50)/3 -> (10+100+60)/3
+  });
+
+  it('a fourth finger touching down while three are tracked is ignored - the three keep going', () => {
+    const el = setup();
+
+    touch(el, 'pointerdown', 0, 0, 1);
+    touch(el, 'pointerdown', 100, 0, 2);
+    touch(el, 'pointerdown', 50, 50, 3);
+    touch(el, 'pointerdown', 999, 999, 4); // fourth finger - ignored entirely
+    touch(el, 'pointermove', 60, 50, 3);
+    touch(el, 'pointermove', 0, 0, 4); // must not affect the buffer
+
+    const out = emptyInput();
+    system.consume(out);
+
+    expect(out.touchThreeDx).toBeCloseTo(10 / 3, 5);
+  });
+
+  it('lifting the third finger drops back to two-finger mode with a fresh pinch baseline, no jump', () => {
+    const el = setup();
+
+    touch(el, 'pointerdown', 0, 0, 1);
+    touch(el, 'pointerdown', 100, 0, 2); // distance 100
+    touch(el, 'pointerdown', 50, 50, 3); // three-finger mode starts
+    touch(el, 'pointermove', 30, 0, 1); // finger 1 drifts during three-finger mode
+    touch(el, 'pointerup', 50, 50, 3); // back to two fingers - now 70 apart, not the original 100
+    touch(el, 'pointermove', 130, 0, 2); // spreads to 100 apart again
+
+    const out = emptyInput();
+    system.consume(out);
+
+    // fresh baseline: 100 - 70 = 30. A stale baseline (the original 100) would wrongly give ~0.
+    expect(out.touchPinchDelta).toBeCloseTo(30, 5);
+  });
+
+  it('lifting the first finger while three are tracked promotes the other two, fresh pinch baseline', () => {
+    const el = setup();
+
+    touch(el, 'pointerdown', 0, 0, 1);
+    touch(el, 'pointerdown', 100, 0, 2);
+    touch(el, 'pointerdown', 250, 0, 3); // finger 2<->3 distance is 150
+    touch(el, 'pointerup', 0, 0, 1); // finger 1 lifts - fingers 2 and 3 promoted down a slot
+    touch(el, 'pointermove', 300, 0, 3); // spreads finger 2<->3 to 200 apart
+
+    const out = emptyInput();
+    system.consume(out);
+
+    // fresh baseline: 200 - 150 = 50. A stale baseline (from the original 1<->2 pair, 100) would be wrong.
+    expect(out.touchPinchDelta).toBeCloseTo(50, 5);
   });
 
   it('lifting the first finger while the second is down promotes it - a fresh one-finger drag, no jump', () => {
