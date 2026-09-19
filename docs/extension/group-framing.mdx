@@ -22,6 +22,7 @@ Dollies the camera back along its own current view axis just far enough to keep 
 | `positionMode`  | `'groupCenter' \| 'groupAverage'` | `'groupCenter'` | `groupCenter` - center of the AABB enclosing every member's own bounding sphere. `groupAverage` - weighted mean of member positions, ignoring radius. |
 | `padding`       | `number`                 | `0`            | Margin kept clear around the group's members, in world units. |
 | `damping`       | `DampingConstant`        | `0`            | Spring response time to the distance ceiling (and `screenPosition`) as they change - see [Damping](/advanced/damping). `0` = hard, instant. |
+| `maxSpeed`      | `number`                 | `Infinity`     | Caps how fast `damping` can close the distance-ceiling gap, in world units/sec. Doesn't affect `screenPosition`'s own easing. |
 | `screenPosition` | `[number, number]`      | `[0, 0]`       | Shifts the frustum without moving/rotating the camera - e.g. to keep the group visually centered in the space left over after reserving room for UI on one side. Same convention as `PositionComposer`'s `screenPosition`, not pixels. |
 | `fitMode`       | `'ceiling' \| 'rigid'`   | `'ceiling'`    | `ceiling` - only dollies back, never closer than Body/Aim already placed the camera. `rigid` - always sits exactly at the fit distance, dollying in as the group shrinks too. |
 | `minDistance`   | `number`                 | `0`            | Clamps the fit distance this extension computes - not Body/Aim's own placement in `ceiling` mode. |

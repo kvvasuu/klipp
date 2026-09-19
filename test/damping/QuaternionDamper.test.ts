@@ -77,6 +77,24 @@ describe('QuaternionDamper', () => {
     expect(out.angleTo(new Quaternion())).toBeGreaterThan(0);
   });
 
+  it('maxSpeed (radians/sec) clamps how far a single step can rotate, for the same gap and dt', () => {
+    const target = new Quaternion().setFromAxisAngle(new Vector3(0, 1, 0), Math.PI / 2);
+
+    const unclampedDamper = new QuaternionDamper();
+    const unclamped = new Quaternion();
+    unclampedDamper.update(unclamped, target, 1, 0.05); // consume the first-call snap
+    unclamped.identity(); // move back away from target to genuinely exercise a real step below
+    unclampedDamper.update(unclamped, target, 1, 0.05);
+
+    const clampedDamper = new QuaternionDamper();
+    const clamped = new Quaternion();
+    clampedDamper.update(clamped, target, 1, 0.05, 1); // consume the first-call snap
+    clamped.identity();
+    clampedDamper.update(clamped, target, 1, 0.05, 1); // maxSpeed = 1 rad/sec
+
+    expect(clamped.angleTo(target)).toBeGreaterThan(unclamped.angleTo(target));
+  });
+
   it('writes into "out" and returns it (no allocation)', () => {
     const damper = new QuaternionDamper();
     const target = new Quaternion().setFromAxisAngle(new Vector3(0, 1, 0), 1);

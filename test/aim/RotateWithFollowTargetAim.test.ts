@@ -181,6 +181,28 @@ describe('RotateWithFollowTargetAim', () => {
     });
   });
 
+  describe('maxSpeed', () => {
+    it('clamps how fast damping can close the gap, in radians/sec', () => {
+      const target = new Object3D();
+      target.rotation.set(0, Math.PI / 2, 0);
+
+      const unclamped = new RotateWithFollowTargetAim(target, 1);
+      unclamped.update(createCameraState(), 0.05); // consume the first-ever-update hard snap
+      const outUnclamped = createCameraState();
+      unclamped.update(outUnclamped, 0.05);
+
+      const clamped = new RotateWithFollowTargetAim(target, 1, 1);
+      clamped.update(createCameraState(), 0.05);
+      const outClamped = createCameraState();
+      clamped.update(outClamped, 0.05); // maxSpeed = 1 rad/sec
+
+      const targetQuaternion = new Quaternion().setFromEuler(target.rotation);
+      expect(outClamped.quaternion.angleTo(targetQuaternion)).toBeGreaterThan(
+        outUnclamped.quaternion.angleTo(targetQuaternion),
+      );
+    });
+  });
+
   describe('justActivated', () => {
     it('snaps straight to the target rotation even with a warmed-up damper and a stale out.quaternion', () => {
       const target = new Object3D();

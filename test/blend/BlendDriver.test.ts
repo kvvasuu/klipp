@@ -264,5 +264,23 @@ describe('BlendDriver', () => {
         expect(out.position.x).toBeLessThanOrEqual(10 + 1e-6);
       }
     });
+
+    it('maxSpeed clamps how fast damping can advance progress, in progress/sec (a floor on total blend duration)', () => {
+      const states = { a: stateAt(0), b: stateAt(10) };
+
+      const unclamped = new BlendDriver<'a' | 'b'>((id) => states[id]);
+      unclamped.setTarget('a', damped);
+      unclamped.tick(0);
+      unclamped.setTarget('b', damped);
+      const xUnclamped = unclamped.tick(0.05).position.x;
+
+      const clamped = new BlendDriver<'a' | 'b'>((id) => states[id]);
+      clamped.setTarget('a', damped);
+      clamped.tick(0);
+      clamped.setTarget('b', { damping: 0.3, maxSpeed: 1 });
+      const xClamped = clamped.tick(0.05).position.x;
+
+      expect(xClamped).toBeLessThan(xUnclamped);
+    });
   });
 });

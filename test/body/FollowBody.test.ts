@@ -170,6 +170,24 @@ describe('FollowBody', () => {
     });
   });
 
+  describe('maxSpeed', () => {
+    it('clamps how fast damping can close the gap, in world units/sec', () => {
+      const unclamped = new FollowBody(new Vector3(0, 0, 0), new Vector3(100, 0, 0), 1, BindingModes.lockToTarget);
+      const outUnclamped = createCameraState();
+      unclamped.update(outUnclamped, 0.05); // consume the first-ever-update hard snap
+      outUnclamped.position.set(0, 0, 0); // move back away from target to genuinely exercise damping below
+      unclamped.update(outUnclamped, 0.05);
+
+      const clamped = new FollowBody(new Vector3(0, 0, 0), new Vector3(100, 0, 0), 1, BindingModes.lockToTarget, 2);
+      const outClamped = createCameraState();
+      clamped.update(outClamped, 0.05);
+      outClamped.position.set(0, 0, 0);
+      clamped.update(outClamped, 0.05); // maxSpeed = 2 units/sec
+
+      expect(outClamped.position.x).toBeLessThan(outUnclamped.position.x);
+    });
+  });
+
   describe('justActivated', () => {
     it('snaps straight to the desired position even with a warmed-up damper and a stale out.position', () => {
       // offset (0,0,0): desired position === target, keeping the expected values simple below
