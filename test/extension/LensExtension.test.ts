@@ -54,7 +54,7 @@ describe('LensExtension', () => {
       expect(out.fov).toBe(90); // fully caught up in a single step
     });
 
-    it('the first-ever update still snaps hard, matching the rest of klipp\'s damping convention', () => {
+    it("the first-ever update still snaps hard, matching the rest of klipp's damping convention", () => {
       const extension = new LensExtension(90, undefined, undefined, 1); // fovDamping = 1s
       const out = createCameraState();
 
@@ -105,6 +105,56 @@ describe('LensExtension', () => {
       // if damping incorrectly read its "current" value FROM out.fov (stomped back to 35 every frame),
       // every step would restart from the same spot and net progress would be ~0
       expect(out.fov).toBeGreaterThan(afterFirst);
+    });
+  });
+
+  describe('maxSpeed', () => {
+    it('fovMaxSpeed clamps how fast fovDamping can close the gap, in degrees/sec', () => {
+      const unclamped = new LensExtension(50, undefined, undefined, 1); // fovDamping = 1s
+      const outUnclamped = createCameraState();
+      unclamped.update(outUnclamped, 0.1); // first-ever call snaps
+      unclamped.fov = 90;
+      unclamped.update(outUnclamped, 0.1);
+
+      const clamped = new LensExtension(50, undefined, undefined, 1, 0, 0, 5); // fovMaxSpeed = 5 deg/sec
+      const outClamped = createCameraState();
+      clamped.update(outClamped, 0.1);
+      clamped.fov = 90;
+      clamped.update(outClamped, 0.1);
+
+      expect(outClamped.fov).toBeLessThan(outUnclamped.fov);
+    });
+
+    it('nearMaxSpeed clamps how fast nearDamping can close the gap, in world units/sec', () => {
+      const unclamped = new LensExtension(undefined, 1, undefined, 0, 1); // nearDamping = 1s
+      const outUnclamped = createCameraState();
+      unclamped.update(outUnclamped, 0.1); // first-ever call snaps
+      unclamped.near = 100;
+      unclamped.update(outUnclamped, 0.1);
+
+      const clamped = new LensExtension(undefined, 1, undefined, 0, 1, 0, Infinity, 5); // nearMaxSpeed = 5 units/sec
+      const outClamped = createCameraState();
+      clamped.update(outClamped, 0.1);
+      clamped.near = 100;
+      clamped.update(outClamped, 0.1);
+
+      expect(outClamped.near).toBeLessThan(outUnclamped.near);
+    });
+
+    it('farMaxSpeed clamps how fast farDamping can close the gap, in world units/sec', () => {
+      const unclamped = new LensExtension(undefined, undefined, 10, 0, 0, 1); // farDamping = 1s
+      const outUnclamped = createCameraState();
+      unclamped.update(outUnclamped, 0.1); // first-ever call snaps
+      unclamped.far = 1000;
+      unclamped.update(outUnclamped, 0.1);
+
+      const clamped = new LensExtension(undefined, undefined, 10, 0, 0, 1, Infinity, Infinity, 5); // farMaxSpeed = 5 units/sec
+      const outClamped = createCameraState();
+      clamped.update(outClamped, 0.1);
+      clamped.far = 1000;
+      clamped.update(outClamped, 0.1);
+
+      expect(outClamped.far).toBeLessThan(outUnclamped.far);
     });
   });
 

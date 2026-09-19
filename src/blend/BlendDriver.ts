@@ -129,7 +129,13 @@ export class BlendDriver<Id> {
       const { definition } = this.blend;
       let t: number;
       if ('damping' in definition) {
-        this.blend.progress = this.blend.damper!.update(this.blend.progress, 1, definition.damping, dt);
+        this.blend.progress = this.blend.damper!.update(
+          this.blend.progress,
+          1,
+          definition.damping,
+          dt,
+          definition.maxSpeed,
+        );
         t = this.blend.progress;
       } else {
         this.blend.elapsed += dt;

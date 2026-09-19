@@ -27,6 +27,9 @@ export type GroupFramingProps = {
   /** Spring response time to the distance ceiling (and `screenPosition`) as they change. `0` (default)
    *  = hard, instant. */
   damping?: DampingConstant;
+  /** Caps how fast `damping` can close the distance-ceiling gap, in world units/sec. Default `Infinity`
+   *  (no cap). */
+  maxSpeed?: number;
   /** Shifts the frustum without moving/rotating the camera — e.g. to keep the framed group visually
    *  centered in the space left over after reserving room for UI on one side. Same convention as
    *  `PositionComposer`'s `screenPosition` (0 = center, ±1 = frame edge), not pixels. Default `[0, 0]`. */
@@ -59,6 +62,7 @@ export function GroupFraming({
   positionMode = 'groupCenter',
   padding = 0,
   damping = 0,
+  maxSpeed = Infinity,
   screenPosition = [0, 0],
   fitMode = 'ceiling',
   minDistance = 0,
@@ -83,6 +87,7 @@ export function GroupFraming({
         minDistance,
         maxDistance,
         framingMode,
+        maxSpeed,
       ),
   );
 
@@ -92,6 +97,7 @@ export function GroupFraming({
   extension.viewportWidth = size.width;
   extension.viewportHeight = size.height;
   extension.damping = damping;
+  extension.maxSpeed = maxSpeed;
   extension.screenPosition = screenPosition;
   extension.fitMode = fitMode;
   extension.minDistance = minDistance;
@@ -120,7 +126,9 @@ export function GroupFraming({
       framingMode === 'horizontal' ? 2 : paddingBoxEdgeFraction(verticalHalfFov, distance, padding) * 2,
     ];
     setPaddingBox((previous) =>
-      previous && Math.abs(previous[0] - next[0]) < DEBUG_BOX_EPSILON && Math.abs(previous[1] - next[1]) < DEBUG_BOX_EPSILON
+      previous &&
+      Math.abs(previous[0] - next[0]) < DEBUG_BOX_EPSILON &&
+      Math.abs(previous[1] - next[1]) < DEBUG_BOX_EPSILON
         ? previous
         : next,
     );

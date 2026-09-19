@@ -68,6 +68,24 @@ describe('Vector3Damper', () => {
     expect(out.x).toBeLessThan(10);
   });
 
+  it('maxSpeed clamps how far a single step can move, for the same gap and dt', () => {
+    const target = new Vector3(100, 0, 0);
+
+    const unclampedDamper = new Vector3Damper();
+    const unclamped = new Vector3();
+    unclampedDamper.update(unclamped, target, 1, 0.05); // consume the first-call snap
+    unclamped.set(0, 0, 0); // move back away from target to genuinely exercise a real step below
+    unclampedDamper.update(unclamped, target, 1, 0.05);
+
+    const clampedDamper = new Vector3Damper();
+    const clamped = new Vector3();
+    clampedDamper.update(clamped, target, 1, 0.05, 2); // consume the first-call snap
+    clamped.set(0, 0, 0);
+    clampedDamper.update(clamped, target, 1, 0.05, 2); // maxSpeed = 2 units/sec
+
+    expect(clamped.x).toBeLessThan(unclamped.x);
+  });
+
   it('writes into "out" and returns it (no allocation)', () => {
     const damper = new Vector3Damper();
     const out = new Vector3();

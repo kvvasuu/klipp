@@ -1,8 +1,10 @@
 import type { Ease } from './BlendCurves';
 
 /** A blend's shape - a `curve` over a fixed `time`, or `damping` (seconds, same spring as `Damper`),
- *  which approaches the target asymptotically instead of finishing at a fixed pace. */
-export type BlendDefinition = { curve: Ease; time: number } | { damping: number };
+ *  which approaches the target asymptotically instead of finishing at a fixed pace. `maxSpeed` (progress
+ *  per second, default `Infinity`) caps how fast `damping` can close the gap - since progress always runs
+ *  0→1, it doubles as a floor on the blend's total duration regardless of how small `damping` is. */
+export type BlendDefinition = { curve: Ease; time: number } | { damping: number; maxSpeed?: number };
 
 /**
  * One entry of a Custom Blends list — an explicit From→To blend override. `from`/`to` omitted = matches

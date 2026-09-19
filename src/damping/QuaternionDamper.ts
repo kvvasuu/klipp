@@ -17,7 +17,7 @@ const scratchStep = new Quaternion();
 export class QuaternionDamper {
   private readonly damper = new Damper();
 
-  update(out: Quaternion, target: Quaternion, damping: DampingConstant, dt: number): Quaternion {
+  update(out: Quaternion, target: Quaternion, damping: DampingConstant, dt: number, maxSpeed = Infinity): Quaternion {
     if (typeof damping === 'number' && damping <= 0) return out.copy(target);
 
     // delta * out = target, solved for delta — the shortest rotation from "out" to "target"
@@ -35,7 +35,7 @@ export class QuaternionDamper {
       return out.copy(target);
     }
 
-    const dampedAngle = this.damper.update(0, angle, damping, dt);
+    const dampedAngle = this.damper.update(0, angle, damping, dt, maxSpeed);
     const halfSin = Math.sin(angle / 2); // == sqrt(1 - w²), guaranteed > 0 here (angle >= 1e-5)
     const dampedHalfSin = Math.sin(dampedAngle / 2);
     scratchStep.set(
