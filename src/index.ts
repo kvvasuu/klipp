@@ -47,6 +47,7 @@ export { RotateWithFollowTargetAim } from './aim/RotateWithFollowTargetAim';
 export { RotationComposerAim } from './aim/RotationComposerAim';
 
 export { InputAxis, type InputAxisRecentering } from './input/InputAxis';
+export { InputSystem, MouseButton, type ConsumedInput, type InteractiveArea } from './input/InputSystem';
 
 export { BasicMultiChannelPerlinNoise } from './noise/BasicMultiChannelPerlinNoise';
 
