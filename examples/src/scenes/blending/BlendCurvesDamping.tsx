@@ -52,19 +52,21 @@ function BlendProgressOverlay({
   curveName,
   time,
   damping,
+  maxSpeed,
 }: {
   mode: BlendMode;
   curve: Ease;
   curveName: CurveName;
   time: number;
   damping: number;
+  maxSpeed: number;
 }) {
   const fillRef = useRef<HTMLDivElement>(null);
   const blendStart = useRef<number | null>(null);
   const damper = useRef(new Damper());
   const progress = useRef(0);
-  const paramsRef = useRef({ mode, curve, time, damping });
-  paramsRef.current = { mode, curve, time, damping };
+  const paramsRef = useRef({ mode, curve, time, damping, maxSpeed });
+  paramsRef.current = { mode, curve, time, damping, maxSpeed };
 
   useFrame((_, dt) => {
     if (blendStart.current === null || !fillRef.current) return;
@@ -76,7 +78,7 @@ function BlendProgressOverlay({
       weight = Math.min(1, Math.max(0, p.curve(raw)));
       if (raw >= 1) blendStart.current = null;
     } else {
-      weight = damper.current.update(progress.current, 1, p.damping, dt);
+      weight = damper.current.update(progress.current, 1, p.damping, dt, p.maxSpeed);
       progress.current = weight;
       if (weight > 0.999) blendStart.current = null;
     }
@@ -119,6 +121,7 @@ export function BlendCurvesDamping() {
     curveName: rawCurveName,
     time,
     damping,
+    maxSpeed,
   } = useControls('BlendCurves: Damping', {
     mode: { value: 'curve' as BlendMode, options: ['curve', 'damping'] },
     curveName: {
@@ -140,13 +143,20 @@ export function BlendCurvesDamping() {
       step: 0.05,
       render: (get) => get('BlendCurves: Damping.mode') === 'damping',
     },
+    maxSpeed: {
+      value: 3,
+      min: 0.1,
+      max: 5,
+      step: 0.1,
+      render: (get) => get('BlendCurves: Damping.mode') === 'damping',
+    },
     'Switch Camera': button(() => setCamera((c) => (c === 'wide' ? 'close' : 'wide'))),
   });
 
   const mode = rawMode as BlendMode;
   const curveName = rawCurveName as CurveName;
   const curve = Curves[curveName];
-  const defaultBlend = mode === 'curve' ? { curve, time } : { damping };
+  const defaultBlend = mode === 'curve' ? { curve, time } : { damping, maxSpeed };
 
   return (
     <>
@@ -154,7 +164,14 @@ export function BlendCurvesDamping() {
       <GroundClutter boxes={groundBoxes} />
 
       <Klipp defaultBlend={defaultBlend}>
-        <BlendProgressOverlay mode={mode} curve={curve} curveName={curveName} time={time} damping={damping} />
+        <BlendProgressOverlay
+          mode={mode}
+          curve={curve}
+          curveName={curveName}
+          time={time}
+          damping={damping}
+          maxSpeed={maxSpeed}
+        />
 
         <VirtualCamera
           name="wide"
