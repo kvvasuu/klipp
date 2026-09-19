@@ -46,6 +46,8 @@ export { HardLookAtAim } from './aim/HardLookAtAim';
 export { RotateWithFollowTargetAim } from './aim/RotateWithFollowTargetAim';
 export { RotationComposerAim } from './aim/RotationComposerAim';
 
+export { InputAxis, type InputAxisRecentering } from './input/InputAxis';
+
 export { BasicMultiChannelPerlinNoise } from './noise/BasicMultiChannelPerlinNoise';
 
 export {
