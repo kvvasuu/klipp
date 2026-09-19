@@ -15,6 +15,12 @@ export class LensExtension {
   fovDamping: DampingConstant;
   nearDamping: DampingConstant;
   farDamping: DampingConstant;
+  /** Caps how fast `fovDamping` can close the gap, in degrees/sec. Default `Infinity` (no cap). */
+  fovMaxSpeed: number;
+  /** Caps how fast `nearDamping` can close the gap, in world units/sec. Default `Infinity` (no cap). */
+  nearMaxSpeed: number;
+  /** Caps how fast `farDamping` can close the gap, in world units/sec. Default `Infinity` (no cap). */
+  farMaxSpeed: number;
 
   private readonly fovDamper = new Damper();
   private readonly nearDamper = new Damper();
@@ -30,6 +36,9 @@ export class LensExtension {
     fovDamping: DampingConstant = 0,
     nearDamping: DampingConstant = 0,
     farDamping: DampingConstant = 0,
+    fovMaxSpeed = Infinity,
+    nearMaxSpeed = Infinity,
+    farMaxSpeed = Infinity,
   ) {
     this.fov = fov;
     this.near = near;
@@ -37,6 +46,9 @@ export class LensExtension {
     this.fovDamping = fovDamping;
     this.nearDamping = nearDamping;
     this.farDamping = farDamping;
+    this.fovMaxSpeed = fovMaxSpeed;
+    this.nearMaxSpeed = nearMaxSpeed;
+    this.farMaxSpeed = farMaxSpeed;
   }
 
   update = (out: CameraState, dt: number, justActivated: boolean): boolean => {
@@ -50,21 +62,21 @@ export class LensExtension {
       this.currentFov =
         typeof this.fovDamping === 'number' && this.fovDamping <= 0
           ? this.fov
-          : this.fovDamper.update(this.currentFov, this.fov, this.fovDamping, dt);
+          : this.fovDamper.update(this.currentFov, this.fov, this.fovDamping, dt, this.fovMaxSpeed);
       out.fov = this.currentFov;
     }
     if (this.near !== undefined) {
       this.currentNear =
         typeof this.nearDamping === 'number' && this.nearDamping <= 0
           ? this.near
-          : this.nearDamper.update(this.currentNear, this.near, this.nearDamping, dt);
+          : this.nearDamper.update(this.currentNear, this.near, this.nearDamping, dt, this.nearMaxSpeed);
       out.near = this.currentNear;
     }
     if (this.far !== undefined) {
       this.currentFar =
         typeof this.farDamping === 'number' && this.farDamping <= 0
           ? this.far
-          : this.farDamper.update(this.currentFar, this.far, this.farDamping, dt);
+          : this.farDamper.update(this.currentFar, this.far, this.farDamping, dt, this.farMaxSpeed);
       out.far = this.currentFar;
     }
 

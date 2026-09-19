@@ -46,6 +46,9 @@ export class PositionComposerBody {
   damping: DampingConstant;
   hardLimit: [number, number];
   depthDeadZone: number;
+  /** Caps how fast `damping` can close the gap, in world units/sec - shared by both stages (dolly and
+   *  lateral), since both work in the same world-distance units. Default `Infinity` (no cap). */
+  maxSpeed: number;
   radius?: number;
   size?: Vector3Like;
   /** Seconds to extrapolate the target's tracked position ahead by, based on its recent velocity - `0`
@@ -85,6 +88,7 @@ export class PositionComposerBody {
     lookaheadTime = 0,
     lookaheadSmoothing = 1,
     lookaheadIgnoreY = false,
+    maxSpeed = Infinity,
   ) {
     this.target = target;
     this.cameraDistance = cameraDistance;
@@ -99,6 +103,7 @@ export class PositionComposerBody {
     this.lookaheadTime = lookaheadTime;
     this.lookaheadSmoothing = lookaheadSmoothing;
     this.lookaheadIgnoreY = lookaheadIgnoreY;
+    this.maxSpeed = maxSpeed;
   }
 
   /** Forces the auto-detected `size` to be re-measured on the NEXT `update()` call, then goes back to the
@@ -152,7 +157,7 @@ export class PositionComposerBody {
       const instant = typeof this.damping === 'number' && this.damping <= 0;
       const dampedDepth = instant
         ? desiredDepth
-        : this.depthDamper.update(currentDepth, desiredDepth, this.damping, dt);
+        : this.depthDamper.update(currentDepth, desiredDepth, this.damping, dt, this.maxSpeed);
       out.position.addScaledVector(scratchForward, currentDepth - dampedDepth);
     }
 
@@ -226,7 +231,7 @@ export class PositionComposerBody {
     }
 
     if (justActivated) this.damper.reset();
-    this.damper.update(out.position, scratchDesiredPosition, this.damping, dt);
+    this.damper.update(out.position, scratchDesiredPosition, this.damping, dt, this.maxSpeed);
 
     if (this.hardLimit[0] <= 0 && this.hardLimit[1] <= 0) return;
 

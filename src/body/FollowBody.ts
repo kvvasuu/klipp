@@ -24,6 +24,8 @@ export class FollowBody {
   offset: Vector3;
   damping: DampingConstant;
   bindingMode: BindingMode;
+  /** Caps how fast `damping` can close the gap, in world units/sec, per axis. Default `Infinity` (no cap). */
+  maxSpeed: number;
 
   private readonly damper = new Vector3Damper();
   private readonly targetPosition = new Vector3();
@@ -37,11 +39,13 @@ export class FollowBody {
     offset = new Vector3(0, 0, 10),
     damping: DampingConstant = 0,
     bindingMode: BindingMode = BindingModes.lockToTarget,
+    maxSpeed = Infinity,
   ) {
     this.target = target;
     this.offset = offset;
     this.damping = damping;
     this.bindingMode = bindingMode;
+    this.maxSpeed = maxSpeed;
   }
 
   update = (out: CameraState, dt: number, justActivated: boolean): void => {
@@ -52,7 +56,7 @@ export class FollowBody {
     this.desiredPosition.copy(scratchRotatedOffset).add(this.targetPosition);
 
     if (justActivated) this.damper.reset();
-    this.damper.update(out.position, this.desiredPosition, this.damping, dt);
+    this.damper.update(out.position, this.desiredPosition, this.damping, dt, this.maxSpeed);
     out.target.copy(out.position).sub(scratchRotatedOffset);
     out.hasTarget = true;
     out.referenceUp.set(0, 1, 0).applyQuaternion(scratchRotation);

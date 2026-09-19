@@ -95,6 +95,10 @@ export class RotationComposerAim {
   aspect: number;
   deadZone: [number, number];
   damping: DampingConstant;
+  /** Caps how fast `damping` can close the gap, in radians/sec - shared by the rotation itself and the
+   *  published `lookAtTarget` direction (both angular). Does not affect `lookAtTarget`'s distance easing,
+   *  a separate, world-units concept. Default `Infinity` (no cap). */
+  maxSpeed: number;
   hardLimit: [number, number];
   targetOffset: Vector3;
   radius?: number;
@@ -138,6 +142,7 @@ export class RotationComposerAim {
     lookaheadTime = 0,
     lookaheadSmoothing = 1,
     lookaheadIgnoreY = false,
+    maxSpeed = Infinity,
   ) {
     this.target = target;
     this.screenPosition = screenPosition;
@@ -151,6 +156,7 @@ export class RotationComposerAim {
     this.lookaheadTime = lookaheadTime;
     this.lookaheadSmoothing = lookaheadSmoothing;
     this.lookaheadIgnoreY = lookaheadIgnoreY;
+    this.maxSpeed = maxSpeed;
   }
 
   /** Forces the auto-detected `size` to be re-measured on the NEXT `update()` call, then goes back to the
@@ -189,7 +195,13 @@ export class RotationComposerAim {
     }
     scratchLookMatrix.lookAt(out.position, scratchTargetPosition, out.referenceUp);
     scratchTargetQuaternion.setFromRotationMatrix(scratchLookMatrix);
-    this.lookAtDirectionDamper.update(this.publishedLookRotation, scratchTargetQuaternion, this.damping, dt);
+    this.lookAtDirectionDamper.update(
+      this.publishedLookRotation,
+      scratchTargetQuaternion,
+      this.damping,
+      dt,
+      this.maxSpeed,
+    );
     const targetDistance = out.position.distanceTo(scratchTargetPosition);
     this.publishedDistance = this.lookAtDistanceDamper.update(this.publishedDistance, targetDistance, this.damping, dt);
     // BOTH parts have to have caught up: the two dampers converge on their own thresholds, and a target
@@ -238,7 +250,15 @@ export class RotationComposerAim {
         const halfHeight = this.deadZone[1];
         scratchRight.set(1, 0, 0).applyQuaternion(out.quaternion);
         scratchUp.set(0, 1, 0).applyQuaternion(out.quaternion);
-        resolveTargetHalfExtents(scratchExtents, this.target, this.size, this.radius, scratchRight, scratchUp, recalculateSizeThisFrame);
+        resolveTargetHalfExtents(
+          scratchExtents,
+          this.target,
+          this.size,
+          this.radius,
+          scratchRight,
+          scratchUp,
+          recalculateSizeThisFrame,
+        );
         // capped to the zone's own half-size, or an oversized target would overshoot center and oscillate
         const extentX = Math.min(scratchExtents[0] / depth / tanHalfFovH, halfWidth);
         const extentY = Math.min(scratchExtents[1] / depth / tanHalfFovV, halfHeight);
@@ -284,7 +304,7 @@ export class RotationComposerAim {
     }
 
     if (justActivated) this.damper.reset();
-    this.damper.update(out.quaternion, scratchTargetQuaternion, this.damping, dt);
+    this.damper.update(out.quaternion, scratchTargetQuaternion, this.damping, dt, this.maxSpeed);
 
     if (this.hardLimit[0] <= 0 && this.hardLimit[1] <= 0) return;
 
@@ -302,7 +322,15 @@ export class RotationComposerAim {
     const halfLimitHeight = this.hardLimit[1];
     scratchRight.set(1, 0, 0).applyQuaternion(out.quaternion);
     scratchUp.set(0, 1, 0).applyQuaternion(out.quaternion);
-    resolveTargetHalfExtents(scratchExtents, this.target, this.size, this.radius, scratchRight, scratchUp, recalculateSizeThisFrame);
+    resolveTargetHalfExtents(
+      scratchExtents,
+      this.target,
+      this.size,
+      this.radius,
+      scratchRight,
+      scratchUp,
+      recalculateSizeThisFrame,
+    );
     // same overshoot cap as the dead zone pass, against this box's own half-size
     const limitExtentX = Math.min(scratchExtents[0] / depth / tanHalfFovH, halfLimitWidth);
     const limitExtentY = Math.min(scratchExtents[1] / depth / tanHalfFovV, halfLimitHeight);
@@ -313,8 +341,10 @@ export class RotationComposerAim {
     const edgeErrorY = errorY + Math.sign(errorY) * limitExtentY;
     if (Math.abs(edgeErrorX) <= halfLimitWidth && Math.abs(edgeErrorY) <= halfLimitHeight) return;
 
-    const clampedX = this.screenPosition[0] + clamp(edgeErrorX, -halfLimitWidth, halfLimitWidth) - Math.sign(errorX) * limitExtentX;
-    const clampedY = this.screenPosition[1] + clamp(edgeErrorY, -halfLimitHeight, halfLimitHeight) - Math.sign(errorY) * limitExtentY;
+    const clampedX =
+      this.screenPosition[0] + clamp(edgeErrorX, -halfLimitWidth, halfLimitWidth) - Math.sign(errorX) * limitExtentX;
+    const clampedY =
+      this.screenPosition[1] + clamp(edgeErrorY, -halfLimitHeight, halfLimitHeight) - Math.sign(errorY) * limitExtentY;
     composeQuaternionForScreenPoint(
       scratchHardLimitQuaternion,
       out.position,

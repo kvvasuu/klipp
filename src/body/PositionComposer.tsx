@@ -27,6 +27,9 @@ export type PositionComposerProps = {
    *  asymmetric damping) - the dolly stage reacts to `depthDeadZone`, the lateral stage to `deadZone`.
    *  `0` (default) = hard, instant snap to both. */
   damping?: DampingConstant;
+  /** Caps how fast `damping` can close the gap, in world units/sec - shared by both stages. Default
+   *  `Infinity` (no cap). */
+  maxSpeed?: number;
   /** A SECOND, normally larger reach (`[x, y]`, same unit as `deadZone`) the target may never visually
    *  drift past — enforced instantly (bypassing `damping`) after the damped dead zone reaction runs.
    *  Default `[0, 0]` (none). */
@@ -49,10 +52,11 @@ export type PositionComposerProps = {
    *  `VirtualCamera` is actually the one on screen. Default `false`. */
   debug?: boolean;
   /** Imperative access to the underlying `PositionComposerBody`, for reading/writing
-   *  `target`/`cameraDistance`/`screenPosition`/`deadZone`/`damping`/`hardLimit`/`depthDeadZone`/`radius`/
-   *  `size`/`lookaheadTime`/`lookaheadSmoothing`/`lookaheadIgnoreY` directly instead of through props, and
-   *  for calling `recalculateSize()` on a target that deformed (a `SkinnedMesh` bone animation, a mutated
-   *  `BufferGeometry`) - auto-detected `size` is otherwise only measured once. */
+   *  `target`/`cameraDistance`/`screenPosition`/`deadZone`/`damping`/`maxSpeed`/`hardLimit`/
+   *  `depthDeadZone`/`radius`/`size`/`lookaheadTime`/`lookaheadSmoothing`/`lookaheadIgnoreY` directly
+   *  instead of through props, and for calling `recalculateSize()` on a target that deformed (a
+   *  `SkinnedMesh` bone animation, a mutated `BufferGeometry`) - auto-detected `size` is otherwise only
+   *  measured once. */
   ref?: Ref<PositionComposerBody>;
 };
 
@@ -71,6 +75,7 @@ export function PositionComposer({
   screenPosition = defaultScreenPosition,
   deadZone = defaultDeadZone,
   damping = 0,
+  maxSpeed = Infinity,
   hardLimit = defaultHardLimit,
   radius,
   size,
@@ -99,6 +104,7 @@ export function PositionComposer({
         lookaheadTime,
         lookaheadSmoothing,
         lookaheadIgnoreY,
+        maxSpeed,
       ),
   );
   body.target = target;
@@ -107,6 +113,7 @@ export function PositionComposer({
   body.aspect = aspect;
   body.deadZone = deadZone;
   body.damping = damping;
+  body.maxSpeed = maxSpeed;
   body.hardLimit = hardLimit;
   body.radius = radius;
   body.size = size;

@@ -1,4 +1,14 @@
-import { BoxGeometry, Euler, Matrix4, Mesh, MeshBasicMaterial, Object3D, PerspectiveCamera, Quaternion, Vector3 } from 'three';
+import {
+  BoxGeometry,
+  Euler,
+  Matrix4,
+  Mesh,
+  MeshBasicMaterial,
+  Object3D,
+  PerspectiveCamera,
+  Quaternion,
+  Vector3,
+} from 'three';
 import { describe, expect, it } from 'vitest';
 import { createCameraState } from '../../src/CameraState';
 import { RotationComposerAim } from '../../src/aim/RotationComposerAim';
@@ -315,6 +325,40 @@ describe('RotationComposerAim', () => {
     });
   });
 
+  describe('maxSpeed', () => {
+    it('clamps how fast damping can close the rotation gap, in radians/sec', () => {
+      // directly behind the camera - close to a full 180° turn, comfortably bigger than maxSpeed *
+      // damping below (Damper's maxChange), so the clamp actually engages
+      const target = new Vector3(0, 0, 20);
+
+      const instant = new RotationComposerAim(target, [0, 0], 1, [0, 0], 0);
+      const outInstant = createCameraState();
+      outInstant.position.set(0, 0, 0);
+      instant.update(outInstant, 0.05);
+
+      const unclamped = new RotationComposerAim(target, [0, 0], 1, [0, 0], 1);
+      const outUnclampedWarmup = createCameraState();
+      outUnclampedWarmup.position.set(0, 0, 0);
+      unclamped.update(outUnclampedWarmup, 0.05); // consume the first-ever-update hard snap
+      const outUnclamped = createCameraState();
+      outUnclamped.position.set(0, 0, 0);
+      unclamped.update(outUnclamped, 0.05);
+
+      const clamped = new RotationComposerAim(target, [0, 0], 1, [0, 0], 1);
+      clamped.maxSpeed = 0.3;
+      const outClampedWarmup = createCameraState();
+      outClampedWarmup.position.set(0, 0, 0);
+      clamped.update(outClampedWarmup, 0.05);
+      const outClamped = createCameraState();
+      outClamped.position.set(0, 0, 0);
+      clamped.update(outClamped, 0.05); // maxSpeed = 0.3 rad/sec
+
+      expect(outClamped.quaternion.angleTo(outInstant.quaternion)).toBeGreaterThan(
+        outUnclamped.quaternion.angleTo(outInstant.quaternion),
+      );
+    });
+  });
+
   describe('dead zone with target extent (radius/size)', () => {
     it("a radius makes the dead zone react to the target's EDGE, catching drift a point target would still ignore", () => {
       const target = new Vector3(0, 0, -10);
@@ -348,7 +392,17 @@ describe('RotationComposerAim', () => {
 
     it('an axis-aligned size reproduces the same edge as an equivalent radius', () => {
       const target = new Vector3(0, 0, -10);
-      const aim = new RotationComposerAim(target, [0, 0], 1, [0.2, 0.2], 0, [0, 0], new Vector3(), undefined, [2, 2, 2]);
+      const aim = new RotationComposerAim(
+        target,
+        [0, 0],
+        1,
+        [0.2, 0.2],
+        0,
+        [0, 0],
+        new Vector3(),
+        undefined,
+        [2, 2, 2],
+      );
       const out = createCameraState();
       out.fov = 90;
       aim.update(out, 0.1);
@@ -360,7 +414,7 @@ describe('RotationComposerAim', () => {
       expect(projected.x).toBeCloseTo(0.1, 4); // half-size 1 on each axis - same reach as radius 1
     });
 
-    it("a rotated box uses its own oriented extent, not an axis-aligned approximation", () => {
+    it('a rotated box uses its own oriented extent, not an axis-aligned approximation', () => {
       const targetObject = new Object3D();
       targetObject.quaternion.setFromAxisAngle(new Vector3(0, 1, 0), Math.PI / 4); // 45° around Y
       targetObject.position.set(0, 0, -10);

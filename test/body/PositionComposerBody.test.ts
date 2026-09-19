@@ -258,7 +258,10 @@ describe('PositionComposerBody', () => {
 
       body.update(out, 0.1);
 
-      const depth = target.clone().sub(out.position).dot(new Vector3(0, 0, -1));
+      const depth = target
+        .clone()
+        .sub(out.position)
+        .dot(new Vector3(0, 0, -1));
       expect(depth).toBeCloseTo(13, 4); // clamped to cameraDistance(10) + depthDeadZone(3), not all the way to 10
     });
 
@@ -283,7 +286,10 @@ describe('PositionComposerBody', () => {
 
       for (let i = 0; i < 300; i++) body.update(out, 0.016);
 
-      const depth = target.clone().sub(out.position).dot(new Vector3(0, 0, -1));
+      const depth = target
+        .clone()
+        .sub(out.position)
+        .dot(new Vector3(0, 0, -1));
       expect(depth).toBeCloseTo(10, 2);
     });
 
@@ -299,7 +305,10 @@ describe('PositionComposerBody', () => {
       target.set(0, 0, -13);
       body.update(out, 0.016, true);
 
-      const depth = target.clone().sub(out.position).dot(new Vector3(0, 0, -1));
+      const depth = target
+        .clone()
+        .sub(out.position)
+        .dot(new Vector3(0, 0, -1));
       expect(depth).toBeCloseTo(10, 4); // reacted fully, not clamped to the dead zone edge
     });
   });
@@ -400,6 +409,25 @@ describe('PositionComposerBody', () => {
     });
   });
 
+  describe('maxSpeed', () => {
+    it('clamps how fast damping can close the lateral gap, in world units/sec', () => {
+      const target = new Vector3(20, 0, -10); // Z fixed at exactly cameraDistance - isolates the lateral stage
+
+      const unclamped = new PositionComposerBody(target, 10, [0, 0], 1, [0, 0], 1);
+      unclamped.update(createCameraState(), 0.05); // consume the first-ever-update hard snap
+      const outUnclamped = createCameraState();
+      unclamped.update(outUnclamped, 0.05);
+
+      const clamped = new PositionComposerBody(target, 10, [0, 0], 1, [0, 0], 1);
+      clamped.maxSpeed = 2;
+      clamped.update(createCameraState(), 0.05);
+      const outClamped = createCameraState();
+      clamped.update(outClamped, 0.05); // maxSpeed = 2 units/sec
+
+      expect(outClamped.position.x).toBeLessThan(outUnclamped.position.x);
+    });
+  });
+
   describe('justActivated', () => {
     it('snaps straight to the composed position even with a warmed-up damper and a stale out.position', () => {
       const target = new Vector3(0, 0, -20);
@@ -494,7 +522,7 @@ describe('PositionComposerBody', () => {
       expect(projected.x).toBeCloseTo(0.1, 4); // half-size 1 on each axis - same reach as radius 1
     });
 
-    it("a rotated box uses its own oriented extent, not an axis-aligned approximation", () => {
+    it('a rotated box uses its own oriented extent, not an axis-aligned approximation', () => {
       const targetObject = new Object3D();
       targetObject.quaternion.setFromAxisAngle(new Vector3(0, 1, 0), Math.PI / 4); // 45° around Y
       targetObject.position.set(0, 0, -20);

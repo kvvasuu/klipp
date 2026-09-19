@@ -42,7 +42,7 @@ describe('GroupFramingExtension', () => {
     expect(out.position.z).toBeCloseTo(expectedDistance, 10);
   });
 
-  it('dollies along the camera\'s OWN current backward direction, not a fixed world axis', () => {
+  it("dollies along the camera's OWN current backward direction, not a fixed world axis", () => {
     const group = new TargetGroup([{ target: new Vector3(0, 0, 0), radius: 1 }]);
     const extension = new GroupFramingExtension(group, 0, 100, 100);
     const out = createCameraState();
@@ -460,7 +460,7 @@ describe('GroupFramingExtension', () => {
       expect(out.position.z).toBeCloseTo(expectedDistance, 10); // fully caught up in a single step
     });
 
-    it('the first-ever update still snaps hard, matching the rest of klipp\'s damping convention', () => {
+    it("the first-ever update still snaps hard, matching the rest of klipp's damping convention", () => {
       const group = new TargetGroup([{ target: new Vector3(0, 0, 0), radius: 1 }]);
       const extension = new GroupFramingExtension(group, 0, 100, 100, 1); // damping = 1s
       const out = createCameraState();
@@ -489,55 +489,95 @@ describe('GroupFramingExtension', () => {
       expect(out.position.z).toBeLessThan(distanceIfInstant); // ...but not all the way there yet
     });
 
-    it('keeps making progress even when something ELSE resets out.position every frame before it runs ' +
-      '(e.g. an undamped Body.Follow, which recomputes a fixed position from scratch each tick)', () => {
-      const group = new TargetGroup([{ target: new Vector3(0, 0, 0), radius: 1 }]);
-      const extension = new GroupFramingExtension(group, 0, 100, 100, 1); // damping = 1s
-      const out = createCameraState();
-      out.fov = 90;
-      const bodyWrittenPosition = new Vector3(0, 2, 5); // stand-in for Body.Follow's damping=0 output
+    it(
+      'keeps making progress even when something ELSE resets out.position every frame before it runs ' +
+        '(e.g. an undamped Body.Follow, which recomputes a fixed position from scratch each tick)',
+      () => {
+        const group = new TargetGroup([{ target: new Vector3(0, 0, 0), radius: 1 }]);
+        const extension = new GroupFramingExtension(group, 0, 100, 100, 1); // damping = 1s
+        const out = createCameraState();
+        out.fov = 90;
+        const bodyWrittenPosition = new Vector3(0, 2, 5); // stand-in for Body.Follow's damping=0 output
 
-      out.position.copy(bodyWrittenPosition);
-      extension.update(out, 0.1); // first-ever call snaps to the desired distance regardless
-      const afterFirst = out.position.z;
+        out.position.copy(bodyWrittenPosition);
+        extension.update(out, 0.1); // first-ever call snaps to the desired distance regardless
+        const afterFirst = out.position.z;
 
-      group.members[0].radius = 5; // grow the box — new desired distance is much farther
-      for (let i = 0; i < 5; i++) {
-        out.position.copy(bodyWrittenPosition); // simulates Body resetting the shared CameraState
-        extension.update(out, 0.1);
-      }
+        group.members[0].radius = 5; // grow the box — new desired distance is much farther
+        for (let i = 0; i < 5; i++) {
+          out.position.copy(bodyWrittenPosition); // simulates Body resetting the shared CameraState
+          extension.update(out, 0.1);
+        }
 
-      // if damping incorrectly read its "current" value FROM out.position (which Body keeps stomping
-      // back to bodyWrittenPosition), every step would restart from the same spot and net progress
-      // would be ~0 — a persistent internal memory keeps advancing regardless
-      expect(out.position.z).toBeGreaterThan(afterFirst);
-    });
+        // if damping incorrectly read its "current" value FROM out.position (which Body keeps stomping
+        // back to bodyWrittenPosition), every step would restart from the same spot and net progress
+        // would be ~0 — a persistent internal memory keeps advancing regardless
+        expect(out.position.z).toBeGreaterThan(afterFirst);
+      },
+    );
 
-    it('stays PERFECTLY aligned with the CURRENT rotation every frame, even while distance is still ' +
-      'damping and rotation is ALSO changing frame to frame (e.g. an OrbitalFollow azimuth transition)', () => {
-      const group = new TargetGroup([{ target: new Vector3(0, 0, 0), radius: 1 }]);
-      const extension = new GroupFramingExtension(group, 0, 100, 100, 1); // damping = 1s
-      const out = createCameraState();
-      out.fov = 90;
-      out.quaternion.identity();
-      extension.update(out, 0.1); // first-ever call snaps
+    it(
+      'stays PERFECTLY aligned with the CURRENT rotation every frame, even while distance is still ' +
+        'damping and rotation is ALSO changing frame to frame (e.g. an OrbitalFollow azimuth transition)',
+      () => {
+        const group = new TargetGroup([{ target: new Vector3(0, 0, 0), radius: 1 }]);
+        const extension = new GroupFramingExtension(group, 0, 100, 100, 1); // damping = 1s
+        const out = createCameraState();
+        out.fov = 90;
+        out.quaternion.identity();
+        extension.update(out, 0.1); // first-ever call snaps
 
-      group.members[0].radius = 5; // distance target changes...
-      for (let i = 1; i <= 5; i++) {
-        out.quaternion.setFromAxisAngle(new Vector3(0, 1, 0), i * 0.1); // ...AND rotation sweeps too
-        extension.update(out, 0.1);
+        group.members[0].radius = 5; // distance target changes...
+        for (let i = 1; i <= 5; i++) {
+          out.quaternion.setFromAxisAngle(new Vector3(0, 1, 0), i * 0.1); // ...AND rotation sweeps too
+          extension.update(out, 0.1);
 
-        // damping the full position (instead of just the scalar distance) would let this drift off the
-        // "look straight at the group" ray whenever rotation changes mid-damp — direction-to-group must
-        // exactly match the camera's forward axis on EVERY frame, not just once distance settles
-        const forward = new Vector3(0, 0, -1).applyQuaternion(out.quaternion);
-        const toGroup = new Vector3().subVectors(new Vector3(0, 0, 0), out.position).normalize();
-        expect(forward.dot(toGroup)).toBeCloseTo(1, 10);
-      }
+          // damping the full position (instead of just the scalar distance) would let this drift off the
+          // "look straight at the group" ray whenever rotation changes mid-damp — direction-to-group must
+          // exactly match the camera's forward axis on EVERY frame, not just once distance settles
+          const forward = new Vector3(0, 0, -1).applyQuaternion(out.quaternion);
+          const toGroup = new Vector3().subVectors(new Vector3(0, 0, 0), out.position).normalize();
+          expect(forward.dot(toGroup)).toBeCloseTo(1, 10);
+        }
+      },
+    );
+  });
+
+  describe('maxSpeed', () => {
+    it('clamps how fast damping can close the distance-ceiling gap, in world units/sec', () => {
+      const unclampedGroup = new TargetGroup([{ target: new Vector3(0, 0, 0), radius: 1 }]);
+      const unclamped = new GroupFramingExtension(unclampedGroup, 0, 100, 100, 1); // damping = 1s
+      const outUnclamped = createCameraState();
+      outUnclamped.fov = 90;
+      unclamped.update(outUnclamped, 0.1); // first-ever call snaps
+      unclampedGroup.members[0].radius = 5; // grow the box a lot
+      unclamped.update(outUnclamped, 0.1);
+
+      const clampedGroup = new TargetGroup([{ target: new Vector3(0, 0, 0), radius: 1 }]);
+      const clamped = new GroupFramingExtension(
+        clampedGroup,
+        0,
+        100,
+        100,
+        1,
+        [0, 0],
+        'ceiling',
+        0,
+        Infinity,
+        'horizontalAndVertical',
+        2, // maxSpeed = 2 units/sec
+      );
+      const outClamped = createCameraState();
+      outClamped.fov = 90;
+      clamped.update(outClamped, 0.1);
+      clampedGroup.members[0].radius = 5;
+      clamped.update(outClamped, 0.1);
+
+      expect(outClamped.position.z).toBeLessThan(outUnclamped.position.z);
     });
   });
 
-  describe('screenPosition (normalized 0 = center, ±1 = frame edge - same convention/shape as PositionComposer\'s screenPosition, not pixels)', () => {
+  describe("screenPosition (normalized 0 = center, ±1 = frame edge - same convention/shape as PositionComposer's screenPosition, not pixels)", () => {
     it('writes screenPosition straight into out.viewOffset - both normalized, no pixel conversion here', () => {
       const group = new TargetGroup([{ target: new Vector3(0, 0, 0), radius: 1 }]);
       const extension = new GroupFramingExtension(group, 0, 100, 100, 0, [0.8, -0.3]);
@@ -591,7 +631,7 @@ describe('GroupFramingExtension', () => {
       expect(out.viewOffset[0]).toBe(0.5);
     });
 
-    it('a positive screenPosition[0] moves the target toward the RIGHT of the frame end-to-end, matching PositionComposer\'s own convention (real bug: was inverted through camera.setViewOffset)', () => {
+    it("a positive screenPosition[0] moves the target toward the RIGHT of the frame end-to-end, matching PositionComposer's own convention (real bug: was inverted through camera.setViewOffset)", () => {
       const target = new Vector3(0, 0, 0);
       const group = new TargetGroup([{ target, radius: 1 }]);
       const extension = new GroupFramingExtension(group, 0, 100, 100, 0, [0.5, 0]);

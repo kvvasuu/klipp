@@ -8,12 +8,12 @@ export class Vector3Damper {
   private readonly y = new Damper();
   private readonly z = new Damper();
 
-  update(out: Vector3, target: Vector3, damping: DampingConstant, dt: number): Vector3 {
+  update(out: Vector3, target: Vector3, damping: DampingConstant, dt: number, maxSpeed = Infinity): Vector3 {
     if (typeof damping === 'number' && damping <= 0) return out.copy(target);
 
-    out.x = this.x.update(out.x, target.x, damping, dt);
-    out.y = this.y.update(out.y, target.y, damping, dt);
-    out.z = this.z.update(out.z, target.z, damping, dt);
+    out.x = this.x.update(out.x, target.x, damping, dt, maxSpeed);
+    out.y = this.y.update(out.y, target.y, damping, dt, maxSpeed);
+    out.z = this.z.update(out.z, target.z, damping, dt, maxSpeed);
     return out;
   }
 

@@ -11,17 +11,21 @@ export type RotateWithFollowTargetProps = {
   /** Spring response time to the target's rotation (or `{into, from}` for asymmetric damping). `0`
    *  (default) = hard, instant match. */
   damping?: DampingConstant;
+  /** Caps how fast `damping` can close the gap, in radians/sec. Default `Infinity` (no cap) - only
+   *  matters once `damping > 0`. */
+  maxSpeed?: number;
   /** Imperative access to the underlying `RotateWithFollowTargetAim`, for reading/writing
-   *  `target`/`damping` directly instead of through props. */
+   *  `target`/`damping`/`maxSpeed` directly instead of through props. */
   ref?: Ref<RotateWithFollowTargetAim>;
 };
 
 /** Thin wrapper — the actual logic lives in `RotateWithFollowTargetAim`. */
-export function RotateWithFollowTarget({ target, damping = 0, ref }: RotateWithFollowTargetProps) {
+export function RotateWithFollowTarget({ target, damping = 0, maxSpeed = Infinity, ref }: RotateWithFollowTargetProps) {
   const slots = useVirtualCameraSlots();
   const [aim] = useState(() => new RotateWithFollowTargetAim(target, damping));
   aim.target = target;
   aim.damping = damping;
+  aim.maxSpeed = maxSpeed;
 
   useImperativeHandle(ref, () => aim, [aim]);
   useEffect(() => slots.registerAim(aim.update), [slots, aim]);

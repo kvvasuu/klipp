@@ -18,6 +18,12 @@ export type LensProps = {
   nearDamping?: DampingConstant;
   /** Spring response time to `far` as it changes. `0` (default) = hard, instant. */
   farDamping?: DampingConstant;
+  /** Caps how fast `fovDamping` can close the gap, in degrees/sec. Default `Infinity` (no cap). */
+  fovMaxSpeed?: number;
+  /** Caps how fast `nearDamping` can close the gap, in world units/sec. Default `Infinity` (no cap). */
+  nearMaxSpeed?: number;
+  /** Caps how fast `farDamping` can close the gap, in world units/sec. Default `Infinity` (no cap). */
+  farMaxSpeed?: number;
   /** Imperative access to the underlying `LensExtension`, for mutating `fov`/`near`/`far` every frame
    *  from an external `useFrame` without forcing a React re-render. */
   ref?: Ref<LensExtension>;
@@ -28,7 +34,18 @@ export type LensProps = {
  * pipeline claims `fov`/`near`/`far`, so this is the only way to animate them without an external
  * `useFrame` fighting Klipp's own driver every frame.
  */
-export function Lens({ fov, near, far, fovDamping = 0, nearDamping = 0, farDamping = 0, ref }: LensProps) {
+export function Lens({
+  fov,
+  near,
+  far,
+  fovDamping = 0,
+  nearDamping = 0,
+  farDamping = 0,
+  fovMaxSpeed = Infinity,
+  nearMaxSpeed = Infinity,
+  farMaxSpeed = Infinity,
+  ref,
+}: LensProps) {
   const slots = useVirtualCameraSlots();
   const invalidate = useThree((state) => state.invalidate);
   const [extension] = useState(() => new LensExtension(fov, near, far, fovDamping, nearDamping, farDamping));
@@ -38,6 +55,9 @@ export function Lens({ fov, near, far, fovDamping = 0, nearDamping = 0, farDampi
   extension.fovDamping = fovDamping;
   extension.nearDamping = nearDamping;
   extension.farDamping = farDamping;
+  extension.fovMaxSpeed = fovMaxSpeed;
+  extension.nearMaxSpeed = nearMaxSpeed;
+  extension.farMaxSpeed = farMaxSpeed;
 
   useImperativeHandle(ref, () => extension, [extension]);
   useEffect(() => slots.registerExtension(extension.update), [slots, extension]);

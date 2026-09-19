@@ -46,6 +46,10 @@ export class GroupFramingExtension {
   /** Spring response time to the distance ceiling (and `screenPosition`) as they change. `0` (default)
    *  = hard, instant. */
   damping: DampingConstant;
+  /** Caps how fast `damping` can close the distance-ceiling gap, in world units/sec - does not affect
+   *  `screenPosition`'s own easing, a separate, normalized (not world-unit) concept. Default `Infinity`
+   *  (no cap). */
+  maxSpeed: number;
   /** Shifts the frustum without moving/rotating the camera - same convention as `PositionComposer`'s
    *  `screenPosition` (0 = center, ±1 = frame edge). */
   screenPosition: [number, number];
@@ -76,6 +80,7 @@ export class GroupFramingExtension {
     minDistance = 0,
     maxDistance = Infinity,
     framingMode: GroupFramingMode = 'horizontalAndVertical',
+    maxSpeed = Infinity,
   ) {
     this.group = group;
     this.padding = padding;
@@ -87,6 +92,7 @@ export class GroupFramingExtension {
     this.minDistance = minDistance;
     this.maxDistance = maxDistance;
     this.framingMode = framingMode;
+    this.maxSpeed = maxSpeed;
   }
 
   /** Forces every member's auto-detected `size` to be re-measured on the NEXT `update()` call, then goes
@@ -158,7 +164,10 @@ export class GroupFramingExtension {
               const cornerRight = offsetRight + sx * axisXRight + sy * axisYRight + sz * axisZRight;
               const cornerForward = offsetForward + sx * axisXForward + sy * axisYForward + sz * axisZForward;
               if (includeVertical) {
-                requiredDistance = Math.max(requiredDistance, (Math.abs(cornerUp) + padding) / tanVertical - cornerForward);
+                requiredDistance = Math.max(
+                  requiredDistance,
+                  (Math.abs(cornerUp) + padding) / tanVertical - cornerForward,
+                );
               }
               if (includeHorizontal) {
                 requiredDistance = Math.max(
@@ -200,7 +209,7 @@ export class GroupFramingExtension {
 
     this.currentDistance = instant
       ? distance
-      : this.distanceDamper.update(this.currentDistance, distance, this.damping, dt);
+      : this.distanceDamper.update(this.currentDistance, distance, this.damping, dt, this.maxSpeed);
 
     scratchBackward.set(0, 0, 1).applyQuaternion(out.quaternion);
     out.position.copy(scratchGroupPosition).addScaledVector(scratchBackward, this.currentDistance);

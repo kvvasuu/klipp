@@ -24,6 +24,9 @@ export type RotationComposerProps = {
    *  asymmetric damping). Only matters when `deadZone` is non-zero. `0` (default) = hard, instant snap
    *  to the edge. */
   damping?: DampingConstant;
+  /** Caps how fast `damping` can close the gap, in radians/sec - shared by the rotation itself and the
+   *  published `lookAtTarget` direction. Default `Infinity` (no cap). */
+  maxSpeed?: number;
   /** A SECOND, normally larger reach (`[x, y]`, same unit as `deadZone`) the target may never visually
    *  drift past — enforced instantly (bypassing `damping`) after the damped dead zone reaction runs.
    *  Default `[0, 0]` (none). */
@@ -50,7 +53,7 @@ export type RotationComposerProps = {
    *  `VirtualCamera` is actually the one on screen. Default `false`. */
   debug?: boolean;
   /** Imperative access to the underlying `RotationComposerAim`, for reading/writing
-   *  `target`/`screenPosition`/`deadZone`/`damping`/`hardLimit`/`targetOffset`/`radius`/`size`/
+   *  `target`/`screenPosition`/`deadZone`/`damping`/`maxSpeed`/`hardLimit`/`targetOffset`/`radius`/`size`/
    *  `lookaheadTime`/`lookaheadSmoothing`/`lookaheadIgnoreY` directly instead of through props, and for
    *  calling `recalculateSize()` on a target that deformed (a `SkinnedMesh` bone animation, a mutated
    *  `BufferGeometry`) - auto-detected `size` is otherwise only measured once. */
@@ -72,6 +75,7 @@ export function RotationComposer({
   screenPosition = defaultScreenPosition,
   deadZone = defaultDeadZone,
   damping = 0,
+  maxSpeed = Infinity,
   hardLimit = defaultHardLimit,
   targetOffset = defaultTargetOffset,
   radius,
@@ -99,6 +103,7 @@ export function RotationComposer({
         lookaheadTime,
         lookaheadSmoothing,
         lookaheadIgnoreY,
+        maxSpeed,
       ),
   );
   aim.target = target;
@@ -106,6 +111,7 @@ export function RotationComposer({
   aim.aspect = aspect;
   aim.deadZone = deadZone;
   aim.damping = damping;
+  aim.maxSpeed = maxSpeed;
   aim.hardLimit = hardLimit;
   aim.radius = radius;
   aim.size = size;

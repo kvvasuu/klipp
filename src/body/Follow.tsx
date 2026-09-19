@@ -23,8 +23,11 @@ export type FollowProps = {
   /** Which rotation, if any, `offset` is interpreted in. Default `BindingModes.lockToTarget` (the
    *  target's full, live rotation). */
   bindingMode?: BindingMode;
+  /** Caps how fast `damping` can close the gap, in world units/sec, per axis. Default `Infinity` (no
+   *  cap) - only matters once `damping > 0`. */
+  maxSpeed?: number;
   /** Imperative access to the underlying `FollowBody`, for reading/writing
-   *  `target`/`offset`/`damping`/`bindingMode` directly instead of through props. */
+   *  `target`/`offset`/`damping`/`bindingMode`/`maxSpeed` directly instead of through props. */
   ref?: Ref<FollowBody>;
 };
 
@@ -35,6 +38,7 @@ export function Follow({
   offset = defaultOffset,
   damping = 0,
   bindingMode = BindingModes.lockToTarget,
+  maxSpeed = Infinity,
   ref,
 }: FollowProps) {
   const slots = useVirtualCameraSlots();
@@ -43,6 +47,7 @@ export function Follow({
   resolveVector3(body.offset, offset);
   body.damping = damping;
   body.bindingMode = bindingMode;
+  body.maxSpeed = maxSpeed;
 
   useImperativeHandle(ref, () => body, [body]);
   useEffect(() => slots.registerBody(body.update), [slots, body]);
