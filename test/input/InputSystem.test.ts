@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { InputSystem, MouseButton, type ConsumedInput } from '../../src/input/InputSystem';
+import { InputSystem, MouseButton, createConsumedInput, type ConsumedInput } from '../../src/input/InputSystem';
 
 function pointer(el: HTMLElement, type: string, x: number, y: number, buttons: number, pointerId = 1): void {
   el.dispatchEvent(
@@ -49,28 +49,7 @@ function stubPointerLock(el: HTMLElement): void {
 }
 
 function emptyInput(): ConsumedInput {
-  return {
-    leftDx: 0,
-    leftDy: 0,
-    middleDx: 0,
-    middleDy: 0,
-    rightDx: 0,
-    rightDy: 0,
-    touchOneDx: 0,
-    touchOneDy: 0,
-    touchTwoDx: 0,
-    touchTwoDy: 0,
-    touchThreeDx: 0,
-    touchThreeDy: 0,
-    touchPinchDelta: 0,
-    touchRotateDelta: 0,
-    gestureZoomDelta: 0,
-    wheelDeltaX: 0,
-    wheelDeltaY: 0,
-    wheelZoomDelta: 0,
-    lockedDx: 0,
-    lockedDy: 0,
-  };
+  return createConsumedInput();
 }
 
 describe('InputSystem', () => {
@@ -734,11 +713,70 @@ describe('InputSystem', () => {
       expect(out.leftDy).toBeCloseTo(5, 5);
     });
 
-    it('disconnect() releases an active pointer lock held by its element', () => {
+    it("disconnect() does NOT release an active pointer lock - it's document-level state, released explicitly via exitPointerLock()", () => {
       setup();
       system.requestPointerLock();
       system.disconnect();
-      expect(document.pointerLockElement).toBe(null);
+      expect(document.pointerLockElement).not.toBe(null);
+    });
+
+    it('reconnecting to the same element while still locked resumes lockedDx/Dy without re-requesting', () => {
+      const el = setup();
+      system.requestPointerLock();
+      system.disconnect();
+      system.connect(el);
+
+      el.dispatchEvent(
+        new PointerEvent('pointermove', {
+          pointerId: 1,
+          clientX: 0,
+          clientY: 0,
+          movementX: 8,
+          movementY: 3,
+          buttons: 0,
+          bubbles: true,
+          pointerType: 'mouse',
+          isPrimary: true,
+        }),
+      );
+
+      const out = emptyInput();
+      system.consume(out);
+      expect(out.lockedDx).toBeCloseTo(8, 5);
+      expect(out.lockedDy).toBeCloseTo(3, 5);
+    });
+
+    it('the lock-lost re-anchor safety net still works after a disconnect/reconnect cycle that kept the lock alive', () => {
+      const el = setup();
+      pointer(el, 'pointerdown', 0, 0, MouseButton.left);
+      system.requestPointerLock();
+      system.disconnect();
+      system.connect(el); // reconnect - the OS lock never actually changed, relies on connect()'s own resync
+      pointer(el, 'pointerdown', 0, 0, MouseButton.left); // re-anchor activePointer, reset by disconnect()
+
+      el.dispatchEvent(
+        new PointerEvent('pointermove', {
+          pointerId: 1,
+          clientX: 0,
+          clientY: 0,
+          movementX: 5,
+          movementY: 5,
+          buttons: MouseButton.left,
+          bubbles: true,
+          pointerType: 'mouse',
+          isPrimary: true,
+        }),
+      );
+
+      // the browser drops the lock on its own
+      Object.defineProperty(document, 'pointerLockElement', { value: null, configurable: true });
+      document.dispatchEvent(new Event('pointerlockchange'));
+      pointer(el, 'pointermove', 500, 500, MouseButton.left);
+
+      const out = emptyInput();
+      system.consume(out);
+      expect(out.leftDx).toBeCloseTo(5, 5); // re-anchored - the 500,500 jump isn't added
+      expect(out.leftDy).toBeCloseTo(5, 5);
     });
 
     it('a pointerlockerror event does not throw', () => {

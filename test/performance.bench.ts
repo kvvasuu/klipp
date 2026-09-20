@@ -14,7 +14,7 @@ import { GroupFramingExtension } from '../src/extension/GroupFramingExtension';
 import { TargetGroup } from '../src/extension/TargetGroup';
 import { ImpulseField } from '../src/impulse/ImpulseField';
 import { ImpulseListenerNoise } from '../src/impulse/ImpulseListenerNoise';
-import { InputSystem, MouseButton, type ConsumedInput } from '../src/input/InputSystem';
+import { InputSystem, MouseButton, createConsumedInput, type ConsumedInput } from '../src/input/InputSystem';
 import { BasicMultiChannelPerlinNoise } from '../src/noise/BasicMultiChannelPerlinNoise';
 
 const always = () => 1;
@@ -365,21 +365,7 @@ group('InputSystem event handlers @input', () => {
   }
 
   function emptyInput(): ConsumedInput {
-    return {
-      leftDx: 0,
-      leftDy: 0,
-      middleDx: 0,
-      middleDy: 0,
-      rightDx: 0,
-      rightDy: 0,
-      touchOneDx: 0,
-      touchOneDy: 0,
-      wheelDeltaX: 0,
-      wheelDeltaY: 0,
-      wheelZoomDelta: 0,
-      lockedDx: 0,
-      lockedDy: 0,
-    };
+    return createConsumedInput();
   }
 
   bench('onPointerMove (button held, unlocked drag)', function* () {

@@ -12,7 +12,7 @@ export type InputAxisRecentering = {
 /**
  * A single shaped input value - azimuth, elevation, pan, whatever a controller feeds a raw delta into.
  * Brother of `Damper`: zero-alloc, framework-agnostic, `update(dt)` called once per frame. Doesn't
- * collect input itself - something upstream (an `InputController`) calls `applyDelta` with an
+ * collect input itself - something upstream (an `InputAxisController`) calls `applyDelta` with an
  * already gain/accel/decel-shaped value.
  */
 export class InputAxis {

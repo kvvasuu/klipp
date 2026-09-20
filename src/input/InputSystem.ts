@@ -80,10 +80,36 @@ export type ConsumedInput = {
   lockedDy: number;
 };
 
+/** Zero-valued `ConsumedInput` - the `out` parameter for `InputSystem.consume()`. */
+export function createConsumedInput(): ConsumedInput {
+  return {
+    leftDx: 0,
+    leftDy: 0,
+    middleDx: 0,
+    middleDy: 0,
+    rightDx: 0,
+    rightDy: 0,
+    touchOneDx: 0,
+    touchOneDy: 0,
+    touchTwoDx: 0,
+    touchTwoDy: 0,
+    touchThreeDx: 0,
+    touchThreeDy: 0,
+    touchPinchDelta: 0,
+    touchRotateDelta: 0,
+    gestureZoomDelta: 0,
+    wheelDeltaX: 0,
+    wheelDeltaY: 0,
+    wheelZoomDelta: 0,
+    lockedDx: 0,
+    lockedDy: 0,
+  };
+}
+
 /**
  * Buffers raw mouse drag, one and two-finger touch, and wheel deltas from a DOM element -
  * hand-rolled Pointer Events + Pointer Capture, zero knowledge of camera/canvas/semantics.
- * `InputController` classifies and shapes this into named `InputAxis` deltas. `consume()` drains the buffer once per frame. */
+ * `InputAxisController` classifies and shapes this into named `InputAxis` deltas. `consume()` drains the buffer once per frame. */
 export class InputSystem {
   /** Suppresses the native right-click menu */
   suppressContextMenu = false;
@@ -154,6 +180,9 @@ export class InputSystem {
     document.addEventListener('pointerlockchange', this.onPointerLockChange);
     document.addEventListener('pointerlockerror', this.onPointerLockError);
     document.addEventListener('visibilitychange', this.onVisibilityChange);
+    // picks up a lock that outlived a previous disconnect() (see disconnect()'s own comment) - no
+    // 'pointerlockchange' event fires here to do this for us, since the OS-level state never changed
+    this.locked = document.pointerLockElement === element;
   };
 
   disconnect = (): void => {
@@ -172,7 +201,9 @@ export class InputSystem {
     document.removeEventListener('pointerlockchange', this.onPointerLockChange);
     document.removeEventListener('pointerlockerror', this.onPointerLockError);
     document.removeEventListener('visibilitychange', this.onVisibilityChange);
-    if (document.pointerLockElement === this.element) document.exitPointerLock();
+    // deliberately does NOT exitPointerLock() - the lock is document-level state that can legitimately
+    // need to outlive this one connection (e.g. surviving a hand-off to a different VirtualCamera);
+    // release it explicitly via exitPointerLock() if that's actually what's wanted
     this.element = null;
     this.activePointer = null;
     this.touchPointer = null;
