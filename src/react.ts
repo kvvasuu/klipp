@@ -11,6 +11,14 @@ export {
 } from './VirtualCamera';
 export { CameraFrustumHelper, type CameraFrustumHelperProps } from './CameraFrustumHelper';
 
+export {
+  InputController,
+  InputAxisOwnerContext,
+  type InputControllerProps,
+  type InputAxisOwner,
+  type InputSourceConfig,
+} from './input/InputController';
+
 export { HardLockToTarget, type HardLockToTargetProps } from './body/HardLockToTarget';
 export { Follow, type FollowProps } from './body/Follow';
 export { PositionComposer, type PositionComposerProps } from './body/PositionComposer';

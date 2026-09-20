@@ -48,6 +48,13 @@ export { RotationComposerAim } from './aim/RotationComposerAim';
 
 export { InputAxis, type InputAxisRecentering } from './input/InputAxis';
 export { InputSystem, MouseButton, type ConsumedInput, type InteractiveArea } from './input/InputSystem';
+export {
+  InputAxisController,
+  type InputAxisPair,
+  type InputSourceMapping,
+  type InputAxisControllerConfig,
+  type InputInvert,
+} from './input/InputAxisController';
 
 export { BasicMultiChannelPerlinNoise } from './noise/BasicMultiChannelPerlinNoise';
 
