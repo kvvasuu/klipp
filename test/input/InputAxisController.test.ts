@@ -186,6 +186,38 @@ describe('InputAxisController', () => {
     expect(x.value).toBe(0);
   });
 
+  it('enabled = false: still connected and listening, but drained deltas never reach the axes', () => {
+    const x = new InputAxis();
+    const y = new InputAxis();
+    const el = setup({ ...emptyConfig(), mouseButtons: { left: null, right: { axes: { x, y } }, middle: null } });
+    controller.enabled = false;
+
+    pointer(el, 'pointerdown', 0, 0, 2);
+    pointer(el, 'pointermove', 10, 4, 2);
+    controller.update();
+
+    expect(x.value).toBe(0);
+    expect(y.value).toBe(0);
+  });
+
+  it('enabled = false does not queue input for a catch-up jump on re-enable - it drains and discards', () => {
+    const x = new InputAxis();
+    const y = new InputAxis();
+    const el = setup({ ...emptyConfig(), mouseButtons: { left: null, right: { axes: { x, y } }, middle: null } });
+    controller.enabled = false;
+
+    pointer(el, 'pointerdown', 0, 0, 2);
+    pointer(el, 'pointermove', 999, 999, 2);
+    controller.update(); // drained and discarded while disabled
+
+    controller.enabled = true;
+    pointer(el, 'pointermove', 1005, 1003, 2);
+    controller.update();
+
+    expect(x.value).toBeCloseTo(6, 5); // only the movement since re-enabling
+    expect(y.value).toBeCloseTo(4, 5);
+  });
+
   it("buttonless movement while Pointer Lock is active reuses mouseButtons.left's own mapping", () => {
     const x = new InputAxis();
     const y = new InputAxis();

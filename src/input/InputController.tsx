@@ -37,6 +37,9 @@ export type InputControllerProps = {
   };
   /** Wait for an in-progress blend into this camera before listening to input. Default `true`. */
   waitForBlend?: boolean;
+  /** Master switch, independent of `waitForBlend`/`isActive`/`isLive` - e.g. to pause input during a
+   *  cutscene/dialog without touching camera priority. Default `true`. */
+  enabled?: boolean;
   /** Suppresses the native right-click context menu. Default `false`. */
   suppressContextMenu?: boolean;
   /** Restricts drag/wheel start to a normalized rect of the element's bounds. Default `null` (whole element). */
@@ -95,6 +98,7 @@ export function InputController(props: InputControllerProps) {
   const {
     target,
     waitForBlend = true,
+    enabled = true,
     suppressContextMenu = false,
     interactiveArea = null,
     lockTouchAxis = false,
@@ -110,6 +114,7 @@ export function InputController(props: InputControllerProps) {
   const [controller] = useState(() => new InputAxisController(emptyConfig));
   useImperativeHandle(ref, () => controller, [controller]);
 
+  controller.enabled = enabled;
   controller.inputSystem.suppressContextMenu = suppressContextMenu;
   controller.inputSystem.interactiveArea = interactiveArea;
   controller.inputSystem.lockTouchAxis = lockTouchAxis;

@@ -36,6 +36,10 @@ export type InputAxisControllerConfig = {
 export class InputAxisController {
   readonly inputSystem = new InputSystem();
   config: InputAxisControllerConfig;
+  /** Master switch, independent of `connect`/`disconnect` - `update()` still drains `InputSystem` every
+   *  frame while `false`, it just stops applying the drained deltas to any axis. Default `true`.
+   */
+  enabled = true;
 
   /* This frame's drained values - read-only outside this class.
    *  Overwritten in place on every `update()` call. */
@@ -56,6 +60,7 @@ export class InputAxisController {
   /** Drains `InputSystem` and feeds every configured source's shaped delta into its `InputAxis` pair. */
   update = (): void => {
     const input = this.inputSystem.consume(this.lastInput);
+    if (!this.enabled) return;
     this.applySource(this.config.mouseButtons.left, input.leftDx, input.leftDy);
     this.applySource(this.config.mouseButtons.right, input.rightDx, input.rightDy);
     this.applySource(this.config.mouseButtons.middle, input.middleDx, input.middleDy);

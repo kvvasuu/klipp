@@ -1,3 +1,4 @@
+import { useThree } from '@react-three/fiber';
 import { create } from '@react-three/test-renderer';
 import { describe, expect, it, vi } from 'vitest';
 import { HardLockToTarget } from '../../src/body/HardLockToTarget';
@@ -6,6 +7,11 @@ import type { InputAxisController } from '../../src/input/InputAxisController';
 import { InputAxisOwnerContext, InputController, type InputAxisOwner } from '../../src/input/InputController';
 import { Klipp } from '../../src/Klipp';
 import { VirtualCamera } from '../../src/VirtualCamera';
+
+function DomElementReader({ onRead }: { onRead: (el: HTMLElement) => void }) {
+  onRead(useThree((state) => state.gl.domElement));
+  return null;
+}
 
 function owner(axes: Record<string, InputAxis>): { current: InputAxisOwner | null } {
   return { current: { inputAxes: axes } };
@@ -251,5 +257,74 @@ describe('InputController (React wrapper)', () => {
     expect(controller!.inputSystem.suppressContextMenu).toBe(true);
     expect(controller!.inputSystem.interactiveArea).toBe(area);
     expect(controller!.inputSystem.lockTouchAxis).toBe(true);
+  });
+
+  it('enabled defaults to true and is reactive to the prop', async () => {
+    const target = owner({ pan: new InputAxis(), tilt: new InputAxis() });
+    let controller: InputAxisController | null = null;
+
+    const scene = (enabled: boolean | undefined) => (
+      <Klipp>
+        <VirtualCamera name="a" priority={10}>
+          <InputController
+            ref={(c) => (controller = c)}
+            target={target}
+            mouseButtons={{ left: { axes: { x: 'pan', y: 'tilt' } }, right: null, middle: null }}
+            enabled={enabled}
+          />
+        </VirtualCamera>
+      </Klipp>
+    );
+
+    const renderer = await create(scene(undefined));
+    await renderer.advanceFrames(1, 0.05);
+    expect(controller!.enabled).toBe(true);
+
+    await renderer.update(scene(false));
+    await renderer.advanceFrames(1, 0.05);
+    expect(controller!.enabled).toBe(false);
+
+    await renderer.update(scene(true));
+    await renderer.advanceFrames(1, 0.05);
+    expect(controller!.enabled).toBe(true);
+  });
+
+  it('enabled=false does not affect connect/disconnect - InputSystem still listens, drained deltas just never reach the axes', async () => {
+    const pan = new InputAxis();
+    const tilt = new InputAxis();
+    const target = owner({ pan, tilt });
+    let controller: InputAxisController | null = null;
+    let domElement: HTMLElement | undefined;
+
+    const scene = (
+      <Klipp>
+        <DomElementReader onRead={(el) => (domElement = el)} />
+        <VirtualCamera name="a" priority={10}>
+          <InputController
+            ref={(c) => (controller = c)}
+            target={target}
+            mouseButtons={{ left: { axes: { x: 'pan', y: 'tilt' } }, right: null, middle: null }}
+            enabled={false}
+          />
+        </VirtualCamera>
+      </Klipp>
+    );
+
+    const renderer = await create(scene);
+    await renderer.advanceFrames(1, 0.05);
+
+    const el = domElement!;
+    el.dispatchEvent(
+      new PointerEvent('pointerdown', { pointerId: 1, clientX: 0, clientY: 0, buttons: 1, bubbles: true, pointerType: 'mouse' }),
+    );
+    el.dispatchEvent(
+      new PointerEvent('pointermove', { pointerId: 1, clientX: 20, clientY: 0, buttons: 1, bubbles: true, pointerType: 'mouse' }),
+    );
+    await renderer.advanceFrames(1, 0.05);
+
+    // proves InputSystem actually received/buffered the event (connect() ran) - if it hadn't connected
+    // at all, lastInput would show 0 too, same as pan.value, and this test wouldn't tell them apart
+    expect(controller!.lastInput.leftDx).toBeCloseTo(20, 5);
+    expect(pan.value).toBe(0); // ...but enabled=false kept it from ever reaching the axis
   });
 });
