@@ -1,3 +1,4 @@
+import { clamp, repeat } from 'math';
 import { Damper, type DampingConstant } from '../damping/Damper';
 import { shortestWrappedDelta } from './shortestWrappedDelta';
 
@@ -10,10 +11,10 @@ export type InputAxisRecentering = {
 };
 
 /**
- * A single shaped input value - azimuth, elevation, pan, whatever a controller feeds a raw delta into.
+ * A single shaped value - azimuth, elevation, pan, whatever needs range/wrap/damping/recentering.
  * Brother of `Damper`: zero-alloc, framework-agnostic, `update(dt)` called once per frame. Doesn't
- * collect input itself - something upstream (an `InputAxisController`) calls `applyDelta` with an
- * already gain-shaped value.
+ * collect input itself - `applyDelta` takes an already gain-shaped value from whatever drives it, an
+ * `InputAxisController` for drag input or any other caller.
  */
 export class InputAxis {
   value: number;
@@ -23,6 +24,8 @@ export class InputAxis {
   recentering: InputAxisRecentering;
   damping: DampingConstant = 0;
   maxSpeed = Infinity;
+  /** Calls `normalize()` automatically once the axis is idle and settled. Default `false`. */
+  autoNormalize = false;
 
   private rawValue: number;
   private idleTime = 0;
@@ -46,12 +49,12 @@ export class InputAxis {
 
   applyDelta = (delta: number): void => {
     if (delta === 0) return;
-    this.rawValue = this.clampOrWrap(this.rawValue + delta);
+    this.rawValue = this.wrap ? this.rawValue + delta : this.clamp(this.rawValue + delta);
     this.idleTime = 0;
   };
 
   /** Advances the idle timer, eases `value` toward the raw target (or, once `recentering.wait` seconds
-   *  have passed since the last `applyDelta`, toward `center` instead) - shortest way around when `wrap`.
+   *  have passed since the last `applyDelta`, toward `center` instead, shortest way around when `wrap`).
    *  Call once per frame regardless of whether `applyDelta` ran this frame. */
   update = (dt: number): void => {
     this.idleTime += dt;
@@ -64,25 +67,28 @@ export class InputAxis {
         this.wrap && this.range ? this.value + shortestWrappedDelta(this.value, this.center, this.range) : this.center;
       dampTime = this.recentering.time;
     } else {
-      dampTarget =
-        this.wrap && this.range
-          ? this.value + shortestWrappedDelta(this.value, this.rawValue, this.range)
-          : this.rawValue;
+      dampTarget = this.rawValue;
       dampTime = this.damping;
     }
 
-    this.value = this.clampOrWrap(this.damper.update(this.value, dampTarget, dampTime, dt, this.maxSpeed));
+    const eased = this.damper.update(this.value, dampTarget, dampTime, dt, this.maxSpeed);
+    this.value = this.wrap ? eased : this.clamp(eased);
 
     if (isRecentering) this.rawValue = this.value;
+
+    if (this.autoNormalize && this.value === this.rawValue) this.normalize();
   };
 
-  private clampOrWrap(value: number): number {
-    if (!this.range) return value;
+  /** Folds `value`/`rawValue` back inside `range` (mod its span). Call between drags, not mid-motion. */
+  normalize = (): void => {
+    if (!this.wrap || !this.range) return;
     const [min, max] = this.range;
-    if (this.wrap) {
-      const span = max - min;
-      return min + ((((value - min) % span) + span) % span);
-    }
-    return Math.min(max, Math.max(min, value));
+    const span = max - min;
+    this.value = min + repeat(this.value - min, span);
+    this.rawValue = min + repeat(this.rawValue - min, span);
+  };
+
+  private clamp(value: number): number {
+    return this.range ? clamp(value, this.range[0], this.range[1]) : value;
   }
 }

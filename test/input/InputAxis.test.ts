@@ -41,11 +41,11 @@ describe('InputAxis', () => {
       expect(axis.value).toBe(-10);
     });
 
-    it('wraps around range instead of clamping when wrap is true', () => {
+    it('accumulates past range without auto-wrapping when wrap is true - call normalize() to fold it back', () => {
       const axis = new InputAxis(170, 0, [-180, 180], true);
-      axis.applyDelta(20); // 190 -> wraps to -170
+      axis.applyDelta(20); // stays 190 - silently wrapping to -170 would reverse an active drag mid-motion
       settle(axis);
-      expect(axis.value).toBeCloseTo(-170, 5);
+      expect(axis.value).toBeCloseTo(190, 5);
     });
 
     it('without range, value is unbounded', () => {
@@ -96,12 +96,12 @@ describe('InputAxis', () => {
       expect(axis.value).toBe(20); // enough ticks to cross the damper's own epsilon and snap exactly
     });
 
-    it('takes the shortest wrapped path when chasing, not the long way around', () => {
-      const axis = new InputAxis(170, 0, [-180, 180], true);
+    it('chases the raw target across the wrap seam instead of reversing toward its shortest equivalent', () => {
+      const axis = new InputAxis(0, 0, [-180, 180], true);
       axis.damping = 0.5;
-      axis.applyDelta(20); // raw target wraps to -170 - shortest path from 170 is DOWN through +/-180
+      axis.applyDelta(-270); // a fast, large left drag - well past the -180 seam
       axis.update(0.016);
-      expect(axis.value).toBeGreaterThan(170); // moved toward the seam, not back down toward 0
+      expect(axis.value).toBeLessThan(0); // still closing in on -270, not flipped toward the +90 shortcut
     });
 
     it('maxSpeed clamps how fast value can close the gap', () => {
@@ -184,6 +184,54 @@ describe('InputAxis', () => {
       axis.update(0.016); // first update with recentering already due
       expect(axis.value).toBeGreaterThan(0);
       expect(axis.value).toBeLessThan(10); // eased, not teleported to 0 nor left untouched
+    });
+  });
+
+  describe('normalize', () => {
+    it('folds value/rawValue back inside range without changing the represented angle', () => {
+      const axis = new InputAxis(170, 0, [-180, 180], true);
+      axis.applyDelta(20); // settles at 190, outside the nominal range
+      settle(axis);
+
+      axis.normalize();
+
+      expect(axis.value).toBeCloseTo(-170, 5); // 190 mod 360, same physical angle
+    });
+
+    it('is a no-op when wrap is false', () => {
+      const axis = new InputAxis(5, 0, [-10, 10]);
+      axis.normalize();
+      expect(axis.value).toBe(5);
+    });
+
+    it('is a no-op without a range', () => {
+      const axis = new InputAxis(400, 0, null, true);
+      axis.normalize();
+      expect(axis.value).toBe(400);
+    });
+
+    it('disabled by default - value stays past range once settled', () => {
+      const axis = new InputAxis(170, 0, [-180, 180], true);
+      axis.applyDelta(20); // settles at 190
+      settle(axis);
+      expect(axis.value).toBeCloseTo(190, 5);
+    });
+
+    it('autoNormalize folds value/rawValue back once settled, without an explicit call', () => {
+      const axis = new InputAxis(170, 0, [-180, 180], true);
+      axis.autoNormalize = true;
+      axis.applyDelta(20); // settles at 190, then self-folds to -170
+      settle(axis);
+      expect(axis.value).toBeCloseTo(-170, 5);
+    });
+
+    it('autoNormalize never redirects an active drag mid-chase', () => {
+      const axis = new InputAxis(0, 0, [-180, 180], true);
+      axis.autoNormalize = true;
+      axis.damping = 0.5;
+      axis.applyDelta(-270); // fast, large left drag - well past the -180 seam, still easing
+      axis.update(0.016); // not settled yet - autoNormalize must not fire here
+      expect(axis.value).toBeLessThan(0); // still closing in on -270, not flipped toward the +90 shortcut
     });
   });
 
