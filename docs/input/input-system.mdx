@@ -1,0 +1,39 @@
+---
+title: Input System
+description: The lowest-level class - buffers raw pointer/touch/wheel/Pointer-Lock deltas, zero knowledge of cameras.
+nav: 49
+---
+
+`InputSystem` attaches Pointer Events + Pointer Capture and wheel/gesture listeners to a DOM element, buffering deltas per source until `consume()` drains them - once per frame, from `InputAxisController.update()`. Most usage goes through [`<InputController>`](/input/input-controller); reach for `InputSystem` directly (via `ref.inputSystem`) for Pointer Lock and low-level access to this frame's raw deltas.
+
+```tsx
+const controllerRef = useRef<InputAxisController>(null);
+
+controllerRef.current?.inputSystem.requestPointerLock();
+controllerRef.current?.lastInput.wheelDeltaY;
+```
+
+## Pointer Lock
+
+```ts
+inputSystem.requestPointerLock(): void;
+inputSystem.exitPointerLock(): void;
+```
+
+A click handler or button calls these directly. The lock is document-level state, outliving any one connection - it survives switching which `<VirtualCamera>` an `<InputController>` is wired to, or that camera unmounting/remounting.
+
+## `suppressContextMenu`/`interactiveArea`/`lockTouchAxis`
+
+Same fields `<InputController>`'s matching props set - set them directly when driving `InputSystem` without the React wrapper.
+
+## `ConsumedInput`
+
+```ts
+inputSystem.consume(out: ConsumedInput): ConsumedInput;
+```
+
+Every buffered delta by name - `leftDx`/`leftDy` (and `middleDx/Dy`, `rightDx/Dy`), `touchOneDx/Dy` through `touchThreeDx/Dy`, `touchPinchDelta`, `touchRotateDelta` (radians), `gestureZoomDelta` (Safari trackpad), `wheelDeltaX/Y`, `wheelZoomDelta` (ctrl+wheel/trackpad pinch), `lockedDx/Dy` (buttonless movement under Pointer Lock). `InputAxisController.lastInput` holds the same object, already drained for you each frame - read it directly instead of calling `consume()` again.
+
+## Vanilla three.js
+
+`InputSystem`/`InputAxisController`/`InputAxis` have zero React dependency - `connect(element)`/`disconnect()`/`update()` work identically outside r3f. `<InputController>` is a thin wrapper that just calls these at the right time.

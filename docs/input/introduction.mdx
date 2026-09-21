@@ -1,0 +1,34 @@
+---
+title: Input
+description: Drag, touch, wheel and Pointer Lock input, shaped into named InputAxis values any Body/Aim/Extension can consume.
+nav: 46
+---
+
+Klipp's input layer turns raw pointer/touch/wheel events into named, shaped values - `InputAxis` instances - that a Body/Aim/Extension exposes as `inputAxes` for a `<InputController>` to drive. A Body/Aim/Extension's own update logic reads `axis.value`.
+
+```tsx
+import { InputController } from '@kvvasuu/klipp/react';
+
+<VirtualCamera name="look-around" priority={10}>
+  <SomeInputDrivenAim>
+    <InputController
+      mouseButtons={{ right: { axes: { x: 'pan', y: 'tilt' } } }}
+      touches={{ one: { axes: { x: 'pan', y: 'tilt' } } }}
+    />
+  </SomeInputDrivenAim>
+</VirtualCamera>
+```
+
+`<InputController>` finds `SomeInputDrivenAim`'s `inputAxes` automatically through context - no ref, no manual wiring. It's a Body/Aim/Extension's own choice to expose `inputAxes` at all; most don't need to.
+
+## Three layers
+
+- **[`InputSystem`](/input/input-system)** - the lowest level. Buffers raw pointer/touch/wheel/Pointer-Lock deltas from a DOM element into named per-source buffers, drained once per frame. Zero knowledge of cameras or `InputAxis`.
+- **`InputAxis`** - see [Input Axis](/input/input-axis). A single shaped value with `range`/`wrap`/`damping`/`recentering`, driven by `applyDelta` - from an `InputController`, a cutscene script, an AI look-at.
+- **[`InputController`](/input/input-controller)** - the React glue between the two: resolves named `mouseButtons`/`touches` sources against a target's `inputAxes`, shapes each source's delta (`gain`/`invert`), and feeds it through `InputSystem` → `applyDelta` every frame.
+
+`InputAxisController` is `InputController`'s underlying, framework-agnostic class (`ref` gives you it directly) - use it without React for a vanilla three.js project.
+
+## Named axes
+
+A Body/Aim/Extension declares whichever axes make sense for it (`{ pan, tilt }`, `{ azimuth, elevation }`, a single `{ zoom }`) as `inputAxes: Record<string, InputAxis>`. `<InputController>` maps `mouseButtons`/`touches` sources onto them by name (`axes: { x: 'pan', y: 'tilt' }`).
