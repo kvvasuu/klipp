@@ -4,17 +4,17 @@ import {
   createContext,
   use,
   useEffect,
+  useEffectEvent,
   useImperativeHandle,
-  useRef,
   useState,
   useSyncExternalStore,
   type ReactNode,
   type Ref,
 } from 'react';
-import { copyCameraState, createCameraState, mergeCameraState, type CameraState } from './CameraState';
 import { BlendHints } from './blend/BlendHints';
-import type { CameraTransitionEventMap } from './KlippCore';
+import { copyCameraState, createCameraState, mergeCameraState, type CameraState } from './CameraState';
 import { useKlippCore, useKlippInitialCameraState, useKlippUpdateRegistry } from './Klipp';
+import type { CameraTransitionEventMap } from './KlippCore';
 import { resolveVector3 } from './resolve/resolveVector3';
 import { useCameraTransitionEvent } from './useCameraTransitionEvent';
 import { VirtualCameraController, type VirtualCameraSlots } from './VirtualCameraController';
@@ -125,19 +125,15 @@ export function VirtualCamera({
   // keeps controller subscribed to core so the ref above can addEventListener directly - cheap, since
   // dispatch only happens on transitions, never per-frame.
   useEffect(() => controller.trackEvents(core), [controller, core]);
-  const priorityRef = useRef(priority);
-  priorityRef.current = priority;
-  const hintsRef = useRef(hints);
-  hintsRef.current = hints;
 
-  // `priority`/`hints` are deliberately NOT dependencies here - re-registering on every edit would
-  // spuriously restart a blend (see `KlippCore.updatePriority`'s doc comment); the effects below sync them.
+  const registerCamera = useEffectEvent(() => core.registerCamera({ id: name, priority, state, hints }));
+
   useEffect(() => {
     if (!active) return;
     // wake frameloop="demand" on both edges — candidacy just changed, and Klipp's own useFrame (which
     // decides whether that actually moves the composited camera) otherwise never gets a chance to run
     invalidate();
-    const unregister = core.registerCamera({ id: name, priority: priorityRef.current, state, hints: hintsRef.current });
+    const unregister = registerCamera();
     return () => {
       unregister();
       invalidate();
