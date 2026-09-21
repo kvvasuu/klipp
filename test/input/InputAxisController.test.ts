@@ -22,6 +22,13 @@ function touch(el: HTMLElement, type: string, x: number, y: number, pointerId = 
   );
 }
 
+// InputAxisController.update() only calls applyDelta() on the mapped axes - it's up to the axis owner
+// (e.g. PanTiltAim) to call axis.update(dt) afterward. damping=0 (default) converges near-instantly but
+// still needs a couple of real update() ticks to settle exactly, same as InputAxis's own tests.
+function settle(...axes: InputAxis[]): void {
+  for (let i = 0; i < 3; i++) for (const axis of axes) axis.update(0.016);
+}
+
 function emptyConfig(): InputAxisControllerConfig {
   return {
     mouseButtons: { left: null, right: null, middle: null },
@@ -68,6 +75,7 @@ describe('InputAxisController', () => {
     pointer(el, 'pointerdown', 0, 0, 2);
     pointer(el, 'pointermove', 10, 4, 2);
     controller.update();
+    settle(x, y);
 
     expect(x.value).toBeCloseTo(10, 5);
     expect(y.value).toBeCloseTo(4, 5);
@@ -94,6 +102,7 @@ describe('InputAxisController', () => {
     pointer(el, 'pointerdown', 0, 0, 2);
     pointer(el, 'pointermove', 10, 4, 2);
     controller.update();
+    settle(x, y);
 
     expect(x.value).toBeCloseTo(5, 5);
     expect(y.value).toBeCloseTo(2, 5);
@@ -110,6 +119,7 @@ describe('InputAxisController', () => {
     pointer(el, 'pointerdown', 0, 0, 2);
     pointer(el, 'pointermove', 10, 4, 2);
     controller.update();
+    settle(x, y);
 
     expect(x.value).toBeCloseTo(-10, 5);
     expect(y.value).toBeCloseTo(-4, 5);
@@ -126,6 +136,7 @@ describe('InputAxisController', () => {
     pointer(el, 'pointerdown', 0, 0, 2);
     pointer(el, 'pointermove', 10, 4, 2);
     controller.update();
+    settle(x, y);
 
     expect(x.value).toBeCloseTo(10, 5);
     expect(y.value).toBeCloseTo(-4, 5);
@@ -142,6 +153,7 @@ describe('InputAxisController', () => {
     pointer(el, 'pointerdown', 0, 0, 2);
     pointer(el, 'pointermove', 10, 0, 2);
     controller.update();
+    settle(x, y);
 
     expect(x.value).toBeCloseTo(-20, 5);
   });
@@ -159,6 +171,7 @@ describe('InputAxisController', () => {
     touch(el, 'pointerdown', 0, 0, 5);
     touch(el, 'pointermove', 3, 0, 5);
     controller.update();
+    settle(x, y);
 
     expect(x.value).toBeCloseTo(13, 5); // 10 (right-drag) + 3 (touch)
   });
@@ -213,6 +226,7 @@ describe('InputAxisController', () => {
     controller.enabled = true;
     pointer(el, 'pointermove', 1005, 1003, 2);
     controller.update();
+    settle(x, y);
 
     expect(x.value).toBeCloseTo(6, 5); // only the movement since re-enabling
     expect(y.value).toBeCloseTo(4, 5);
@@ -241,6 +255,7 @@ describe('InputAxisController', () => {
       }),
     );
     controller.update();
+    settle(x, y);
 
     expect(x.value).toBeCloseTo(-20, 5); // same gain/invert as mouseButtons.left
     expect(y.value).toBeCloseTo(-8, 5);

@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { InputAxis } from '../../src/input/InputAxis';
 
+// damping=0 (default) converges value onto the raw accumulated target near-instantly, but only once
+// update() actually runs - a couple of frames guarantees full (epsilon-exact) convergence regardless of
+// how large the jump was, without needing per-test tuning.
+function settle(axis: InputAxis, frames = 3, dt = 0.016): void {
+  for (let i = 0; i < frames; i++) axis.update(dt);
+}
+
 describe('InputAxis', () => {
   it('starts at the given value', () => {
     const axis = new InputAxis(3);
@@ -11,6 +18,7 @@ describe('InputAxis', () => {
     const axis = new InputAxis(0);
     axis.applyDelta(5);
     axis.applyDelta(-2);
+    settle(axis);
     expect(axis.value).toBe(3);
   });
 
@@ -26,21 +34,107 @@ describe('InputAxis', () => {
     it('clamps to range when not wrapping', () => {
       const axis = new InputAxis(0, 0, [-10, 10]);
       axis.applyDelta(50);
+      settle(axis);
       expect(axis.value).toBe(10);
       axis.applyDelta(-100);
+      settle(axis);
       expect(axis.value).toBe(-10);
     });
 
     it('wraps around range instead of clamping when wrap is true', () => {
       const axis = new InputAxis(170, 0, [-180, 180], true);
       axis.applyDelta(20); // 190 -> wraps to -170
+      settle(axis);
       expect(axis.value).toBeCloseTo(-170, 5);
     });
 
     it('without range, value is unbounded', () => {
       const axis = new InputAxis(0, 0, null);
       axis.applyDelta(1e6);
+      settle(axis);
       expect(axis.value).toBe(1e6);
+    });
+  });
+
+  describe('damping', () => {
+    it('0 (default) is an exact, instant chase - value fully tracks applyDelta within a frame or two', () => {
+      const axis = new InputAxis(0);
+      axis.applyDelta(30);
+      settle(axis);
+      expect(axis.value).toBe(30);
+    });
+
+    it('> 0 eases value toward the raw target gradually instead of snapping in one frame', () => {
+      const axis = new InputAxis(0);
+      axis.damping = 0.5;
+      axis.applyDelta(100);
+      axis.update(0.016);
+      expect(axis.value).toBeGreaterThan(0);
+      expect(axis.value).toBeLessThan(100);
+    });
+
+    it('a fast drag released mid-motion keeps easing toward wherever it last pointed - momentum, not an instant stop', () => {
+      const axis = new InputAxis(0);
+      axis.damping = 0.3;
+      axis.applyDelta(50);
+      axis.update(0.016); // value is still lagging behind the raw target here
+      const midway = axis.value;
+      expect(midway).toBeGreaterThan(0);
+      expect(midway).toBeLessThan(50);
+
+      // no further applyDelta - "released" - but value keeps closing the gap it built up while dragging
+      axis.update(0.016);
+      expect(axis.value).toBeGreaterThan(midway);
+      expect(axis.value).toBeLessThan(50);
+    });
+
+    it('converges to the raw target over repeated ticks', () => {
+      const axis = new InputAxis(0);
+      axis.damping = 0.2;
+      axis.applyDelta(20);
+      settle(axis, 500);
+      expect(axis.value).toBe(20); // enough ticks to cross the damper's own epsilon and snap exactly
+    });
+
+    it('takes the shortest wrapped path when chasing, not the long way around', () => {
+      const axis = new InputAxis(170, 0, [-180, 180], true);
+      axis.damping = 0.5;
+      axis.applyDelta(20); // raw target wraps to -170 - shortest path from 170 is DOWN through +/-180
+      axis.update(0.016);
+      expect(axis.value).toBeGreaterThan(170); // moved toward the seam, not back down toward 0
+    });
+
+    it('maxSpeed clamps how fast value can close the gap', () => {
+      const unclamped = new InputAxis(0);
+      unclamped.damping = 1;
+      unclamped.applyDelta(100);
+      unclamped.update(0.1);
+
+      const clamped = new InputAxis(0);
+      clamped.damping = 1;
+      clamped.maxSpeed = 10; // units/sec - much slower approach than the unclamped spring above
+      clamped.applyDelta(100);
+      clamped.update(0.1);
+
+      expect(clamped.value).toBeGreaterThan(0);
+      expect(clamped.value).toBeLessThan(unclamped.value);
+    });
+
+    it('maxSpeed still converges eventually, just slower', () => {
+      const axis = new InputAxis(0);
+      axis.damping = 1;
+      axis.maxSpeed = 10;
+      axis.applyDelta(100);
+      settle(axis, 2000);
+      expect(axis.value).toBe(100);
+    });
+
+    it('does not affect applyDelta itself - the raw accumulation and clamping/wrapping stay unchanged', () => {
+      const axis = new InputAxis(0, 0, [-10, 10]);
+      axis.damping = 1;
+      axis.applyDelta(50);
+      settle(axis, 2000); // even fully settled, damping never lets the raw target exceed range
+      expect(axis.value).toBe(10);
     });
   });
 
@@ -103,6 +197,7 @@ describe('InputAxis', () => {
     const axis = new InputAxis(0);
     const { applyDelta } = axis;
     expect(() => applyDelta(1)).not.toThrow();
+    settle(axis);
     expect(axis.value).toBe(1);
   });
 });

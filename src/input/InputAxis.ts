@@ -1,4 +1,4 @@
-import { Damper } from '../damping/Damper';
+import { Damper, type DampingConstant } from '../damping/Damper';
 import { shortestWrappedDelta } from './shortestWrappedDelta';
 
 export type InputAxisRecentering = {
@@ -13,7 +13,7 @@ export type InputAxisRecentering = {
  * A single shaped input value - azimuth, elevation, pan, whatever a controller feeds a raw delta into.
  * Brother of `Damper`: zero-alloc, framework-agnostic, `update(dt)` called once per frame. Doesn't
  * collect input itself - something upstream (an `InputAxisController`) calls `applyDelta` with an
- * already gain/accel/decel-shaped value.
+ * already gain-shaped value.
  */
 export class InputAxis {
   value: number;
@@ -21,9 +21,12 @@ export class InputAxis {
   range: [number, number] | null;
   wrap: boolean;
   recentering: InputAxisRecentering;
+  damping: DampingConstant = 0;
+  maxSpeed = Infinity;
 
+  private rawValue: number;
   private idleTime = 0;
-  private readonly recenterDamper = new Damper();
+  private readonly damper = new Damper();
 
   constructor(
     value = 0,
@@ -33,41 +36,53 @@ export class InputAxis {
     recentering: InputAxisRecentering = { enabled: false, wait: 1, time: 1 },
   ) {
     this.value = value;
+    this.rawValue = value;
     this.center = center;
     this.range = range;
     this.wrap = wrap;
     this.recentering = recentering;
-    this.recenterDamper.update(value, value, recentering.time, 0);
+    this.damper.update(value, value, 0, 0);
   }
 
   applyDelta = (delta: number): void => {
     if (delta === 0) return;
-    this.value += delta;
-    this.clampOrWrap();
+    this.rawValue = this.clampOrWrap(this.rawValue + delta);
     this.idleTime = 0;
   };
 
-  /** Advances the idle timer and, once `recentering.wait` seconds have passed since the last `applyDelta`,
-   *  eases `value` back toward `center` over `recentering.time` - shortest way around when `wrap`. Call
-   *  once per frame regardless of whether `applyDelta` ran this frame. */
+  /** Advances the idle timer, eases `value` toward the raw target (or, once `recentering.wait` seconds
+   *  have passed since the last `applyDelta`, toward `center` instead) - shortest way around when `wrap`.
+   *  Call once per frame regardless of whether `applyDelta` ran this frame. */
   update = (dt: number): void => {
     this.idleTime += dt;
-    if (!this.recentering.enabled || this.idleTime < this.recentering.wait) return;
+    const isRecentering = this.recentering.enabled && this.idleTime >= this.recentering.wait;
 
-    const target =
-      this.wrap && this.range ? this.value + shortestWrappedDelta(this.value, this.center, this.range) : this.center;
-    this.value = this.recenterDamper.update(this.value, target, this.recentering.time, dt);
-    this.clampOrWrap();
+    let dampTarget: number;
+    let dampTime: DampingConstant;
+    if (isRecentering) {
+      dampTarget =
+        this.wrap && this.range ? this.value + shortestWrappedDelta(this.value, this.center, this.range) : this.center;
+      dampTime = this.recentering.time;
+    } else {
+      dampTarget =
+        this.wrap && this.range
+          ? this.value + shortestWrappedDelta(this.value, this.rawValue, this.range)
+          : this.rawValue;
+      dampTime = this.damping;
+    }
+
+    this.value = this.clampOrWrap(this.damper.update(this.value, dampTarget, dampTime, dt, this.maxSpeed));
+
+    if (isRecentering) this.rawValue = this.value;
   };
 
-  private clampOrWrap(): void {
-    if (!this.range) return;
+  private clampOrWrap(value: number): number {
+    if (!this.range) return value;
     const [min, max] = this.range;
     if (this.wrap) {
       const span = max - min;
-      this.value = min + ((((this.value - min) % span) + span) % span);
-    } else {
-      this.value = Math.min(max, Math.max(min, this.value));
+      return min + ((((value - min) % span) + span) % span);
     }
+    return Math.min(max, Math.max(min, value));
   }
 }
