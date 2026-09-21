@@ -1,4 +1,4 @@
-import { shortestWrappedDelta } from './shortestWrappedDelta';
+import { degreesToRadians, deltaAngle, radiansToDegrees } from 'math';
 
 export const MouseButton = {
   left: 1,
@@ -374,14 +374,14 @@ export class InputSystem {
         this.touchPinchDistance = distance;
 
         const angle = angleBetween(this.touchPointer, this.touchPointer2);
-        const rotateStepDelta = shortestWrappedDelta(this.touchAngle, angle, [-Math.PI, Math.PI]);
+        const rotateStepDelta = deltaAngle(this.touchAngle, angle);
         this.touchAngle = angle;
         this.touchGestureRotateTotal += rotateStepDelta;
 
         // decided once per gesture - a later move dominated by the other axis doesn't re-decide
         if (this.lockTouchAxis && !this.touchAxisLock) {
           const scaleFraction = distance / this.touchGestureStartDistance - 1;
-          const rotateDegrees = (this.touchGestureRotateTotal * 180) / Math.PI;
+          const rotateDegrees = radiansToDegrees(this.touchGestureRotateTotal);
           const intent = Math.abs(scaleFraction) * SCALE_ANGLE_RATIO_INTENT_DEG - Math.abs(rotateDegrees);
           if (intent < 0) this.touchAxisLock = 'rotate';
           else if (intent > 0) this.touchAxisLock = 'pinch';
@@ -535,7 +535,7 @@ export class InputSystem {
     }
 
     if (this.gestureAxisLock !== 'rotate') this.gestureZoomDelta += zoomStepDelta;
-    if (this.gestureAxisLock !== 'pinch') this.touchRotateDelta += (rotateStepDeg * Math.PI) / 180;
+    if (this.gestureAxisLock !== 'pinch') this.touchRotateDelta += degreesToRadians(rotateStepDeg);
   };
 
   private onGestureEnd = (): void => {
