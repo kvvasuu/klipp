@@ -4,7 +4,7 @@ import { Vector3 } from 'three';
 import type { DampingConstant } from '../damping/Damper';
 import type { Target } from '../resolve/Target';
 import { resolveVector3 } from '../resolve/resolveVector3';
-import { useVirtualCameraSlots } from '../VirtualCamera';
+import { useVirtualCamera } from '../VirtualCamera';
 import { BindingModes, type BindingMode } from './BindingModes';
 import { FollowBody } from './FollowBody';
 
@@ -41,7 +41,7 @@ export function Follow({
   maxSpeed = Infinity,
   ref,
 }: FollowProps) {
-  const slots = useVirtualCameraSlots();
+  const { controller } = useVirtualCamera();
   const [body] = useState(() => new FollowBody(target, new Vector3()));
   body.target = target;
   resolveVector3(body.offset, offset);
@@ -50,7 +50,7 @@ export function Follow({
   body.maxSpeed = maxSpeed;
 
   useImperativeHandle(ref, () => body, [body]);
-  useEffect(() => slots.registerBody(body.update), [slots, body]);
+  useEffect(() => controller.registerBody(body.update), [controller, body]);
 
   return null;
 }

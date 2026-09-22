@@ -5,7 +5,7 @@ import { PerspectiveCamera, Vector3 } from 'three';
 import { describe, expect, it, vi } from 'vitest';
 import { Klipp, useKlippCore } from '../src/Klipp';
 import { KlippCore } from '../src/KlippCore';
-import { VirtualCamera, useVirtualCameraSlots } from '../src/VirtualCamera';
+import { VirtualCamera, useVirtualCamera } from '../src/VirtualCamera';
 import { HardLockToTarget } from '../src/body/HardLockToTarget';
 import { BlendCurves } from '../src/blend/BlendCurves';
 import { useEffect, useRef } from 'react';
@@ -110,15 +110,15 @@ describe('Klipp / useKlippCore', () => {
       return null;
     }
     function LensWriter() {
-      const slots = useVirtualCameraSlots();
+      const { controller } = useVirtualCamera();
       useEffect(
         () =>
-          slots.registerAim((out) => {
+          controller.registerAim((out) => {
             out.fov = 35;
             out.near = 1;
             out.far = 200;
           }),
-        [slots],
+        [controller],
       );
       return null;
     }
@@ -140,14 +140,14 @@ describe('Klipp / useKlippCore', () => {
 
   describe('viewOffset', () => {
     function ViewOffsetWriter({ x, y }: { x: number; y: number }) {
-      const slots = useVirtualCameraSlots();
+      const { controller } = useVirtualCamera();
       useEffect(
         () =>
-          slots.registerAim((out) => {
+          controller.registerAim((out) => {
             out.viewOffset[0] = x;
             out.viewOffset[1] = y;
           }),
-        [slots, x, y],
+        [controller, x, y],
       );
       return null;
     }

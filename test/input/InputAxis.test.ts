@@ -235,6 +235,21 @@ describe('InputAxis', () => {
     });
   });
 
+  describe('reset', () => {
+    it('re-arms the damper so the next update() snaps value straight to rawValue', () => {
+      const axis = new InputAxis(0);
+      axis.damping = 0.5;
+      axis.applyDelta(100);
+      axis.update(0.016); // value is still lagging behind rawValue here
+      expect(axis.value).toBeLessThan(100);
+
+      axis.reset();
+      axis.update(0.016);
+
+      expect(axis.value).toBe(100);
+    });
+  });
+
   it('update is a bound instance method - safe to pass by reference', () => {
     const axis = new InputAxis(0);
     const { update } = axis;

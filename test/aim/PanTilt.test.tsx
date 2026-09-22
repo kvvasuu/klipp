@@ -1,7 +1,7 @@
 import { useThree } from '@react-three/fiber';
 import { create } from '@react-three/test-renderer';
 import { createRef } from 'react';
-import { Object3D, Vector3 } from 'three';
+import { Euler, Object3D, Quaternion, Vector3 } from 'three';
 import { describe, expect, it } from 'vitest';
 import { Aim } from '../../src/aim/Aim';
 import type { PanTiltAim } from '../../src/aim/PanTiltAim';
@@ -75,6 +75,25 @@ describe('PanTilt (React wrapper)', () => {
     const forward = new Vector3(0, 0, -1).applyQuaternion(core!.activeState!.quaternion);
     const targetForward = new Vector3(0, 0, -1).applyQuaternion(target.quaternion);
     expect(forward.dot(targetForward)).toBeCloseTo(1, 4);
+  });
+
+  it("VirtualCamera's initialState.quaternion seeds pan/tilt once at mount", async () => {
+    let core: KlippCore | undefined;
+    const initialQuaternion = new Quaternion().setFromEuler(new Euler(0, Math.PI / 4, 0));
+
+    const scene = (
+      <Klipp>
+        <CoreReader onRead={(c) => (core = c)} />
+        <VirtualCamera name="a" priority={10} initialState={{ quaternion: initialQuaternion }}>
+          <Aim.PanTilt />
+        </VirtualCamera>
+      </Klipp>
+    );
+
+    const renderer = await create(scene);
+    await renderer.advanceFrames(1, 0.05);
+
+    expect(core!.activeState!.quaternion.angleTo(initialQuaternion)).toBeLessThan(1e-3);
   });
 
   it('damping/maxSpeed props apply to both pan and tilt', async () => {

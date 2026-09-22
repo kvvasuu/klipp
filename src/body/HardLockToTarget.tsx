@@ -1,7 +1,7 @@
 import { useEffect, useImperativeHandle, useState, type Ref } from 'react';
 import type { DampingConstant } from '../damping/Damper';
 import type { Target } from '../resolve/Target';
-import { useVirtualCameraSlots } from '../VirtualCamera';
+import { useVirtualCamera } from '../VirtualCamera';
 import { HardLockToTargetBody } from './HardLockToTargetBody';
 
 export type HardLockToTargetProps = {
@@ -22,14 +22,14 @@ export type HardLockToTargetProps = {
 /** Simplest Body: position = Tracking Target's world position, optionally damped. Thin wrapper — the
  *  actual logic lives in `HardLockToTargetBody`. */
 export function HardLockToTarget({ target, damping = 0, maxSpeed = Infinity, ref }: HardLockToTargetProps) {
-  const slots = useVirtualCameraSlots();
+  const { controller } = useVirtualCamera();
   const [body] = useState(() => new HardLockToTargetBody(target, damping));
   body.target = target;
   body.damping = damping;
   body.maxSpeed = maxSpeed;
 
   useImperativeHandle(ref, () => body, [body]);
-  useEffect(() => slots.registerBody(body.update), [slots, body]);
+  useEffect(() => controller.registerBody(body.update), [controller, body]);
 
   return null;
 }

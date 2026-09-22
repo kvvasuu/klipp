@@ -1,7 +1,7 @@
 import { useThree } from '@react-three/fiber';
 import { useEffect, useImperativeHandle, useState, type Ref } from 'react';
 import type { DampingConstant } from '../damping/Damper';
-import { useVirtualCameraSlots } from '../VirtualCamera';
+import { useVirtualCamera } from '../VirtualCamera';
 import { LensExtension } from './LensExtension';
 
 export type LensProps = {
@@ -46,7 +46,7 @@ export function Lens({
   farMaxSpeed = Infinity,
   ref,
 }: LensProps) {
-  const slots = useVirtualCameraSlots();
+  const { controller } = useVirtualCamera();
   const invalidate = useThree((state) => state.invalidate);
   const [extension] = useState(() => new LensExtension(fov, near, far, fovDamping, nearDamping, farDamping));
   extension.fov = fov;
@@ -60,7 +60,7 @@ export function Lens({
   extension.farMaxSpeed = farMaxSpeed;
 
   useImperativeHandle(ref, () => extension, [extension]);
-  useEffect(() => slots.registerExtension(extension.update), [slots, extension]);
+  useEffect(() => controller.registerExtension(extension.update), [controller, extension]);
 
   useEffect(() => {
     invalidate();

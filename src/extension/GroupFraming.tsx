@@ -4,7 +4,7 @@ import { useEffect, useImperativeHandle, useState, type Ref } from 'react';
 import { Vector3 } from 'three';
 import { DebugZoneOverlay, type DebugZone } from '../DebugZoneOverlay';
 import type { DampingConstant } from '../damping/Damper';
-import { useVirtualCameraSlots, useVirtualCameraState } from '../VirtualCamera';
+import { useVirtualCamera } from '../VirtualCamera';
 import { GroupFramingExtension, type GroupFramingFitMode, type GroupFramingMode } from './GroupFramingExtension';
 import { TargetGroup, type TargetGroupMember, type TargetGroupPositionMode } from './TargetGroup';
 
@@ -71,7 +71,7 @@ export function GroupFraming({
   debug = false,
   ref,
 }: GroupFramingProps) {
-  const slots = useVirtualCameraSlots();
+  const { controller, state: cameraState } = useVirtualCamera();
   const size = useThree((state) => state.size);
   const [group] = useState(() => new TargetGroup(members, positionMode));
   const [extension] = useState(
@@ -105,9 +105,8 @@ export function GroupFraming({
   extension.framingMode = framingMode;
 
   useImperativeHandle(ref, () => extension, [extension]);
-  useEffect(() => slots.registerExtension(extension.update), [slots, extension]);
+  useEffect(() => controller.registerExtension(extension.update), [controller, extension]);
 
-  const cameraState = useVirtualCameraState();
   const [paddingBox, setPaddingBox] = useState<[number, number] | null>(null);
 
   useFrame(() => {

@@ -9,8 +9,7 @@ import type { KlippCore } from '../src/KlippCore';
 import {
   useIsActiveVirtualCamera,
   useIsLiveVirtualCamera,
-  useVirtualCameraSlots,
-  useVirtualCameraState,
+  useVirtualCamera,
   VirtualCamera,
   VirtualCameraEvents,
 } from '../src/VirtualCamera';
@@ -159,8 +158,8 @@ describe('VirtualCamera — registration lifecycle', () => {
 });
 
 describe('VirtualCamera — Body/Aim/Noise wiring', () => {
-  it('useVirtualCameraSlots throws outside a <VirtualCamera>', () => {
-    expect(() => renderHook(() => useVirtualCameraSlots())).toThrow(/within a <VirtualCamera>/);
+  it('useVirtualCamera throws outside a <VirtualCamera>', () => {
+    expect(() => renderHook(() => useVirtualCamera())).toThrow(/within a <VirtualCamera>/);
   });
 
   it('the frame driver calls core.tick(dt) every frame', async () => {
@@ -180,8 +179,8 @@ describe('VirtualCamera — Body/Aim/Noise wiring', () => {
   it("its VirtualCameraController.update actually runs every frame against the camera's own CameraState", async () => {
     let core: KlippCore | undefined;
     function Writer() {
-      const slots = useVirtualCameraSlots();
-      useEffect(() => slots.registerBody((out) => (out.position.x = 42)), [slots]);
+      const { controller } = useVirtualCamera();
+      useEffect(() => controller.registerBody((out) => (out.position.x = 42)), [controller]);
       return null;
     }
 
@@ -229,7 +228,7 @@ describe('VirtualCamera — initialState prop', () => {
     let plainState: CameraState | undefined;
     let seededState: CameraState | undefined;
     function StateReader({ onRead }: { onRead: (state: CameraState) => void }) {
-      onRead(useVirtualCameraState());
+      onRead(useVirtualCamera().state);
       return null;
     }
 
@@ -332,13 +331,13 @@ describe('VirtualCamera — active prop', () => {
   it("an inactive camera's Body/Aim/Noise do not run — no wasted work for a non-candidate", async () => {
     let runs = 0;
     function CountingWriter() {
-      const slots = useVirtualCameraSlots();
+      const { controller } = useVirtualCamera();
       useEffect(
         () =>
-          slots.registerBody(() => {
+          controller.registerBody(() => {
             runs += 1;
           }),
-        [slots],
+        [controller],
       );
       return null;
     }
@@ -363,10 +362,10 @@ describe('VirtualCamera — active prop', () => {
   it('justActivated is true on the first call after mount, then false on every following call', async () => {
     const seen: boolean[] = [];
     function Writer() {
-      const slots = useVirtualCameraSlots();
+      const { controller } = useVirtualCamera();
       useEffect(
-        () => slots.registerBody((_out, _dt, justActivated) => void seen.push(justActivated)),
-        [slots],
+        () => controller.registerBody((_out, _dt, justActivated) => void seen.push(justActivated)),
+        [controller],
       );
       return null;
     }
@@ -386,10 +385,10 @@ describe('VirtualCamera — active prop', () => {
   it('justActivated is true again on the first call after an active:false→true toggle, not just on mount', async () => {
     const seen: boolean[] = [];
     function Writer() {
-      const slots = useVirtualCameraSlots();
+      const { controller } = useVirtualCamera();
       useEffect(
-        () => slots.registerBody((_out, _dt, justActivated) => void seen.push(justActivated)),
-        [slots],
+        () => controller.registerBody((_out, _dt, justActivated) => void seen.push(justActivated)),
+        [controller],
       );
       return null;
     }
@@ -415,16 +414,16 @@ describe('VirtualCamera — active prop', () => {
   });
 });
 
-describe('useVirtualCameraState', () => {
+describe('useVirtualCamera - state', () => {
   it('throws outside a <VirtualCamera>', () => {
-    expect(() => renderHook(() => useVirtualCameraState())).toThrow(/within a <VirtualCamera>/);
+    expect(() => renderHook(() => useVirtualCamera())).toThrow(/within a <VirtualCamera>/);
   });
 
   it("is the SAME instance registered as the camera's own CameraState (matches core.activeState)", async () => {
     let core: KlippCore | undefined;
     let stateFromHook: CameraState | undefined;
     function StateReader({ onRead }: { onRead: (state: CameraState) => void }) {
-      onRead(useVirtualCameraState());
+      onRead(useVirtualCamera().state);
       return null;
     }
 
@@ -443,12 +442,12 @@ describe('useVirtualCameraState', () => {
   it('updates in place as Body writes into it, visible through the hook without a re-render', async () => {
     let capturedState: CameraState | undefined;
     function StateReader({ onRead }: { onRead: (state: CameraState) => void }) {
-      onRead(useVirtualCameraState());
+      onRead(useVirtualCamera().state);
       return null;
     }
     function Writer() {
-      const slots = useVirtualCameraSlots();
-      useEffect(() => slots.registerBody((out) => (out.position.x = 7)), [slots]);
+      const { controller } = useVirtualCamera();
+      useEffect(() => controller.registerBody((out) => (out.position.x = 7)), [controller]);
       return null;
     }
 
@@ -467,7 +466,7 @@ describe('useVirtualCameraState', () => {
 });
 
 describe('useIsActiveVirtualCamera', () => {
-  it('defaults to false outside any <VirtualCamera> (no throw, unlike useVirtualCameraSlots)', () => {
+  it('defaults to false outside any <VirtualCamera> (no throw, unlike useVirtualCamera)', () => {
     const { result } = renderHook(() => useIsActiveVirtualCamera());
     expect(result.current).toBe(false);
   });

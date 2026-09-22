@@ -17,53 +17,49 @@ import { useKlippCore, useKlippInitialCameraState, useKlippUpdateRegistry } from
 import type { CameraTransitionEventMap } from './KlippCore';
 import { resolveVector3 } from './resolve/resolveVector3';
 import { useCameraTransitionEvent } from './useCameraTransitionEvent';
-import { VirtualCameraController, type VirtualCameraSlots } from './VirtualCameraController';
+import { VirtualCameraController } from './VirtualCameraController';
 
-/** Like `CameraState`, but `position`/`target`/`lookAtTarget` accept the r3f Vector3 shorthand
- *  (`Vector3 | [x,y,z] | number`); `quaternion` still needs a real `THREE.Quaternion`. */
+/** `position`/`target`/`lookAtTarget` accept the r3f Vector3 shorthand; `quaternion` needs a real
+ *  `THREE.Quaternion`. */
 export type InitialCameraState = Partial<Omit<CameraState, 'position' | 'target' | 'lookAtTarget'>> & {
   position?: Vector3Like;
   target?: Vector3Like;
   lookAtTarget?: Vector3Like;
 };
 
-const VirtualCameraSlotsContext = createContext<VirtualCameraController | null>(null);
-const VirtualCameraStateContext = createContext<CameraState | null>(null);
-/** Separate contexts on purpose — each changes at a different cadence (slots/state: never, active: the
- *  instant arbitration picks a winner, live: once that winner's blend finishes), so a Body/Aim/Noise that
- *  only cares about one never re-renders because of the other two. */
+export type VirtualCameraContextValue = {
+  /** Registration slots (`registerBody`/`registerAim`/...) - the full `VirtualCameraController`. */
+  controller: VirtualCameraController;
+  /** This camera's raw, un-blended `CameraState`, updated in place every frame. A Body/Aim/Extension/
+   *  Noise should write through its own `CameraStateWriter`'s `out` instead of this. */
+  state: CameraState;
+  /** This camera's `initialState` prop, exactly as passed - `undefined` when not given, unlike `state`.
+   *  For a Body/Aim seeding its own persistent state once at mount. */
+  initialState: InitialCameraState | undefined;
+};
+
+/** `controller`/`state`/`initialState` never change after mount, bundled into one context. `active`/
+ *  `live` stay separate - different cadence, so a consumer of one isn't re-rendered by the other. */
+const VirtualCameraContext = createContext<VirtualCameraContextValue | null>(null);
 const VirtualCameraActiveContext = createContext<boolean>(false);
 const VirtualCameraLiveContext = createContext<boolean>(false);
 
-/** The nearest `<VirtualCamera>`'s Body/Aim/Noise registration slots. Throws outside one. */
-export function useVirtualCameraSlots(): VirtualCameraSlots {
-  const controller = use(VirtualCameraSlotsContext);
-  if (!controller) throw new Error('useVirtualCameraSlots must be used within a <VirtualCamera>.');
-  return controller;
+/** The nearest `<VirtualCamera>`'s registration slots, `CameraState`, and `initialState`. Throws
+ *  outside one. */
+export function useVirtualCamera(): VirtualCameraContextValue {
+  const value = use(VirtualCameraContext);
+  if (!value) throw new Error('useVirtualCamera must be used within a <VirtualCamera>.');
+  return value;
 }
 
-/** The nearest `<VirtualCamera>`'s own `CameraState` — its raw, un-blended output, updated in place every
- *  frame regardless of whether this camera is currently active/live. Throws outside one. Mainly for debug
- *  visualization (e.g. `CameraFrustumHelper`) or other read-only inspection — Body/Aim/Extension/Noise
- *  should use their `CameraStateWriter`'s own `out` parameter instead, not this. */
-export function useVirtualCameraState(): CameraState {
-  const state = use(VirtualCameraStateContext);
-  if (!state) throw new Error('useVirtualCameraState must be used within a <VirtualCamera>.');
-  return state;
-}
-
-/** Whether the nearest `<VirtualCamera>` is `KlippCore`'s current priority winner — reactive, updates
- *  the instant arbitration picks a new winner (not gated on `Klipp`'s blend finishing, see
- *  `KlippCore.activeCameraId`'s doc comment — `useIsLiveVirtualCamera` is the gated version). `false`
- *  outside any `<VirtualCamera>`. Only a few Body/Aim (e.g. `CameraControlsBody`, deciding whether to
- *  listen to user input) need this — most don't. */
+/** Whether the nearest `<VirtualCamera>` is `KlippCore`'s current priority winner - not gated on blend
+ *  finishing (see `useIsLiveVirtualCamera`). `false` outside any `<VirtualCamera>`. */
 export function useIsActiveVirtualCamera(): boolean {
   return use(VirtualCameraActiveContext);
 }
 
-/** Whether the nearest `<VirtualCamera>` is what `Klipp`'s `tick()` is CURRENTLY outputting — lags
- *  behind `useIsActiveVirtualCamera()` until any in-progress blend into it finishes (see
- *  `KlippCore.liveCameraId`'s doc comment). `false` outside any `<VirtualCamera>`. */
+/** Whether the nearest `<VirtualCamera>` is what `Klipp`'s `tick()` is currently outputting - lags
+ *  behind `useIsActiveVirtualCamera()` until an in-progress blend finishes. */
 export function useIsLiveVirtualCamera(): boolean {
   return use(VirtualCameraLiveContext);
 }
@@ -71,29 +67,22 @@ export function useIsLiveVirtualCamera(): boolean {
 export type VirtualCameraProps = {
   name: string;
   priority: number;
-  /** Whether this camera is a candidate at all, independent of `priority` (which stays whatever it's set
-   *  to; it's never used to "opt out"). `false` means fully out: not registered with `KlippCore`, and its
-   *  Body/Aim/Noise don't even run — no wasted per-frame work for a camera that isn't a candidate anyway.
-   *  Default `true`. */
+  /** Whether this camera is a candidate at all, independent of `priority`. `false` means not registered
+   *  with `KlippCore` at all - its Body/Aim/Noise don't run either. Default `true`. */
   active?: boolean;
-  /** Combined (OR'd) with whichever OTHER camera is on the other end of a transition into/out of this
+  /** Combined (OR'd) with whichever other camera is on the other end of a transition into/out of this
    *  one - see `BlendHints`. Default `BlendHints.none`. */
   hints?: BlendHints;
-  /** Overrides this camera's starting pose at mount, before any Body/Aim ever runs - otherwise it
-   *  inherits the real r3f camera's pristine state, which may be meaningless for a camera activated later
-   *  at runtime. Only the fields you set are overridden; applied once, at mount. */
+  /** Overrides this camera's starting pose at mount, before any Body/Aim ever runs. Only the fields you
+   *  set are overridden; applied once, at mount. */
   initialState?: InitialCameraState;
   children?: ReactNode;
-  /** Imperative access to the underlying `VirtualCameraController` - e.g. to `addEventListener` directly
-   *  instead of using `<VirtualCamera.Events>`. */
+  /** Imperative access to the underlying `VirtualCameraController`. */
   ref?: Ref<VirtualCameraController>;
 };
 
-/**
- * Registers a candidate camera with the nearest `<Klipp>` — mount/unmount (and `name`/`active` changes)
- * add/remove it from arbitration. Thin wrapper — the Body/Aim/Noise combining logic lives in
- * `VirtualCameraController`, a plain class with no React dependency.
- */
+/** Registers a candidate camera with the nearest `<Klipp>`. Thin wrapper - the Body/Aim/Noise combining
+ *  logic lives in `VirtualCameraController`, a plain class with no React dependency. */
 export function VirtualCamera({
   name,
   priority,
@@ -107,31 +96,26 @@ export function VirtualCamera({
   const registerUpdate = useKlippUpdateRegistry();
   const initialCameraState = useKlippInitialCameraState();
   const invalidate = useThree((state) => state.invalidate);
-  // seeded from the real camera's own properties, not blank defaults - a Body/Aim chain that never
-  // touches fov/near/far leaves whatever the camera was already configured as alone
-  const [state] = useState(() => {
+  const [context] = useState<VirtualCameraContextValue>(() => {
     const seeded = copyCameraState(createCameraState(), initialCameraState);
-    if (!initialState) return seeded;
-    const { position, target, lookAtTarget, ...rest } = initialState;
-    mergeCameraState(seeded, rest);
-    if (position) resolveVector3(seeded.position, position);
-    if (target) resolveVector3(seeded.target, target);
-    if (lookAtTarget) resolveVector3(seeded.lookAtTarget, lookAtTarget);
-    return seeded;
+    if (initialState) {
+      const { position, target, lookAtTarget, ...rest } = initialState;
+      mergeCameraState(seeded, rest);
+      if (position) resolveVector3(seeded.position, position);
+      if (target) resolveVector3(seeded.target, target);
+      if (lookAtTarget) resolveVector3(seeded.lookAtTarget, lookAtTarget);
+    }
+    return { controller: new VirtualCameraController(name), state: seeded, initialState };
   });
-  const [controller] = useState(() => new VirtualCameraController(name));
+  const { state, controller } = context;
   controller.name = name;
   useImperativeHandle(ref, () => controller, [controller]);
-  // keeps controller subscribed to core so the ref above can addEventListener directly - cheap, since
-  // dispatch only happens on transitions, never per-frame.
   useEffect(() => controller.trackEvents(core), [controller, core]);
 
   const registerCamera = useEffectEvent(() => core.registerCamera({ id: name, priority, state, hints }));
 
   useEffect(() => {
     if (!active) return;
-    // wake frameloop="demand" on both edges — candidacy just changed, and Klipp's own useFrame (which
-    // decides whether that actually moves the composited camera) otherwise never gets a chance to run
     invalidate();
     const unregister = registerCamera();
     return () => {
@@ -153,9 +137,7 @@ export function VirtualCamera({
 
   useEffect(() => {
     if (!active) return;
-    // true only for the first call after THIS effect run (i.e. this activation) — re-armed fresh every
-    // time `active` flips false→true, since the effect (and this closure) reruns from scratch then; see
-    // CameraStateWriter's doc comment for why Body/Aim/Extension/Noise care
+    // re-armed on every false→true flip, since this effect reruns from scratch then
     let justActivated = true;
     return registerUpdate((dt) => {
       const stillInFlight = controller.update(state, dt, justActivated);
@@ -168,13 +150,11 @@ export function VirtualCamera({
   const isLive = useSyncExternalStore(core.subscribeLiveId, () => active && core.isLive(name));
 
   return (
-    <VirtualCameraSlotsContext.Provider value={controller}>
-      <VirtualCameraStateContext.Provider value={state}>
-        <VirtualCameraActiveContext.Provider value={isActive}>
-          <VirtualCameraLiveContext.Provider value={isLive}>{children}</VirtualCameraLiveContext.Provider>
-        </VirtualCameraActiveContext.Provider>
-      </VirtualCameraStateContext.Provider>
-    </VirtualCameraSlotsContext.Provider>
+    <VirtualCameraContext.Provider value={context}>
+      <VirtualCameraActiveContext.Provider value={isActive}>
+        <VirtualCameraLiveContext.Provider value={isLive}>{children}</VirtualCameraLiveContext.Provider>
+      </VirtualCameraActiveContext.Provider>
+    </VirtualCameraContext.Provider>
   );
 }
 
@@ -186,8 +166,8 @@ export type VirtualCameraEventsProps = {
   onCut?: (event: CameraTransitionEventMap['cut']) => void;
 };
 
-/** Place inside a `<VirtualCamera>` to hear `CameraTransitionEventMap` events for that one camera as
- *  callback props - an alternative to a `ref`'s `addEventListener`. Also available as `VirtualCamera.Events`. */
+/** Place inside a `<VirtualCamera>` to hear `CameraTransitionEventMap` events as callback props. Also
+ *  available as `VirtualCamera.Events`. */
 export function VirtualCameraEvents({
   onActivated,
   onDeactivated,
@@ -195,8 +175,7 @@ export function VirtualCameraEvents({
   onBlendFinished,
   onCut,
 }: VirtualCameraEventsProps) {
-  const controller = use(VirtualCameraSlotsContext);
-  if (!controller) throw new Error('<VirtualCameraEvents> must be used within a <VirtualCamera>.');
+  const { controller } = useVirtualCamera();
 
   useCameraTransitionEvent(controller, 'activated', onActivated);
   useCameraTransitionEvent(controller, 'deactivated', onDeactivated);
