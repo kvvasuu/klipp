@@ -5,13 +5,13 @@ nav: 47
 ---
 
 ```tsx
-<SomeInputDrivenAim>
+<Aim.PanTilt>
   <InputController
     mouseButtons={{ right: { axes: { x: 'pan', y: 'tilt' }, gain: 0.15 } }}
     touches={{ one: { axes: { x: 'pan', y: 'tilt' }, gain: 0.15 } }}
     suppressContextMenu
   />
-</SomeInputDrivenAim>
+</Aim.PanTilt>
 ```
 
 Nested inside a Body/Aim/Extension that exposes `inputAxes`, `<InputController>` finds it automatically through context - no `target`/`ref` needed for the common case.
