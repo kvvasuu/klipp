@@ -2,12 +2,12 @@ export { Klipp, KlippEvents, useKlippCore, type KlippProps, type KlippMode, type
 export {
   VirtualCamera,
   VirtualCameraEvents,
-  useVirtualCameraSlots,
-  useVirtualCameraState,
+  useVirtualCamera,
   useIsActiveVirtualCamera,
   useIsLiveVirtualCamera,
   type VirtualCameraProps,
   type VirtualCameraEventsProps,
+  type VirtualCameraContextValue,
 } from './VirtualCamera';
 export { CameraFrustumHelper, type CameraFrustumHelperProps } from './CameraFrustumHelper';
 

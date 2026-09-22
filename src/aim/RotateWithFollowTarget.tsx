@@ -1,7 +1,7 @@
 import { useEffect, useImperativeHandle, useState, type Ref } from 'react';
 import type { DampingConstant } from '../damping/Damper';
 import type { Target } from '../resolve/Target';
-import { useVirtualCameraSlots } from '../VirtualCamera';
+import { useVirtualCamera } from '../VirtualCamera';
 import { RotateWithFollowTargetAim } from './RotateWithFollowTargetAim';
 
 export type RotateWithFollowTargetProps = {
@@ -21,14 +21,14 @@ export type RotateWithFollowTargetProps = {
 
 /** Thin wrapper — the actual logic lives in `RotateWithFollowTargetAim`. */
 export function RotateWithFollowTarget({ target, damping = 0, maxSpeed = Infinity, ref }: RotateWithFollowTargetProps) {
-  const slots = useVirtualCameraSlots();
+  const { controller } = useVirtualCamera();
   const [aim] = useState(() => new RotateWithFollowTargetAim(target, damping));
   aim.target = target;
   aim.damping = damping;
   aim.maxSpeed = maxSpeed;
 
   useImperativeHandle(ref, () => aim, [aim]);
-  useEffect(() => slots.registerAim(aim.update), [slots, aim]);
+  useEffect(() => controller.registerAim(aim.update), [controller, aim]);
 
   return null;
 }

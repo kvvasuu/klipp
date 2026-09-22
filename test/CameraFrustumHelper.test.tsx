@@ -6,16 +6,16 @@ import { describe, expect, it, vi } from 'vitest';
 import type { CameraState } from '../src/CameraState';
 import { CameraFrustumHelper } from '../src/CameraFrustumHelper';
 import { Klipp } from '../src/Klipp';
-import { useVirtualCameraSlots, VirtualCamera } from '../src/VirtualCamera';
+import { useVirtualCamera, VirtualCamera } from '../src/VirtualCamera';
 
 function Writer({ onWrite }: { onWrite: (out: CameraState) => void }) {
-  const slots = useVirtualCameraSlots();
-  useEffect(() => slots.registerBody((out) => onWrite(out)), [slots, onWrite]);
+  const { controller } = useVirtualCamera();
+  useEffect(() => controller.registerBody((out) => onWrite(out)), [controller, onWrite]);
   return null;
 }
 
 describe('CameraFrustumHelper', () => {
-  it('throws outside a <VirtualCamera> (via useVirtualCameraState)', async () => {
+  it('throws outside a <VirtualCamera> (via useVirtualCamera)', async () => {
     await expect(create(<CameraFrustumHelper />)).rejects.toThrow(/within a <VirtualCamera>/);
   });
 

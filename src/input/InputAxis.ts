@@ -79,6 +79,11 @@ export class InputAxis {
     if (this.autoNormalize && this.value === this.rawValue) this.normalize();
   };
 
+  /** See `Damper.reset` - re-arms the first-call snap, so the next `update()` jumps to `rawValue`. */
+  reset = (): void => {
+    this.damper.reset();
+  };
+
   /** Folds `value`/`rawValue` back inside `range` (mod its span). Call between drags, not mid-motion. */
   normalize = (): void => {
     if (!this.wrap || !this.range) return;

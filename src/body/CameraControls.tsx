@@ -5,7 +5,7 @@ import { useEffect, useEffectEvent, useImperativeHandle, useState, type Ref } fr
 import { EventDispatcher as ThreeEventDispatcher, Vector3 } from 'three';
 import { resolveVector3 } from '../resolve/resolveVector3';
 import type { Target } from '../resolve/Target';
-import { useIsActiveVirtualCamera, useIsLiveVirtualCamera, useVirtualCameraSlots } from '../VirtualCamera';
+import { useIsActiveVirtualCamera, useIsLiveVirtualCamera, useVirtualCamera } from '../VirtualCamera';
 import { CameraControlsBody } from './CameraControlsBody';
 
 type Overwrite<T, U> = Omit<T, keyof U> & U;
@@ -80,7 +80,7 @@ export function CameraControls({
   onSleep,
   ...controlsProps
 }: CameraControlsProps) {
-  const slots = useVirtualCameraSlots();
+  const { controller } = useVirtualCamera();
   const isActive = useIsActiveVirtualCamera();
   const isLive = useIsLiveVirtualCamera();
   const shouldConnect = isActive && (waitForBlend ? isLive : true);
@@ -105,7 +105,7 @@ export function CameraControls({
   body.enableTransition = enableTransition;
 
   useImperativeHandle(ref, () => body, [body]);
-  useEffect(() => slots.registerBody(body.update), [slots, body]);
+  useEffect(() => controller.registerBody(body.update), [controller, body]);
   useEffect(() => {
     // gated on the same condition as input listening below - other tools reading state.controls
     // shouldn't see an instance that isn't actually accepting input yet

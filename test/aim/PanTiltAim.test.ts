@@ -153,4 +153,95 @@ describe('PanTiltAim', () => {
       expect(yawDeg).toBeCloseTo(0, 5);
     });
   });
+
+  describe('setFromRotation', () => {
+    it('round-trips through update() - decomposes back to the same pan/tilt that produced the rotation', () => {
+      const source = new PanTiltAim();
+      source.pan.applyDelta(40);
+      source.tilt.applyDelta(-15);
+      settleAxes(source);
+      const out = createCameraState();
+      source.update(out, 0.016);
+
+      const recovered = new PanTiltAim();
+      recovered.setFromRotation(out.quaternion, out.referenceUp);
+      settleAxes(recovered);
+
+      expect(recovered.pan.value).toBeCloseTo(40, 4);
+      expect(recovered.tilt.value).toBeCloseTo(-15, 4);
+    });
+
+    it('round-trips against a non-standard referenceUp', () => {
+      const referenceUp = new Vector3(0, 0, 1).normalize();
+      const source = new PanTiltAim();
+      source.pan.applyDelta(-70);
+      source.tilt.applyDelta(25);
+      settleAxes(source);
+      const out = createCameraState();
+      out.referenceUp.copy(referenceUp);
+      source.update(out, 0.016);
+
+      const recovered = new PanTiltAim();
+      recovered.setFromRotation(out.quaternion, referenceUp);
+      settleAxes(recovered);
+
+      expect(recovered.pan.value).toBeCloseTo(-70, 4);
+      expect(recovered.tilt.value).toBeCloseTo(25, 4);
+    });
+
+    it('round-trips against a target reference frame, given a referenceUp aligned to the target', () => {
+      const target = new Object3D();
+      target.rotation.set(0.3, Math.PI / 2, 0);
+      target.updateMatrixWorld();
+      const referenceUp = new Vector3(0, 1, 0).applyQuaternion(target.quaternion);
+
+      const source = new PanTiltAim();
+      source.target = target;
+      source.pan.applyDelta(20);
+      source.tilt.applyDelta(-10);
+      settleAxes(source);
+      const out = createCameraState();
+      out.referenceUp.copy(referenceUp);
+      source.update(out, 0.016);
+
+      const recovered = new PanTiltAim();
+      recovered.target = target;
+      recovered.setFromRotation(out.quaternion, referenceUp);
+      settleAxes(recovered);
+
+      expect(recovered.pan.value).toBeCloseTo(20, 4);
+      expect(recovered.tilt.value).toBeCloseTo(-10, 4);
+    });
+
+    it('a rotation matching the reference frame exactly decomposes to pan=0, tilt=0', () => {
+      const target = new Object3D();
+      target.rotation.set(0.3, Math.PI / 2, 0);
+      target.updateMatrixWorld();
+
+      const aim = new PanTiltAim();
+      aim.target = target;
+      aim.setFromRotation(target.quaternion, new Vector3(0, 1, 0));
+      settleAxes(aim);
+
+      expect(aim.pan.value).toBeCloseTo(0, 4);
+      expect(aim.tilt.value).toBeCloseTo(0, 4);
+    });
+
+    it('actually feeds into the next update() - not just the axes in isolation', () => {
+      const source = new PanTiltAim();
+      source.pan.applyDelta(55);
+      source.tilt.applyDelta(12);
+      settleAxes(source);
+      const sourceOut = createCameraState();
+      source.update(sourceOut, 0.016);
+
+      const recovered = new PanTiltAim();
+      recovered.setFromRotation(sourceOut.quaternion, sourceOut.referenceUp);
+      settleAxes(recovered);
+      const recoveredOut = createCameraState();
+      recovered.update(recoveredOut, 0.016);
+
+      expect(recoveredOut.quaternion.angleTo(sourceOut.quaternion)).toBeLessThan(1e-3);
+    });
+  });
 });

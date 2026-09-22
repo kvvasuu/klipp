@@ -1,7 +1,7 @@
 import type { Vector3 as Vector3Like } from '@react-three/fiber';
 import { useEffect, useImperativeHandle, type Ref } from 'react';
 import type { DampingConstant } from '../damping/Damper';
-import { useVirtualCameraSlots } from '../VirtualCamera';
+import { useVirtualCamera } from '../VirtualCamera';
 import type { BasicMultiChannelPerlinNoise } from './BasicMultiChannelPerlinNoise';
 import { useBasicMultiChannelPerlinNoise } from './useBasicMultiChannelPerlinNoise';
 
@@ -38,11 +38,11 @@ export type BasicMultiChannelPerlinProps = {
  * exclusive one.
  */
 export function BasicMultiChannelPerlin({ ref, ...props }: BasicMultiChannelPerlinProps) {
-  const slots = useVirtualCameraSlots();
+  const { controller } = useVirtualCamera();
   const noise = useBasicMultiChannelPerlinNoise(props);
 
   useImperativeHandle(ref, () => noise, [noise]);
-  useEffect(() => slots.registerNoise(noise.update), [slots, noise]);
+  useEffect(() => controller.registerNoise(noise.update), [controller, noise]);
 
   return null;
 }
