@@ -995,4 +995,79 @@ describe('InputSystem', () => {
       });
     });
   });
+
+  describe('held state', () => {
+    it('leftHeld/rightHeld/middleHeld reflect which mouse buttons are currently down', () => {
+      const el = setup();
+      pointer(el, 'pointerdown', 0, 0, MouseButton.left | MouseButton.right);
+
+      const out = emptyInput();
+      system.consume(out);
+      expect(out.leftHeld).toBe(true);
+      expect(out.rightHeld).toBe(true);
+      expect(out.middleHeld).toBe(false);
+    });
+
+    it('clears on pointerup', () => {
+      const el = setup();
+      pointer(el, 'pointerdown', 0, 0, MouseButton.left);
+      pointer(el, 'pointerup', 0, 0, 0);
+
+      const out = emptyInput();
+      system.consume(out);
+      expect(out.leftHeld).toBe(false);
+    });
+
+    it('is not drained by consume() - stays true across repeated reads while still held', () => {
+      const el = setup();
+      pointer(el, 'pointerdown', 0, 0, MouseButton.left);
+
+      const out = emptyInput();
+      system.consume(out);
+      expect(out.leftHeld).toBe(true);
+      system.consume(out);
+      expect(out.leftHeld).toBe(true);
+    });
+
+    it('touchOneHeld is true with one finger down, false once a second joins', () => {
+      const el = setup();
+      touch(el, 'pointerdown', 0, 0, 1);
+
+      const out = emptyInput();
+      system.consume(out);
+      expect(out.touchOneHeld).toBe(true);
+
+      touch(el, 'pointerdown', 10, 10, 2);
+      system.consume(out);
+      expect(out.touchOneHeld).toBe(false);
+      expect(out.touchTwoHeld).toBe(true);
+    });
+
+    it('touchThreeHeld follows a third finger joining/leaving', () => {
+      const el = setup();
+      touch(el, 'pointerdown', 0, 0, 1);
+      touch(el, 'pointerdown', 10, 10, 2);
+      touch(el, 'pointerdown', 20, 20, 3);
+
+      const out = emptyInput();
+      system.consume(out);
+      expect(out.touchThreeHeld).toBe(true);
+      expect(out.touchTwoHeld).toBe(false);
+
+      touch(el, 'pointerup', 20, 20, 3);
+      system.consume(out);
+      expect(out.touchThreeHeld).toBe(false);
+      expect(out.touchTwoHeld).toBe(true); // the remaining two fingers are promoted, no gap
+    });
+
+    it('disconnect() clears held state', () => {
+      const el = setup();
+      pointer(el, 'pointerdown', 0, 0, MouseButton.left);
+      system.disconnect();
+
+      const out = emptyInput();
+      system.consume(out);
+      expect(out.leftHeld).toBe(false);
+    });
+  });
 });

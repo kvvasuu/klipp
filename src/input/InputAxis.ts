@@ -4,7 +4,7 @@ import { shortestWrappedDelta } from './shortestWrappedDelta';
 
 export type InputAxisRecentering = {
   enabled: boolean;
-  /** Seconds of no incoming delta before recentering starts. */
+  /** Seconds of no delta/hold before recentering starts. */
   wait: number;
   /** Seconds to ease back to `center` once recentering starts. */
   time: number;
@@ -26,9 +26,12 @@ export class InputAxis {
   maxSpeed = Infinity;
   /** Calls `normalize()` automatically once the axis is idle and settled. Default `false`. */
   autoNormalize = false;
+  /** Set externally (e.g. `InputAxisController`) while the source is held down. Default `false`. */
+  held = false;
 
   private rawValue: number;
   private idleTime = 0;
+  private hadDelta = false;
   private readonly damper = new Damper();
 
   constructor(
@@ -51,14 +54,19 @@ export class InputAxis {
     if (delta === 0) return;
     this.rawValue = this.wrap ? this.rawValue + delta : this.clamp(this.rawValue + delta);
     this.idleTime = 0;
+    this.hadDelta = true;
   };
 
-  /** Advances the idle timer, eases `value` toward the raw target (or, once `recentering.wait` seconds
-   *  have passed since the last `applyDelta`, toward `center` instead, shortest way around when `wrap`).
-   *  Call once per frame regardless of whether `applyDelta` ran this frame. */
+  /** Advances the idle timer, eases `value` toward the raw target (or, once idle for `recentering.wait`
+   *  seconds, toward `center` instead, shortest way around when `wrap`). Call once per frame. */
   update = (dt: number): void => {
-    this.idleTime += dt;
-    const isRecentering = this.recentering.enabled && this.idleTime >= this.recentering.wait;
+    const active = this.held || this.hadDelta;
+    this.hadDelta = false;
+    if (active) this.idleTime = 0;
+    else this.idleTime += dt;
+    // `wait: 0` must still mean "recenter starting next idle frame", not "same frame as active input" -
+    // idleTime alone can't tell those apart since a fresh reset and an elapsed wait both read as 0
+    const isRecentering = !active && this.recentering.enabled && this.idleTime >= this.recentering.wait;
 
     let dampTarget: number;
     let dampTime: DampingConstant;

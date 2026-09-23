@@ -50,7 +50,13 @@ Same [`DampingConstant`](/advanced/damping) as everywhere else in klipp, applied
 type InputAxisRecentering = { enabled: boolean; wait: number; time: number };
 ```
 
-Once `wait` seconds pass with no `applyDelta`, `value` eases back toward `center` over `time` seconds - taking the shortest path around `range`'s seam when `wrap` is `true`. Any new `applyDelta` cancels an in-progress recenter and resets the idle timer.
+Once `wait` seconds pass with no `applyDelta` and `held` is `false`, `value` eases back toward `center` over `time` seconds - taking the shortest path around `range`'s seam when `wrap` is `true`. Any new `applyDelta` cancels an in-progress recenter and resets the idle timer.
+
+```ts
+axis.held: boolean = false;
+```
+
+Set by whatever drives the axis (e.g. `InputAxisController`, from the source's actual press/release state) while its source is actively held down - keeps the idle timer from advancing at all, so `wait` counts from release, not from the last time the pointer moved. A `<InputController>` sets this automatically for `mouseButtons`/`touches` sources; a manual `applyDelta` caller can set it directly.
 
 ## `normalize()`/`autoNormalize`
 
