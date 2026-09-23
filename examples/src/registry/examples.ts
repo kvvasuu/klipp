@@ -1,5 +1,9 @@
 import { Placeholder } from '../scenes/Placeholder';
 import { HardLookAt } from '../scenes/aim/HardLookAt';
+import { PanTilt } from '../scenes/aim/PanTilt';
+import { PanTiltRecentering } from '../scenes/aim/PanTiltRecentering';
+import { PanTiltReferenceFrame } from '../scenes/aim/PanTiltReferenceFrame';
+import { PanTiltRestrictedLook } from '../scenes/aim/PanTiltRestrictedLook';
 import { RotateWithFollowTarget } from '../scenes/aim/RotateWithFollowTarget';
 import { RotationComposer } from '../scenes/aim/RotationComposer';
 import { RotationComposerLookahead } from '../scenes/aim/RotationComposerLookahead';
@@ -133,6 +137,50 @@ export const categories: ExampleCategory[] = [
         description:
           "A box wanders and tumbles on two axes with an arrow marking `targetOffset` - its tip stays pinned to the center crosshair through all of it, since the offset tracks the box's own local space, not the world's.",
         spectatorPosition: [0, 6, 14],
+        spectatorTarget: [0, 2, 0],
+        ready: true,
+      },
+      {
+        slug: 'pan-tilt',
+        title: 'PanTilt',
+        group: 'pan-tilt',
+        Scene: PanTilt,
+        description:
+          'A fixed camera, pure first-person rotation - left-click toggles Pointer Lock, right-drag or touch look around without locking. `damping`/`maxSpeed` shape how the response feels.',
+        spectatorPosition: [8, 5, 8],
+        spectatorTarget: [0, 2, 0],
+        ready: true,
+      },
+      {
+        slug: 'pan-tilt-reference-frame',
+        title: 'PanTilt: Reference Frame',
+        group: 'pan-tilt',
+        Scene: PanTiltReferenceFrame,
+        description:
+          'Riding a plane banking through a figure-eight, seated via `Body.Follow`. `rigidMount` toggles `Aim.PanTilt`\'s `target` - on, the view rolls/pitches with the plane (rigidly mounted); off, it aims to stay level (gimbal-stabilized) - drag to look around either way.',
+        spectatorPosition: [0, 10, 16],
+        spectatorTarget: [0, 3, 0],
+        ready: true,
+      },
+      {
+        slug: 'pan-tilt-restricted-look',
+        title: 'PanTilt: Restricted Look',
+        group: 'pan-tilt',
+        Scene: PanTiltRestrictedLook,
+        description:
+          'A security-camera turret: `panWrap`/`tiltWrap` both false, `panRange`/`tiltRange` hard-clamp instead of looping. Drag past either pillar and keep dragging - the camera stops dead at the edge.',
+        spectatorPosition: [8, 6, 8],
+        spectatorTarget: [0, 2, 0],
+        ready: true,
+      },
+      {
+        slug: 'pan-tilt-recentering',
+        title: 'PanTilt: Recentering',
+        group: 'pan-tilt',
+        Scene: PanTiltRecentering,
+        description:
+          'Drag away from the glowing marker, release, and wait - `recentering` eases `pan`/`tilt` back to center once `wait` seconds pass with no further input.',
+        spectatorPosition: [8, 5, 8],
         spectatorTarget: [0, 2, 0],
         ready: true,
       },

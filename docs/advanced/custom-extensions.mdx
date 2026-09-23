@@ -4,7 +4,7 @@ description: Writing your own Body/Aim/Extension/Noise outside klipp itself.
 nav: 73
 ---
 
-Body/Aim/Noise/Extension aren't a closed set - `registerBody`/`registerAim`/`registerNoise`/`registerExtension` (from `useVirtualCameraSlots()`) are public, so a project can register its own per-frame camera logic without forking klipp.
+Body/Aim/Noise/Extension aren't a closed set - `registerBody`/`registerAim`/`registerNoise`/`registerExtension` (from `useVirtualCamera().controller`) are public, so a project can register its own per-frame camera logic without forking klipp.
 
 ## The contract
 
@@ -69,22 +69,22 @@ export class PointerDriftExtension {
 }
 ```
 
-`registerExtension` only passes `(out, dt, justActivated)` - `pointerX`/`pointerY` come from closing over r3f's own `state.pointer`. `useVirtualCameraSlots()` is scoped to the nearest `<VirtualCamera>`, so this has to be a component mounted *inside* the one whose shot should drift:
+`registerExtension` only passes `(out, dt, justActivated)` - `pointerX`/`pointerY` come from closing over r3f's own `state.pointer`. `useVirtualCamera()` is scoped to the nearest `<VirtualCamera>`, so this has to be a component mounted *inside* the one whose shot should drift:
 
 ```tsx
 import { useThree } from '@react-three/fiber';
 import { useEffect, useState } from 'react';
 import type { CameraState } from '@kvvasuu/klipp';
-import { useVirtualCameraSlots } from '@kvvasuu/klipp/react';
+import { useVirtualCamera } from '@kvvasuu/klipp/react';
 
 export default function PointerDrift() {
-  const slots = useVirtualCameraSlots();
+  const { controller } = useVirtualCamera();
   const pointer = useThree((state) => state.pointer);
   const [extension] = useState(() => new PointerDriftExtension(0.15, 0.6, 0.4));
 
   useEffect(
-    () => slots.registerExtension((out, dt, justActivated) => extension.update(out, dt, justActivated, pointer.x, pointer.y)),
-    [slots, extension, pointer],
+    () => controller.registerExtension((out, dt, justActivated) => extension.update(out, dt, justActivated, pointer.x, pointer.y)),
+    [controller, extension, pointer],
   );
 
   return null;

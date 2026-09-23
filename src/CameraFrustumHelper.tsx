@@ -1,7 +1,7 @@
 import { useFrame, useThree } from '@react-three/fiber';
 import { useEffect, useImperativeHandle, useRef, useState, type Ref } from 'react';
 import { CameraHelper, Color, PerspectiveCamera, type ColorRepresentation } from 'three';
-import { useIsLiveVirtualCamera, useVirtualCameraState } from './VirtualCamera';
+import { useIsLiveVirtualCamera, useVirtualCamera } from './VirtualCamera';
 
 export type CameraFrustumHelperProps = {
   /** Single color for the whole helper. Default: `THREE.CameraHelper`'s own built-in colors. */
@@ -18,8 +18,8 @@ export type CameraFrustumHelperProps = {
 
 /**
  * Debug visualization: draws the nearest `<VirtualCamera>`'s own frustum, synced from its raw
- * `CameraState` (`useVirtualCameraState`) — so it stays visible and accurate even while this camera isn't
- * the current priority winner, since arbitration never stops its Body/Aim/Extension/Noise from running.
+ * `CameraState` (`useVirtualCamera`) — so it stays visible and accurate even while this camera isn't the
+ * current priority winner, since arbitration never stops its Body/Aim/Extension/Noise from running.
  */
 export function CameraFrustumHelper({
   color,
@@ -27,7 +27,7 @@ export function CameraFrustumHelper({
   hideWhenLive = true,
   ref,
 }: CameraFrustumHelperProps = {}) {
-  const state = useVirtualCameraState();
+  const { state } = useVirtualCamera();
   const isLive = useIsLiveVirtualCamera();
   const size = useThree((s) => s.size);
   const [scratchCamera] = useState(() => new PerspectiveCamera());

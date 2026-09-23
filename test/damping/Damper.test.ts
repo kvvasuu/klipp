@@ -66,6 +66,14 @@ describe('Damper', () => {
     expect(clamped).toBeLessThan(unclamped);
   });
 
+  it('maxSpeed still reaches its real per-second rate at damping=0 (real bug: time floored near zero made the realized rate maxSpeed*time/dt, a near-zero crawl instead of maxSpeed)', () => {
+    const damper = new Damper();
+    damper.update(0, 100, 0, 0.016); // consume the first-call snap
+    const step = damper.update(0, 100, 0, 0.016, 1000); // maxSpeed = 1000 units/sec
+
+    expect(step).toBeCloseTo(1000 * 0.016, 1);
+  });
+
   it('a negative dt is clamped to zero instead of breaking the SmoothDamp formula (real bug: it could flip the exponential term negative, amplifying instead of damping)', () => {
     const negativeDtDamper = new Damper();
     negativeDtDamper.update(0, 10, 0.5, 0.016); // consume the first-call snap

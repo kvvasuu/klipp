@@ -1,0 +1,62 @@
+---
+title: Input Controller
+description: The React component wiring pointer/touch/wheel input onto a Body/Aim/Extension's named InputAxis values.
+nav: 47
+---
+
+```tsx
+<Aim.PanTilt>
+  <InputController
+    mouseButtons={{ right: { axes: { x: 'pan', y: 'tilt' }, gain: 0.15 } }}
+    touches={{ one: { axes: { x: 'pan', y: 'tilt' }, gain: 0.15 } }}
+    suppressContextMenu
+  />
+</Aim.PanTilt>
+```
+
+Nested inside a Body/Aim/Extension that exposes `inputAxes`, `<InputController>` finds it automatically through context - no `target`/`ref` needed for the common case.
+
+## Props
+
+| Prop | Type | Default | |
+| ---- | ---- | ------- | - |
+| `target` | `RefObject<InputAxisOwner \| null>` | nearest context | Explicit override - drive something other than the nearest ancestor exposing `inputAxes`. |
+| `mouseButtons` | `{ left?, right?, middle?: InputSourceConfig \| null }` | all `null` | A source per mouse button, plus buttonless movement while Pointer Lock is active. |
+| `touches` | `{ one?, two?, three?: InputSourceConfig \| null }` | all `null` | A source per simultaneous finger count. |
+| `waitForBlend` | `boolean` | `true` | Don't listen until this camera has finished blending in. |
+| `enabled` | `boolean` | `true` | Master switch - pause input. |
+| `suppressContextMenu` | `boolean` | `false` | Prevents the native right-click menu. |
+| `interactiveArea` | `InteractiveArea \| null` | `null` (whole element) | Restricts where a drag/wheel gesture may *start* to a normalized rect of the element's bounds. |
+| `lockTouchAxis` | `boolean` | `false` | Commits a diagonal two-finger gesture to whichever of pinch/rotate dominates, instead of feeding both at once. |
+| `ref` | `Ref<InputAxisController>` | - | The underlying class - `.inputSystem` for Pointer Lock, `.lastInput` for raw per-frame deltas. |
+
+## `InputSourceConfig`
+
+```ts
+type InputSourceConfig = {
+  axes: { x: string; y: string };
+  gain?: number;
+  invert?: boolean | { x?: boolean; y?: boolean };
+};
+```
+
+`axes` names into the target's `inputAxes` - `{ x: 'pan', y: 'tilt' }` sends that source's horizontal delta to `pan.applyDelta` and vertical to `tilt.applyDelta`. `gain` scales the raw pixel delta before it reaches them (a degrees-per-pixel factor, typically). `invert` flips either axis independently.
+
+## Pointer Lock
+
+A click handler or button requests/releases Pointer Lock via `ref.inputSystem.requestPointerLock()`/`.exitPointerLock()`. Buttonless movement while locked feeds through `mouseButtons.left`.
+
+```tsx
+const controllerRef = useRef<InputAxisController>(null);
+
+<InputController ref={controllerRef} mouseButtons={{ left: { axes: { x: 'pan', y: 'tilt' } } }} />;
+
+// somewhere in a click handler:
+controllerRef.current?.inputSystem.requestPointerLock();
+```
+
+The lock survives `<InputController>` unmounting or switching which element it's connected to (e.g. handing off to a different `<VirtualCamera>` mid-blend) - document-level state.
+
+## `waitForBlend`/`enabled`/camera priority
+
+Three independent gates, in order: the camera must be **active** (highest priority) and, if `waitForBlend`, **live** (blend finished) before `<InputController>` connects to the DOM at all; `enabled` then gates whether drained input reaches any axis.

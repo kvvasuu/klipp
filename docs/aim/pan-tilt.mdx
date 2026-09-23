@@ -1,0 +1,57 @@
+---
+title: PanTilt
+description: Free look-around from two independent InputAxis - pan (yaw) and tilt (pitch).
+nav: 24
+---
+
+Pure rotation from two [`InputAxis`](/input/input-axis) instances, `pan` and `tilt` - no target to keep framed, no position involved. `PanTilt` is the camera's own free look - something else drives `pan`/`tilt` directly, and the rotation just follows.
+
+```tsx
+<VirtualCamera name="first-person" priority={10}>
+  <Aim.PanTilt>
+    <InputController
+      mouseButtons={{ left: { axes: { x: 'pan', y: 'tilt' }, gain: 0.15 } }}
+      touches={{ one: { axes: { x: 'pan', y: 'tilt' }, gain: 0.15 } }}
+    />
+  </Aim.PanTilt>
+</VirtualCamera>
+```
+
+## Props
+
+| Prop | Type | Default | |
+| --- | --- | --- | - |
+| `target` | `Target` | - | Reference frame `pan`/`tilt` compose on top of - see below. `null`/`undefined`/omitted is world. |
+| `damping` | `DampingConstant` | `0` | Applied to both `pan.damping` and `tilt.damping` - see [Damping](/advanced/damping). |
+| `maxSpeed` | `number` | `Infinity` | Applied to both `pan.maxSpeed` and `tilt.maxSpeed`, in degrees/sec. |
+| `autoNormalize` | `boolean` | `false` | `pan.autoNormalize` - only applies while `panWrap` is `true`. |
+| `panWrap` | `boolean` | `true` | `pan.wrap` - loops at `panRange`'s edges. `false` hard-clamps instead. |
+| `tiltWrap` | `boolean` | `false` | `tilt.wrap` - see `panWrap`. |
+| `panRange` | `[number, number]` | `[-180, 180]` | `pan.range` - its edges wrap or clamp depending on `panWrap`. |
+| `tiltRange` | `[number, number]` | `[-90, 90]` | `tilt.range` - its edges wrap or clamp depending on `tiltWrap`. |
+| `recentering` | `InputAxisRecentering` | disabled | Applied to both `pan.recentering` and `tilt.recentering` - see [Input Axis](/input/input-axis). |
+
+## `pan`/`tilt`
+
+`PanTilt` exposes `inputAxes: { pan, tilt }` - drive them with a nested `<InputController>` (as above), or directly through `ref`:
+
+```tsx
+const aimRef = useRef<PanTiltAim>(null);
+aimRef.current?.pan.applyDelta(5); // turn right 5°
+```
+
+`pan` wraps by default (a full look-around has no natural edge to clamp at); `tilt` clamps to `[-90, 90]` by default, so it can never flip past straight up/down.
+
+## `target` - a reference frame, not a look-at point
+
+Unlike every other Aim's `target`, `PanTilt`'s isn't looked at - it's the **rotation frame** `pan`/`tilt` compose on top of. Omitted, that frame is the world: `pan`/`tilt` are absolute yaw/pitch around `referenceUp`.
+With a `target`, the frame becomes that object's own rotation instead, so `pan`/`tilt` turn relative to *its* facing - a turret riding a moving platform, or a cockpit seat that turns with the vehicle.
+
+
+## `ref`
+
+```tsx
+const aimRef = useRef<PanTiltAim>(null);
+```
+
+Gives you the underlying `PanTiltAim` - read/write `target`/`pan`/`tilt` directly, or call `setFromRotation(rotation, referenceUp)` to re-seed `pan`/`tilt` from an arbitrary rotation at any point, the same thing `initialState` does automatically once at mount.

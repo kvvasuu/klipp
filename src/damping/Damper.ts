@@ -59,7 +59,7 @@ export class Damper {
     const x = omega * dt;
     const exp = 1 / (1 + x + 0.48 * x * x + 0.235 * x * x * x);
 
-    const maxChange = maxSpeed * time;
+    const maxChange = maxSpeed * Math.max(time, dt);
     const change = clamp(current - target, -maxChange, maxChange);
     const adjustedTarget = current - change;
 

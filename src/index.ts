@@ -45,6 +45,17 @@ export { PositionComposerBody } from './body/PositionComposerBody';
 export { HardLookAtAim } from './aim/HardLookAtAim';
 export { RotateWithFollowTargetAim } from './aim/RotateWithFollowTargetAim';
 export { RotationComposerAim } from './aim/RotationComposerAim';
+export { PanTiltAim } from './aim/PanTiltAim';
+
+export { InputAxis, type InputAxisRecentering } from './input/InputAxis';
+export { InputSystem, MouseButton, type ConsumedInput, type InteractiveArea } from './input/InputSystem';
+export {
+  InputAxisController,
+  type InputAxisPair,
+  type InputSourceMapping,
+  type InputAxisControllerConfig,
+  type InputInvert,
+} from './input/InputAxisController';
 
 export { BasicMultiChannelPerlinNoise } from './noise/BasicMultiChannelPerlinNoise';
 

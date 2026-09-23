@@ -20,6 +20,7 @@ import { Aim } from '@kvvasuu/klipp/react';
 - [`HardLookAt`](/aim/hard-look-at) - rotates so the target is dead-center in frame. Instant, no dead zone, no framing - the simplest possible Aim.
 - [`RotateWithFollowTarget`](/aim/rotate-with-follow-target) - mirrors a target's own rotation directly onto the camera, "glued" child-like - it never looks at the target's *position* at all.
 - [`RotationComposer`](/aim/rotation-composer) - keeps the target at a chosen on-screen position instead of dead-center, with a dead zone, hard limit, and damping.
+- [`PanTilt`](/aim/pan-tilt) - free look-around driven by two independent `InputAxis` (`pan`/`tilt`) instead of a target to keep framed - see [Input](/input/introduction).
 
 [`CameraControls`](/camera-controls/introduction) also drives rotation (orbiting), but it plugs into the Body slot instead and is a separate topic - see its own page for why.
 
