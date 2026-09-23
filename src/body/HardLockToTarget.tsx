@@ -1,7 +1,7 @@
 import { useEffect, useImperativeHandle, useState, type Ref } from 'react';
 import type { DampingConstant } from '../damping/Damper';
 import type { Target } from '../resolve/Target';
-import { useVirtualCamera } from '../VirtualCamera';
+import { useVirtualCamera } from '../VirtualCameraContext';
 import { HardLockToTargetBody } from './HardLockToTargetBody';
 
 export type HardLockToTargetProps = {

@@ -6,7 +6,8 @@ import { describe, expect, it, vi } from 'vitest';
 import type { CameraState } from '../src/CameraState';
 import { CameraFrustumHelper } from '../src/CameraFrustumHelper';
 import { Klipp } from '../src/Klipp';
-import { useVirtualCamera, VirtualCamera } from '../src/VirtualCamera';
+import { VirtualCamera } from '../src/VirtualCamera';
+import { useVirtualCamera } from '../src/VirtualCameraContext';
 
 function Writer({ onWrite }: { onWrite: (out: CameraState) => void }) {
   const { controller } = useVirtualCamera();

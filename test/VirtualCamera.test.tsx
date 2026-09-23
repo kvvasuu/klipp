@@ -4,21 +4,17 @@ import { useEffect, useRef } from 'react';
 import { Quaternion, Vector3 } from 'three';
 import { describe, expect, it, vi } from 'vitest';
 import type { CameraState } from '../src/CameraState';
-import { Klipp, KlippEvents, useKlippCore } from '../src/Klipp';
+import { Klipp, KlippEvents } from '../src/Klipp';
+import { useKlipp } from '../src/KlippContext';
 import type { KlippCore } from '../src/KlippCore';
-import {
-  useIsActiveVirtualCamera,
-  useIsLiveVirtualCamera,
-  useVirtualCamera,
-  VirtualCamera,
-  VirtualCameraEvents,
-} from '../src/VirtualCamera';
+import { VirtualCamera, VirtualCameraEvents } from '../src/VirtualCamera';
+import { useIsActiveVirtualCamera, useIsLiveVirtualCamera, useVirtualCamera } from '../src/VirtualCameraContext';
 import type { VirtualCameraController } from '../src/VirtualCameraController';
 import { BlendCurves } from '../src/blend/BlendCurves';
 import { BlendHints } from '../src/blend/BlendHints';
 
 function CoreReader({ onRead }: { onRead: (core: KlippCore) => void }) {
-  onRead(useKlippCore());
+  onRead(useKlipp().core);
   return null;
 }
 

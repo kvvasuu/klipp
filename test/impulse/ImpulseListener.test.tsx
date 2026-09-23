@@ -1,6 +1,7 @@
 import { create } from '@react-three/test-renderer';
 import { describe, expect, it } from 'vitest';
-import { Klipp, useKlippCore } from '../../src/Klipp';
+import { Klipp } from '../../src/Klipp';
+import { useKlipp } from '../../src/KlippContext';
 import type { KlippCore } from '../../src/KlippCore';
 import { ImpulseField } from '../../src/impulse/ImpulseField';
 import { ImpulseListener } from '../../src/impulse/ImpulseListener';
@@ -10,7 +11,7 @@ import { VirtualCamera } from '../../src/VirtualCamera';
 const always = () => 1;
 
 function CoreReader({ onRead }: { onRead: (core: KlippCore) => void }) {
-  onRead(useKlippCore());
+  onRead(useKlipp().core);
   return null;
 }
 

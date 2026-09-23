@@ -4,7 +4,8 @@ import { describe, expect, it, vi } from 'vitest';
 import { HardLockToTarget } from '../../src/body/HardLockToTarget';
 import { InputAxis } from '../../src/input/InputAxis';
 import type { InputAxisController } from '../../src/input/InputAxisController';
-import { InputAxisOwnerContext, InputController, type InputAxisOwner } from '../../src/input/InputController';
+import { InputController } from '../../src/input/InputController';
+import { InputAxisOwnerContext, type InputAxisOwner } from '../../src/input/InputAxisOwnerContext';
 import { Klipp } from '../../src/Klipp';
 import { VirtualCamera } from '../../src/VirtualCamera';
 

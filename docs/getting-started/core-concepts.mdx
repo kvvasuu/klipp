@@ -12,7 +12,7 @@ nav: 2
 2. Calls `KlippCore.tick(dt)`, which arbitrates priority and blends toward the winner.
 3. Writes the result onto the real camera.
 
-`KlippCore` is the piece that actually owns this - a plain class with no React dependency, reachable via `useKlippCore()` if you need it directly. It keeps a registry of every candidate camera and decides which one wins:
+`KlippCore` is the piece that actually owns this - a plain class with no React dependency, reachable via `useKlipp().core` if you need it directly. It keeps a registry of every candidate camera and decides which one wins:
 
 - **Highest `priority` wins.** Ties go to whichever camera was live most recently, not registration order.
 - **A camera that stops winning stays live until its own outgoing blend finishes** - switching priority back and forth mid-blend doesn't cut, it re-targets the blend already in flight (*mid-blend interruption*).

@@ -7,12 +7,13 @@ import { describe, expect, it, vi } from 'vitest';
 import { CameraControls } from '../../src/body/CameraControls';
 import type { CameraControlsBody } from '../../src/body/CameraControlsBody';
 import { HardLockToTarget } from '../../src/body/HardLockToTarget';
-import { Klipp, useKlippCore } from '../../src/Klipp';
+import { Klipp } from '../../src/Klipp';
+import { useKlipp } from '../../src/KlippContext';
 import type { KlippCore } from '../../src/KlippCore';
 import { VirtualCamera } from '../../src/VirtualCamera';
 
 function CoreReader({ onRead }: { onRead: (core: KlippCore) => void }) {
-  onRead(useKlippCore());
+  onRead(useKlipp().core);
   return null;
 }
 
@@ -356,35 +357,17 @@ describe('CameraControls (React wrapper)', () => {
 
     it('does NOT re-lock on reconnect once the user already exited pointer lock (e.g. Esc) during the gap', async () => {
       let orbitalBody: CameraControlsBody | null = null;
-      let domElement: HTMLElement | undefined;
+      const noop = () => {};
 
-      const renderer = await create(
-        scene(
-          10,
-          (b) => (orbitalBody = b),
-          (el) => (domElement = el),
-        ),
-      );
+      const renderer = await create(scene(10, (b) => (orbitalBody = b), noop));
       await renderer.advanceFrames(1, 0.05);
 
       const lockPointerSpy = vi.spyOn(orbitalBody!.controls, 'lockPointer').mockImplementation(() => {});
       // pointerLockElement stays null - the user pressed Esc (or never locked at all) during the gap
 
-      await renderer.update(
-        scene(
-          1,
-          (b) => (orbitalBody = b),
-          (el) => (domElement = el),
-        ),
-      );
+      await renderer.update(scene(1, (b) => (orbitalBody = b), noop));
       await renderer.advanceFrames(1, 0.05);
-      await renderer.update(
-        scene(
-          10,
-          (b) => (orbitalBody = b),
-          (el) => (domElement = el),
-        ),
-      );
+      await renderer.update(scene(10, (b) => (orbitalBody = b), noop));
       await renderer.advanceFrames(1, 0.05);
 
       expect(lockPointerSpy).not.toHaveBeenCalled();

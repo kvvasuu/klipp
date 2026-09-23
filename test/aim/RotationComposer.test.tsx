@@ -3,12 +3,13 @@ import { useThree } from '@react-three/fiber';
 import { Object3D, PerspectiveCamera, Quaternion, Vector3 } from 'three';
 import { describe, expect, it } from 'vitest';
 import { RotationComposer } from '../../src/aim/RotationComposer';
-import { Klipp, useKlippCore } from '../../src/Klipp';
+import { Klipp } from '../../src/Klipp';
+import { useKlipp } from '../../src/KlippContext';
 import type { KlippCore } from '../../src/KlippCore';
 import { VirtualCamera } from '../../src/VirtualCamera';
 
 function CoreReader({ onRead }: { onRead: (core: KlippCore) => void }) {
-  onRead(useKlippCore());
+  onRead(useKlipp().core);
   return null;
 }
 

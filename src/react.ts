@@ -1,23 +1,21 @@
-export { Klipp, KlippEvents, useKlippCore, type KlippProps, type KlippMode, type KlippEventsProps } from './Klipp';
+export { Klipp, KlippEvents, type KlippProps, type KlippMode, type KlippEventsProps } from './Klipp';
+export { useKlipp, type FrameUpdate, type KlippContextValue } from './KlippContext';
 export {
   VirtualCamera,
   VirtualCameraEvents,
+  type VirtualCameraProps,
+  type VirtualCameraEventsProps,
+} from './VirtualCamera';
+export {
   useVirtualCamera,
   useIsActiveVirtualCamera,
   useIsLiveVirtualCamera,
-  type VirtualCameraProps,
-  type VirtualCameraEventsProps,
   type VirtualCameraContextValue,
-} from './VirtualCamera';
+} from './VirtualCameraContext';
 export { CameraFrustumHelper, type CameraFrustumHelperProps } from './CameraFrustumHelper';
 
-export {
-  InputController,
-  InputAxisOwnerContext,
-  type InputControllerProps,
-  type InputAxisOwner,
-  type InputSourceConfig,
-} from './input/InputController';
+export { InputController, type InputControllerProps, type InputSourceConfig } from './input/InputController';
+export { InputAxisOwnerContext, type InputAxisOwner } from './input/InputAxisOwnerContext';
 
 export { HardLockToTarget, type HardLockToTargetProps } from './body/HardLockToTarget';
 export { Follow, type FollowProps } from './body/Follow';

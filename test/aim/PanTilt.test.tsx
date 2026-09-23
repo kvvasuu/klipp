@@ -6,12 +6,13 @@ import { describe, expect, it } from 'vitest';
 import { Aim } from '../../src/aim/Aim';
 import type { PanTiltAim } from '../../src/aim/PanTiltAim';
 import { InputController } from '../../src/input/InputController';
-import { Klipp, useKlippCore } from '../../src/Klipp';
+import { Klipp } from '../../src/Klipp';
+import { useKlipp } from '../../src/KlippContext';
 import type { KlippCore } from '../../src/KlippCore';
 import { VirtualCamera } from '../../src/VirtualCamera';
 
 function CoreReader({ onRead }: { onRead: (core: KlippCore) => void }) {
-  onRead(useKlippCore());
+  onRead(useKlipp().core);
   return null;
 }
 
