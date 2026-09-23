@@ -4,20 +4,15 @@ import { resolveTargetPosition, resolveTargetSize, type Target } from '../resolv
 
 export type TargetGroupMember = {
   target: Target;
-  /** Influence on the group's position in `'groupAverage'` mode — non-negative, default `1`. Unused in
-   *  `'groupCenter'` mode (that mode only cares about the member's extent, via `radius`/`size`). */
+  /** Position weight used by `groupAverage`. */
   weight?: number;
-  /** This member's own bounding-sphere radius, folded into the GROUP's bounds — non-negative, default
-   *  `0` (a dimensionless point). Ignored if `size` is given. */
+  /** Bounding-sphere radius. Ignored when `size` is set. */
   radius?: number;
-  /** Full box dimensions (width/height/depth) for a non-spherical member — takes priority over `radius`.
-   *  Auto-detected from `target.geometry.boundingBox` when `target` is a `Mesh` and neither `size` nor
-   *  `radius` is given. */
+  /** Bounding-box dimensions. Takes priority over `radius`. */
   size?: Vector3Like;
 };
 
-/** `'groupCenter'` — center of the AABB enclosing every member's own bounding sphere. `'groupAverage'` —
- *  weighted mean of member positions, ignoring radius. */
+/** Strategy used to compute the group's position. */
 export type TargetGroupPositionMode = 'groupCenter' | 'groupAverage';
 
 const scratchMemberPosition = new Vector3();
@@ -26,8 +21,7 @@ const scratchMax = new Vector3();
 const scratchAccumulator = new Vector3();
 const scratchSize = new Vector3();
 
-/** Treats several targets, each with its own weight and radius/size, as one. A member that can't currently
- *  resolve (`null`/unmounted ref) is skipped, not treated as sitting at the origin. */
+/** Combines multiple targets into one position and bound. */
 export class TargetGroup {
   members: TargetGroupMember[];
   positionMode: TargetGroupPositionMode;
@@ -37,16 +31,11 @@ export class TargetGroup {
     this.positionMode = positionMode;
   }
 
-  /** Resolves one member's full box dimensions — see `resolveTargetSize`. `dynamicSize` forces a fresh
-   *  measurement instead of reusing a cached one - see `GroupFramingExtension.recalculateSize`. */
+  /** Resolve a member's dimensions. */
   resolveMemberSize = (outSize: Vector3, member: TargetGroupMember, dynamicSize = false): boolean =>
     resolveTargetSize(outSize, member.target, member.size, member.radius, dynamicSize);
 
-  /** Writes the group's world position into `outPosition` and returns the radius of the smallest sphere,
-   *  centered there, that encloses every resolvable member's own bounding sphere — a conservative
-   *  fallback extent (box members contribute their bounding sphere here, not their tight silhouette; see
-   *  `GroupFraming` for the camera-aware box fit). Returns `0` (leaving `outPosition` untouched) if no
-   *  member currently resolves, mirroring `resolveTargetPosition`'s "not ready" convention. */
+  /** Write the group position and return a conservative enclosing radius. */
   computeBounds = (outPosition: Vector3, dynamicSize = false): number => {
     const resolved =
       this.positionMode === 'groupAverage'

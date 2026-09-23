@@ -2,61 +2,44 @@ import { useFrame, useThree } from '@react-three/fiber';
 import { clamp, degreesToRadians } from 'math';
 import { useEffect, useImperativeHandle, useState, type Ref } from 'react';
 import { Vector3 } from 'three';
-import { DebugZoneOverlay, type DebugZone } from '../DebugZoneOverlay';
 import type { DampingConstant } from '../damping/Damper';
+import { DebugZoneOverlay, type DebugZone } from '../DebugZoneOverlay';
 import { useVirtualCamera } from '../VirtualCameraContext';
 import { GroupFramingExtension, type GroupFramingFitMode, type GroupFramingMode } from './GroupFramingExtension';
 import { TargetGroup, type TargetGroupMember, type TargetGroupPositionMode } from './TargetGroup';
 
 const scratchGroupPosition = new Vector3();
-/** Below this change, a re-render isn't worth it - the box would visually look identical anyway. */
+/** Minimum visible change for the debug overlay. */
 const DEBUG_BOX_EPSILON = 0.002;
 
-// matches GroupFramingExtension's own per-axis plane distance (sin), not a flat point's (tan)
+// Use the frustum plane distance for a padded box.
 function paddingBoxEdgeFraction(halfFov: number, distance: number, padding: number): number {
   return clamp(1 - padding / (distance * Math.sin(halfFov)), 0, 1);
 }
 
 export type GroupFramingProps = {
-  /** Targets to keep framed, each with its own Weight/Radius/Size — see `TargetGroupMember`. */
+  /** Targets to keep in frame. */
   members: TargetGroupMember[];
-  /** See `TargetGroupPositionMode`. Default `'groupCenter'`. */
   positionMode?: TargetGroupPositionMode;
-  /** Margin kept clear around the group's members, in world units. Default `0`. */
+  /** Margin kept clear around the group's members, in world units. */
   padding?: number;
-  /** Spring response time to the distance ceiling (and `screenPosition`) as they change. `0` (default)
-   *  = hard, instant. */
+  /** Response time for distance and screen composition. */
   damping?: DampingConstant;
-  /** Caps how fast `damping` can close the distance-ceiling gap, in world units/sec. Default `Infinity`
-   *  (no cap). */
+  /** Maximum damping speed, in world units/sec. */
   maxSpeed?: number;
-  /** Shifts the frustum without moving/rotating the camera — e.g. to keep the framed group visually
-   *  centered in the space left over after reserving room for UI on one side. Same convention as
-   *  `PositionComposer`'s `screenPosition` (0 = center, ±1 = frame edge), not pixels. Default `[0, 0]`. */
+  /** Frustum offset used to compose the group on screen. */
   screenPosition?: [number, number];
-  /** See `GroupFramingFitMode`. Default `'ceiling'`. */
   fitMode?: GroupFramingFitMode;
-  /** Clamps the fit distance this extension computes - not Body/Aim's own placement in `'ceiling'` mode.
-   *  Defaults `0`/`Infinity` (no clamp). */
+  /** Minimum and maximum fit distance. */
   minDistance?: number;
   maxDistance?: number;
-  /** See `GroupFramingMode`. Default `'horizontalAndVertical'`. */
   framingMode?: GroupFramingMode;
-  /** Draws `padding` as a bordered box inset from the frame edges - only while this `VirtualCamera` is on
-   *  screen. Unlike `deadZone`/`hardLimit`'s fixed fraction, `padding` is a world-unit margin, so its
-   *  on-screen size is re-measured every frame. Default `false`. */
+  /** Draws the padding boundary while this camera is live. */
   debug?: boolean;
-  /** Imperative access to the underlying `GroupFramingExtension`, for reading/writing its fields (or the
-   *  `TargetGroup` it owns) directly instead of through props, and for calling `recalculateSize()` on a
-   *  member that deformed - auto-detected member sizes are otherwise only measured once. */
   ref?: Ref<GroupFramingExtension>;
 };
 
-/**
- * Thin wrapper — the actual logic lives in `GroupFramingExtension` (dolly-only distance ceiling) and
- * `TargetGroup` (position/bounds from `members`). Only works correctly when this `VirtualCamera`'s Aim
- * already looks straight at the same group's position.
- */
+/** Keeps a target group framed within the camera. */
 export function GroupFraming({
   members,
   positionMode = 'groupCenter',

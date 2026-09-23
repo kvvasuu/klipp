@@ -20,46 +20,24 @@ const scratchAxisY = new Vector3();
 const scratchAxisZ = new Vector3();
 const CORNER_SIGNS = [-1, 1] as const;
 
-/** `'ceiling'` - only dollies back, never closer than Body/Aim already placed the camera. `'rigid'` -
- *  always sits exactly at the fit distance, dollying in as the group shrinks too. */
+/** Fit mode controlling whether the extension can dolly the camera closer. */
 export type GroupFramingFitMode = 'ceiling' | 'rigid';
 
-/** Which screen dimension(s) the fit distance has to satisfy. Default `'horizontalAndVertical'`. */
+/** Which screen dimensions the fit distance has to satisfy. */
 export type GroupFramingMode = 'horizontal' | 'vertical' | 'horizontalAndVertical';
 
-/**
- * Camera extension: dollies `out.position` back along the camera's current view axis just far enough to
- * keep `group`'s members (plus `padding`, world units) inside the frame - `fitMode` decides whether it can
- * also dolly closer. Both spheres (`radius`) and boxes (`size`) get the exact per-axis frustum-plane
- * distance against the camera's current up/right/forward, not an isotropic bound - an offset mostly along
- * one axis isn't penalized as if it could be along the other. Boxes additionally check all 8 corners,
- * since a corner's own depth affects how close it can get. Never touches `out.quaternion`/`out.fov`, so it
- * needs Aim already looking at `group`. `screenPosition` shifts `out.viewOffset` separately.
- */
+/** Keeps a target group inside the camera frame by adjusting position and view offset. */
 export class GroupFramingExtension {
   group: TargetGroup;
-  /** Margin kept clear around the group's members, in world units. */
   padding: number;
-  /** Current canvas size in pixels, for the viewport's aspect ratio. */
   viewportWidth: number;
   viewportHeight: number;
-  /** Spring response time to the distance ceiling (and `screenPosition`) as they change. `0` (default)
-   *  = hard, instant. */
   damping: DampingConstant;
-  /** Caps how fast `damping` can close the distance-ceiling gap, in world units/sec - does not affect
-   *  `screenPosition`'s own easing, a separate, normalized (not world-unit) concept. Default `Infinity`
-   *  (no cap). */
   maxSpeed: number;
-  /** Shifts the frustum without moving/rotating the camera - same convention as `PositionComposer`'s
-   *  `screenPosition` (0 = center, ±1 = frame edge). */
   screenPosition: [number, number];
-  /** See `GroupFramingFitMode`. Default `'ceiling'`. */
   fitMode: GroupFramingFitMode;
-  /** Clamps the fit distance this extension computes - not Body/Aim's own placement in `'ceiling'` mode.
-   *  Defaults `0`/`Infinity` (no clamp). */
   minDistance: number;
   maxDistance: number;
-  /** See `GroupFramingMode`. Default `'horizontalAndVertical'`. */
   framingMode: GroupFramingMode;
 
   private readonly distanceDamper = new Damper();
@@ -95,9 +73,7 @@ export class GroupFramingExtension {
     this.maxSpeed = maxSpeed;
   }
 
-  /** Forces every member's auto-detected `size` to be re-measured on the NEXT `update()` call, then goes
-   *  back to the cheap cached behavior - for a member that deforms occasionally (an event), not
-   *  continuously. */
+  /** Re-measure member sizes on the next update. */
   recalculateSize(): void {
     this.forceSizeRecalculation = true;
   }
@@ -156,7 +132,7 @@ export class GroupFramingExtension {
         const axisZForward = scratchAxisZ.dot(scratchForward);
 
         // A corner's own depth affects how close it can get before clipping, so height/width and depth
-        // aren't independent worst cases — check all 8 corners directly and take the true max.
+        // aren't independent worst cases - check all 8 corners directly and take the true max.
         for (const sx of CORNER_SIGNS) {
           for (const sy of CORNER_SIGNS) {
             for (const sz of CORNER_SIGNS) {
