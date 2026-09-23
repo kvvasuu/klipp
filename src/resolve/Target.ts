@@ -3,14 +3,10 @@ import type { RefObject } from 'react';
 import { Quaternion, Vector3, type Line, type Mesh, type Object3D, type Points } from 'three';
 import { isVector3Like, resolveVector3 } from './resolveVector3';
 
-/** What a Body/Aim `target` prop accepts: a fixed point (r3f's `Vector3` shorthand — instance, `[x,y,z]`,
- *  or a single number), a live object, or a ref to one that may mount later. `null`/`undefined` are
- *  accepted too — same "not ready yet" no-op as a ref whose `.current` isn't mounted — so a nullable
- *  piece of React state can be passed straight through without a caller-side `? :` coercion. */
+/** A fixed point, live object, or ref to a target object. */
 export type Target = Object3D | RefObject<Object3D | null> | Vector3Like | null | undefined;
 
-/** The live `Object3D` behind a `Target`, or `null` for a fixed point/unmounted ref - the "unwrap a ref,
- *  reject a bare point" step shared by every resolver below. */
+/** Resolve a target to its live object, if it has one. */
 export function resolveTargetObject3D(target: Target): Object3D | null {
   if (target == null || isVector3Like(target)) return null;
   return ('current' in target ? target.current : target) ?? null;
@@ -18,19 +14,13 @@ export function resolveTargetObject3D(target: Target): Object3D | null {
 
 const scratchWorldScale = new Vector3();
 
-/** Duck-types via three.js's own `is*` instance flags. **/
+/** Identify geometry-bearing three.js objects. */
 function isGeometryObject(object: Object3D): object is Mesh | Line | Points {
   const o = object as Partial<Mesh & Line & Points>;
   return o.isMesh === true || o.isLine === true || o.isPoints === true;
 }
 
-/** Resolves a target's full box dimensions - explicit `size` wins, then `radius` (returns `false`: a
- *  sphere/point, not a box), then auto-detection from a Mesh/Line/Points target's own geometry bounds
- *  (scaled by its current world scale). Auto-detection only computes the bounding box ONCE and reuses it
- *  after that (cheap, but stale for a deforming mesh - e.g. `SkinnedMesh` bone animation, or a procedural
- *  geometry mutating its position attribute directly) - pass `dynamicSize: true` to recompute it fresh
- *  every call instead, at the cost of an O(vertex count) scan each time. Returns `false` (`outSize`
- *  untouched) if nothing resolves. */
+/** Resolve target dimensions, using explicit size, radius, or geometry bounds. */
 export function resolveTargetSize(
   outSize: Vector3,
   target: Target,
@@ -61,10 +51,7 @@ const scratchAxisZ = new Vector3();
 const scratchTargetRotation = new Quaternion();
 const scratchTargetSize = new Vector3();
 
-/** Half a target's reach along two given world axes (typically a camera's Right/Up) - `[0, 0]` for a
- *  dimensionless point (no `radius`/`size`, nothing auto-detected). A box's half-extent along an axis is
- *  the sum of its own (rotated) half-size axes' projections onto it - the standard oriented-bounding-box
- *  formula. Writes into `outExtents` in place - no allocation. */
+/** Resolve target half-extents along two world axes. */
 export function resolveTargetHalfExtents(
   outExtents: [number, number],
   target: Target,
@@ -96,8 +83,7 @@ export function resolveTargetHalfExtents(
     Math.abs(scratchAxisX.dot(axisB)) + Math.abs(scratchAxisY.dot(axisB)) + Math.abs(scratchAxisZ.dot(axisB));
 }
 
-/** Resolves a `Target` to a world position. Returns `false` (leaving `out` untouched) for `null`/
- *  `undefined` or a ref that isn't mounted yet — everything else always resolves. */
+/** Resolve a target to a world position. */
 export function resolveTargetPosition(out: Vector3, target: Target): boolean {
   if (target == null) return false;
 
@@ -113,9 +99,7 @@ export function resolveTargetPosition(out: Vector3, target: Target): boolean {
   return true;
 }
 
-/** Resolves a `Target`'s world rotation. A fixed-point target has no rotation to give, so this returns
- *  `false` (leaving `out` untouched) for one — callers that want to degrade gracefully (e.g. `Follow`'s
- *  offset falling back to world space) should fall back to identity themselves, not treat it as an error. */
+/** Resolve a target to a world rotation. Fixed points return `false`. */
 export function resolveTargetRotation(out: Quaternion, target: Target): boolean {
   if (target == null) return false;
   if (isVector3Like(target)) return false;
