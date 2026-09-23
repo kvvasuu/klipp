@@ -2,12 +2,12 @@ export { Klipp, KlippEvents, useKlippCore, type KlippProps, type KlippMode, type
 export {
   VirtualCamera,
   VirtualCameraEvents,
-  useVirtualCameraSlots,
-  useVirtualCameraState,
+  useVirtualCamera,
   useIsActiveVirtualCamera,
   useIsLiveVirtualCamera,
   type VirtualCameraProps,
   type VirtualCameraEventsProps,
+  type VirtualCameraContextValue,
 } from './VirtualCamera';
 export { CameraFrustumHelper, type CameraFrustumHelperProps } from './CameraFrustumHelper';
 
@@ -27,6 +27,7 @@ export { Body } from './body/Body';
 export { HardLookAt, type HardLookAtProps } from './aim/HardLookAt';
 export { RotateWithFollowTarget, type RotateWithFollowTargetProps } from './aim/RotateWithFollowTarget';
 export { RotationComposer, type RotationComposerProps } from './aim/RotationComposer';
+export { PanTilt, type PanTiltProps } from './aim/PanTilt';
 export { Aim } from './aim/Aim';
 
 export { BasicMultiChannelPerlin, type BasicMultiChannelPerlinProps } from './noise/BasicMultiChannelPerlin';

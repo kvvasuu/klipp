@@ -1,7 +1,7 @@
 import { useEffect, useImperativeHandle, useState, type Ref } from 'react';
 import type { BasicMultiChannelPerlinProps } from '../noise/BasicMultiChannelPerlin';
 import { useBasicMultiChannelPerlinNoise } from '../noise/useBasicMultiChannelPerlinNoise';
-import { useVirtualCameraSlots } from '../VirtualCamera';
+import { useVirtualCamera } from '../VirtualCamera';
 import { impulseField, type ImpulseField } from './ImpulseField';
 import { ImpulseListenerNoise } from './ImpulseListenerNoise';
 
@@ -38,7 +38,7 @@ export function ImpulseListener({
   cameraSpace = false,
   ref,
 }: ImpulseListenerProps) {
-  const slots = useVirtualCameraSlots();
+  const { controller } = useVirtualCamera();
   const [listener] = useState(() => new ImpulseListenerNoise(field, channelMask, gain));
   listener.field = field;
   listener.channelMask = channelMask;
@@ -46,7 +46,7 @@ export function ImpulseListener({
   listener.cameraSpace = cameraSpace;
 
   useImperativeHandle(ref, () => listener, [listener]);
-  useEffect(() => slots.registerNoise(listener.update), [slots, listener]);
+  useEffect(() => controller.registerNoise(listener.update), [controller, listener]);
 
   return shake ? <ImpulseListenerShake listener={listener} {...shake} /> : null;
 }

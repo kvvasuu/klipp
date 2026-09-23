@@ -7,19 +7,19 @@ nav: 46
 Klipp's input layer turns raw pointer/touch/wheel events into named, shaped values - `InputAxis` instances - that a Body/Aim/Extension exposes as `inputAxes` for a `<InputController>` to drive. A Body/Aim/Extension's own update logic reads `axis.value`.
 
 ```tsx
-import { InputController } from '@kvvasuu/klipp/react';
+import { Aim, InputController } from '@kvvasuu/klipp/react';
 
 <VirtualCamera name="look-around" priority={10}>
-  <SomeInputDrivenAim>
+  <Aim.PanTilt>
     <InputController
       mouseButtons={{ right: { axes: { x: 'pan', y: 'tilt' } } }}
       touches={{ one: { axes: { x: 'pan', y: 'tilt' } } }}
     />
-  </SomeInputDrivenAim>
+  </Aim.PanTilt>
 </VirtualCamera>
 ```
 
-`<InputController>` finds `SomeInputDrivenAim`'s `inputAxes` automatically through context - no ref, no manual wiring. It's a Body/Aim/Extension's own choice to expose `inputAxes` at all; most don't need to.
+`<InputController>` finds `Aim.PanTilt`'s `inputAxes` (`{ pan, tilt }`, see [PanTilt](/aim/pan-tilt)) automatically through context - no ref, no manual wiring. It's a Body/Aim/Extension's own choice to expose `inputAxes` at all; most don't need to.
 
 ## Three layers
 

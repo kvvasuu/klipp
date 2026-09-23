@@ -6,7 +6,7 @@ import { DebugZoneOverlay, type DebugZone } from '../DebugZoneOverlay';
 import type { DampingConstant } from '../damping/Damper';
 import { resolveVector3 } from '../resolve/resolveVector3';
 import type { Target } from '../resolve/Target';
-import { useVirtualCameraSlots } from '../VirtualCamera';
+import { useVirtualCamera } from '../VirtualCamera';
 import { RotationComposerAim } from './RotationComposerAim';
 
 export type RotationComposerProps = {
@@ -86,7 +86,7 @@ export function RotationComposer({
   debug = false,
   ref,
 }: RotationComposerProps) {
-  const slots = useVirtualCameraSlots();
+  const { controller } = useVirtualCamera();
   const aspect = useThree((state) => state.viewport.aspect);
   const [aim] = useState(
     () =>
@@ -121,7 +121,7 @@ export function RotationComposer({
   resolveVector3(aim.targetOffset, targetOffset);
 
   useImperativeHandle(ref, () => aim, [aim]);
-  useEffect(() => slots.registerAim(aim.update), [slots, aim]);
+  useEffect(() => controller.registerAim(aim.update), [controller, aim]);
 
   if (!debug) return null;
   const zones: DebugZone[] = [];

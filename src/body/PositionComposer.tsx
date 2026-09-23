@@ -4,7 +4,7 @@ import { useEffect, useImperativeHandle, useState, type Ref } from 'react';
 import type { DampingConstant } from '../damping/Damper';
 import { DebugZoneOverlay, type DebugZone } from '../DebugZoneOverlay';
 import type { Target } from '../resolve/Target';
-import { useVirtualCameraSlots } from '../VirtualCamera';
+import { useVirtualCamera } from '../VirtualCamera';
 import { PositionComposerBody } from './PositionComposerBody';
 
 export type PositionComposerProps = {
@@ -86,7 +86,7 @@ export function PositionComposer({
   debug = false,
   ref,
 }: PositionComposerProps) {
-  const slots = useVirtualCameraSlots();
+  const { controller } = useVirtualCamera();
   const aspect = useThree((state) => state.viewport.aspect);
   const [body] = useState(
     () =>
@@ -123,7 +123,7 @@ export function PositionComposer({
   body.lookaheadIgnoreY = lookaheadIgnoreY;
 
   useImperativeHandle(ref, () => body, [body]);
-  useEffect(() => slots.registerBody(body.update), [slots, body]);
+  useEffect(() => controller.registerBody(body.update), [controller, body]);
 
   if (!debug) return null;
   const zones: DebugZone[] = [];
