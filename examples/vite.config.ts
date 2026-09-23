@@ -12,6 +12,7 @@ export default defineConfig(({ command }) => ({
     alias: {
       // Read the library straight from source during development - no build step in the loop.
       '@kvvasuu/klipp/react/camera-controls': fileURLToPath(new URL('../src/body/camera-controls.ts', import.meta.url)),
+      '@kvvasuu/klipp/camera-controls': fileURLToPath(new URL('../src/body/CameraControlsBody.ts', import.meta.url)),
       '@kvvasuu/klipp/react': fileURLToPath(new URL('../src/react.ts', import.meta.url)),
       '@kvvasuu/klipp': fileURLToPath(new URL('../src/index.ts', import.meta.url)),
     },
