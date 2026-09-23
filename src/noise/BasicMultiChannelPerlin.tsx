@@ -6,37 +6,26 @@ import type { BasicMultiChannelPerlinNoise } from './BasicMultiChannelPerlinNois
 import { useBasicMultiChannelPerlinNoise } from './useBasicMultiChannelPerlinNoise';
 
 export type BasicMultiChannelPerlinProps = {
-  /** Per-axis shake amplitude in camera-LOCAL space (X = right/left, Y = up/down, Z = push/pull).
-   *  Default `(0, 0, 0)` - no shake until dialed in. */
+  /** Per-axis positional shake amplitude in camera-local space. */
   positionAmplitude?: Vector3Like;
-  /** Per-axis oscillation speed for position noise. Default `(1, 1, 1)`. */
+  /** Per-axis oscillation speed for position noise. */
   positionFrequency?: Vector3Like;
-  /** Per-axis shake amplitude in DEGREES, camera-local pitch/yaw/roll. Default `(0, 0, 0)`. */
+  /** Per-axis rotational shake amplitude in degrees. */
   rotationAmplitude?: Vector3Like;
-  /** Per-axis oscillation speed for rotation noise. Default `(1, 1, 1)`. */
+  /** Per-axis oscillation speed for rotation noise. */
   rotationFrequency?: Vector3Like;
-  /** Multiplies every amplitude at once. Default `1`. */
+  /** Multiplies every amplitude at once. */
   amplitudeGain?: number;
-  /** Multiplies every frequency at once (how fast every channel's phase advances). Default `1`. */
+  /** Multiplies every channel's frequency. */
   frequencyGain?: number;
-  /** Seeds the 6 independent Perlin channels - same seed reproduces identical noise. Default: random,
-   *  chosen ONCE on mount - changing this later has no effect, the permutation tables are built once, at
-   *  construction, same as `Klipp`'s `defaultBlend`. */
+  /** Seed for the six independent Perlin channels. It is fixed when the component mounts. */
   seed?: number;
-  /** Seconds to ease `amplitudeGain` changes instead of cutting instantly (or `{into, from}` for
-   *  asymmetric damping). `0` (default) = instant - see `BasicMultiChannelPerlinNoise`'s doc comment for
-   *  why this exists. */
+  /** Response time for changes to `amplitudeGain`. */
   amplitudeDamping?: DampingConstant;
-  /** Imperative access to the underlying `BasicMultiChannelPerlinNoise`. */
   ref?: Ref<BasicMultiChannelPerlinNoise>;
 };
 
-/**
- * Additive camera shake, see `BasicMultiChannelPerlinNoise`'s doc comment for the algorithm. Thin wrapper
- * - the actual logic lives there. Unlike Body/Aim, multiple `<Noise.BasicMultiChannelPerlin>` can be
- * mounted on the same `<VirtualCamera>` at once - Noise is a stacking slot (`registerNoise`), not an
- * exclusive one.
- */
+/** Adds position and rotation noise to the camera. */
 export function BasicMultiChannelPerlin({ ref, ...props }: BasicMultiChannelPerlinProps) {
   const { controller } = useVirtualCamera();
   const noise = useBasicMultiChannelPerlinNoise(props);
