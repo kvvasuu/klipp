@@ -866,7 +866,7 @@ describe('InputSystem', () => {
     });
 
     it('isInsideInteractiveArea() reports the same bypass-while-locked a consumer can rely on', () => {
-      const el = setup();
+      setup();
       system.interactiveArea = { x: 0.5, y: 0, width: 0.5, height: 1 };
 
       expect(system.isInsideInteractiveArea(10, 10)).toBe(false);
