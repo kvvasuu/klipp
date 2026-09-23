@@ -16,9 +16,7 @@ function pointer(el: HTMLElement, type: string, x: number, y: number, buttons: n
 }
 
 function touch(el: HTMLElement, type: string, x: number, y: number, pointerId = 1): void {
-  el.dispatchEvent(
-    new PointerEvent(type, { pointerId, clientX: x, clientY: y, bubbles: true, pointerType: 'touch' }),
-  );
+  el.dispatchEvent(new PointerEvent(type, { pointerId, clientX: x, clientY: y, bubbles: true, pointerType: 'touch' }));
 }
 
 // jsdom has no GestureEvent constructor - Safari's own scale/rotation are just plain properties, not
@@ -868,7 +866,7 @@ describe('InputSystem', () => {
     });
 
     it('isInsideInteractiveArea() reports the same bypass-while-locked a consumer can rely on', () => {
-      const el = setup();
+      setup();
       system.interactiveArea = { x: 0.5, y: 0, width: 0.5, height: 1 };
 
       expect(system.isInsideInteractiveArea(10, 10)).toBe(false);

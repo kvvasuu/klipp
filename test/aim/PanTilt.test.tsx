@@ -6,12 +6,13 @@ import { describe, expect, it } from 'vitest';
 import { Aim } from '../../src/aim/Aim';
 import type { PanTiltAim } from '../../src/aim/PanTiltAim';
 import { InputController } from '../../src/input/InputController';
-import { Klipp, useKlippCore } from '../../src/Klipp';
+import { Klipp } from '../../src/Klipp';
+import { useKlipp } from '../../src/KlippContext';
 import type { KlippCore } from '../../src/KlippCore';
 import { VirtualCamera } from '../../src/VirtualCamera';
 
 function CoreReader({ onRead }: { onRead: (core: KlippCore) => void }) {
-  onRead(useKlippCore());
+  onRead(useKlipp().core);
   return null;
 }
 
@@ -44,10 +45,24 @@ describe('PanTilt (React wrapper)', () => {
 
     const el = domElement!;
     el.dispatchEvent(
-      new PointerEvent('pointerdown', { pointerId: 1, clientX: 0, clientY: 0, buttons: 2, bubbles: true, pointerType: 'mouse' }),
+      new PointerEvent('pointerdown', {
+        pointerId: 1,
+        clientX: 0,
+        clientY: 0,
+        buttons: 2,
+        bubbles: true,
+        pointerType: 'mouse',
+      }),
     );
     el.dispatchEvent(
-      new PointerEvent('pointermove', { pointerId: 1, clientX: 20, clientY: 0, buttons: 2, bubbles: true, pointerType: 'mouse' }),
+      new PointerEvent('pointermove', {
+        pointerId: 1,
+        clientX: 20,
+        clientY: 0,
+        buttons: 2,
+        bubbles: true,
+        pointerType: 'mouse',
+      }),
     );
     await renderer.advanceFrames(1, 0.05);
 

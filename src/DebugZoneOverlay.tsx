@@ -1,6 +1,6 @@
 import { useThree } from '@react-three/fiber';
 import { useEffect, useRef } from 'react';
-import { useIsActiveVirtualCamera } from './VirtualCamera';
+import { useIsActiveVirtualCamera } from './VirtualCameraContext';
 
 export type DebugZone = {
   /** Same convention as `PositionComposer`/`RotationComposer`'s `screenPosition` - `0` = center, `±1` =

@@ -1,7 +1,7 @@
 import { useEffect, useImperativeHandle, useState, type Ref } from 'react';
 import type { BasicMultiChannelPerlinProps } from '../noise/BasicMultiChannelPerlin';
 import { useBasicMultiChannelPerlinNoise } from '../noise/useBasicMultiChannelPerlinNoise';
-import { useVirtualCamera } from '../VirtualCamera';
+import { useVirtualCamera } from '../VirtualCameraContext';
 import { impulseField, type ImpulseField } from './ImpulseField';
 import { ImpulseListenerNoise } from './ImpulseListenerNoise';
 

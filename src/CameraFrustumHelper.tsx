@@ -1,7 +1,7 @@
 import { useFrame, useThree } from '@react-three/fiber';
 import { useEffect, useImperativeHandle, useRef, useState, type Ref } from 'react';
 import { CameraHelper, Color, PerspectiveCamera, type ColorRepresentation } from 'three';
-import { useIsLiveVirtualCamera, useVirtualCamera } from './VirtualCamera';
+import { useIsLiveVirtualCamera, useVirtualCamera } from './VirtualCameraContext';
 
 export type CameraFrustumHelperProps = {
   /** Single color for the whole helper. Default: `THREE.CameraHelper`'s own built-in colors. */

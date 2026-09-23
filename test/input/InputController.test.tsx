@@ -4,7 +4,8 @@ import { describe, expect, it, vi } from 'vitest';
 import { HardLockToTarget } from '../../src/body/HardLockToTarget';
 import { InputAxis } from '../../src/input/InputAxis';
 import type { InputAxisController } from '../../src/input/InputAxisController';
-import { InputAxisOwnerContext, InputController, type InputAxisOwner } from '../../src/input/InputController';
+import { InputController } from '../../src/input/InputController';
+import { InputAxisOwnerContext, type InputAxisOwner } from '../../src/input/InputAxisOwnerContext';
 import { Klipp } from '../../src/Klipp';
 import { VirtualCamera } from '../../src/VirtualCamera';
 
@@ -157,7 +158,12 @@ describe('InputController (React wrapper)', () => {
     const scene = (mounted: boolean) => (
       <Klipp>
         <VirtualCamera name="a" priority={10}>
-          {mounted && <InputController target={target} mouseButtons={{ left: { axes: { x: 'pan', y: 'tilt' } }, right: null, middle: null }} />}
+          {mounted && (
+            <InputController
+              target={target}
+              mouseButtons={{ left: { axes: { x: 'pan', y: 'tilt' } }, right: null, middle: null }}
+            />
+          )}
         </VirtualCamera>
       </Klipp>
     );
@@ -315,10 +321,24 @@ describe('InputController (React wrapper)', () => {
 
     const el = domElement!;
     el.dispatchEvent(
-      new PointerEvent('pointerdown', { pointerId: 1, clientX: 0, clientY: 0, buttons: 1, bubbles: true, pointerType: 'mouse' }),
+      new PointerEvent('pointerdown', {
+        pointerId: 1,
+        clientX: 0,
+        clientY: 0,
+        buttons: 1,
+        bubbles: true,
+        pointerType: 'mouse',
+      }),
     );
     el.dispatchEvent(
-      new PointerEvent('pointermove', { pointerId: 1, clientX: 20, clientY: 0, buttons: 1, bubbles: true, pointerType: 'mouse' }),
+      new PointerEvent('pointermove', {
+        pointerId: 1,
+        clientX: 20,
+        clientY: 0,
+        buttons: 1,
+        bubbles: true,
+        pointerType: 'mouse',
+      }),
     );
     await renderer.advanceFrames(1, 0.05);
 

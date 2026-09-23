@@ -6,7 +6,8 @@ import { describe, expect, it, vi } from 'vitest';
 import type { CameraState } from '../src/CameraState';
 import { CameraFrustumHelper } from '../src/CameraFrustumHelper';
 import { Klipp } from '../src/Klipp';
-import { useVirtualCamera, VirtualCamera } from '../src/VirtualCamera';
+import { VirtualCamera } from '../src/VirtualCamera';
+import { useVirtualCamera } from '../src/VirtualCameraContext';
 
 function Writer({ onWrite }: { onWrite: (out: CameraState) => void }) {
   const { controller } = useVirtualCamera();
@@ -91,7 +92,7 @@ describe('CameraFrustumHelper', () => {
       }
     });
 
-    it('omitting color leaves THREE.CameraHelper\'s own built-in colors untouched', async () => {
+    it("omitting color leaves THREE.CameraHelper's own built-in colors untouched", async () => {
       let helper: CameraHelper | null = null;
 
       await create(
@@ -115,7 +116,7 @@ describe('CameraFrustumHelper', () => {
   });
 
   describe('maxDistance', () => {
-    it('caps the scratch camera\'s far plane below CameraState.far (default far is 1000)', async () => {
+    it("caps the scratch camera's far plane below CameraState.far (default far is 1000)", async () => {
       let helper: CameraHelper | null = null;
 
       const renderer = await create(

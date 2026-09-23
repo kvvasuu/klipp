@@ -157,7 +157,7 @@ export const categories: ExampleCategory[] = [
         group: 'pan-tilt',
         Scene: PanTiltReferenceFrame,
         description:
-          'Riding a plane banking through a figure-eight, seated via `Body.Follow`. `rigidMount` toggles `Aim.PanTilt`\'s `target` - on, the view rolls/pitches with the plane (rigidly mounted); off, it aims to stay level (gimbal-stabilized) - drag to look around either way.',
+          "Riding a plane banking through a figure-eight, seated via `Body.Follow`. `rigidMount` toggles `Aim.PanTilt`'s `target` - on, the view rolls/pitches with the plane (rigidly mounted); off, it aims to stay level (gimbal-stabilized) - drag to look around either way.",
         spectatorPosition: [0, 10, 16],
         spectatorTarget: [0, 3, 0],
         ready: true,

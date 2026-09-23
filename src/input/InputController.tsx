@@ -1,18 +1,11 @@
 import { useThree } from '@react-three/fiber';
-import { createContext, use, useEffect, useImperativeHandle, useState, type Ref, type RefObject } from 'react';
-import { useKlippUpdateRegistry } from '../Klipp';
-import { useIsActiveVirtualCamera, useIsLiveVirtualCamera } from '../VirtualCamera';
+import { use, useEffect, useImperativeHandle, useState, type Ref, type RefObject } from 'react';
+import { useKlipp } from '../KlippContext';
+import { useIsActiveVirtualCamera, useIsLiveVirtualCamera } from '../VirtualCameraContext';
 import type { InputAxis } from './InputAxis';
 import { InputAxisController, type InputAxisControllerConfig, type InputInvert } from './InputAxisController';
+import { InputAxisOwnerContext, type InputAxisOwner } from './InputAxisOwnerContext';
 import type { InteractiveArea } from './InputSystem';
-
-/** Anything a `<InputController>` can drive - any Body/Aim/Extension exposing named `InputAxis` instances */
-export type InputAxisOwner = {
-  readonly inputAxes: Record<string, InputAxis>;
-};
-
-/** Set by a Body/Aim/Extension around its `children`, so a nested `<InputController>` finds its `inputAxes` */
-export const InputAxisOwnerContext = createContext<InputAxisOwner | null>(null);
 
 export type InputSourceConfig = {
   /** Names into the target's `inputAxes`, e.g. `{ x: 'pan', y: 'tilt' }`. */
@@ -105,7 +98,7 @@ export function InputController(props: InputControllerProps) {
     ref,
   } = props;
   const contextOwner = use(InputAxisOwnerContext);
-  const registerUpdate = useKlippUpdateRegistry();
+  const { registerUpdate } = useKlipp();
   const isActive = useIsActiveVirtualCamera();
   const isLive = useIsLiveVirtualCamera();
   const shouldConnect = isActive && (waitForBlend ? isLive : true);

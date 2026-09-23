@@ -1,6 +1,6 @@
 import { useEffect, useImperativeHandle, useState, type Ref } from 'react';
 import type { Target } from '../resolve/Target';
-import { useVirtualCamera } from '../VirtualCamera';
+import { useVirtualCamera } from '../VirtualCameraContext';
 import { HardLookAtAim } from './HardLookAtAim';
 
 export type HardLookAtProps = {

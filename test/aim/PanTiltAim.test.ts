@@ -1,4 +1,4 @@
-import { Euler, Object3D, Quaternion, Vector3 } from 'three';
+import { Euler, Object3D, Vector3 } from 'three';
 import { describe, expect, it } from 'vitest';
 import { createCameraState } from '../../src/CameraState';
 import { PanTiltAim } from '../../src/aim/PanTiltAim';

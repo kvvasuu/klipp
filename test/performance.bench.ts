@@ -129,7 +129,17 @@ group('Body.update @body', () => {
 
   bench('PositionComposer (explicit size extent, rotating box)', function* () {
     const { object, step } = makeMovingTarget();
-    const body = new PositionComposerBody(object, 10, [0, 0], 16 / 9, [0.2, 0.2], 0.5, [0.4, 0.4], undefined, [2, 2, 2]);
+    const body = new PositionComposerBody(
+      object,
+      10,
+      [0, 0],
+      16 / 9,
+      [0.2, 0.2],
+      0.5,
+      [0.4, 0.4],
+      undefined,
+      [2, 2, 2],
+    );
     const out = createCameraState();
     yield () => {
       step();
@@ -386,8 +396,7 @@ group('InputSystem event handlers @input', () => {
   bench('onPointerMove (buttonless, Pointer Lock active)', function* () {
     const { system, element } = makeConnectedInputSystem();
     // requestPointerLock() has no effect on a fake element - simulate the browser having granted it
-    (globalThis as unknown as { document: { pointerLockElement: unknown } }).document.pointerLockElement =
-      element;
+    (globalThis as unknown as { document: { pointerLockElement: unknown } }).document.pointerLockElement = element;
     const moveEvent = {
       pointerType: 'mouse',
       pointerId: 1,
@@ -407,7 +416,15 @@ group('InputSystem event handlers @input', () => {
 
   bench('onWheel', function* () {
     const { system } = makeConnectedInputSystem();
-    const wheelEvent = { clientX: 0, clientY: 0, deltaX: 0, deltaY: 1, ctrlKey: false, shiftKey: false, preventDefault: () => {} };
+    const wheelEvent = {
+      clientX: 0,
+      clientY: 0,
+      deltaX: 0,
+      deltaY: 1,
+      ctrlKey: false,
+      shiftKey: false,
+      preventDefault: () => {},
+    };
     const out = emptyInput();
     yield () => {
       system.onWheel(wheelEvent);

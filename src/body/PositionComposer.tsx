@@ -4,7 +4,7 @@ import { useEffect, useImperativeHandle, useState, type Ref } from 'react';
 import type { DampingConstant } from '../damping/Damper';
 import { DebugZoneOverlay, type DebugZone } from '../DebugZoneOverlay';
 import type { Target } from '../resolve/Target';
-import { useVirtualCamera } from '../VirtualCamera';
+import { useVirtualCamera } from '../VirtualCameraContext';
 import { PositionComposerBody } from './PositionComposerBody';
 
 export type PositionComposerProps = {

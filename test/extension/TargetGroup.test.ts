@@ -199,7 +199,7 @@ describe('TargetGroup', () => {
       expect(resolved).toBe(false);
     });
 
-    it('auto-detects from a Mesh target\'s own geometry bounds when neither size nor radius is given', () => {
+    it("auto-detects from a Mesh target's own geometry bounds when neither size nor radius is given", () => {
       const group = new TargetGroup();
       const mesh = new Mesh(new BoxGeometry(2, 4, 6), new MeshBasicMaterial());
       const out = new Vector3();
@@ -212,7 +212,7 @@ describe('TargetGroup', () => {
       expect(out.z).toBeCloseTo(6, 10);
     });
 
-    it('auto-detection accounts for the mesh\'s current world scale, not just its local geometry bounds', () => {
+    it("auto-detection accounts for the mesh's current world scale, not just its local geometry bounds", () => {
       const group = new TargetGroup();
       const mesh = new Mesh(new BoxGeometry(2, 4, 6), new MeshBasicMaterial());
       mesh.scale.set(3, 1, 0.5);

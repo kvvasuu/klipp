@@ -3,24 +3,26 @@ import { create } from '@react-three/test-renderer';
 import { useThree } from '@react-three/fiber';
 import { PerspectiveCamera, Vector3 } from 'three';
 import { describe, expect, it, vi } from 'vitest';
-import { Klipp, useKlippCore } from '../src/Klipp';
+import { Klipp } from '../src/Klipp';
+import { useKlipp } from '../src/KlippContext';
 import { KlippCore } from '../src/KlippCore';
-import { VirtualCamera, useVirtualCamera } from '../src/VirtualCamera';
+import { VirtualCamera } from '../src/VirtualCamera';
+import { useVirtualCamera } from '../src/VirtualCameraContext';
 import { HardLockToTarget } from '../src/body/HardLockToTarget';
 import { BlendCurves } from '../src/blend/BlendCurves';
 import { useEffect, useRef } from 'react';
 import type { Object3D } from 'three';
 
-describe('Klipp / useKlippCore', () => {
+describe('Klipp / useKlipp', () => {
   it('throws when used outside a <Klipp> provider', () => {
     // no Canvas/renderer needed: this throws before touching anything r3f-specific
-    expect(() => renderHook(() => useKlippCore())).toThrow(/within a <Klipp> provider/);
+    expect(() => renderHook(() => useKlipp())).toThrow(/within a <Klipp> provider/);
   });
 
   it('provides a KlippCore instance to consumers', async () => {
     let core: KlippCore | undefined;
     function Reader() {
-      core = useKlippCore();
+      core = useKlipp().core;
       return null;
     }
 
@@ -36,7 +38,7 @@ describe('Klipp / useKlippCore', () => {
   it('the instance is stable across re-renders', async () => {
     const seen: KlippCore[] = [];
     function Reader() {
-      seen.push(useKlippCore());
+      seen.push(useKlipp().core);
       return null;
     }
 
@@ -103,7 +105,7 @@ describe('Klipp / useKlippCore', () => {
     expect(camera!.position.z).toBeCloseTo(5, 10);
   });
 
-  it("writes fov/near/far onto the real r3f camera — the isPerspectiveCamera-gated path actually fires", async () => {
+  it('writes fov/near/far onto the real r3f camera — the isPerspectiveCamera-gated path actually fires', async () => {
     let camera: PerspectiveCamera | undefined;
     function CameraReader() {
       camera = useThree((state) => state.camera as PerspectiveCamera);
@@ -315,7 +317,7 @@ describe('Klipp / useKlippCore', () => {
     it('clamps a huge single-frame dt so a blend animates instead of snapping to completion', async () => {
       let core: KlippCore | undefined;
       function Reader() {
-        core = useKlippCore();
+        core = useKlipp().core;
         return null;
       }
 
@@ -336,7 +338,7 @@ describe('Klipp / useKlippCore', () => {
     it('does NOT clamp under the default frameloop="always" — dt stays accurate even when large', async () => {
       let core: KlippCore | undefined;
       function Reader() {
-        core = useKlippCore();
+        core = useKlipp().core;
         return null;
       }
 
@@ -442,7 +444,7 @@ describe('Klipp / useKlippCore', () => {
   });
 
   describe('no active camera', () => {
-    it('does not touch the real camera until some VirtualCamera actually goes live (real bug: it snapped to tick()\'s untouched default CameraState on frame 1)', async () => {
+    it("does not touch the real camera until some VirtualCamera actually goes live (real bug: it snapped to tick()'s untouched default CameraState on frame 1)", async () => {
       let camera: PerspectiveCamera | undefined;
       let core: KlippCore | undefined;
 
@@ -548,11 +550,13 @@ describe('Klipp — reactive defaultBlend/customBlends props', () => {
 
     await renderer.update(scene('c'));
 
-    expect(setCustomBlendsSpy).toHaveBeenCalledWith([{ from: 'a', to: 'c', blend: { curve: BlendCurves.cut, time: 0 } }]);
+    expect(setCustomBlendsSpy).toHaveBeenCalledWith([
+      { from: 'a', to: 'c', blend: { curve: BlendCurves.cut, time: 0 } },
+    ]);
   });
 });
 
 function Reader({ onRead }: { onRead: (core: KlippCore) => void }) {
-  onRead(useKlippCore());
+  onRead(useKlipp().core);
   return null;
 }

@@ -4,7 +4,7 @@ import { Vector3 } from 'three';
 import type { DampingConstant } from '../damping/Damper';
 import type { Target } from '../resolve/Target';
 import { resolveVector3 } from '../resolve/resolveVector3';
-import { useVirtualCamera } from '../VirtualCamera';
+import { useVirtualCamera } from '../VirtualCameraContext';
 import { BindingModes, type BindingMode } from './BindingModes';
 import { FollowBody } from './FollowBody';
 

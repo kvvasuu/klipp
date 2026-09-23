@@ -4,21 +4,17 @@ import { useEffect, useRef } from 'react';
 import { Quaternion, Vector3 } from 'three';
 import { describe, expect, it, vi } from 'vitest';
 import type { CameraState } from '../src/CameraState';
-import { Klipp, KlippEvents, useKlippCore } from '../src/Klipp';
+import { Klipp, KlippEvents } from '../src/Klipp';
+import { useKlipp } from '../src/KlippContext';
 import type { KlippCore } from '../src/KlippCore';
-import {
-  useIsActiveVirtualCamera,
-  useIsLiveVirtualCamera,
-  useVirtualCamera,
-  VirtualCamera,
-  VirtualCameraEvents,
-} from '../src/VirtualCamera';
+import { VirtualCamera, VirtualCameraEvents } from '../src/VirtualCamera';
+import { useIsActiveVirtualCamera, useIsLiveVirtualCamera, useVirtualCamera } from '../src/VirtualCameraContext';
 import type { VirtualCameraController } from '../src/VirtualCameraController';
 import { BlendCurves } from '../src/blend/BlendCurves';
 import { BlendHints } from '../src/blend/BlendHints';
 
 function CoreReader({ onRead }: { onRead: (core: KlippCore) => void }) {
-  onRead(useKlippCore());
+  onRead(useKlipp().core);
   return null;
 }
 
@@ -224,7 +220,7 @@ describe('VirtualCamera — initialState prop', () => {
     expect(core!.activeState!.target.equals(new Vector3(1, 2, 3))).toBe(true);
   });
 
-  it('only overrides the given fields — an unset field still inherits the real camera\'s pristine state', async () => {
+  it("only overrides the given fields — an unset field still inherits the real camera's pristine state", async () => {
     let plainState: CameraState | undefined;
     let seededState: CameraState | undefined;
     function StateReader({ onRead }: { onRead: (state: CameraState) => void }) {
@@ -255,7 +251,11 @@ describe('VirtualCamera — initialState prop', () => {
     await create(
       <Klipp>
         <CoreReader onRead={(c) => (core = c)} />
-        <VirtualCamera name="a" priority={10} initialState={{ position: callerPosition, quaternion: callerQuaternion }} />
+        <VirtualCamera
+          name="a"
+          priority={10}
+          initialState={{ position: callerPosition, quaternion: callerQuaternion }}
+        />
       </Klipp>,
     );
 
@@ -628,7 +628,7 @@ describe('VirtualCameraEvents', () => {
     expect(onAActivated).toHaveBeenCalledTimes(1); // 'a' losing isn't ITS activation
   });
 
-  it('calls onDeactivated once this camera\'s blend out actually finishes', async () => {
+  it("calls onDeactivated once this camera's blend out actually finishes", async () => {
     const onDeactivated = vi.fn();
 
     const scene = (bPriority: number) => (

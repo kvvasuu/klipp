@@ -235,7 +235,12 @@ export class KlippCore extends EventDispatcher<CameraTransitionEventMap> {
         // captured once - a listener on one of the dispatchEvent calls below could reentrantly call
         // registerCamera/updatePriority and move this.activeId before the later ones run
         const incoming = this.activeId;
-        const definition = resolveBlendDefinition(this.customBlends, this.customBlendFromId, incoming, this.defaultBlend);
+        const definition = resolveBlendDefinition(
+          this.customBlends,
+          this.customBlendFromId,
+          incoming,
+          this.defaultBlend,
+        );
         const toHints = this.candidates.get(incoming)?.hints ?? BlendHints.none;
         // prefer the outgoing camera's CURRENT hints (it may have changed since it went live) - the
         // captured customBlendFromHints is only a fallback for when it already unregistered mid-transition

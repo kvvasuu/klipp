@@ -1,9 +1,9 @@
 import { useEffect, useImperativeHandle, useState, type ReactNode, type Ref } from 'react';
 import type { DampingConstant } from '../damping/Damper';
 import type { InputAxisRecentering } from '../input/InputAxis';
-import { InputAxisOwnerContext } from '../input/InputController';
+import { InputAxisOwnerContext } from '../input/InputAxisOwnerContext';
 import type { Target } from '../resolve/Target';
-import { useVirtualCamera } from '../VirtualCamera';
+import { useVirtualCamera } from '../VirtualCameraContext';
 import { PanTiltAim } from './PanTiltAim';
 
 export type PanTiltProps = {

@@ -4,12 +4,13 @@ import { Object3D, PerspectiveCamera } from 'three';
 import { describe, expect, it } from 'vitest';
 import { HardLockToTarget } from '../../src/body/HardLockToTarget';
 import { HardLookAt } from '../../src/aim/HardLookAt';
-import { Klipp, useKlippCore } from '../../src/Klipp';
+import { Klipp } from '../../src/Klipp';
+import { useKlipp } from '../../src/KlippContext';
 import type { KlippCore } from '../../src/KlippCore';
 import { VirtualCamera } from '../../src/VirtualCamera';
 
 function CoreReader({ onRead }: { onRead: (core: KlippCore) => void }) {
-  onRead(useKlippCore());
+  onRead(useKlipp().core);
   return null;
 }
 

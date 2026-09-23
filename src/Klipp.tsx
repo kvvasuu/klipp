@@ -1,7 +1,8 @@
 import { useFrame, useThree } from '@react-three/fiber';
-import { createContext, use, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import type { Camera, PerspectiveCamera } from 'three';
 import { copyCameraState, copyCameraStateFromCamera, createCameraState, type CameraState } from './CameraState';
+import { KlippContext, useKlipp, type FrameUpdate, type KlippContextValue } from './KlippContext';
 import { KlippCore, type CameraTransitionEventMap, type KlippCoreOptions } from './KlippCore';
 import { useCameraTransitionEvent } from './useCameraTransitionEvent';
 
@@ -13,22 +14,6 @@ import { useCameraTransitionEvent } from './useCameraTransitionEvent';
 function isPerspectiveCamera(camera: Camera): camera is PerspectiveCamera {
   return (camera as PerspectiveCamera).isPerspectiveCamera === true;
 }
-
-/** A per-frame update — used by `<VirtualCamera>` to drive its own Body/Aim/Noise. Return `true` if
- *  there's still work in flight that could change the output on a LATER frame even though this
- *  particular frame's output happens to match the previous one (e.g. a constant-amplitude envelope
- *  plateau) — `frameloop="demand"` stops requesting frames once output stops changing, and without this
- *  it would misread a coincidentally-still frame mid-plateau as "settled forever". Ordinary continuous
- *  motion doesn't need it: Klipp's own output comparison already keeps requesting frames for that. */
-export type FrameUpdate = (dt: number) => boolean | void;
-
-type KlippContextValue = {
-  core: KlippCore;
-  registerUpdate: (update: FrameUpdate) => () => void;
-  initialCameraState: CameraState;
-};
-
-const KlippContext = createContext<KlippContextValue | null>(null);
 
 /** Keyed by camera object, not `<Klipp>` mount - a fresh capture per mount would inherit wherever a
  *  PREVIOUS `<Klipp>` sharing this camera last left it, not the camera's true original config. */
@@ -190,28 +175,6 @@ export function Klipp({ children, defaultBlend, customBlends, camera: cameraProp
   return <KlippContext.Provider value={value}>{children}</KlippContext.Provider>;
 }
 
-function useKlippContext(): KlippContextValue {
-  const context = use(KlippContext);
-  if (!context) throw new Error('useKlippCore must be used within a <Klipp> provider.');
-  return context;
-}
-
-/** The current subtree's `KlippCore` — throws outside a `<Klipp>` provider. */
-export function useKlippCore(): KlippCore {
-  return useKlippContext().core;
-}
-
-/** Registers a per-frame update, run every frame before `core.tick(dt)`. Returns an unregister function. */
-export function useKlippUpdateRegistry(): (update: FrameUpdate) => () => void {
-  return useKlippContext().registerUpdate;
-}
-
-/** The real camera's pristine, pre-`<Klipp>` properties (see `pristineCameraStates`) - the seed every
- *  `<VirtualCamera>`'s own state starts from. */
-export function useKlippInitialCameraState(): CameraState {
-  return useKlippContext().initialCameraState;
-}
-
 export type KlippEventsProps = {
   onActivated?: (event: CameraTransitionEventMap['activated']) => void;
   onDeactivated?: (event: CameraTransitionEventMap['deactivated']) => void;
@@ -223,7 +186,7 @@ export type KlippEventsProps = {
 /** Opt-in - place inside a `<Klipp>` to hear every `CameraTransitionEventMap` transition across ALL its
  *  cameras (contrast `VirtualCamera.Events`, scoped to one camera). Also available as `Klipp.Events`. */
 export function KlippEvents({ onActivated, onDeactivated, onBlendCreated, onBlendFinished, onCut }: KlippEventsProps) {
-  const core = useKlippCore();
+  const { core } = useKlipp();
 
   useCameraTransitionEvent(core, 'activated', onActivated);
   useCameraTransitionEvent(core, 'deactivated', onDeactivated);

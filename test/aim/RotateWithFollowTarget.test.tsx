@@ -1,13 +1,14 @@
 import { create } from '@react-three/test-renderer';
 import { Object3D, Quaternion } from 'three';
 import { describe, expect, it } from 'vitest';
-import { Klipp, useKlippCore } from '../../src/Klipp';
-import type { KlippCore } from '../../src/KlippCore';
 import { RotateWithFollowTarget } from '../../src/aim/RotateWithFollowTarget';
+import { Klipp } from '../../src/Klipp';
+import { useKlipp } from '../../src/KlippContext';
+import type { KlippCore } from '../../src/KlippCore';
 import { VirtualCamera } from '../../src/VirtualCamera';
 
 function CoreReader({ onRead }: { onRead: (core: KlippCore) => void }) {
-  onRead(useKlippCore());
+  onRead(useKlipp().core);
   return null;
 }
 
@@ -81,7 +82,6 @@ describe('RotateWithFollowTarget (React wrapper)', () => {
     let core: KlippCore | undefined;
     const target = new Object3D();
     target.rotation.set(0, 1.5, 0);
-    const targetQuaternion = new Quaternion().setFromEuler(target.rotation);
 
     const scene = (damping: number) => (
       <Klipp>
