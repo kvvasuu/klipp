@@ -51,7 +51,7 @@ describe('CameraControlsBody', () => {
     expect(out.hasLookAtTarget).toBe(false);
   });
 
-  it('with no initialPosition, the first resolution keeps camera-controls\' own starting position - coincident with a target at the origin', () => {
+  it("with no initialPosition, the first resolution keeps camera-controls' own starting position - coincident with a target at the origin", () => {
     const target = new Vector3(0, 0, 0);
     const body = new CameraControlsBody(target, 1);
     const out = createCameraState();
@@ -395,7 +395,7 @@ describe('CameraControlsBody', () => {
       expect(mid.position.distanceTo(linearMid)).toBeGreaterThan(0.5);
     });
 
-    it("locked CameraControls publishes hasLookAtTarget, so a blend into it tracks the interpolating look-at point (lerpLookAtRotation) instead of falling back to a plain slerp", () => {
+    it('locked CameraControls publishes hasLookAtTarget, so a blend into it tracks the interpolating look-at point (lerpLookAtRotation) instead of falling back to a plain slerp', () => {
       // pointA/pointB deliberately far apart and distinct - a shared/nearby point would let even a
       // frozen, un-interpolated out.lookAtTarget (the bug: hasLookAtTarget never true, so it's never
       // touched past its very first snap) coincidentally still point roughly the right way

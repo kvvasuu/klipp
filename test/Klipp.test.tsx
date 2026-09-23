@@ -103,7 +103,7 @@ describe('Klipp / useKlippCore', () => {
     expect(camera!.position.z).toBeCloseTo(5, 10);
   });
 
-  it("writes fov/near/far onto the real r3f camera — the isPerspectiveCamera-gated path actually fires", async () => {
+  it('writes fov/near/far onto the real r3f camera — the isPerspectiveCamera-gated path actually fires', async () => {
     let camera: PerspectiveCamera | undefined;
     function CameraReader() {
       camera = useThree((state) => state.camera as PerspectiveCamera);
@@ -442,7 +442,7 @@ describe('Klipp / useKlippCore', () => {
   });
 
   describe('no active camera', () => {
-    it('does not touch the real camera until some VirtualCamera actually goes live (real bug: it snapped to tick()\'s untouched default CameraState on frame 1)', async () => {
+    it("does not touch the real camera until some VirtualCamera actually goes live (real bug: it snapped to tick()'s untouched default CameraState on frame 1)", async () => {
       let camera: PerspectiveCamera | undefined;
       let core: KlippCore | undefined;
 
@@ -548,7 +548,9 @@ describe('Klipp — reactive defaultBlend/customBlends props', () => {
 
     await renderer.update(scene('c'));
 
-    expect(setCustomBlendsSpy).toHaveBeenCalledWith([{ from: 'a', to: 'c', blend: { curve: BlendCurves.cut, time: 0 } }]);
+    expect(setCustomBlendsSpy).toHaveBeenCalledWith([
+      { from: 'a', to: 'c', blend: { curve: BlendCurves.cut, time: 0 } },
+    ]);
   });
 });
 

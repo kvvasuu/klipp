@@ -17,9 +17,7 @@ function pointer(el: HTMLElement, type: string, x: number, y: number, buttons: n
 }
 
 function touch(el: HTMLElement, type: string, x: number, y: number, pointerId = 1): void {
-  el.dispatchEvent(
-    new PointerEvent(type, { pointerId, clientX: x, clientY: y, bubbles: true, pointerType: 'touch' }),
-  );
+  el.dispatchEvent(new PointerEvent(type, { pointerId, clientX: x, clientY: y, bubbles: true, pointerType: 'touch' }));
 }
 
 // InputAxisController.update() only calls applyDelta() on the mapped axes - it's up to the axis owner
@@ -97,7 +95,10 @@ describe('InputAxisController', () => {
   it('gain scales the delta before it reaches the axes', () => {
     const x = new InputAxis();
     const y = new InputAxis();
-    const el = setup({ ...emptyConfig(), mouseButtons: { left: null, right: { axes: { x, y }, gain: 0.5 }, middle: null } });
+    const el = setup({
+      ...emptyConfig(),
+      mouseButtons: { left: null, right: { axes: { x, y }, gain: 0.5 }, middle: null },
+    });
 
     pointer(el, 'pointerdown', 0, 0, 2);
     pointer(el, 'pointermove', 10, 4, 2);

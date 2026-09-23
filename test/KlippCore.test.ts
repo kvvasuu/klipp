@@ -328,7 +328,7 @@ describe('KlippCore — registry & priority arbitration', () => {
       expect(onFinished).not.toHaveBeenCalled();
     });
 
-    it('mid-blend interruption: the new blendCreated\'s outgoing is the just-interrupted TARGET, not the original camera', () => {
+    it("mid-blend interruption: the new blendCreated's outgoing is the just-interrupted TARGET, not the original camera", () => {
       const core = new KlippCore({ defaultBlend: { curve: BlendCurves.linear, time: 2 } });
       core.registerCamera({ id: 'a', priority: 10, state: createCameraState() });
       core.tick(0); // 'a' live
@@ -662,7 +662,7 @@ describe('KlippCore — BlendHints', () => {
     expect(out.position.length()).toBeCloseTo((radiusA + radiusB) / 2, 5);
   });
 
-  it("a hint on the OUTGOING camera alone also shapes the blend (hints combine via OR, not just the incoming side)", () => {
+  it('a hint on the OUTGOING camera alone also shapes the blend (hints combine via OR, not just the incoming side)', () => {
     const core = new KlippCore({ defaultBlend: { curve: BlendCurves.linear, time: 1 } });
     const a = orbitingStateAt(new Vector3(5, 5, 5));
     const b = orbitingStateAt(new Vector3(0, 0, 5));

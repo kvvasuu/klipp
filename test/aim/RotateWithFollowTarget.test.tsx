@@ -1,9 +1,9 @@
 import { create } from '@react-three/test-renderer';
 import { Object3D, Quaternion } from 'three';
 import { describe, expect, it } from 'vitest';
+import { RotateWithFollowTarget } from '../../src/aim/RotateWithFollowTarget';
 import { Klipp, useKlippCore } from '../../src/Klipp';
 import type { KlippCore } from '../../src/KlippCore';
-import { RotateWithFollowTarget } from '../../src/aim/RotateWithFollowTarget';
 import { VirtualCamera } from '../../src/VirtualCamera';
 
 function CoreReader({ onRead }: { onRead: (core: KlippCore) => void }) {

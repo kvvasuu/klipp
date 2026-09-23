@@ -96,7 +96,10 @@ describe('ImpulseField', () => {
 
   it('propagationSpeed: a distant listener feels the event later, delayed by distance / speed', () => {
     const field = new ImpulseField();
-    field.generate({ position: [0, 0, 0], direction: [10, 0, 0], shape: always, duration: 10, propagationSpeed: 10 }, 0);
+    field.generate(
+      { position: [0, 0, 0], direction: [10, 0, 0], shape: always, duration: 10, propagationSpeed: 10 },
+      0,
+    );
 
     const listenerPosition = new Vector3(50, 0, 0); // 5s away at this speed
 
@@ -120,13 +123,19 @@ describe('ImpulseField', () => {
 
   it('propagationSpeed=0 degrades to "no delay" instead of Infinity/NaN', () => {
     const leakProne = new ImpulseField(); // radius/dissipationDistance > 0: old code divided by zero -> Infinity -> never expired
-    leakProne.generate({ position: [0, 0, 0], direction: [10, 0, 0], duration: 0.1, radius: 5, propagationSpeed: 0 }, 0);
+    leakProne.generate(
+      { position: [0, 0, 0], direction: [10, 0, 0], duration: 0.1, radius: 5, propagationSpeed: 0 },
+      0,
+    );
     const out = new Vector3();
     leakProne.sampleAt(out, new Vector3(), 1, 1, 1000); // long past the envelope
     expect(leakProne.hasEvents).toBe(false);
 
     const dropProne = new ImpulseField(); // radius/dissipationDistance both 0 (default): old code divided 0/0 -> NaN -> pruned instantly
-    dropProne.generate({ position: [0, 0, 0], direction: [10, 0, 0], shape: always, duration: 1, propagationSpeed: 0 }, 0);
+    dropProne.generate(
+      { position: [0, 0, 0], direction: [10, 0, 0], shape: always, duration: 1, propagationSpeed: 0 },
+      0,
+    );
     dropProne.sampleAt(out, new Vector3(), 1, 1, 0.5); // well within the envelope, at the exact source position
     expect(out.x).toBeCloseTo(10, 5);
   });
@@ -170,7 +179,9 @@ describe('ImpulseField', () => {
 
   it("a Vector3Like position/direction (r3f's [x,y,z] shorthand) works, not just real Vector3 instances", () => {
     const field = new ImpulseField();
-    expect(() => field.generate({ position: [1, 2, 3], direction: [4, 5, 6], shape: always, duration: 1 }, 0)).not.toThrow();
+    expect(() =>
+      field.generate({ position: [1, 2, 3], direction: [4, 5, 6], shape: always, duration: 1 }, 0),
+    ).not.toThrow();
 
     const out = new Vector3();
     field.sampleAt(out, new Vector3(1, 2, 3), 1, 1, 0.5);

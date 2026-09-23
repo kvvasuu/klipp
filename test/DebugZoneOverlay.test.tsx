@@ -46,7 +46,9 @@ describe('DebugZoneOverlay', () => {
           <DebugZoneOverlay zones={[{ screenPosition: [0, 0], size: [0.4, 0.4], className: 'klipp-debug-deadzone' }]} />
         </VirtualCamera>
         <VirtualCamera name="b" priority={bPriority}>
-          <DebugZoneOverlay zones={[{ screenPosition: [0, 0], size: [0.4, 0.4], className: 'klipp-debug-hardlimit' }]} />
+          <DebugZoneOverlay
+            zones={[{ screenPosition: [0, 0], size: [0.4, 0.4], className: 'klipp-debug-hardlimit' }]}
+          />
         </VirtualCamera>
       </Klipp>
     );

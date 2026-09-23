@@ -50,8 +50,11 @@
     "prebuild": "pnpm run clean",
     "build": "tsc",
     "lint": "oxlint",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
     "test": "vitest run",
-    "bench": "labs"
+    "bench": "labs",
+    "prepare": "husky"
   },
   "peerDependencies": {
     "@react-three/fiber": "^9.7.0",
@@ -80,8 +83,11 @@
     "@types/react-dom": "^19.2.4",
     "@types/three": "^0.185.4",
     "camera-controls": "^3.1.2",
+    "husky": "^9.1.7",
     "jsdom": "^30.0.1",
+    "lint-staged": "^17.5.1",
     "oxlint": "^1.75.0",
+    "prettier": "^3.9.8",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "three": "^0.185.1",
@@ -90,5 +96,8 @@
   },
   "dependencies": {
     "math": "^0.1.0"
+  },
+  "lint-staged": {
+    "*.{ts,tsx,js,jsx,json,yml,yaml,md,css,html}": "prettier --write"
   }
 }

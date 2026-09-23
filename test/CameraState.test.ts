@@ -104,7 +104,7 @@ describe('mergeCameraState', () => {
     expect(out.referenceUp.equals(new Vector3(1, 0, 0))).toBe(true);
   });
 
-  it('.copy()s Vector3/Quaternion fields instead of aliasing the caller\'s own instance', () => {
+  it(".copy()s Vector3/Quaternion fields instead of aliasing the caller's own instance", () => {
     const out = createCameraState();
     const outPosition = out.position;
     const callerPosition = new Vector3(1, 2, 3);
@@ -118,7 +118,7 @@ describe('mergeCameraState', () => {
     expect(out.position.equals(new Vector3(1, 2, 3))).toBe(true); // unaffected by the caller's own mutation
   });
 
-  it('copies viewOffset element-wise instead of aliasing the caller\'s own array', () => {
+  it("copies viewOffset element-wise instead of aliasing the caller's own array", () => {
     const out = createCameraState();
     const outViewOffset = out.viewOffset;
     const callerViewOffset: [number, number] = [40, -20];
@@ -278,7 +278,7 @@ describe('applyCameraState', () => {
     expect(camera.projectionMatrix.equals(before)).toBe(false);
   });
 
-  it('a positive viewOffset[0] visually shifts a fixed point toward the RIGHT of the frame, matching screenPosition\'s convention (real bug: raw setViewOffset does the opposite)', () => {
+  it("a positive viewOffset[0] visually shifts a fixed point toward the RIGHT of the frame, matching screenPosition's convention (real bug: raw setViewOffset does the opposite)", () => {
     const camera = new PerspectiveCamera(50, 1, 0.1, 1000);
     const state = createCameraState(); // default position (0,0,0), identity rotation - facing -Z
     state.viewOffset[0] = 0.3;

@@ -109,16 +109,19 @@ describe('VirtualCameraController', () => {
     expect(controller.update(out, 0.1, false)).toBe(false);
   });
 
-  it('a writer that leaks a non-boolean truthy return (e.g. an expression-bodied assignment arrow like ' +
-    '`(out) => (out.position.x = dt)`) is NOT read as "still active" — only a literal `true` counts', () => {
-    const controller = new VirtualCameraController('a');
-    // deliberately the exact accidental shape this guards against: no braces, so the arrow's value IS
-    // the assignment's result (a number), even though its declared type is `void`
-    controller.registerBody((out, dt) => (out.position.x = dt));
+  it(
+    'a writer that leaks a non-boolean truthy return (e.g. an expression-bodied assignment arrow like ' +
+      '`(out) => (out.position.x = dt)`) is NOT read as "still active" — only a literal `true` counts',
+    () => {
+      const controller = new VirtualCameraController('a');
+      // deliberately the exact accidental shape this guards against: no braces, so the arrow's value IS
+      // the assignment's result (a number), even though its declared type is `void`
+      controller.registerBody((out, dt) => (out.position.x = dt));
 
-    const out = createCameraState();
-    expect(controller.update(out, 0.1, false)).toBe(false);
-  });
+      const out = createCameraState();
+      expect(controller.update(out, 0.1, false)).toBe(false);
+    },
+  );
 
   it('true if the Body, the Aim, or ANY stacked Extension/Noise writer reports still being active', () => {
     const bodyActive = new VirtualCameraController('body');

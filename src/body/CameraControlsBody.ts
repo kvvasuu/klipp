@@ -65,12 +65,9 @@ export class CameraControlsBody {
     if (resolved && (!this.wasResolvedLastFrame || justActivated)) {
       // normalize first - setTarget()'s freshly-derived azimuth won't know the live one accumulated past
       // it over several free-drag turns, and would otherwise ease back through every extra turn
-      this.controls.normalizeRotations().setTarget(
-        scratchTargetPosition.x,
-        scratchTargetPosition.y,
-        scratchTargetPosition.z,
-        this.enableTransition,
-      );
+      this.controls
+        .normalizeRotations()
+        .setTarget(scratchTargetPosition.x, scratchTargetPosition.y, scratchTargetPosition.z, this.enableTransition);
     } else if (resolved) {
       this.controls.moveTo(
         scratchTargetPosition.x,

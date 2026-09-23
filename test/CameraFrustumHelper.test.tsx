@@ -91,7 +91,7 @@ describe('CameraFrustumHelper', () => {
       }
     });
 
-    it('omitting color leaves THREE.CameraHelper\'s own built-in colors untouched', async () => {
+    it("omitting color leaves THREE.CameraHelper's own built-in colors untouched", async () => {
       let helper: CameraHelper | null = null;
 
       await create(
@@ -115,7 +115,7 @@ describe('CameraFrustumHelper', () => {
   });
 
   describe('maxDistance', () => {
-    it('caps the scratch camera\'s far plane below CameraState.far (default far is 1000)', async () => {
+    it("caps the scratch camera's far plane below CameraState.far (default far is 1000)", async () => {
       let helper: CameraHelper | null = null;
 
       const renderer = await create(

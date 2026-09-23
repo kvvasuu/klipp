@@ -284,9 +284,13 @@ describe('lerpCameraState', () => {
         target: target.clone(),
         hasTarget: true,
       });
-      const zeroRadiusB = makeState({ position: new Vector3(8, 2, -1), target: new Vector3(8, 2, -1), hasTarget: true });
+      const zeroRadiusB = makeState({
+        position: new Vector3(8, 2, -1),
+        target: new Vector3(8, 2, -1),
+        hasTarget: true,
+      });
 
-      it('sphericalPosition holds a\'s own bearing/elevation instead of sweeping toward theta=0/phi=0', () => {
+      it("sphericalPosition holds a's own bearing/elevation instead of sweeping toward theta=0/phi=0", () => {
         const offsetA = farAngleA.position.clone().sub(target);
         const thetaA = Math.atan2(offsetA.x, offsetA.z);
         const phiA = Math.acos(offsetA.y / offsetA.length());
@@ -325,7 +329,11 @@ describe('lerpCameraState', () => {
     });
 
     it('out.target/hasTarget carry the lerped target forward when both sides have one (so a later mid-blend interruption still has it)', () => {
-      const withDifferentTarget = makeState({ position: new Vector3(0, 0, 5), target: new Vector3(10, 0, 0), hasTarget: true });
+      const withDifferentTarget = makeState({
+        position: new Vector3(0, 0, 5),
+        target: new Vector3(10, 0, 0),
+        hasTarget: true,
+      });
       const out = createCameraState();
       lerpCameraState(out, orbitingA, withDifferentTarget, 0.5);
       expect(out.hasTarget).toBe(true);
@@ -343,7 +351,12 @@ describe('lerpCameraState', () => {
     /** A state with a REAL, consistent lookAt quaternion for `position`/`lookAtTarget` - matching what an
      *  actual Aim (e.g. `HardLookAt`) would produce, unlike a quaternion left at some unrelated default. */
     function stateWithLookAt(position: Vector3, lookAtTarget: Vector3): CameraState {
-      return makeState({ position, quaternion: lookAtQuaternion(position, lookAtTarget), lookAtTarget, hasLookAtTarget: true });
+      return makeState({
+        position,
+        quaternion: lookAtQuaternion(position, lookAtTarget),
+        lookAtTarget,
+        hasLookAtTarget: true,
+      });
     }
 
     it('drives rotation via lookAt with NO hints at all (BlendHints.none) - a shared lookAtTarget alone is enough', () => {
@@ -438,7 +451,12 @@ describe('lerpCameraState', () => {
         expect(ignored.quaternion.angleTo(tracked.quaternion)).toBeGreaterThan(0.01);
         // matches the plain-slerp fallback exactly - the same path taken when there's no lookAtTarget at all
         const plainSlerpEquivalent = createCameraState();
-        lerpCameraState(plainSlerpEquivalent, makeState({ quaternion: a.quaternion }), makeState({ quaternion: b.quaternion }), 0.5);
+        lerpCameraState(
+          plainSlerpEquivalent,
+          makeState({ quaternion: a.quaternion }),
+          makeState({ quaternion: b.quaternion }),
+          0.5,
+        );
         expect(ignored.quaternion.angleTo(plainSlerpEquivalent.quaternion)).toBeLessThan(1e-6);
       });
 

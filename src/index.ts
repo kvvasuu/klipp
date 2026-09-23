@@ -1,10 +1,5 @@
 export { VirtualCameraController, type VirtualCameraSlots, type CameraStateWriter } from './VirtualCameraController';
-export {
-  KlippCore,
-  type VirtualCameraConfig,
-  type KlippCoreOptions,
-  type CameraTransitionEventMap,
-} from './KlippCore';
+export { KlippCore, type VirtualCameraConfig, type KlippCoreOptions, type CameraTransitionEventMap } from './KlippCore';
 export {
   createCameraState,
   copyCameraState,

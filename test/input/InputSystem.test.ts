@@ -16,9 +16,7 @@ function pointer(el: HTMLElement, type: string, x: number, y: number, buttons: n
 }
 
 function touch(el: HTMLElement, type: string, x: number, y: number, pointerId = 1): void {
-  el.dispatchEvent(
-    new PointerEvent(type, { pointerId, clientX: x, clientY: y, bubbles: true, pointerType: 'touch' }),
-  );
+  el.dispatchEvent(new PointerEvent(type, { pointerId, clientX: x, clientY: y, bubbles: true, pointerType: 'touch' }));
 }
 
 // jsdom has no GestureEvent constructor - Safari's own scale/rotation are just plain properties, not

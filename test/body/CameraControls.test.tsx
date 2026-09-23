@@ -4,9 +4,9 @@ import CameraControlsImpl from 'camera-controls';
 import { useEffect } from 'react';
 import { Vector3 } from 'three';
 import { describe, expect, it, vi } from 'vitest';
-import { HardLockToTarget } from '../../src/body/HardLockToTarget';
 import { CameraControls } from '../../src/body/CameraControls';
 import type { CameraControlsBody } from '../../src/body/CameraControlsBody';
+import { HardLockToTarget } from '../../src/body/HardLockToTarget';
 import { Klipp, useKlippCore } from '../../src/Klipp';
 import type { KlippCore } from '../../src/KlippCore';
 import { VirtualCamera } from '../../src/VirtualCamera';
@@ -63,11 +63,7 @@ describe('CameraControls (React wrapper)', () => {
     const scene = (minDistance: number) => (
       <Klipp>
         <VirtualCamera name="a" priority={10}>
-          <CameraControls
-            target={new Vector3(0, 0, -10)}
-            minDistance={minDistance}
-            ref={(b) => (controlsBody = b)}
-          />
+          <CameraControls target={new Vector3(0, 0, -10)} minDistance={minDistance} ref={(b) => (controlsBody = b)} />
         </VirtualCamera>
       </Klipp>
     );
@@ -240,7 +236,12 @@ describe('CameraControls (React wrapper)', () => {
         <Klipp>
           <ControlsReader onRead={(c) => (controls = c)} />
           <VirtualCamera name="orbital" priority={orbitalPriority}>
-            <CameraControls target={new Vector3(0, 0, -10)} makeDefault waitForBlend={false} ref={(b) => (controlsBody = b)} />
+            <CameraControls
+              target={new Vector3(0, 0, -10)}
+              makeDefault
+              waitForBlend={false}
+              ref={(b) => (controlsBody = b)}
+            />
           </VirtualCamera>
           <VirtualCamera name="other" priority={5}>
             <HardLockToTarget target={[0, 0, 0]} />
@@ -321,15 +322,33 @@ describe('CameraControls (React wrapper)', () => {
       let orbitalBody: CameraControlsBody | null = null;
       let domElement: HTMLElement | undefined;
 
-      const renderer = await create(scene(10, (b) => (orbitalBody = b), (el) => (domElement = el)));
+      const renderer = await create(
+        scene(
+          10,
+          (b) => (orbitalBody = b),
+          (el) => (domElement = el),
+        ),
+      );
       await renderer.advanceFrames(1, 0.05); // "a" wins, connects
 
       const lockPointerSpy = vi.spyOn(orbitalBody!.controls, 'lockPointer').mockImplementation(() => {});
       Object.defineProperty(domElement!.ownerDocument, 'pointerLockElement', { value: domElement, configurable: true });
 
-      await renderer.update(scene(1, (b) => (orbitalBody = b), (el) => (domElement = el))); // "a" loses, disconnects
+      await renderer.update(
+        scene(
+          1,
+          (b) => (orbitalBody = b),
+          (el) => (domElement = el),
+        ),
+      ); // "a" loses, disconnects
       await renderer.advanceFrames(1, 0.05);
-      await renderer.update(scene(10, (b) => (orbitalBody = b), (el) => (domElement = el))); // "a" wins again, reconnects
+      await renderer.update(
+        scene(
+          10,
+          (b) => (orbitalBody = b),
+          (el) => (domElement = el),
+        ),
+      ); // "a" wins again, reconnects
       await renderer.advanceFrames(1, 0.05);
 
       expect(lockPointerSpy).toHaveBeenCalledTimes(1);
@@ -339,15 +358,33 @@ describe('CameraControls (React wrapper)', () => {
       let orbitalBody: CameraControlsBody | null = null;
       let domElement: HTMLElement | undefined;
 
-      const renderer = await create(scene(10, (b) => (orbitalBody = b), (el) => (domElement = el)));
+      const renderer = await create(
+        scene(
+          10,
+          (b) => (orbitalBody = b),
+          (el) => (domElement = el),
+        ),
+      );
       await renderer.advanceFrames(1, 0.05);
 
       const lockPointerSpy = vi.spyOn(orbitalBody!.controls, 'lockPointer').mockImplementation(() => {});
       // pointerLockElement stays null - the user pressed Esc (or never locked at all) during the gap
 
-      await renderer.update(scene(1, (b) => (orbitalBody = b), (el) => (domElement = el)));
+      await renderer.update(
+        scene(
+          1,
+          (b) => (orbitalBody = b),
+          (el) => (domElement = el),
+        ),
+      );
       await renderer.advanceFrames(1, 0.05);
-      await renderer.update(scene(10, (b) => (orbitalBody = b), (el) => (domElement = el)));
+      await renderer.update(
+        scene(
+          10,
+          (b) => (orbitalBody = b),
+          (el) => (domElement = el),
+        ),
+      );
       await renderer.advanceFrames(1, 0.05);
 
       expect(lockPointerSpy).not.toHaveBeenCalled();

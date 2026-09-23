@@ -44,10 +44,24 @@ describe('PanTilt (React wrapper)', () => {
 
     const el = domElement!;
     el.dispatchEvent(
-      new PointerEvent('pointerdown', { pointerId: 1, clientX: 0, clientY: 0, buttons: 2, bubbles: true, pointerType: 'mouse' }),
+      new PointerEvent('pointerdown', {
+        pointerId: 1,
+        clientX: 0,
+        clientY: 0,
+        buttons: 2,
+        bubbles: true,
+        pointerType: 'mouse',
+      }),
     );
     el.dispatchEvent(
-      new PointerEvent('pointermove', { pointerId: 1, clientX: 20, clientY: 0, buttons: 2, bubbles: true, pointerType: 'mouse' }),
+      new PointerEvent('pointermove', {
+        pointerId: 1,
+        clientX: 20,
+        clientY: 0,
+        buttons: 2,
+        bubbles: true,
+        pointerType: 'mouse',
+      }),
     );
     await renderer.advanceFrames(1, 0.05);
 

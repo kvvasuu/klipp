@@ -1,7 +1,7 @@
 dist/
 coverage/
 node_modules/
-packages/fiber/react-reconciler/
-.yarn/
+.labs/
+pnpm-lock.yaml
 *.gltf
 *.mdx
