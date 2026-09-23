@@ -8,11 +8,7 @@ import { BasicMultiChannelPerlinNoise } from './BasicMultiChannelPerlinNoise';
 const defaultAmplitude: Vector3Like = [0, 0, 0];
 const defaultFrequency: Vector3Like = [1, 1, 1];
 
-/**
- * Builds (once) and keeps in sync a `BasicMultiChannelPerlinNoise` from declarative props - the shared
- * body behind `<Noise.BasicMultiChannelPerlin>` and `<ImpulseListener>`'s `shake`, so neither has to hand
- * out a live class instance to stay configurable.
- */
+/** Creates and synchronizes a shared Perlin noise instance from props. */
 export function useBasicMultiChannelPerlinNoise({
   positionAmplitude = defaultAmplitude,
   positionFrequency = defaultFrequency,

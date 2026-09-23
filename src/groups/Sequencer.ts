@@ -5,7 +5,7 @@ import { BlendDriver } from '../blend/BlendDriver';
 
 export type SequencerInstruction = {
   cameraId: string;
-  /** Live reference — `Sequencer` reads it directly, same convention as `KlippCore.registerCamera`. */
+  /** Live reference - `Sequencer` reads it directly, same convention as `KlippCore.registerCamera`. */
   state: CameraState;
   /** Seconds to hold this camera before advancing. Ignored on the last instruction unless `loop`. */
   hold: number;
@@ -21,7 +21,7 @@ export type SequencerOptions = {
 
 /**
  * Steps through a fixed list of camera instructions in order, holding each for its own duration before
- * blending to the next. Holds the last instruction forever once reached, unless `loop` — never ends
+ * blending to the next. Holds the last instruction forever once reached, unless `loop` - never ends
  * itself.
  */
 export class Sequencer {
@@ -40,7 +40,7 @@ export class Sequencer {
     this.driver = new BlendDriver((index) => this.instructions[index].state);
   }
 
-  /** The settled instruction — during a blend, still the one being left, not the destination (same as
+  /** The settled instruction - during a blend, still the one being left, not the destination (same as
    *  `driver.liveId` throughout `BlendDriver`). `0` before the very first `tick()`. */
   get currentIndex(): number {
     return this.driver.liveId ?? 0;
@@ -54,17 +54,17 @@ export class Sequencer {
     return this.driver.isBlending;
   }
 
-  /** Advances by `dt` and returns the composited `CameraState` — same scratch instance every call. */
+  /** Advances by `dt` and returns the composited `CameraState` - same scratch instance every call. */
   tick(dt: number): CameraState {
     if (this.driver.blendTargetId === null) {
-      // first-ever tick: snap to instruction 0 and stop — the hold timer hasn't started yet, so this
+      // first-ever tick: snap to instruction 0 and stop - the hold timer hasn't started yet, so this
       // call's dt is never applied toward it, same as every OTHER call below only advances holdElapsed
       // once settled
       this.driver.setTarget(0, this.defaultBlend); // definition is irrelevant here, the first call always snaps
       return this.driver.tick(0);
     }
 
-    // checked BEFORE tick(), not after — a blend that completes on THIS call must still skip the hold
+    // checked BEFORE tick(), not after - a blend that completes on THIS call must still skip the hold
     // timer this tick (matching the pre-BlendDriver code, which always returned early from its own blend
     // branch regardless of whether t reached 1 that call); checking isBlending only after tick() would
     // instead credit this tick's whole dt toward the NEXT hold period on the exact tick a blend lands

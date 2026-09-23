@@ -2,19 +2,7 @@ import { EventDispatcher } from 'three';
 import type { CameraState } from './CameraState';
 import type { CameraTransitionEventMap, KlippCore } from './KlippCore';
 
-/** Writes into `out` (Body/Aim) or adds on top of it (Noise) — same `out`-parameter convention as the
- *  rest of klipp. Return `true` if there's still work in flight that could change the output on a LATER
- *  frame even though this call's output happens to match the previous one — see `FrameUpdate` in
- *  `Klipp.tsx` for why that matters. Most writers can ignore this and return nothing.
- *
- *  `justActivated` is `true` on the first call after the owning `<VirtualCamera>`'s `active` prop flips
- *  from `false` to `true` (including its very first-ever activation) — `false` every other call. A
- *  writer with its own persistent damping state — chasing a target across calls, independent of what's
- *  currently in `out` — should treat this as a cue to snap straight to the target instead of easing:
- *  while `active` was `false`, this writer wasn't being called at all (`<VirtualCamera>` only runs
- *  Body/Aim/Extension/Noise while `active`), so both `out` and any damper's own remembered state are
- *  frozen at whatever an EARLIER, unrelated activation last left them at. Easing from there reads as
- *  flying in from a stale position instead of the fresh one this activation actually wants. */
+/** A writer mutates `out` or adds to it. Return `true` when more work remains for a later frame. */
 export type CameraStateWriter = (out: CameraState, dt: number, justActivated: boolean) => boolean | void;
 
 export type VirtualCameraSlots = {
@@ -24,33 +12,18 @@ export type VirtualCameraSlots = {
   registerNoise: (writer: CameraStateWriter) => () => void;
 };
 
-/** Dev-mode-only: warns when a second Body/Aim registers on top of an existing one — silently replacing
- *  it is almost never intended (unlike Noise, which is meant to stack). Stripped in production builds by
- *  whatever bundler the consumer uses, same convention as React itself. */
+/** Warn in dev mode when a second Body or Aim replaces an existing writer. */
 function warnDoubleRegistration(slot: 'Body' | 'Aim', name: string): void {
   if (process.env.NODE_ENV !== 'production') {
     const article = slot === 'Aim' ? 'an' : 'a';
     console.warn(
-      `<VirtualCamera name="${name}"> already has ${article} ${slot} registered — it will be replaced. Only one ${slot} at a time is supported (unlike Noise, which stacks).`,
+      `<VirtualCamera name="${name}"> already has ${article} ${slot} registered - it will be replaced. Only one ${slot} at a time is supported (unlike Noise, which stacks).`,
     );
   }
 }
 
-/**
- * Plain class, zero React dependency — the actual logic behind `<VirtualCamera>`'s Body/Aim/Extension/
- * Noise slots. Combines whatever's registered into one `update(out, dt)`: Body, then Aim, then every
- * Extension writer, then every Noise writer — Aim reads the position Body just wrote, Extension
- * (framing/collision-avoidance/...) runs on an already fully-oriented shot so it knows which way is
- * "back", and Noise adds shake on top of a shot that's already correctly composed, not one an
- * extension might still adjust out from under it. At most one Body and one Aim at a time (last
- * registration wins, with a dev-mode warning); Extension and Noise both deliberately stack.
- *
- * Also extends `EventDispatcher` - `trackEvents(core)` re-dispatches whichever of `core`'s own
- * `CameraTransitionEventMap` events involve this specific camera (by current `name`), so a listener here
- * only ever hears about itself.
- */
+/** Combines Body, Aim, Extension and Noise writers into a single camera update. */
 export class VirtualCameraController extends EventDispatcher<CameraTransitionEventMap> implements VirtualCameraSlots {
-  /** Used only for the dev-mode double-registration warning message. */
   name: string;
 
   private bodyWriter: CameraStateWriter | null = null;
@@ -89,10 +62,7 @@ export class VirtualCameraController extends EventDispatcher<CameraTransitionEve
     return () => this.noiseWriters.delete(writer);
   };
 
-  /** Subscribes to `core`, re-dispatching each event only when this camera (by current `name`) actually
-   *  takes part in it: `activated` when it's the incoming one, `deactivated` when it's the one that just
-   *  stopped contributing, `blendCreated`/`cut` when it's either side, `blendFinished` when it's the one
-   *  that just settled live. Returns an unsubscribe function. */
+  /** Re-dispatch events for this camera only when it participates in the transition. */
   trackEvents = (core: KlippCore): (() => void) => {
     const onActivated = (event: CameraTransitionEventMap['activated']) => {
       if (event.incoming === this.name) this.dispatchEvent({ type: 'activated', ...event });
@@ -128,10 +98,7 @@ export class VirtualCameraController extends EventDispatcher<CameraTransitionEve
   };
 
   update = (out: CameraState, dt: number, justActivated: boolean): boolean => {
-    // `=== true`, not plain truthiness: a writer that's supposed to return `void` but happens to be an
-    // expression-bodied arrow ending in an assignment (e.g. `(out) => (out.position.x = dt)`) returns
-    // that assigned VALUE at runtime regardless of its `: void` type annotation — strict equality is
-    // what actually keeps such a writer from silently pinning "still in flight" forever
+    // Keep `=== true` semantics: some writers return a real boolean even when typed as void.
     let stillInFlight = false;
     if (this.bodyWriter?.(out, dt, justActivated) === true) stillInFlight = true;
     if (this.aimWriter?.(out, dt, justActivated) === true) stillInFlight = true;

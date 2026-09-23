@@ -12,8 +12,7 @@ type ActivePointer = {
   y: number;
 };
 
-// Safari/WebKit's own, non-standard trackpad pinch/rotate event - never standardized, so not in the DOM
-// lib types. scale/rotation are CUMULATIVE since gesturestart, not per-frame deltas.
+// Safari/WebKit's non-standard trackpad gesture event is not included in DOM types.
 type WebKitGestureEvent = Event & {
   scale: number;
   rotation: number;
@@ -34,7 +33,7 @@ function angleBetween(a: ActivePointer, b: ActivePointer): number {
 
 const SCALE_ANGLE_RATIO_INTENT_DEG = 30;
 
-/** Normalized `[0,1]` rect of the element's bounds, origin top-left - see `InputSystem.interactiveArea`. */
+/** Normalized input region within the element. */
 export type InteractiveArea = {
   x: number;
   y: number;
@@ -49,37 +48,29 @@ export type ConsumedInput = {
   middleDy: number;
   rightDx: number;
   rightDy: number;
-  /** Single-finger touch drag - deliberately its own bucket, not merged into `leftDx/Dy` */
+  /** Single-finger touch movement. */
   touchOneDx: number;
   touchOneDy: number;
-  /** Two-finger centroid movement - computed alongside `touchPinchDelta` from the same two points every move.
-   *  Stops once a second finger joins `touchOneDx/Dy`. */
+  /** Two-finger centroid movement. */
   touchTwoDx: number;
   touchTwoDy: number;
-  /** Two-finger distance change - positive as the fingers spread apart */
+  /** Two-finger distance change. */
   touchPinchDelta: number;
-  /** Three-finger centroid movement (truck) - a third finger joining suspends `touchTwoDx/Dy`/
-   *  `touchPinchDelta`/`touchRotateDelta` the same way a second finger suspends `touchOneDx/Dy`. */
+  /** Three-finger centroid movement. */
   touchThreeDx: number;
   touchThreeDy: number;
-  /** Two-finger twist, in radians - `Math.atan2`'s sign, so positive turns clockwise on screen.
-   *  Shortest-path per move, so a gesture can spin past +/-180° without a 360° jump.
-   *  Also carries Safari's native trackpad gesture rotation, degrees converted. */
+  /** Two-finger twist in radians. */
   touchRotateDelta: number;
-  /** Safari/WebKit-only trackpad pinch, from its non-standard `gesturechange` event - dimensionless, NOT
-   *  a pixel distance like `touchPinchDelta`. Chrome and Firefox report the same gesture as `wheel` +
-   *  `ctrlKey` instead. */
+  /** Safari/WebKit trackpad pinch amount. */
   gestureZoomDelta: number;
   wheelDeltaX: number;
   wheelDeltaY: number;
-  /** Trackpad pinch-to-zoom on macOS arrives as a `wheel` event with `ctrlKey: true` -
-   *  a separate bucket so it doesn't get mixed into genuine `wheelDeltaY` scrolling. */
+  /** Trackpad pinch amount reported through `wheel`. */
   wheelZoomDelta: number;
   /** Raw mouse movement while Pointer Lock is active and no button is held. */
   lockedDx: number;
   lockedDy: number;
-  /** Current hold state, not drained/zeroed like the deltas above - `true` for as long as the source
-   *  stays down, `false` the instant it releases. */
+  /** Current hold state for the source. */
   leftHeld: boolean;
   middleHeld: boolean;
   rightHeld: boolean;
@@ -88,7 +79,7 @@ export type ConsumedInput = {
   touchThreeHeld: boolean;
 };
 
-/** Zero-valued `ConsumedInput` - the `out` parameter for `InputSystem.consume()`. */
+/** Reusable zero-valued input buffer. */
 export function createConsumedInput(): ConsumedInput {
   return {
     leftDx: 0,
@@ -120,20 +111,15 @@ export function createConsumedInput(): ConsumedInput {
   };
 }
 
-/**
- * Buffers raw mouse drag, one and two-finger touch, and wheel deltas from a DOM element -
- * hand-rolled Pointer Events + Pointer Capture, zero knowledge of camera/canvas/semantics.
- * `InputAxisController` classifies and shapes this into named `InputAxis` deltas. `consume()` drains the buffer once per frame. */
+/** Buffers raw pointer and wheel input from a DOM element. */
 export class InputSystem {
-  /** Suppresses the native right-click menu */
+  /** Suppress the native right-click menu. */
   suppressContextMenu = false;
 
-  /** Restricts inputs to a normalized rect of the element's bounds - `null` means the whole element.
-   *  Only the gesture's start position is checked, not ongoing movement. */
+  /** Restrict gesture starts to a normalized region. */
   interactiveArea: InteractiveArea | null = null;
 
-  /** A diagonal two-finger move otherwise feeds both `touchPinchDelta` and `touchRotateDelta` at once -
-   *  turn this on to commit to whichever one dominates and zero the other, for the rest of that gesture. */
+  /** Lock diagonal two-finger input to pinch or rotation. */
   lockTouchAxis = false;
 
   private element: HTMLElement | null = null;
@@ -217,7 +203,7 @@ export class InputSystem {
     document.removeEventListener('pointerlockchange', this.onPointerLockChange);
     document.removeEventListener('pointerlockerror', this.onPointerLockError);
     document.removeEventListener('visibilitychange', this.onVisibilityChange);
-    // deliberately does NOT exitPointerLock() - the lock is document-level state that can legitimately
+    // Keep the pointer lock active because it belongs to the document, not this connection.
     // need to outlive this one connection (e.g. surviving a hand-off to a different VirtualCamera);
     // release it explicitly via exitPointerLock() if that's actually what's wanted
     this.element = null;

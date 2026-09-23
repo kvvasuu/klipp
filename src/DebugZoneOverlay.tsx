@@ -3,25 +3,17 @@ import { useEffect, useRef } from 'react';
 import { useIsActiveVirtualCamera } from './VirtualCameraContext';
 
 export type DebugZone = {
-  /** Same convention as `PositionComposer`/`RotationComposer`'s `screenPosition` - `0` = center, `±1` =
-   *  frame edge. */
+  /** Zone center in normalized screen coordinates. */
   screenPosition: [number, number];
-  /** Box width/height, same units as `deadZone`/`hardLimit`. */
+  /** Zone width and height. */
   size: [number, number];
-  /** `klipp-debug-deadzone`, `klipp-debug-hardlimit`, or `klipp-debug-groupframing` - styled by
-   *  `ensureStylesInjected`'s defaults, freely overridable from a consumer's own CSS targeting the same
-   *  class. */
+  /** CSS class applied to the zone. */
   className: string;
 };
 
 const STYLESHEET_ID = 'klipp-debug-zone-overlay-styles';
 
-/** Sensible defaults for `klipp-debug-deadzone`/`klipp-debug-hardlimit`/`klipp-debug-groupframing`/
- *  `klipp-debug-crosshair` - ordinary CSS classes a consumer can override with their own stylesheet, no
- *  props needed. Geometry (position/size) is computed per frame and stays inline; nothing else here needs
- *  to be, so it lives in an actual stylesheet instead. Crosshair thickness stays inline too, even though
- *  it never changes - the perpendicular line needs the opposite axis (`width` vs `height`), and a shared
- *  class setting both would break the other axis's edge-to-edge stretch. */
+/** Inject default overlay styles once. */
 function ensureStylesInjected(): void {
   if (document.getElementById(STYLESHEET_ID)) return;
   const style = document.createElement('style');
@@ -47,22 +39,12 @@ function ensureStylesInjected(): void {
   document.head.appendChild(style);
 }
 
-/** NDC (`-1` = one edge, `+1` = the other) to a CSS percentage - `invertY` flips the Y axis, since CSS
- *  `top` grows downward while `screenPosition`'s `+1` means up. */
+/** Convert normalized screen coordinates to CSS percentages. */
 function ndcToPercent(ndc: number, invertY: boolean): number {
   return ((invertY ? -ndc : ndc) + 1) * 50;
 }
 
-/**
- * Debug gizmo: a bordered box per zone (dimming everything outside it), plus an optional full-viewport
- * crosshair at `crosshair`'s screenPosition - a fixed reference line makes it much easier to see a target
- * drift off `screenPosition` than eyeballing it against the raw scene alone. Plain DOM manipulation,
- * always returning `null` to react-three-fiber - its reconciler can't render raw DOM nodes, and a
- * `react-dom` portal from within its own tree needs a bridging layer (like drei's `<Html>`) this avoids
- * depending on. Shown from the instant this `<VirtualCamera>` wins arbitration until the instant it
- * loses, regardless of any blend still in progress - `screenPosition`/`deadZone` are flat overlay
- * constants, unaffected by how far a blend has progressed.
- */
+/** Renders debug zones and an optional crosshair as DOM overlays. */
 export function DebugZoneOverlay({ zones, crosshair }: { zones: DebugZone[]; crosshair?: [number, number] }): null {
   const isActive = useIsActiveVirtualCamera();
   const container = useThree((state) => state.gl.domElement.parentElement);

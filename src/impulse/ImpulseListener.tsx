@@ -5,31 +5,24 @@ import { useVirtualCamera } from '../VirtualCameraContext';
 import { impulseField, type ImpulseField } from './ImpulseField';
 import { ImpulseListenerNoise } from './ImpulseListenerNoise';
 
-/** Same props as `<Noise.BasicMultiChannelPerlin>`, minus `amplitudeGain` - `ImpulseListener` drives that
- *  itself from the impulse's current strength every frame. */
+/** Perlin shake options driven by the current impulse strength. */
 export type ImpulseShakeProps = Omit<BasicMultiChannelPerlinProps, 'amplitudeGain' | 'ref'>;
 
 export type ImpulseListenerProps = {
-  /** Which `ImpulseField` to sample from. Default: the shared `impulseField` singleton - pass your own
-   *  instance only for isolated impulse "worlds" (e.g. split-screen). */
+  /** Impulse field to sample. */
   field?: ImpulseField;
-  /** Only reacts to events where `(event.channel & channelMask) !== 0`. Default `1`. */
+  /** Only reacts to events where `(event.channel & channelMask) !== 0`. */
   channelMask?: number;
-  /** Multiplies the sampled offset. `0` mutes this listener entirely. Default `1`. */
+  /** Multiplies the sampled offset. `0` mutes this listener entirely. */
   gain?: number;
-  /** Secondary shake, riding on top of the kick - its `amplitudeGain` is overwritten every frame by the
-   *  impulse's current strength. Omit for a pure position kick with no rattle. */
+  /** Optional Perlin shake driven by the impulse strength. */
   shake?: ImpulseShakeProps;
-  /** Rotates the sampled offset by the camera's current orientation, so the same `direction` always kicks
-   *  the same way relative to where the camera is looking instead of a fixed world-space vector.
-   *  Default `false`. */
+  /** Whether to apply the impulse direction in camera space. */
   cameraSpace?: boolean;
-  /** Imperative access to the underlying `ImpulseListenerNoise`. */
   ref?: Ref<ImpulseListenerNoise>;
 };
 
-/** Additive camera shake from in-flight impulse events, see `ImpulseListenerNoise`'s doc comment for the
- *  algorithm. Thin wrapper - the actual logic lives there. */
+/** Adds impulse-driven camera shake and kick. */
 export function ImpulseListener({
   field = impulseField,
   channelMask = 1,
@@ -51,7 +44,7 @@ export function ImpulseListener({
   return shake ? <ImpulseListenerShake listener={listener} {...shake} /> : null;
 }
 
-/** Mounted only when `shake` is given */
+/** Mounts the optional Perlin shake. */
 function ImpulseListenerShake({ listener, ...props }: ImpulseShakeProps & { listener: ImpulseListenerNoise }) {
   const shakeNoise = useBasicMultiChannelPerlinNoise(props);
 

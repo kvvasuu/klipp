@@ -7,30 +7,27 @@ import { useVirtualCamera } from '../VirtualCameraContext';
 import { PanTiltAim } from './PanTiltAim';
 
 export type PanTiltProps = {
-  /** Rotation frame `pan`/`tilt` compose on top of. `null`/`undefined`/omitted is world
-   *  (`referenceUp`-aware), same as an unmounted ref. */
+  /** Rotation frame `pan`/`tilt` compose on top of.
+   * `null`/`undefined`/omitted is world (`referenceUp`-aware) */
   target?: Target;
-  /** Applied to both `pan.damping` and `tilt.damping`. Default `0` (instant, no smoothing). */
+  /** Applied to both `pan.damping` and `tilt.damping`. */
   damping?: DampingConstant;
-  /** Applied to both `pan.maxSpeed` and `tilt.maxSpeed` - caps how fast `damping` can close the gap, in
-   *  degrees/sec. Default `Infinity`. */
+  /** Applied to both `pan.maxSpeed` and `tilt.maxSpeed` - caps how fast `damping` can close the gap, in degrees/sec. */
   maxSpeed?: number;
-  /** `pan.autoNormalize`. Only applies while `panWrap` is `true`. Default `false`. */
+  /** `pan.autoNormalize`. Only applies while `panWrap` is `true`. */
   autoNormalize?: boolean;
-  /** `pan.wrap` - `true` (default) loops at `panRange`'s edges, `false` hard-clamps. */
+  /** `pan.wrap` - loops at `panRange`'s edges or hard-clamps them. */
   panWrap?: boolean;
-  /** `tilt.wrap` - see `panWrap`. Default `false`. */
+  /** `tilt.wrap` - see `panWrap`. */
   tiltWrap?: boolean;
-  /** `pan.range` - its edges wrap or clamp depending on `panWrap`. Default `[-180, 180]`. */
+  /** `pan.range` - its edges wrap or clamp depending on `panWrap`. */
   panRange?: [number, number];
-  /** `tilt.range` - its edges wrap or clamp depending on `tiltWrap`. Default `[-90, 90]`. */
+  /** `tilt.range` - its edges wrap or clamp depending on `tiltWrap`. */
   tiltRange?: [number, number];
-  /** Applied to both `pan.recentering` and `tilt.recentering`. Default disabled. */
+  /** Applied to both `pan.recentering` and `tilt.recentering`. */
   recentering?: InputAxisRecentering;
-  /** Imperative access to the underlying `PanTiltAim`, for reading/writing its fields directly instead of
-   *  through props, or driving `.pan`/`.tilt` via `applyDelta`. */
   ref?: Ref<PanTiltAim>;
-  /** A nested `<InputController>` picks up `pan`/`tilt` automatically, without an explicit `target`. */
+  /** Nested `<InputController>` picks up `pan`/`tilt` automatically without an explicit `target`. */
   children?: ReactNode;
 };
 
@@ -38,7 +35,7 @@ const defaultPanRange: [number, number] = [-180, 180];
 const defaultTiltRange: [number, number] = [-90, 90];
 const defaultRecentering: InputAxisRecentering = { enabled: false, wait: 1, time: 1 };
 
-/** Thin wrapper - the actual logic lives in `PanTiltAim`. */
+/** Thin wrapper around `PanTiltAim`. */
 export function PanTilt({
   target,
   damping = 0,

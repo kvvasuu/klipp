@@ -5,13 +5,13 @@ import { BlendDriver } from '../blend/BlendDriver';
 
 export type ClearShotCandidate = {
   cameraId: string;
-  /** Live reference — read fresh every `tick()`. */
+  /** Live reference - read fresh every `tick()`. */
   state: CameraState;
   priority: number;
 };
 
-/** Scores a candidate's shot quality — higher wins. No built-in scorer yet (a real one needs scene/
- *  collider access, e.g. a future Deoccluder-based evaluator) — this is just the plug point. */
+/** Scores a candidate's shot quality - higher wins. No built-in scorer yet (a real one needs scene/
+ *  collider access, e.g. a future Deoccluder-based evaluator) - this is just the plug point. */
 export type ShotQualityEvaluator = (candidate: ClearShotCandidate) => number;
 
 export type ClearShotOptions = {
@@ -20,7 +20,7 @@ export type ClearShotOptions = {
   /** Seconds a new best candidate must stay the best, uninterrupted, before it's actually committed to. */
   activateAfter?: number;
   /** Seconds the live camera must stay live before yielding to another candidate on quality alone.
-   *  Gates internal switches only — an external, higher-priority camera preempting the whole `ClearShot`
+   *  Gates internal switches only - an external, higher-priority camera preempting the whole `ClearShot`
    *  from outside isn't modeled here, this class can't see that. */
   minDuration?: number;
   /** Pick randomly among exactly-tied (quality AND priority) candidates instead of list order. */
@@ -29,7 +29,7 @@ export type ClearShotOptions = {
 };
 
 /**
- * Picks the child with the best shot quality (not just priority) — `priority` only breaks quality ties.
+ * Picks the child with the best shot quality - `priority` only breaks quality ties.
  * `activateAfter` debounces the pick (a new best must hold that title continuously before it's committed,
  * anti-flicker); `minDuration` then protects the committed camera from being swapped out again too soon.
  */
@@ -93,7 +93,7 @@ export class ClearShot {
 
         const activateAfterSatisfied = this.pendingElapsed >= this.activateAfter;
         // liveElapsed tracks time since the LAST commit (an initial swap away from a settled camera, OR
-        // a mid-blend retarget) rather than only time spent fully settled — otherwise a blend already in
+        // a mid-blend retarget) rather than only time spent fully settled - otherwise a blend already in
         // flight would exempt every retarget of it from minDuration entirely, letting a flickering
         // evaluator redirect the destination every single frame with no protection at all
         const minDurationSatisfied = this.liveElapsed >= this.minDuration;
@@ -111,7 +111,7 @@ export class ClearShot {
     }
 
     const result = this.driver.tick(dt);
-    this.liveElapsed += dt; // keeps counting through the blend — see the minDurationSatisfied comment above
+    this.liveElapsed += dt; // keeps counting through the blend - see the minDurationSatisfied comment above
     return result;
   }
 

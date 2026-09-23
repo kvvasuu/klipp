@@ -1,13 +1,7 @@
 import type { CameraState } from '../CameraState';
 import { Damper, type DampingConstant } from '../damping/Damper';
 
-/**
- * Camera extension: overrides `fov`/`near`/`far` after Body/Aim/Noise, each independently damped.
- * Nothing else in klipp's pipeline writes these fields (`initialState`/blend aside) - without an
- * extension claiming them, an external `useFrame` mutating `camera.fov` directly would get silently
- * overwritten by Klipp's own driver every frame. A field left `undefined` is a no-op - whatever
- * `initialState`/blend already set stays untouched.
- */
+/** Overrides lens fields with independent damping. */
 export class LensExtension {
   fov?: number;
   near?: number;
@@ -15,11 +9,8 @@ export class LensExtension {
   fovDamping: DampingConstant;
   nearDamping: DampingConstant;
   farDamping: DampingConstant;
-  /** Caps how fast `fovDamping` can close the gap, in degrees/sec. Default `Infinity` (no cap). */
   fovMaxSpeed: number;
-  /** Caps how fast `nearDamping` can close the gap, in world units/sec. Default `Infinity` (no cap). */
   nearMaxSpeed: number;
-  /** Caps how fast `farDamping` can close the gap, in world units/sec. Default `Infinity` (no cap). */
   farMaxSpeed: number;
 
   private readonly fovDamper = new Damper();

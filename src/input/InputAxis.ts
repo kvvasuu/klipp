@@ -10,12 +10,7 @@ export type InputAxisRecentering = {
   time: number;
 };
 
-/**
- * A single shaped value - azimuth, elevation, pan, whatever needs range/wrap/damping/recentering.
- * Brother of `Damper`: zero-alloc, framework-agnostic, `update(dt)` called once per frame. Doesn't
- * collect input itself - `applyDelta` takes an already gain-shaped value from whatever drives it, an
- * `InputAxisController` for drag input or any other caller.
- */
+/** Shapes an input value with range, wrapping, damping, and recentering. */
 export class InputAxis {
   value: number;
   center: number;
@@ -24,9 +19,9 @@ export class InputAxis {
   recentering: InputAxisRecentering;
   damping: DampingConstant = 0;
   maxSpeed = Infinity;
-  /** Calls `normalize()` automatically once the axis is idle and settled. Default `false`. */
+  /** Whether to normalize a wrapped axis after it settles. */
   autoNormalize = false;
-  /** Set externally (e.g. `InputAxisController`) while the source is held down. Default `false`. */
+  /** Whether the input source is currently held. */
   held = false;
 
   private rawValue: number;
@@ -57,15 +52,13 @@ export class InputAxis {
     this.hadDelta = true;
   };
 
-  /** Advances the idle timer, eases `value` toward the raw target (or, once idle for `recentering.wait`
-   *  seconds, toward `center` instead, shortest way around when `wrap`). Call once per frame. */
+  /** Advance the axis and apply damping or recentering. */
   update = (dt: number): void => {
     const active = this.held || this.hadDelta;
     this.hadDelta = false;
     if (active) this.idleTime = 0;
     else this.idleTime += dt;
-    // `wait: 0` must still mean "recenter starting next idle frame", not "same frame as active input" -
-    // idleTime alone can't tell those apart since a fresh reset and an elapsed wait both read as 0
+    // Recenter starts on the first idle frame, even when the wait is zero.
     const isRecentering = !active && this.recentering.enabled && this.idleTime >= this.recentering.wait;
 
     let dampTarget: number;
@@ -87,12 +80,12 @@ export class InputAxis {
     if (this.autoNormalize && this.value === this.rawValue) this.normalize();
   };
 
-  /** See `Damper.reset` - re-arms the first-call snap, so the next `update()` jumps to `rawValue`. */
+  /** Reset damping so the next update snaps to the raw value. */
   reset = (): void => {
     this.damper.reset();
   };
 
-  /** Folds `value`/`rawValue` back inside `range` (mod its span). Call between drags, not mid-motion. */
+  /** Wrap `value` and `rawValue` back into `range`. */
   normalize = (): void => {
     if (!this.wrap || !this.range) return;
     const [min, max] = this.range;

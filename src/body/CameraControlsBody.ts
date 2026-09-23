@@ -7,19 +7,7 @@ CameraControls.install({ THREE });
 
 const scratchTargetPosition = new THREE.Vector3();
 
-/**
- * User-input-driven orbit around a target - klipp's adapter for `camera-controls`.
- *
- * Exception to "Body never computes rotation": orbiting is inherently coupled position+rotation,
- * writes both `out.position` and `out.quaternion`.
- *
- * No `target`: full free camera-controls.
- * With a `target`: locked orbit/dolly via `moveTo` each frame, which re-overrides any truck/pan drift back onto it.
- *
- * `initialPosition` is applied once at construction, independent of `target` resolution. This Body owns a
- * private internal camera and never reads `out.position`/`out.quaternion` as input, so `VirtualCamera`'s
- * `initialState` has no effect here - `initialPosition` is the only way to seed its starting pose.
- */
+/** Adapts `camera-controls` orbit and dolly input to the virtual camera pipeline. */
 export class CameraControlsBody {
   target: Target;
   aspect: number;
@@ -29,8 +17,6 @@ export class CameraControlsBody {
 
   private readonly camera: THREE.PerspectiveCamera;
   private hasResolvedTargetOnce = false;
-  /** Whether `target` resolved last frame too - distinguishes continuous tracking (`moveTo`) from a
-   *  re-acquisition after a gap, which needs `setTarget` instead to avoid a stale-delta jump. */
   private wasResolvedLastFrame = false;
 
   constructor(
@@ -61,10 +47,9 @@ export class CameraControlsBody {
 
     const resolved = resolveTargetPosition(scratchTargetPosition, this.target);
 
-    // justActivated also forces re-anchor - wasResolvedLastFrame is stale while inactive (update() didn't run)
+    // Reactivation re-anchors the orbit because the previous frame may be stale.
     if (resolved && (!this.wasResolvedLastFrame || justActivated)) {
-      // normalize first - setTarget()'s freshly-derived azimuth won't know the live one accumulated past
-      // it over several free-drag turns, and would otherwise ease back through every extra turn
+      // Re-anchor from the current orbit before applying the new target.
       this.controls
         .normalizeRotations()
         .setTarget(scratchTargetPosition.x, scratchTargetPosition.y, scratchTargetPosition.z, this.enableTransition);
@@ -79,10 +64,9 @@ export class CameraControlsBody {
     if (resolved) this.hasResolvedTargetOnce = true;
     this.wasResolvedLastFrame = resolved;
 
-    // not returned as stillInFlight - true even fully idle here, since moveTo/setTarget fire every frame
     this.controls.update(dt);
 
-    // no-op only while a promised target has never resolved and there's no initialPosition to show
+    // Keep the initial pose visible until a target resolves.
     const hasSomethingToShow =
       this.target == null || resolved || this.hasResolvedTargetOnce || this.initialPosition !== null;
     if (hasSomethingToShow) {
@@ -91,7 +75,7 @@ export class CameraControlsBody {
     }
     out.hasTarget = resolved;
     if (resolved) out.target.copy(scratchTargetPosition);
-    // locked mode always looks straight at `target` - so it's also the look-at target for blend rotation
+    // A resolved target is also the look-at point used for blending.
     out.hasLookAtTarget = resolved;
     if (resolved) out.lookAtTarget.copy(scratchTargetPosition);
   };

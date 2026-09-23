@@ -8,55 +8,34 @@ import { useVirtualCamera } from '../VirtualCameraContext';
 import { PositionComposerBody } from './PositionComposerBody';
 
 export type PositionComposerProps = {
-  /** Tracking Target — the camera composes its shot around this position/object's world position.
-   *  `null`/`undefined`/omitted is a no-op, same as an unmounted ref. */
+  /** Target to compose around. Unresolved targets are ignored. */
   target?: Target;
-  /** Desired distance from the camera to the target, along the camera's own forward axis. Default `10`. */
+  /** Desired distance from the camera to the target. */
   cameraDistance?: number;
-  /** How far the target's depth can drift from `cameraDistance` with NO dolly reaction at all - world
-   *  units along the camera's forward axis. Default `0` (none — always reacts). */
+  /** Allowed target depth drift before the camera dollies. */
   depthDeadZone?: number;
-  /** Where the target should land on screen: `[x, y]`, `0` = center, `±1` = edge. Default `[0, 0]`
-   *  (dead center). */
+  /** Where the target should land on screen: `[x, y]`, `0` = center, `±1` = edge. */
   screenPosition?: [number, number];
-  /** How far (`[x, y]`) the target can drift from `screenPosition` with NO lateral camera reaction at
-   *  all — same unit as `screenPosition` itself (`1` reaches the frame edge). Default `[0, 0]` (none —
-   *  always reacts). */
+  /** Allowed target drift from `screenPosition` before the camera shifts laterally. */
   deadZone?: [number, number];
-  /** Spring response time to the desired depth and the dead zone's edge (or `{into, from}` for
-   *  asymmetric damping) - the dolly stage reacts to `depthDeadZone`, the lateral stage to `deadZone`.
-   *  `0` (default) = hard, instant snap to both. */
+  /** Response time for dolly and lateral composition. */
   damping?: DampingConstant;
-  /** Caps how fast `damping` can close the gap, in world units/sec - shared by both stages. Default
-   *  `Infinity` (no cap). */
+  /** Maximum damping speed for both stages, in world units/sec. */
   maxSpeed?: number;
-  /** A SECOND, normally larger reach (`[x, y]`, same unit as `deadZone`) the target may never visually
-   *  drift past — enforced instantly (bypassing `damping`) after the damped dead zone reaction runs.
-   *  Default `[0, 0]` (none). */
+  /** Maximum allowed target drift, enforced immediately. */
   hardLimit?: [number, number];
-  /** Target's own bounding-sphere radius — `deadZone`/`hardLimit` then react to its nearest EDGE, not its
-   *  center. Ignored if `size` is given. Default: a dimensionless point. */
+  /** Target radius used when composing its visible edge. Ignored when `size` is set. */
   radius?: number;
-  /** Target's full box dimensions — takes priority over `radius`. Auto-detected from a `Mesh` target's own
-   *  geometry bounds when neither is given. */
+  /** Target dimensions used when composing its visible edges. */
   size?: Vector3Like;
-  /** Seconds to extrapolate the target's tracked position ahead by, based on its recent velocity. Default
-   *  `0` (none). */
+  /** Seconds to extrapolate the target's tracked position ahead by. */
   lookaheadTime?: number;
-  /** Smooth-time budget (seconds) for the velocity estimate driving `lookaheadTime`. Default `1`. */
+  /** Smooth-time budget (seconds) for the velocity estimate driving `lookaheadTime`. */
   lookaheadSmoothing?: number;
-  /** Zeroes the Y component of the predicted offset - keeps lookahead horizontal for a target that bobs
-   *  or jumps vertically. Default `false`. */
+  /** Whether lookahead ignores vertical movement. */
   lookaheadIgnoreY?: boolean;
-  /** Draws `deadZone`/`hardLimit` as bordered rectangles over the canvas - only while this
-   *  `VirtualCamera` is actually the one on screen. Default `false`. */
+  /** Draws the `deadZone` and `hardLimit` overlays. */
   debug?: boolean;
-  /** Imperative access to the underlying `PositionComposerBody`, for reading/writing
-   *  `target`/`cameraDistance`/`screenPosition`/`deadZone`/`damping`/`maxSpeed`/`hardLimit`/
-   *  `depthDeadZone`/`radius`/`size`/`lookaheadTime`/`lookaheadSmoothing`/`lookaheadIgnoreY` directly
-   *  instead of through props, and for calling `recalculateSize()` on a target that deformed (a
-   *  `SkinnedMesh` bone animation, a mutated `BufferGeometry`) - auto-detected `size` is otherwise only
-   *  measured once. */
   ref?: Ref<PositionComposerBody>;
 };
 
@@ -64,11 +43,7 @@ const defaultScreenPosition: [number, number] = [0, 0];
 const defaultDeadZone: [number, number] = [0, 0];
 const defaultHardLimit: [number, number] = [0, 0];
 
-/**
- * Two-stage, position-only Body, see `PositionComposerBody`'s doc comment for the algorithm. Thin wrapper
- * — the actual logic lives there. `aspect` is read reactively from the canvas (`useThree`), since
- * `CameraState` has no lens/viewport info of its own.
- */
+/** Positions the camera around a target while maintaining screen composition. */
 export function PositionComposer({
   target,
   cameraDistance = 10,

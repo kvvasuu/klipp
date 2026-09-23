@@ -3,7 +3,7 @@ import { Matrix4, Quaternion, Spherical, Vector3 } from 'three';
 import type { CameraState } from '../CameraState';
 import { BlendHints, hasBlendHint } from './BlendHints';
 
-/** Scratch for the negated-`b` case below — module-level is safe, this is a synchronous leaf call. */
+/** Reused quaternion for the sign-adjusted destination case. */
 const negatedB = new Quaternion();
 
 const scratchOffsetA = new Vector3();
@@ -15,13 +15,7 @@ const scratchLookAtCurrent = new Quaternion();
 const scratchDeltaA = new Quaternion();
 const scratchDeltaB = new Quaternion();
 
-/**
- * Rotation for a shared `lookAtTarget`: decomposes `a`/`b` into `lookAt(position, lookAtTarget) * delta`
- * (`delta` = whatever extra rotation an Aim like `RotationComposer` layers on, e.g. a damped screen-
- * position offset), slerps the deltas, and recomposes onto a fresh lookAt at the current interpolated
- * position/target - matches `a`/`b` exactly at t=0/1 (unlike a raw lookAt, which drops `delta` entirely
- * and so pops the instant a blend commits and hands off to the Aim's own, un-blended state).
- */
+/** Interpolates look-at rotation while preserving each state's additional aim offset. */
 function lerpLookAtRotation(
   out: Quaternion,
   a: CameraState,
@@ -41,12 +35,10 @@ function lerpLookAtRotation(
   out.slerpQuaternions(scratchDeltaA, scratchDeltaB, t).premultiply(scratchLookAtCurrent);
 }
 
-/** Below this, `Math.atan2`/`Spherical` report a fake angle of `0` for lack of any real direction -
- *  matches `Damper.update`'s own snap epsilon. */
+/** Below this radius, angular values are not meaningful. */
 const RADIUS_EPSILON = 1e-4;
 
-/** Holds the OTHER side's angle when one side's radius is too small for its own angle to mean anything -
- *  otherwise a fake `0` fallback would sweep the real one around the target for no reason. */
+/** Keeps the valid side's angle when the other radius is too small. */
 function blendAngle(angleA: number, radiusA: number, angleB: number, radiusB: number, t: number): number {
   const validA = radiusA >= RADIUS_EPSILON;
   const validB = radiusB >= RADIUS_EPSILON;
@@ -54,8 +46,7 @@ function blendAngle(angleA: number, radiusA: number, angleB: number, radiusB: nu
   return validA ? angleA : angleB;
 }
 
-/** `BlendHints.sphericalPosition`/`cylindricalPosition`: interpolates the camera's offset from its
- *  tracking target in spherical/cylindrical coordinates instead of a straight cartesian lerp. */
+/** Interpolates the camera offset in spherical or cylindrical coordinates. */
 function lerpPositionAroundTarget(out: Vector3, a: CameraState, b: CameraState, t: number, cylindrical: boolean): void {
   scratchOffsetA.copy(a.position).sub(a.target);
   scratchOffsetB.copy(b.position).sub(b.target);
@@ -97,11 +88,7 @@ function lerpPositionAroundTarget(out: Vector3, a: CameraState, b: CameraState, 
   out.z += lerp(a.target.z, b.target.z, t);
 }
 
-/**
- * Same trig as `Quaternion.slerp`, reimplemented because that one always re-derives its own "shortest
- * path" from `dot(from, to)` and flips `to`'s sign internally — so pre-flipping `to` before calling it
- * (tried first) changes nothing. This version trusts whatever sign it's given instead.
- */
+/** Slerps quaternions without changing the caller-selected sign of `to`. */
 function slerpWithContinuity(out: Quaternion, from: Quaternion, to: Quaternion, t: number): void {
   const toX = to.x,
     toY = to.y,
@@ -121,25 +108,14 @@ function slerpWithContinuity(out: Quaternion, from: Quaternion, to: Quaternion, 
     const u = Math.sin(t * theta) / sin;
     out.set(fromX * s + toX * u, fromY * s + toY * u, fromZ * s + toZ * u, fromW * s + toW * u);
   } else {
-    // dot ≈ ±1 — lerp + normalize avoids dividing by sin(theta) ≈ 0.
+    // Lerp and normalize when the angle is near zero or pi.
     const s = 1 - t;
     out.set(fromX * s + toX * t, fromY * s + toY * t, fromZ * s + toZ * t, fromW * s + toW * t);
     out.normalize();
   }
 }
 
-/**
- * Interpolates a WHOLE `CameraState` (position + rotation + lens) at one shared progress `t`, not three
- * independent lerps. `t` is clamped to [0, 1]. Writes into `out` and returns it.
- *
- * A shared `lookAtTarget` (Aim's, distinct from Body's `target`) drives rotation via `lerpLookAtRotation`
- * unless `BlendHints.ignoreTarget` opts out - `out.lookAtTarget` is still published either way, only the
- * rotation path changes. Otherwise falls back to a plain slerp, with continuity: a plain slerp takes the
- * shortest path between `a` and `b`, but `b` is often a LIVE rotation (e.g. Aim tracking an orbiting
- * target) while `a` stays frozen for the whole blend — once `b` sweeps past ~180° from `a`, "shortest
- * from `a`" flips sides, jerking the camera. Comparing `b` against `out`'s pre-write value instead (last
- * frame's result, since `out` is reused every tick) keeps the path continuous.
- */
+/** Interpolates a camera state while preserving blend hints and rotation continuity. */
 export function lerpCameraState(
   out: CameraState,
   a: CameraState,

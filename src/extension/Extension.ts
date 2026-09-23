@@ -1,9 +1,7 @@
 import { GroupFraming } from './GroupFraming';
 import { Lens } from './Lens';
 
-/** `Extension` runs AFTER Body+Aim (so it already knows the shot's orientation) and BEFORE Noise (so
- *  shake/impulse lands on an already-correctly-framed shot) — a STACKING slot like Noise, not exclusive
- *  like Body/Aim. */
+/** Extensions run after Body/Aim and before Noise; multiple extensions can be registered. */
 export const Extension = {
   GroupFraming,
   Lens,

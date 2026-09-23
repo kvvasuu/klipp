@@ -6,37 +6,28 @@ const scratchOutInverse = new Quaternion();
 const scratchDelta = new Quaternion();
 const scratchStep = new Quaternion();
 
-/**
- * SmoothDamp-style damping for a whole rotation, gimbal-lock-free (unlike per-axis Euler damping, which
- * isn't built yet). Each call, the SHORTEST rotation from
- * `out`'s current value to `target` is split into axis + angle, and only the angle is run through a
- * `Damper` — same critically-damped feel as position damping, without denormalizing the quaternion.
- * Recomputing the delta fresh off `out`'s current value every call (not a frozen reference) is what keeps
- * this jump-free for a continuously moving `target`.
- */
+/** Damps a quaternion along its shortest angular delta. */
 export class QuaternionDamper {
   private readonly damper = new Damper();
 
   update(out: Quaternion, target: Quaternion, damping: DampingConstant, dt: number, maxSpeed = Infinity): Quaternion {
     if (typeof damping === 'number' && damping <= 0) return out.copy(target);
 
-    // delta * out = target, solved for delta — the shortest rotation from "out" to "target"
+    // Compute the shortest rotation from out to target.
     scratchOutInverse.copy(out).invert();
     scratchDelta.copy(target).multiply(scratchOutInverse);
     if (scratchDelta.w < 0) scratchDelta.set(-scratchDelta.x, -scratchDelta.y, -scratchDelta.z, -scratchDelta.w);
 
     const angle = 2 * Math.acos(clamp(scratchDelta.w, -1, 1));
     if (angle < 1e-5) {
-      // spends `Damper`'s snap-on-first-call here (a no-op update, same trick as `BlendDriver.setTarget`)
-      // — returning early without it leaves a `reset()` armed until the target NEXT moves, which would
-      // then teleport instead of easing
+      // Keep the spring state ready for a later reset.
       this.damper.update(0, 0, damping, dt);
       this.damper.velocity = 0;
       return out.copy(target);
     }
 
     const dampedAngle = this.damper.update(0, angle, damping, dt, maxSpeed);
-    const halfSin = Math.sin(angle / 2); // == sqrt(1 - w²), guaranteed > 0 here (angle >= 1e-5)
+    const halfSin = Math.sin(angle / 2);
     const dampedHalfSin = Math.sin(dampedAngle / 2);
     scratchStep.set(
       (scratchDelta.x / halfSin) * dampedHalfSin,
@@ -47,7 +38,7 @@ export class QuaternionDamper {
     return out.premultiply(scratchStep);
   }
 
-  /** See `Damper.reset` — re-arms the underlying angle-damper's first-call snap. */
+  /** Reset the underlying angle spring. */
   reset(): void {
     this.damper.reset();
   }

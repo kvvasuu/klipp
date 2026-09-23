@@ -1,33 +1,25 @@
 import { PerspectiveCamera, Quaternion, Vector3 } from 'three';
 
-/** A camera's full visual state at one instant — position, rotation, lens. Owns its `Vector3`/
- *  `Quaternion` (not shared refs) so it can be frozen as an independent blend start point.
- *
- *  `out`-parameter style throughout — only `createCameraState()` allocates, never per frame. */
+/** A reusable snapshot of camera transform, lens, targets, and view offset. */
 export type CameraState = {
   position: Vector3;
   quaternion: Quaternion;
   fov: number;
   near: number;
   far: number;
-  /** Shifts the frustum without moving/rotating the camera - same normalized convention as
-   *  `screenPosition` elsewhere (0 = center, ±1 = frame edge), NOT raw pixels; `[0, 0]` (default) = no
-   *  shift. Mutable tuple - mutate elements in place, never replace the array. */
+  /** Normalized frustum offset; `0` is centered. */
   viewOffset: [number, number];
-  /** The Body's tracking target world position, if it has one - e.g. for `BlendHints.sphericalPosition`.
-   *  Always allocated; `hasTarget` says whether it's meaningful. */
+  /** Body tracking position, valid when `hasTarget` is true. */
   target: Vector3;
   hasTarget: boolean;
-  /** The Aim's Look At target world position, if it has one - distinct from `target` (Body's own
-   *  tracking point, e.g. equal to `position` itself for `HardLockToTarget`). */
+  /** Aim look-at position, valid when `hasLookAtTarget` is true. */
   lookAtTarget: Vector3;
   hasLookAtTarget: boolean;
-  /** Up reference for whichever Aim builds a lookAt-style rotation - lets a Body hand roll/tilt to an Aim that reads it,
-   *  without either one crossing into the other's concern. Defaults to world up. */
+  /** Up direction used by look-at rotation. */
   referenceUp: Vector3;
 };
 
-/** Allocates a new `CameraState` with default values — call once, not per frame. */
+/** Create a camera state. */
 export function createCameraState(): CameraState {
   return {
     position: new Vector3(),
@@ -44,8 +36,7 @@ export function createCameraState(): CameraState {
   };
 }
 
-/** Copies `source` into `out` in place — the copy stays valid even if `source` is later mutated. Safe if
- *  `out === source`. */
+/** Copy `source` into `out` without replacing nested objects. */
 export function copyCameraState(out: CameraState, source: CameraState): CameraState {
   out.position.copy(source.position);
   out.quaternion.copy(source.quaternion);
@@ -62,8 +53,7 @@ export function copyCameraState(out: CameraState, source: CameraState): CameraSt
   return out;
 }
 
-/** Overwrites only the fields present in `partial` — `.copy()`s Vector3/Quaternion/`viewOffset` fields so
- *  `out` never ends up aliasing an object the caller still owns, straight-assigns everything else. */
+/** Merge defined fields from `partial` into `out`. */
 export function mergeCameraState(out: CameraState, partial: Partial<CameraState>): CameraState {
   if (partial.position) out.position.copy(partial.position);
   if (partial.quaternion) out.quaternion.copy(partial.quaternion);
@@ -88,10 +78,7 @@ export function copyCameraStateFromCamera(out: CameraState, camera: PerspectiveC
   out.fov = camera.fov;
   out.near = camera.near;
   out.far = camera.far;
-  // camera.view stores its own fullWidth/fullHeight from the setViewOffset() call that created it, so
-  // normalizing back needs no separate viewport size argument here
-  // negated on X: setViewOffset's own raw offsetX shifts a fixed point LEFT for a positive value -
-  // backwards from viewOffset's screenPosition-matching "+X = right" convention (Y already agrees)
+  // three.js stores the viewport dimensions needed to normalize its offset.
   out.viewOffset[0] = camera.view?.enabled ? -camera.view.offsetX / (camera.view.fullWidth / 2) : 0;
   out.viewOffset[1] = camera.view?.enabled ? camera.view.offsetY / (camera.view.fullHeight / 2) : 0;
   out.hasTarget = false;
@@ -100,9 +87,7 @@ export function copyCameraStateFromCamera(out: CameraState, camera: PerspectiveC
   return out;
 }
 
-/** The reverse of `copyCameraStateFromCamera` — writes `state` onto a real `PerspectiveCamera`.
- *  `viewportWidth`/`viewportHeight` are only needed to convert `viewOffset` into `camera.setViewOffset`'s
- *  pixel arguments — pass the canvas's actual size. */
+/** Apply a camera state to a perspective camera. */
 export function applyCameraState(
   camera: PerspectiveCamera,
   state: CameraState,
@@ -114,10 +99,9 @@ export function applyCameraState(
   camera.fov = state.fov;
   camera.near = state.near;
   camera.far = state.far;
-  // setViewOffset/clearViewOffset call updateProjectionMatrix() themselves, which also picks up the
-  // fov/near/far just set above
+  // These methods also update the projection matrix.
   if (state.viewOffset[0] !== 0 || state.viewOffset[1] !== 0) {
-    // negated on X - see copyCameraStateFromCamera's matching comment
+    // three.js uses the opposite horizontal offset convention.
     const offsetX = -state.viewOffset[0] * (viewportWidth / 2);
     const offsetY = state.viewOffset[1] * (viewportHeight / 2);
     camera.setViewOffset(viewportWidth, viewportHeight, offsetX, offsetY, viewportWidth, viewportHeight);

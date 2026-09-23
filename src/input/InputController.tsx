@@ -8,15 +8,15 @@ import { InputAxisOwnerContext, type InputAxisOwner } from './InputAxisOwnerCont
 import type { InteractiveArea } from './InputSystem';
 
 export type InputSourceConfig = {
-  /** Names into the target's `inputAxes`, e.g. `{ x: 'pan', y: 'tilt' }`. */
+  /** Axis names to drive for each source. */
   axes: { x: string; y: string };
-  /** Multiplies the raw delta before it reaches the axes. Default 1. */
+  /** Multiplies the raw delta before it reaches the axes. */
   gain?: number;
   invert?: InputInvert;
 };
 
 export type InputControllerProps = {
-  /** Which `InputAxisOwner` to drive - defaults to the nearest `InputAxisOwnerContext`. */
+  /** Axis owner to drive. Uses the nearest context when omitted. */
   target?: RefObject<InputAxisOwner | null>;
   mouseButtons?: {
     left?: InputSourceConfig | null;
@@ -28,19 +28,16 @@ export type InputControllerProps = {
     two?: InputSourceConfig | null;
     three?: InputSourceConfig | null;
   };
-  /** Wait for an in-progress blend into this camera before listening to input. Default `true`. */
+  /** Wait until this camera is live before listening to input. */
   waitForBlend?: boolean;
-  /** Master switch, independent of `waitForBlend`/`isActive`/`isLive` - e.g. to pause input during a
-   *  cutscene/dialog without touching camera priority. Default `true`. */
+  /** Whether input processing is enabled. */
   enabled?: boolean;
-  /** Suppresses the native right-click context menu. Default `false`. */
+  /** Suppresses the native right-click context menu. */
   suppressContextMenu?: boolean;
-  /** Restricts drag/wheel start to a normalized rect of the element's bounds. Default `null` (whole element). */
+  /** Restricts drag/wheel start to a normalized rect of the element's bounds. */
   interactiveArea?: InteractiveArea | null;
-  /** Commits a diagonal two-finger touch gesture to whichever of pinch/rotate dominates, zeroing the
-   *  other, instead of feeding both at once. Default `false`. */
+  /** Lock diagonal two-finger input to pinch or rotation. */
   lockTouchAxis?: boolean;
-  /** Imperative access to the underlying `InputAxisController` */
   ref?: Ref<InputAxisController>;
 };
 
@@ -83,10 +80,7 @@ const emptyConfig: InputAxisControllerConfig = {
   touches: { one: null, two: null, three: null },
 };
 
-/**
- * Generic JSX wiring for `InputAxisController` - resolves its target's named `inputAxes` against each
- * source's `axes: { x, y }` names. Works with any Body/Aim/Extension that exposes `inputAxes`
- */
+/** Connects DOM input sources to named axes on a camera component. */
 export function InputController(props: InputControllerProps) {
   const {
     target,

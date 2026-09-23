@@ -4,23 +4,16 @@ import { CameraHelper, Color, PerspectiveCamera, type ColorRepresentation } from
 import { useIsLiveVirtualCamera, useVirtualCamera } from './VirtualCameraContext';
 
 export type CameraFrustumHelperProps = {
-  /** Single color for the whole helper. Default: `THREE.CameraHelper`'s own built-in colors. */
+  /** Single color for the whole helper. */
   color?: ColorRepresentation;
-  /** Caps how far the drawn frustum extends, regardless of the camera's own (often much larger) `far` —
-   *  keeps the cone a sane on-screen size. Default `1`. */
+  /** Maximum distance drawn for the frustum. */
   maxDistance?: number;
-  /** Hides the helper while this is the camera actually on screen right now — its frustum would radiate
-   *  from the viewer's own eye at that point, which is more visual noise than signal. Default `true`. */
+  /** Whether to hide the helper while its camera is live. */
   hideWhenLive?: boolean;
-  /** Imperative access to the underlying `THREE.CameraHelper`. */
   ref?: Ref<CameraHelper>;
 };
 
-/**
- * Debug visualization: draws the nearest `<VirtualCamera>`'s own frustum, synced from its raw
- * `CameraState` (`useVirtualCamera`) — so it stays visible and accurate even while this camera isn't the
- * current priority winner, since arbitration never stops its Body/Aim/Extension/Noise from running.
- */
+/** Debug helper that draws the current virtual camera frustum. */
 export function CameraFrustumHelper({
   color,
   maxDistance = 1,

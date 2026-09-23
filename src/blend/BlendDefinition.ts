@@ -1,28 +1,16 @@
 import type { Ease } from './BlendCurves';
 
-/** A blend's shape - a `curve` over a fixed `time`, or `damping` (seconds, same spring as `Damper`),
- *  which approaches the target asymptotically instead of finishing at a fixed pace. `maxSpeed` (progress
- *  per second, default `Infinity`) caps how fast `damping` can close the gap - since progress always runs
- *  0→1, it doubles as a floor on the blend's total duration regardless of how small `damping` is. */
+/** A fixed-duration curve or a damped transition. */
 export type BlendDefinition = { curve: Ease; time: number } | { damping: number; maxSpeed?: number };
 
-/**
- * One entry of a Custom Blends list — an explicit From→To blend override. `from`/`to` omitted = matches
- * any camera on that side (`undefined` instead of a magic wildcard string — cleaner in TS, and avoids a
- * reserved value colliding with a real camera id).
- */
+/** A blend override for an optional source and destination camera. */
 export type CustomBlend = {
   from?: string;
   to?: string;
   blend: BlendDefinition;
 };
 
-/**
- * Picks the best-matching custom blend for a from→to transition, falling back to `defaultBlend`.
- * Specificity: exact (from AND to) match wins, then a to-only wildcard, then a from-only wildcard, then
- * `defaultBlend`. "To this camera" is more specific than "from this camera" — that's the more common
- * thing to want pinned down (e.g. "cutting to the close-up is always fast").
- */
+/** Resolves the most specific custom blend for a transition. */
 export function resolveBlendDefinition(
   customBlends: CustomBlend[],
   from: string | null,

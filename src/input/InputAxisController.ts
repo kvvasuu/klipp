@@ -6,14 +6,14 @@ export type InputAxisPair = {
   y: InputAxis;
 };
 
-/** `true`/`false` flips both axes at once; `{x, y}` flips them independently */
+/** Inverts both axes or configures them independently. */
 export type InputInvert = boolean | { x?: boolean; y?: boolean };
 
 export type InputSourceMapping = {
   axes: InputAxisPair;
-  /** Multiplies the raw delta before it reaches the axes. Default 1. */
+  /** Multiplies the raw delta before it reaches the axes. */
   gain?: number;
-  /** Default false (neither axis inverted). */
+  /** Whether either axis is inverted. */
   invert?: InputInvert;
 };
 
@@ -30,19 +30,14 @@ export type InputAxisControllerConfig = {
   };
 };
 
-/**
- * Maps `InputSystem`'s raw, per-source buffers onto named `InputAxis` pairs.
- */
+/** Maps raw input buffers onto named axis pairs. */
 export class InputAxisController {
   readonly inputSystem = new InputSystem();
   config: InputAxisControllerConfig;
-  /** Master switch, independent of `connect`/`disconnect` - `update()` still drains `InputSystem` every
-   *  frame while `false`, it just stops applying the drained deltas to any axis. Default `true`.
-   */
+  /** Whether input deltas are applied to the configured axes. */
   enabled = true;
 
-  /* This frame's drained values - read-only outside this class.
-   *  Overwritten in place on every `update()` call. */
+  /* Reused values drained from the input system each frame. */
   readonly lastInput: ConsumedInput = createConsumedInput();
 
   constructor(config: InputAxisControllerConfig) {
@@ -60,8 +55,7 @@ export class InputAxisController {
   /** Drains `InputSystem` and feeds every configured source's shaped delta into its `InputAxis` pair. */
   update = (): void => {
     const input = this.inputSystem.consume(this.lastInput);
-    // reset first, then only ever set true below - two sources sharing one axis pair (e.g. touches.one
-    // and mouseButtons.right both mapped to the same pan/tilt) must OR together, not clobber each other
+    // Reset held state first so shared mappings can combine multiple sources.
     this.resetHeld(this.config.mouseButtons.left);
     this.resetHeld(this.config.mouseButtons.right);
     this.resetHeld(this.config.mouseButtons.middle);

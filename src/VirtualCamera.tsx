@@ -26,22 +26,17 @@ import { VirtualCameraController } from './VirtualCameraController';
 export type VirtualCameraProps = {
   name: string;
   priority: number;
-  /** Whether this camera is a candidate at all, independent of `priority`. `false` means not registered
-   *  with `KlippCore` at all - its Body/Aim/Noise don't run either. Default `true`. */
+  /** Whether this camera participates in arbitration and updates. */
   active?: boolean;
-  /** Combined (OR'd) with whichever other camera is on the other end of a transition into/out of this
-   *  one - see `BlendHints`. Default `BlendHints.none`. */
+  /** Blend hints for transitions involving this camera. */
   hints?: BlendHints;
-  /** Overrides this camera's starting pose at mount, before any Body/Aim ever runs. Only the fields you
-   *  set are overridden; applied once, at mount. */
+  /** Initial pose applied once when the camera mounts. */
   initialState?: InitialCameraState;
   children?: ReactNode;
-  /** Imperative access to the underlying `VirtualCameraController`. */
   ref?: Ref<VirtualCameraController>;
 };
 
-/** Registers a candidate camera with the nearest `<Klipp>`. Thin wrapper - the Body/Aim/Noise combining
- *  logic lives in `VirtualCameraController`, a plain class with no React dependency. */
+/** Registers a virtual camera with the nearest `Klipp`. */
 export function VirtualCamera({
   name,
   priority,
@@ -94,7 +89,7 @@ export function VirtualCamera({
 
   useEffect(() => {
     if (!active) return;
-    // re-armed on every false→true flip, since this effect reruns from scratch then
+    // Reactivation starts with a fresh activation flag.
     let justActivated = true;
     return registerUpdate((dt) => {
       const stillInFlight = controller.update(state, dt, justActivated);
@@ -117,8 +112,7 @@ export function VirtualCamera({
 
 export type VirtualCameraEventsProps = CameraTransitionEventProps;
 
-/** Place inside a `<VirtualCamera>` to hear `CameraTransitionEventMap` events as callback props. Also
- *  available as `VirtualCamera.Events`. */
+/** Listen to transition events from the nearest virtual camera. */
 export function VirtualCameraEvents({
   onActivated,
   onDeactivated,

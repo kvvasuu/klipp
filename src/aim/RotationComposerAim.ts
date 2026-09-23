@@ -20,14 +20,12 @@ const scratchOutInverse = new Quaternion();
 const scratchLocalDir = new Vector3();
 const scratchRight = new Vector3();
 const scratchUp = new Vector3();
-/** `[halfExtentRight, halfExtentUp]`, in WORLD units - reused scratch, no allocation. Converted to an
- *  angular (screen-fraction) extent at the point of use, since unlike `PositionComposerBody` the target
- *  here can sit at any, changing distance - there's no fixed `cameraDistance` to divide by. */
+/** Reused world-space target extents, converted to screen fractions at the point of use. */
 const scratchExtents: [number, number] = [0, 0];
-/** Matches `Damper.update`'s own `epsilon` — the gap at which it declares the distance arrived. */
+/** Matches `Damper.update`'s own `epsilon` - the gap at which it declares the distance arrived. */
 const DISTANCE_EPSILON = 1e-4;
 
-/** `[x, y, depth]` of a world point in a camera's local screen space — reused scratch, no allocation.
+/** `[x, y, depth]` of a world point in a camera's local screen space - reused scratch, no allocation.
  *  `depth <= 0` means the point is behind the camera (degenerate). */
 const scratchScreenPoint: [number, number, number] = [0, 0, 0];
 const scratchLookaheadDelta = new Vector3();
@@ -47,9 +45,7 @@ function computeScreenPoint(
   return scratchScreenPoint;
 }
 
-/** Base "look straight at target" orientation, composed toward a desired screen point — the one exact
- *  `setFromUnitVectors` operation both the dead zone and hard limit passes need, just for different
- *  desired points (see `RotationComposerAim`'s doc comment for why it can't be split into yaw+pitch). */
+/** Builds a look-at rotation with an optional screen-space offset. */
 function composeQuaternionForScreenPoint(
   out: Quaternion,
   cameraPosition: Vector3,
@@ -70,60 +66,30 @@ function composeQuaternionForScreenPoint(
   }
 }
 
-/**
- * Rotation-only Aim: finds the ONE exact rotation (`Quaternion.setFromUnitVectors`, not separate yaw+pitch
- * — those don't commute) that puts the target at `screenPosition` (or the `deadZone`/`hardLimit` edge).
- *
- * Runs AFTER Body, so `out.position` here is already this frame's — unlike `PositionComposerBody`, which
- * reads last frame's `out.quaternion`.
- *
- * **Paired with `PositionComposer` on the same `screenPosition`, BOTH need a non-zero `deadZone`** — with
- * either side still hard, that side perfectly compensates every frame, so the other's dead zone check
- * never reacts.
- *
- * `radius`/`size` give the target an angular extent instead of a point: `deadZone`/`hardLimit` react to
- * its nearest edge, capped to the zone's own half-size so an oversized target settles on dead center
- * instead of oscillating - same idea as `PositionComposerBody`'s, but converted through the target's
- * actual, possibly-changing distance (`computeScreenPoint`'s `depth`) rather than a fixed `cameraDistance`.
- *
- * `lookaheadTime` > 0 aims toward the target's extrapolated position instead of its raw one -
- * `out.lookAtTarget` sees the shifted point too.
- */
+/** Rotates the camera to place a target at `screenPosition`. */
 export class RotationComposerAim {
   target: Target;
   screenPosition: [number, number];
   aspect: number;
   deadZone: [number, number];
   damping: DampingConstant;
-  /** Caps how fast `damping` can close the gap, in radians/sec - shared by the rotation itself and the
-   *  published `lookAtTarget` direction (both angular). Does not affect `lookAtTarget`'s distance easing,
-   *  a separate, world-units concept. Default `Infinity` (no cap). */
   maxSpeed: number;
   hardLimit: [number, number];
   targetOffset: Vector3;
   radius?: number;
   size?: Vector3Like;
-  /** Seconds to extrapolate the target's tracked position ahead by, based on its recent velocity - `0`
-   *  (default) predicts nothing. Independent of `PositionComposer`'s own `lookaheadTime` - each keeps its
-   *  own predictor, so pairing them on the same target can settle on slightly different points. */
   lookaheadTime: number;
-  /** Smooth-time budget (seconds) for the velocity estimate driving `lookaheadTime`. Default `1`. */
   lookaheadSmoothing: number;
-  /** Zeroes the Y component of the predicted offset - keeps lookahead horizontal for a target that bobs
-   *  or jumps vertically. Default `false`. */
   lookaheadIgnoreY: boolean;
 
   private readonly damper = new QuaternionDamper();
-  /** Direction is damped as a ROTATION, not by lerping the point: a straight line between two look-at
-   *  points can pass through the camera, where the look-at is degenerate and flips 180°. */
+  /** Damp the look-at direction as a rotation to avoid degenerate intermediate points. */
   private readonly lookAtDirectionDamper = new QuaternionDamper();
   private readonly lookAtDistanceDamper = new Damper();
   private readonly publishedLookRotation = new Quaternion();
   private publishedDistance = 0;
   private forceSizeRecalculation = false;
-  /** Last actively-computed (outside-the-dead-zone) desired rotation - reused as the damper's target
-   *  while inside the zone, so it keeps running and any residual velocity decays naturally toward rest.
-   *  `hasActiveDesiredRotation === false` means there's no reference yet - falls back to zero correction. */
+  /** Last desired rotation used while the target remains inside the dead zone. */
   private hasActiveDesiredRotation = false;
   private readonly lastActiveDesiredRotation = new Quaternion();
   private readonly predictor = new Predictor();
@@ -176,7 +142,7 @@ export class RotationComposerAim {
     if (justActivated) this.primed = false;
 
     if (!resolveTargetPosition(scratchTargetPosition, this.target)) return;
-    // captured up front so an early return below can't leave it lit for a later, unrelated frame
+    // Capture this before any early return so it applies to one update only.
     const recalculateSizeThisFrame = this.forceSizeRecalculation;
     this.forceSizeRecalculation = false;
 
@@ -194,10 +160,7 @@ export class RotationComposerAim {
     if (!resolveTargetRotation(scratchTargetRotation, this.target)) scratchTargetRotation.identity();
     scratchTargetPosition.add(scratchOffset.copy(this.targetOffset).applyQuaternion(scratchTargetRotation));
 
-    // `lookAtTarget` is published through the SAME `damping` as the rotation below, because
-    // `lerpLookAtRotation` blends on how far a camera's rotation deviates from pointing at it — publishing
-    // the raw target makes that deviation jump on every retarget, popping any blend in progress. Only what
-    // this Aim PUBLISHES is smoothed; the aiming math keeps using the raw `scratchTargetPosition`.
+    // Publish the damped look-at point so blends do not jump to the raw target position.
     if (justActivated) {
       this.lookAtDirectionDamper.reset();
       this.lookAtDistanceDamper.reset();
@@ -213,15 +176,12 @@ export class RotationComposerAim {
     );
     const targetDistance = out.position.distanceTo(scratchTargetPosition);
     this.publishedDistance = this.lookAtDistanceDamper.update(this.publishedDistance, targetDistance, this.damping, dt);
-    // BOTH parts have to have caught up: the two dampers converge on their own thresholds, and a target
-    // moved straight along the current look direction converges the rotation one instantly while the
-    // distance is still easing — publishing the target then would jump the point along that ray
+    // Publish the exact target only after both direction and distance have settled.
     if (
       this.publishedLookRotation.equals(scratchTargetQuaternion) &&
       Math.abs(this.publishedDistance - targetDistance) < DISTANCE_EPSILON
     ) {
-      // nothing lagging (`damping: 0`, or caught up) — publish the target itself, so the common case
-      // stays exact instead of picking up matrix→quaternion→ray round-trip error
+      // Preserve the exact target when no damping remains.
       out.lookAtTarget.copy(scratchTargetPosition);
     } else {
       out.lookAtTarget
@@ -240,11 +200,9 @@ export class RotationComposerAim {
     let desiredY = this.screenPosition[1];
     let insideDeadZone = false;
 
-    // justActivated skips the dead zone check entirely — it exists to judge whether `out.quaternion`'s
-    // CURRENT orientation has drifted from screenPosition, but on a fresh activation that orientation is
-    // whatever an earlier, unrelated activation left behind, not a meaningful "current" to stay near
+    // A fresh activation has no meaningful previous orientation for a dead-zone check.
     if (!justActivated && (this.deadZone[0] > 0 || this.deadZone[1] > 0)) {
-      // where does the target CURRENTLY appear, given out's existing (pre-this-frame) orientation?
+      // Measure the target using the orientation from before this update.
       scratchOutInverse.copy(out.quaternion).invert();
       const [screenX, screenY, depth] = computeScreenPoint(
         out.position,
@@ -268,13 +226,13 @@ export class RotationComposerAim {
           scratchUp,
           recalculateSizeThisFrame,
         );
-        // capped to the zone's own half-size, or an oversized target would overshoot center and oscillate
+        // Cap the extent to prevent an oversized target from overshooting the zone.
         const extentX = Math.min(scratchExtents[0] / depth / tanHalfFovH, halfWidth);
         const extentY = Math.min(scratchExtents[1] / depth / tanHalfFovV, halfHeight);
 
         const errorX = screenX - this.screenPosition[0];
         const errorY = screenY - this.screenPosition[1];
-        // the leading edge (center error + extent) must stay inside the zone, not just the center
+        // Check the target's leading edge, not only its center.
         const edgeErrorX = errorX + Math.sign(errorX) * extentX;
         const edgeErrorY = errorY + Math.sign(errorY) * extentY;
         insideDeadZone = Math.abs(edgeErrorX) <= halfWidth && Math.abs(edgeErrorY) <= halfHeight;
@@ -284,13 +242,10 @@ export class RotationComposerAim {
           desiredY = this.screenPosition[1] + clamp(edgeErrorY, -halfHeight, halfHeight) - Math.sign(errorY) * extentY;
         }
       }
-      // depth <= 0 (target behind camera): degenerate, fall through and correct all the way to screenPosition
+      // A target behind the camera is corrected directly toward screenPosition.
     }
 
-    // still falls through to the hardLimit pass below even when inside the dead zone - hardLimit is a
-    // SEPARATE, wider box that must hold regardless of the dead zone, not just when the dead zone itself
-    // happened to react this frame (e.g. a misconfigured hardLimit smaller than deadZone would otherwise
-    // never actually enforce anything)
+    // hardLimit is enforced independently of the dead zone.
     if (!insideDeadZone) {
       composeQuaternionForScreenPoint(
         scratchTargetQuaternion,
@@ -305,11 +260,10 @@ export class RotationComposerAim {
       this.lastActiveDesiredRotation.copy(scratchTargetQuaternion);
       this.hasActiveDesiredRotation = true;
     } else if (this.hasActiveDesiredRotation) {
-      // chase the last REAL desired rotation instead of the camera's own current one, so the damper
-      // keeps easing toward a stable point and any residual velocity decays naturally
+      // Keep damping toward the last active target instead of the current camera rotation.
       scratchTargetQuaternion.copy(this.lastActiveDesiredRotation);
     } else {
-      scratchTargetQuaternion.copy(out.quaternion); // no prior reference yet - zero correction
+      scratchTargetQuaternion.copy(out.quaternion); // No previous target means no correction.
     }
 
     if (justActivated && !skipReset) this.damper.reset();
@@ -340,7 +294,7 @@ export class RotationComposerAim {
       scratchUp,
       recalculateSizeThisFrame,
     );
-    // same overshoot cap as the dead zone pass, against this box's own half-size
+    // Cap the extent to prevent an oversized target from overshooting the limit.
     const limitExtentX = Math.min(scratchExtents[0] / depth / tanHalfFovH, halfLimitWidth);
     const limitExtentY = Math.min(scratchExtents[1] / depth / tanHalfFovV, halfLimitHeight);
 
