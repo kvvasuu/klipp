@@ -291,4 +291,63 @@ describe('InputAxisController', () => {
     controller.inputSystem.lockTouchAxis = true;
     expect(controller.inputSystem.lockTouchAxis).toBe(true);
   });
+
+  describe('held propagation', () => {
+    it('marks the mapped axes held while the source is pressed, clears on release', () => {
+      const x = new InputAxis();
+      const y = new InputAxis();
+      const el = setup({ ...emptyConfig(), mouseButtons: { left: null, right: { axes: { x, y } }, middle: null } });
+
+      pointer(el, 'pointerdown', 0, 0, 2);
+      controller.update();
+      expect(x.held).toBe(true);
+      expect(y.held).toBe(true);
+
+      pointer(el, 'pointerup', 0, 0, 0);
+      controller.update();
+      expect(x.held).toBe(false);
+      expect(y.held).toBe(false);
+    });
+
+    it('two sources sharing one axis pair OR together - one releasing does not clear it while the other still holds', () => {
+      const x = new InputAxis();
+      const y = new InputAxis();
+      const el = setup({
+        mouseButtons: { left: null, right: { axes: { x, y } }, middle: null },
+        touches: { one: { axes: { x, y } }, two: null, three: null },
+      });
+
+      pointer(el, 'pointerdown', 0, 0, 2);
+      touch(el, 'pointerdown', 0, 0, 5);
+      controller.update();
+      expect(x.held).toBe(true);
+
+      pointer(el, 'pointerup', 0, 0, 0); // mouse released, touch still down
+      controller.update();
+      expect(x.held).toBe(true); // still held via touch
+      expect(y.held).toBe(true);
+    });
+
+    it('an unmapped source being held has no effect', () => {
+      const x = new InputAxis();
+      const y = new InputAxis();
+      const el = setup({ ...emptyConfig(), mouseButtons: { left: { axes: { x, y } }, right: null, middle: null } });
+
+      pointer(el, 'pointerdown', 0, 0, 2); // right - unmapped
+      controller.update();
+      expect(x.held).toBe(false);
+    });
+
+    it('enabled = false: held never reaches the axes, even while physically pressed', () => {
+      const x = new InputAxis();
+      const y = new InputAxis();
+      const el = setup({ ...emptyConfig(), mouseButtons: { left: null, right: { axes: { x, y } }, middle: null } });
+      controller.enabled = false;
+
+      pointer(el, 'pointerdown', 0, 0, 2);
+      controller.update();
+      expect(x.held).toBe(false);
+      expect(y.held).toBe(false);
+    });
+  });
 });

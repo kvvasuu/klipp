@@ -60,6 +60,14 @@ export class InputAxisController {
   /** Drains `InputSystem` and feeds every configured source's shaped delta into its `InputAxis` pair. */
   update = (): void => {
     const input = this.inputSystem.consume(this.lastInput);
+    // reset first, then only ever set true below - two sources sharing one axis pair (e.g. touches.one
+    // and mouseButtons.right both mapped to the same pan/tilt) must OR together, not clobber each other
+    this.resetHeld(this.config.mouseButtons.left);
+    this.resetHeld(this.config.mouseButtons.right);
+    this.resetHeld(this.config.mouseButtons.middle);
+    this.resetHeld(this.config.touches.one);
+    this.resetHeld(this.config.touches.two);
+    this.resetHeld(this.config.touches.three);
     if (!this.enabled) return;
     this.applySource(this.config.mouseButtons.left, input.leftDx, input.leftDy);
     this.applySource(this.config.mouseButtons.right, input.rightDx, input.rightDy);
@@ -68,6 +76,12 @@ export class InputAxisController {
     this.applySource(this.config.touches.two, input.touchTwoDx, input.touchTwoDy);
     this.applySource(this.config.touches.three, input.touchThreeDx, input.touchThreeDy);
     this.applySource(this.config.mouseButtons.left, input.lockedDx, input.lockedDy);
+    this.applyHeld(this.config.mouseButtons.left, input.leftHeld);
+    this.applyHeld(this.config.mouseButtons.right, input.rightHeld);
+    this.applyHeld(this.config.mouseButtons.middle, input.middleHeld);
+    this.applyHeld(this.config.touches.one, input.touchOneHeld);
+    this.applyHeld(this.config.touches.two, input.touchTwoHeld);
+    this.applyHeld(this.config.touches.three, input.touchThreeHeld);
   };
 
   private applySource(mapping: InputSourceMapping | null, dx: number, dy: number): void {
@@ -75,6 +89,18 @@ export class InputAxisController {
     const gain = mapping.gain ?? 1;
     mapping.axes.x.applyDelta(dx * gain * (isInverted(mapping.invert, 'x') ? -1 : 1));
     mapping.axes.y.applyDelta(dy * gain * (isInverted(mapping.invert, 'y') ? -1 : 1));
+  }
+
+  private resetHeld(mapping: InputSourceMapping | null): void {
+    if (!mapping) return;
+    mapping.axes.x.held = false;
+    mapping.axes.y.held = false;
+  }
+
+  private applyHeld(mapping: InputSourceMapping | null, held: boolean): void {
+    if (!mapping || !held) return;
+    mapping.axes.x.held = true;
+    mapping.axes.y.held = true;
   }
 }
 

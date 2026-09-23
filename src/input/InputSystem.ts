@@ -78,6 +78,14 @@ export type ConsumedInput = {
   /** Raw mouse movement while Pointer Lock is active and no button is held. */
   lockedDx: number;
   lockedDy: number;
+  /** Current hold state, not drained/zeroed like the deltas above - `true` for as long as the source
+   *  stays down, `false` the instant it releases. */
+  leftHeld: boolean;
+  middleHeld: boolean;
+  rightHeld: boolean;
+  touchOneHeld: boolean;
+  touchTwoHeld: boolean;
+  touchThreeHeld: boolean;
 };
 
 /** Zero-valued `ConsumedInput` - the `out` parameter for `InputSystem.consume()`. */
@@ -103,6 +111,12 @@ export function createConsumedInput(): ConsumedInput {
     wheelZoomDelta: 0,
     lockedDx: 0,
     lockedDy: 0,
+    leftHeld: false,
+    middleHeld: false,
+    rightHeld: false,
+    touchOneHeld: false,
+    touchTwoHeld: false,
+    touchThreeHeld: false,
   };
 }
 
@@ -160,6 +174,8 @@ export class InputSystem {
   private lockedDx = 0;
   private lockedDy = 0;
   private locked = false;
+  // event.buttons as of the last mouse pointerdown/move/up - only one mouse pointer is ever tracked
+  private heldButtons = 0;
 
   /** Attaches listeners to `element`. Safe to call again with a new element - disconnects the old one first. */
   connect = (element: HTMLElement): void => {
@@ -211,6 +227,7 @@ export class InputSystem {
     this.touchPointer3 = null;
     this.gestureActive = false;
     this.locked = false;
+    this.heldButtons = 0;
   };
 
   requestPointerLock = (): void => {
@@ -242,6 +259,12 @@ export class InputSystem {
     out.wheelZoomDelta = this.wheelZoomDelta;
     out.lockedDx = this.lockedDx;
     out.lockedDy = this.lockedDy;
+    out.leftHeld = (this.heldButtons & MouseButton.left) === MouseButton.left;
+    out.middleHeld = (this.heldButtons & MouseButton.middle) === MouseButton.middle;
+    out.rightHeld = (this.heldButtons & MouseButton.right) === MouseButton.right;
+    out.touchOneHeld = this.touchPointer !== null && this.touchPointer2 === null;
+    out.touchTwoHeld = this.touchPointer2 !== null && this.touchPointer3 === null;
+    out.touchThreeHeld = this.touchPointer3 !== null;
     this.leftDx = 0;
     this.leftDy = 0;
     this.middleDx = 0;
@@ -319,6 +342,7 @@ export class InputSystem {
       } else {
         this.activePointer = { pointerId: event.pointerId, x: event.clientX, y: event.clientY };
       }
+      this.heldButtons = event.buttons;
     } else {
       return; // pen: not handled yet
     }
@@ -409,6 +433,7 @@ export class InputSystem {
       }
       return;
     }
+    this.heldButtons = event.buttons;
 
     // marked NaN by onPointerLockChange when the lock just ended - clientX/Y were frozen at the
     // pre-lock position while locked, so this move re-anchors instead of computing a jump from it
@@ -459,7 +484,10 @@ export class InputSystem {
       return;
     }
     if (event.pointerType !== 'mouse') return;
-    if (this.activePointer?.pointerId === event.pointerId) this.activePointer = null;
+    if (this.activePointer?.pointerId === event.pointerId) {
+      this.activePointer = null;
+      this.heldButtons = 0;
+    }
   };
 
   private onWheel = (event: WheelEvent): void => {
@@ -503,6 +531,7 @@ export class InputSystem {
       this.touchPointer2 = null;
       this.touchPointer3 = null;
       this.gestureActive = false;
+      this.heldButtons = 0;
     }
   };
 

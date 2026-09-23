@@ -185,6 +185,36 @@ describe('InputAxis', () => {
       expect(axis.value).toBeGreaterThan(0);
       expect(axis.value).toBeLessThan(10); // eased, not teleported to 0 nor left untouched
     });
+
+    it('wait: 0 does not fight a delta applied the same frame - value still moves', () => {
+      const axis = new InputAxis(0, 0, null, false, { enabled: true, wait: 0, time: 1 });
+      axis.applyDelta(5);
+      axis.update(0.016);
+      expect(axis.value).toBeGreaterThan(0); // moved toward the drag, not pulled straight back to center
+    });
+
+    describe('held', () => {
+      it('prevents recentering from engaging while held, even well past `wait`', () => {
+        const axis = new InputAxis(10, 0, null, false, { enabled: true, wait: 0.1, time: 0.5 });
+        axis.held = true;
+        for (let i = 0; i < 50; i++) axis.update(0.1); // 5s held, well past wait
+        expect(axis.value).toBe(10);
+      });
+
+      it('releasing held starts the idle timer fresh, not counting time already spent held', () => {
+        const axis = new InputAxis(10, 0, null, false, { enabled: true, wait: 0.2, time: 0.5 });
+        axis.held = true;
+        for (let i = 0; i < 50; i++) axis.update(0.1); // held for 5s - no recentering
+        expect(axis.value).toBe(10);
+
+        axis.held = false;
+        axis.update(0.1); // just released - still under wait (0.2), one tick in
+        expect(axis.value).toBe(10);
+
+        for (let i = 0; i < 50; i++) axis.update(0.1); // now past wait since release
+        expect(axis.value).toBeCloseTo(0, 1);
+      });
+    });
   });
 
   describe('normalize', () => {

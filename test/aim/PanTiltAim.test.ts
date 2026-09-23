@@ -97,7 +97,7 @@ describe('PanTiltAim', () => {
     aim.pan.recentering = { enabled: true, wait: 0, time: 0.5 };
     const out = createCameraState();
 
-    for (let i = 0; i < 50; i++) aim.update(out, 0.05); // well past wait, recentering should engage
+    for (let i = 0; i < 100; i++) aim.update(out, 0.05); // well past wait, recentering should engage
 
     expect(aim.pan.value).toBeCloseTo(0, 1);
   });
