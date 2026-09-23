@@ -34,8 +34,8 @@
       "default": "./dist/react.js"
     },
     "./react/camera-controls": {
-      "types": "./dist/body/CameraControls.d.ts",
-      "default": "./dist/body/CameraControls.js"
+      "types": "./dist/body/camera-controls.d.ts",
+      "default": "./dist/body/camera-controls.js"
     }
   },
   "files": [

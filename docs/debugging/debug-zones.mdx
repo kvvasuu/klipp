@@ -4,7 +4,7 @@ description: Visualizing deadZone/hardLimit/padding/screenPosition directly on t
 nav: 60
 ---
 
-[`PositionComposer`](/body/position-composer), [`RotationComposer`](/aim/rotation-composer), and [`GroupFraming`](/extension/group-framing) all take a `debug` prop that draws their zones as bordered boxes directly over the canvas, dimming everything outside them, plus a crosshair marking `screenPosition` itself - the same visual language as Unity's Game View overlays.
+[`PositionComposer`](/body/position-composer), [`RotationComposer`](/aim/rotation-composer), and [`GroupFraming`](/extension/group-framing) all take a `debug` prop that draws their zones as bordered boxes directly over the canvas, dimming everything outside them, plus a crosshair marking `screenPosition` itself.
 
 ```tsx
 <Body.PositionComposer target={playerRef} deadZone={[0.4, 0.4]} hardLimit={[0.7, 0.7]} debug />

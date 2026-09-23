@@ -55,7 +55,7 @@ Without `radius`/`size`, `deadZone`/`hardLimit` react to the target's exact cent
 
 With `lookaheadTime` above `0`, both stages (and `out.target`, so [Debug Zones](/debugging/debug-zones)' boxes too) compose around the target's *extrapolated* position instead of its raw one - useful for a camera that should already be leading a fast-moving target rather than catching up to it after the fact.
 
-Internally, a `Predictor` tracks the target's own velocity between frames and smooths it before projecting `velocity * lookaheadTime` ahead - see [Damping](/advanced/damping#predictor) for the algorithm. It resets on activation and whenever `target`'s reference changes, so a fresh camera or a retarget never inherits a stale prediction from an unrelated target.
+The target's velocity is smoothed before being projected forward, so a single jittery frame of target movement doesn't spike the prediction. It resets on activation and whenever `target`'s reference changes, so a fresh camera or a retarget never inherits a stale prediction from an unrelated target.
 
 ## `ref`
 
