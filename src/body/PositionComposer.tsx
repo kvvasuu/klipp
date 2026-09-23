@@ -86,27 +86,28 @@ export function PositionComposer({
   debug = false,
   ref,
 }: PositionComposerProps) {
-  const { controller } = useVirtualCamera();
+  const { controller, state: cameraState, initialState } = useVirtualCamera();
   const aspect = useThree((state) => state.viewport.aspect);
-  const [body] = useState(
-    () =>
-      new PositionComposerBody(
-        target,
-        cameraDistance,
-        screenPosition,
-        aspect,
-        deadZone,
-        damping,
-        hardLimit,
-        radius,
-        size,
-        depthDeadZone,
-        lookaheadTime,
-        lookaheadSmoothing,
-        lookaheadIgnoreY,
-        maxSpeed,
-      ),
-  );
+  const [body] = useState(() => {
+    const instance = new PositionComposerBody(
+      target,
+      cameraDistance,
+      screenPosition,
+      aspect,
+      deadZone,
+      damping,
+      hardLimit,
+      radius,
+      size,
+      depthDeadZone,
+      lookaheadTime,
+      lookaheadSmoothing,
+      lookaheadIgnoreY,
+      maxSpeed,
+    );
+    if (initialState?.position) instance.primeFrom(cameraState.position);
+    return instance;
+  });
   body.target = target;
   body.cameraDistance = cameraDistance;
   body.screenPosition = screenPosition;

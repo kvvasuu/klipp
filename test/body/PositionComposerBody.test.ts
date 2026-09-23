@@ -477,6 +477,66 @@ describe('PositionComposerBody', () => {
     });
   });
 
+  describe('primeFrom', () => {
+    it('the next update() eases from the primed position toward the composed shot instead of snapping', () => {
+      const target = new Vector3(0, 0, -20);
+      const body = new PositionComposerBody(target, 10, [0, 0], 1, [0, 0], 0.5);
+      const initial = new Vector3(0, 0, 50);
+
+      body.primeFrom(initial);
+      const out = createCameraState();
+      out.position.copy(initial);
+      body.update(out, 0.016, true);
+
+      expect(out.position.z).toBeLessThan(50); // moved off the primed position
+      expect(out.position.z).toBeGreaterThan(-10); // but not snapped to the fully composed shot (z = -10)
+    });
+
+    it('without priming, update() still snaps straight to the composed shot on justActivated (unchanged default)', () => {
+      const target = new Vector3(0, 0, -20);
+      const body = new PositionComposerBody(target, 10, [0, 0], 1, [0, 0], 0.5);
+      const out = createCameraState();
+      body.update(out, 0.016, true);
+
+      expect(out.position.z).toBeCloseTo(-10, 5);
+    });
+
+    it('is consumed by the first justActivated only - a later reactivation snaps normally', () => {
+      const target = new Vector3(0, 0, -20);
+      const body = new PositionComposerBody(target, 10, [0, 0], 1, [0, 0], 0.5);
+      const initial = new Vector3(0, 0, 50);
+
+      body.primeFrom(initial);
+      const out = createCameraState();
+      out.position.copy(initial);
+      body.update(out, 0.016, true); // consumes the prime, eases
+      body.update(out, 0.016, false);
+
+      target.set(40, -12, -30);
+      body.update(out, 0.016, true); // a later reactivation - primeFrom was NOT called again
+
+      const projected = projectToScreen(out, 1, target);
+      expect(projected.x).toBeCloseTo(0, 4);
+      expect(projected.y).toBeCloseTo(0, 4);
+    });
+
+    it("is still consumed even when the target isn't resolved yet on the primed justActivated call", () => {
+      const initial = new Vector3(0, 0, 50);
+      const body = new PositionComposerBody({ current: null }, 10, [0, 0], 1, [0, 0], 0.5);
+      body.primeFrom(initial);
+      const out = createCameraState();
+      out.position.copy(initial);
+
+      body.update(out, 0.016, true); // target still unresolved - early return, but primed must be consumed
+      expect(out.position.equals(initial)).toBe(true); // no-op, nothing to update yet
+
+      body.target = new Vector3(0, 0, -20);
+      body.update(out, 0.016, true); // an unrelated LATER reactivation - must snap, not ease
+
+      expect(out.position.z).toBeCloseTo(-10, 5);
+    });
+  });
+
   describe('dead zone with target extent (radius/size)', () => {
     it("a radius makes the dead zone react to the target's EDGE, catching drift a point target would still ignore", () => {
       const target = new Vector3(0, 0, -20);

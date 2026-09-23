@@ -1,6 +1,6 @@
 import { create } from '@react-three/test-renderer';
 import { useThree } from '@react-three/fiber';
-import { Object3D, PerspectiveCamera, Vector3, type Quaternion } from 'three';
+import { Object3D, PerspectiveCamera, Quaternion, Vector3 } from 'three';
 import { describe, expect, it } from 'vitest';
 import { RotationComposer } from '../../src/aim/RotationComposer';
 import { Klipp, useKlippCore } from '../../src/Klipp';
@@ -201,6 +201,32 @@ describe('RotationComposer (React wrapper)', () => {
     const state = core!.activeState!;
     const projected = projectToScreen(state.position, state.quaternion, state.fov, aspect, target.position);
     expect(projected.x).toBeCloseTo(0.15, 3);
+  });
+
+  it("VirtualCamera's initialState.quaternion seeds the damper - the first frame eases from there, not a snap", async () => {
+    let core: KlippCore | undefined;
+    let aspect = 1;
+    const target = new Object3D();
+    target.position.set(10, 0, -10);
+    const initialQuaternion = new Quaternion(); // identity - far from looking at the target
+
+    const scene = (
+      <Klipp>
+        <CoreReader onRead={(c) => (core = c)} />
+        <AspectReader onRead={(a) => (aspect = a)} />
+        <VirtualCamera name="a" priority={10} initialState={{ quaternion: initialQuaternion }}>
+          <RotationComposer target={target} damping={0.5} />
+        </VirtualCamera>
+      </Klipp>
+    );
+
+    const renderer = await create(scene);
+    await renderer.advanceFrames(1, 0.016);
+
+    const state = core!.activeState!;
+    const projected = projectToScreen(state.position, state.quaternion, state.fov, aspect, target.position);
+    expect(state.quaternion.angleTo(initialQuaternion)).toBeGreaterThan(0); // moved off initialState
+    expect(Math.abs(projected.x) + Math.abs(projected.y)).toBeGreaterThan(0.01); // but not centered yet
   });
 
   describe('debug', () => {

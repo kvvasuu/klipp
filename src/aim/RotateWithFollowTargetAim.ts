@@ -14,6 +14,7 @@ export class RotateWithFollowTargetAim {
   maxSpeed: number;
 
   private readonly damper = new QuaternionDamper();
+  private primed = false;
 
   constructor(target: Target, damping: DampingConstant = 0, maxSpeed = Infinity) {
     this.target = target;
@@ -22,8 +23,16 @@ export class RotateWithFollowTargetAim {
   }
 
   update = (out: CameraState, dt: number, justActivated: boolean): void => {
+    if (justActivated) {
+      if (this.primed) this.primed = false;
+      else this.damper.reset();
+    }
     if (!resolveTargetRotation(scratchTargetRotation, this.target)) return;
-    if (justActivated) this.damper.reset();
     this.damper.update(out.quaternion, scratchTargetRotation, this.damping, dt, this.maxSpeed);
+  };
+
+  primeFrom = (rotation: Quaternion): void => {
+    this.damper.update(rotation, rotation, this.damping, 0);
+    this.primed = true;
   };
 }

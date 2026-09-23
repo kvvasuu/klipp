@@ -73,6 +73,7 @@ export class PositionComposerBody {
    *  correction. */
   private hasActiveDesiredPosition = false;
   private readonly lastActiveDesiredPosition = new Vector3();
+  private primed = false;
 
   constructor(
     target: Target,
@@ -112,7 +113,16 @@ export class PositionComposerBody {
     this.forceSizeRecalculation = true;
   }
 
+  primeFrom = (position: Vector3): void => {
+    this.damper.update(position, position, this.damping, 0);
+    this.depthDamper.update(0, 0, this.damping, 0);
+    this.primed = true;
+  };
+
   update = (out: CameraState, dt: number, justActivated: boolean): void => {
+    const skipReset = justActivated && this.primed;
+    if (justActivated) this.primed = false;
+
     if (!resolveTargetPosition(scratchTargetPosition, this.target)) return;
 
     if (justActivated || this.target !== this.lastLookaheadTarget) {
@@ -153,7 +163,7 @@ export class PositionComposerBody {
     // unlike the lateral stage below, currentDepth is a fresh reading of the target's own motion each
     // frame, not a camera-controlled value - freezing desiredDepth would fight ordinary in-zone drift
     if (!insideDepthDeadZone) {
-      if (justActivated) this.depthDamper.reset();
+      if (justActivated && !skipReset) this.depthDamper.reset();
       const instant = typeof this.damping === 'number' && this.damping <= 0;
       const dampedDepth = instant
         ? desiredDepth
@@ -230,7 +240,7 @@ export class PositionComposerBody {
       scratchDesiredPosition.copy(out.position); // no prior reference yet - zero correction
     }
 
-    if (justActivated) this.damper.reset();
+    if (justActivated && !skipReset) this.damper.reset();
     this.damper.update(out.position, scratchDesiredPosition, this.damping, dt, this.maxSpeed);
 
     if (this.hardLimit[0] <= 0 && this.hardLimit[1] <= 0) return;

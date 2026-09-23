@@ -94,4 +94,25 @@ describe('Follow (React wrapper)', () => {
     expect(core!.activeState!.position.x).toBeCloseTo(0, 5); // now raw, unrotated
     expect(core!.activeState!.position.z).toBeCloseTo(10, 5);
   });
+
+  it("VirtualCamera's initialState.position seeds the damper - the first frame eases from there, not a snap", async () => {
+    let core: KlippCore | undefined;
+    const target = new Object3D();
+    target.position.set(100, 0, 0);
+
+    const scene = (
+      <Klipp>
+        <CoreReader onRead={(c) => (core = c)} />
+        <VirtualCamera name="a" priority={10} initialState={{ position: [-100, 0, 0] }}>
+          <Follow target={target} offset={[0, 0, 0]} damping={0.5} />
+        </VirtualCamera>
+      </Klipp>
+    );
+
+    const renderer = await create(scene);
+    await renderer.advanceFrames(1, 0.016);
+
+    expect(core!.activeState!.position.x).toBeGreaterThan(-100); // moved off initialState
+    expect(core!.activeState!.position.x).toBeLessThan(100); // but not snapped to the target
+  });
 });

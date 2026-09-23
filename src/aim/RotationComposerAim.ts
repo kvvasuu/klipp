@@ -128,6 +128,7 @@ export class RotationComposerAim {
   private readonly lastActiveDesiredRotation = new Quaternion();
   private readonly predictor = new Predictor();
   private lastLookaheadTarget: Target = undefined;
+  private primed = false;
 
   constructor(
     target: Target,
@@ -165,7 +166,15 @@ export class RotationComposerAim {
     this.forceSizeRecalculation = true;
   }
 
+  primeFrom = (rotation: Quaternion): void => {
+    this.damper.update(rotation, rotation, this.damping, 0);
+    this.primed = true;
+  };
+
   update = (out: CameraState, dt: number, justActivated: boolean): void => {
+    const skipReset = justActivated && this.primed;
+    if (justActivated) this.primed = false;
+
     if (!resolveTargetPosition(scratchTargetPosition, this.target)) return;
     // captured up front so an early return below can't leave it lit for a later, unrelated frame
     const recalculateSizeThisFrame = this.forceSizeRecalculation;
@@ -303,7 +312,7 @@ export class RotationComposerAim {
       scratchTargetQuaternion.copy(out.quaternion); // no prior reference yet - zero correction
     }
 
-    if (justActivated) this.damper.reset();
+    if (justActivated && !skipReset) this.damper.reset();
     this.damper.update(out.quaternion, scratchTargetQuaternion, this.damping, dt, this.maxSpeed);
 
     if (this.hardLimit[0] <= 0 && this.hardLimit[1] <= 0) return;
