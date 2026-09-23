@@ -1,8 +1,7 @@
 import { Vector3 } from 'three';
 import { Damper, type DampingConstant } from './Damper';
 
-/** Three independent `Damper`s bundled for a `Vector3` — Cartesian x/y/z only. `OrbitalFollow`'s
- *  horizontal/vertical/radial axes aren't x/y/z and will need their own damper, not this one. */
+/** Damps the Cartesian components of a `Vector3` independently. */
 export class Vector3Damper {
   private readonly x = new Damper();
   private readonly y = new Damper();
@@ -17,7 +16,7 @@ export class Vector3Damper {
     return out;
   }
 
-  /** See `Damper.reset` — re-arms all three axes' first-call snap. */
+  /** Reset all three component dampers. */
   reset(): void {
     this.x.reset();
     this.y.reset();
