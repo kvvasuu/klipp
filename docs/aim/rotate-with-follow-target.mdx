@@ -23,7 +23,7 @@ That makes it a genuinely different tool from `HardLookAt`/`RotationComposer`, n
 | `damping` | `DampingConstant` | `0`     | Spring response time to the target's rotation (or `{ into, from }` for asymmetric damping) - see [Damping](/advanced/damping). `0` = hard, instant match. |
 | `maxSpeed` | `number`         | `Infinity` | Caps how fast `damping` can close the gap, in radians/sec. |
 
-Damping here tracks the shortest angular delta every frame using a single `Damper` on the rotation angle itself (not a per-axis Euler decomposition), so it stays continuous and gimbal-lock-free even while chasing a target that's rotating quickly and continuously.
+Damping here is gimbal-lock-free and always takes the shortest path to the target's rotation, so it stays continuous even while chasing a target that's rotating quickly and continuously.
 
 ## `ref`
 

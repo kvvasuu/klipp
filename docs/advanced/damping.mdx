@@ -4,7 +4,7 @@ description: The shared SmoothDamp-style primitive behind every damped field in 
 nav: 71
 ---
 
-Every `damping` prop across klipp - `Follow`'s offset, `PositionComposer`'s dead zone, blend transitions, Noise's `amplitudeDamping`, all of it - ultimately runs through the same `Damper` class. It's a critically-damped spring (Game Programming Gems 4, §1.10): motion accelerates and decelerates naturally toward a moving target, instead of the exponential-decay "jump most of the way there every frame" feel of a naive `lerp(current, target, dt)`.
+Every `damping` prop across klipp - `Follow`'s offset, `PositionComposer`'s dead zone, blend transitions, Noise's `amplitudeDamping`, all of it - ultimately runs through the same `Damper` class. It's a critically-damped spring: motion accelerates and decelerates naturally toward a moving target, instead of the "jump most of the way there every frame" feel of a naive `lerp(current, target, dt)`.
 
 ## `DampingConstant`
 
@@ -20,27 +20,14 @@ A plain number is a spring time constant in seconds - it's roughly how quickly t
 damper.update(current: number, target: number, damping: DampingConstant, dt: number, maxSpeed?, epsilon?): number
 ```
 
-- **Snaps below `epsilon`** (default `1e-4`) instead of asymptotically approaching forever - without this, a settled camera would keep accumulating floating-point residue instead of truly stopping. Not part of the ported formula, added for numerical correctness.
+- **Snaps below `epsilon`** (default `1e-4`) instead of asymptotically approaching forever - without this, a settled camera would keep accumulating floating-point residue instead of truly stopping.
 - **The very first call always snaps hard to `target`**, regardless of `damping` - a fresh `Damper`'s `current` otherwise defaults to `0`, a coordinate the caller never chose; damping *from* it would fly the camera in from that meaningless value instead of smoothing a real, later change. Call `.reset()` to re-arm this snap - every Body/Aim/Extension/Noise does this on `justActivated`, so reactivating a camera after a gap snaps straight to the current target instead of easing in from wherever it was frozen.
 
 ## `Vector3Damper` and `QuaternionDamper`
 
 Bundle three independent `Damper`s (Cartesian x/y/z) and a rotation-aware variant, respectively - shared by any writer that damps a whole `Vector3` or `Quaternion` at once instead of a single scalar.
 
-`QuaternionDamper` is gimbal-lock-free: each call, it recomputes the *shortest* rotation from `out`'s current value to `target`, splits it into axis + angle, and only runs the angle through a plain `Damper` - never decomposing into per-axis Euler angles. Recomputing that delta fresh off `out`'s current value every call (not a frozen reference) is what keeps it jump-free while chasing a continuously rotating target.
-
-## `Predictor`
-
-The primitive behind [`PositionComposer`](/body/position-composer#lookahead) and [`RotationComposer`](/aim/rotation-composer#lookahead)'s `lookaheadTime`/`lookaheadSmoothing` - tracks a moving point's velocity across calls, then extrapolates `velocity * time` ahead of it.
-
-```ts
-predictor.addPosition(position: Vector3, dt: number, smoothing: number): void
-predictor.predictPositionDelta(out: Vector3, time: number): Vector3
-```
-
-The velocity estimate is smoothed *asymmetrically*: it reacts faster while the raw velocity is shrinking than while it's growing (`smoothing / 30` versus `smoothing / 10`), so a target that suddenly stops doesn't keep carrying a stale, overshooting prediction, while a sudden burst of speed doesn't yank the predicted point forward instantly. It reuses `Vector3Damper` for the actual smoothing step - the asymmetry is just which smooth-time gets passed in for that frame, decided by comparing this frame's raw velocity against the last smoothed one.
-
-Call `.reset()` on activation or when the tracked target's reference changes, same as `Damper` - otherwise the first sample after a gap would compute a spurious velocity from wherever the point last was.
+`QuaternionDamper` is gimbal-lock-free and always takes the *shortest* path to `target`, recomputed fresh every call - so it stays jump-free even while chasing a continuously rotating target.
 
 ## Writing your own damped field
 

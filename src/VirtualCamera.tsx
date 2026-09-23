@@ -11,9 +11,8 @@ import {
 import { BlendHints } from './blend/BlendHints';
 import { copyCameraState, createCameraState, mergeCameraState } from './CameraState';
 import { useKlipp } from './KlippContext';
-import type { CameraTransitionEventMap } from './KlippCore';
 import { resolveVector3 } from './resolve/resolveVector3';
-import { useCameraTransitionEvent } from './useCameraTransitionEvent';
+import { useCameraTransitionEvent, type CameraTransitionEventProps } from './useCameraTransitionEvent';
 import {
   useVirtualCamera,
   VirtualCameraActiveContext,
@@ -116,13 +115,7 @@ export function VirtualCamera({
   );
 }
 
-export type VirtualCameraEventsProps = {
-  onActivated?: (event: CameraTransitionEventMap['activated']) => void;
-  onDeactivated?: (event: CameraTransitionEventMap['deactivated']) => void;
-  onBlendCreated?: (event: CameraTransitionEventMap['blendCreated']) => void;
-  onBlendFinished?: (event: CameraTransitionEventMap['blendFinished']) => void;
-  onCut?: (event: CameraTransitionEventMap['cut']) => void;
-};
+export type VirtualCameraEventsProps = CameraTransitionEventProps;
 
 /** Place inside a `<VirtualCamera>` to hear `CameraTransitionEventMap` events as callback props. Also
  *  available as `VirtualCamera.Events`. */
