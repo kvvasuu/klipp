@@ -14,53 +14,35 @@ export type CameraControlsProps = Omit<
   Overwrite<
     ThreeElement<typeof CameraControlsImpl>,
     {
-      /** Locks orbit/dolly onto this target. Omitted: full free `camera-controls`, like drei's `<CameraControls />`. */
+      /** Target for orbiting and dollying. Omit for free camera controls. */
       target?: Target;
       /** World-space starting position, applied at construction regardless of `target`'s state. */
       initialPosition?: Vector3Like;
-      /** `camera-controls`' own transition-easing argument for every call this makes. Default `false`. */
+      /** `camera-controls`' own transition-easing argument for every call this makes. */
       enableTransition?: boolean;
       /** Custom `CameraControlsImpl` subclass to instantiate instead of the base class. */
       impl?: typeof CameraControlsImpl;
-      /** Wait for an in-progress blend into this camera before listening to input. Default `true`. */
+      /** Wait for an in-progress blend into this camera before listening to input. */
       waitForBlend?: boolean;
-      /** Registers this instance as r3f's `state.controls` while it's actually listening for input (see
-       *  `waitForBlend`) - restores whatever was there before once it stops. Default `false`. */
+      /** Registers this instance as r3f's `state.controls` while it accepts input. */
       makeDefault?: boolean;
-      /** Imperative access to the underlying `CameraControlsBody` (`.controls` is the real `CameraControlsImpl`). */
       ref?: Ref<CameraControlsBody>;
-      /** Also lowers r3f's render quality while dragging/transitioning. Default `false`. */
+      /** Also lowers r3f's render quality while dragging/transitioning. */
       regress?: boolean;
-      /** User starts dragging/touching. */
       onControlStart?: (event: { type: 'controlstart' }) => void;
-      /** User is dragging (fires continuously). */
       onControl?: (event: { type: 'control' }) => void;
-      /** User stops dragging/touching. */
       onControlEnd?: (event: { type: 'controlend' }) => void;
-      /** Any transition starts — user control, or a `controls` method called with `enableTransition: true`. */
       onTransitionStart?: (event: { type: 'transitionstart' }) => void;
-      /** The camera's transform actually changed this tick. */
       onUpdate?: (event: { type: 'update' }) => void;
-      /** Was settled, just started moving again. */
       onWake?: (event: { type: 'wake' }) => void;
-      /** Motion settled below `controls.restThreshold`. */
       onRest?: (event: { type: 'rest' }) => void;
-      /** Was moving, just stopped. */
       onSleep?: (event: { type: 'sleep' }) => void;
     }
   >,
   'args' | keyof EventDispatcher
 >;
 
-/**
- * Thin wrapper - see `CameraControlsBody` for the actual logic.
- *
- * Opt-in subpath, not exported from the main entry, so `camera-controls` stays out of a consumer's
- * bundle unless imported directly. Connects/disconnects input listeners with priority arbitration,
- * not mount/unmount, gated on `waitForBlend`.
- *
- * Any other prop passes straight through onto the real `CameraControlsImpl` instance every render.
- */
+/** Connects `camera-controls` to the active virtual camera. */
 export function CameraControls({
   target,
   initialPosition,

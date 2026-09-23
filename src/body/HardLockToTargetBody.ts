@@ -4,12 +4,10 @@ import type { DampingConstant } from '../damping/Damper';
 import { Vector3Damper } from '../damping/Vector3Damper';
 import { resolveTargetPosition, type Target } from '../resolve/Target';
 
-/** `damping` uses `Vector3Damper` (per-axis) rather than a single radial damper — an axis-aligned lag
- *  reads as "chasing," not the arcing motion a radial one would produce. */
+/** Locks the camera position to a target, optionally with damping. */
 export class HardLockToTargetBody {
   target: Target;
   damping: DampingConstant;
-  /** Caps how fast `damping` can close the gap, in world units/sec, per axis. Default `Infinity` (no cap). */
   maxSpeed: number;
 
   private readonly damper = new Vector3Damper();

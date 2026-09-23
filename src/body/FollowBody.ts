@@ -12,19 +12,12 @@ const scratchRotatedOffset = new Vector3();
 const scratchForward = new Vector3();
 const scratchLookMatrix = new Matrix4();
 
-/**
- * Position = target's world position + `offset`, rotated per `bindingMode` (see `BindingModes`) so the
- * camera stays behind as the target turns.
- *
- * Default offset `(0, 0, 10)` — three.js faces local -Z, so a positive Z offset sits the camera behind
- * the target, not in front of it.
- */
+/** Follows a target with an offset rotated according to `bindingMode`. */
 export class FollowBody {
   target: Target;
   offset: Vector3;
   damping: DampingConstant;
   bindingMode: BindingMode;
-  /** Caps how fast `damping` can close the gap, in world units/sec, per axis. Default `Infinity` (no cap). */
   maxSpeed: number;
 
   private readonly damper = new Vector3Damper();

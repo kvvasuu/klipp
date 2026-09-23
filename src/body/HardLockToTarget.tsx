@@ -5,22 +5,16 @@ import { useVirtualCamera } from '../VirtualCameraContext';
 import { HardLockToTargetBody } from './HardLockToTargetBody';
 
 export type HardLockToTargetProps = {
-  /** Tracking Target — the camera's position becomes this position/object's world position. `null`/
-   *  `undefined`/omitted is a no-op, same as an unmounted ref. */
+  /** Target position to follow. Unresolved targets are ignored. */
   target?: Target;
-  /** Spring response time to the target's position, per axis (or `{into, from}` for asymmetric
-   *  damping). `0` (default) = hard, instant lock. */
+  /** Response time for following the target position. */
   damping?: DampingConstant;
-  /** Caps how fast `damping` can close the gap, in world units/sec, per axis. Default `Infinity` (no
-   *  cap) - only matters once `damping > 0`. */
+  /** Maximum damping speed, in world units/sec. */
   maxSpeed?: number;
-  /** Imperative access to the underlying `HardLockToTargetBody`, for reading/writing
-   *  `target`/`damping`/`maxSpeed` directly instead of through props. */
   ref?: Ref<HardLockToTargetBody>;
 };
 
-/** Simplest Body: position = Tracking Target's world position, optionally damped. Thin wrapper — the
- *  actual logic lives in `HardLockToTargetBody`. */
+/** Simple body that locks the camera to a target position, optionally with damping. */
 export function HardLockToTarget({ target, damping = 0, maxSpeed = Infinity, ref }: HardLockToTargetProps) {
   const { controller } = useVirtualCamera();
   const [body] = useState(() => new HardLockToTargetBody(target, damping));

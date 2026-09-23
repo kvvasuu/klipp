@@ -14,29 +14,10 @@ const scratchTargetPosition = new Vector3();
 const scratchRelative = new Vector3();
 const scratchDesiredPosition = new Vector3();
 const scratchLookaheadDelta = new Vector3();
-/** `[halfExtentRight, halfExtentUp]` - reused scratch, no allocation (see `resolveTargetHalfExtents`). */
+/** Reused target extents. */
 const scratchExtents: [number, number] = [0, 0];
 
-/**
- * Two-stage, position-only Body: dollies to `cameraDistance`, then shifts laterally to put the target at
- * `screenPosition` (or the `deadZone`/`hardLimit` edge). `damping` eases both stages; the dolly stage also
- * gets its own `depthDeadZone` tolerance before it reacts at all.
- *
- * Reads `out.quaternion`/`out.fov` as whatever Aim wrote LAST frame (Body runs before Aim) — one frame
- * stale. On a fresh activation, the dolly axis instead comes from `VirtualCamera`'s `initialState` (or the
- * camera's pristine default) - set it explicitly for a specific starting axis (e.g. straight down).
- *
- * `radius`/`size` give the target a screen-space EXTENT instead of a point: `deadZone`/`hardLimit` react to
- * its nearest edge, capped to the zone's own half-size so an oversized target settles on dead center
- * instead of oscillating.
- *
- * `lookaheadTime` > 0 composes around the target's extrapolated position instead of its raw one - both
- * stages, and `out.target`, see the shifted point.
- *
- * A non-center `screenPosition` needs an Aim that respects it too (e.g. `RotationComposer`, with a
- * matching non-zero `deadZone` on both sides) — `HardLookAt` re-centers every frame, which fights a
- * non-zero `screenPosition` into a persistent orbit instead of a stable shot.
- */
+/** Positions the camera using depth and screen-space composition. */
 export class PositionComposerBody {
   target: Target;
   cameraDistance: number;
@@ -46,20 +27,11 @@ export class PositionComposerBody {
   damping: DampingConstant;
   hardLimit: [number, number];
   depthDeadZone: number;
-  /** Caps how fast `damping` can close the gap, in world units/sec - shared by both stages (dolly and
-   *  lateral), since both work in the same world-distance units. Default `Infinity` (no cap). */
   maxSpeed: number;
   radius?: number;
   size?: Vector3Like;
-  /** Seconds to extrapolate the target's tracked position ahead by, based on its recent velocity - `0`
-   *  (default) predicts nothing, so the rest of `lookahead*` is inert. */
   lookaheadTime: number;
-  /** Smooth-time budget (seconds) for the velocity estimate driving `lookaheadTime` - reacts faster while
-   *  the target is slowing down than while it's speeding up, so a sudden burst of speed doesn't yank the
-   *  predicted point forward instantly. Default `1`. */
   lookaheadSmoothing: number;
-  /** Zeroes the Y component of the predicted offset - keeps lookahead horizontal for a target that bobs
-   *  or jumps vertically. Default `false`. */
   lookaheadIgnoreY: boolean;
 
   private readonly damper = new Vector3Damper();
@@ -67,10 +39,7 @@ export class PositionComposerBody {
   private readonly predictor = new Predictor();
   private lastLookaheadTarget: Target = undefined;
   private forceSizeRecalculation = false;
-  /** Last actively-computed (outside-the-dead-zone) desired lateral position - reused as the damper's
-   *  target while inside the zone, so it keeps running and any residual velocity decays naturally toward
-   *  rest. `hasActiveDesiredPosition === false` means there's no reference yet - falls back to zero
-   *  correction. */
+  /** Last desired lateral position used while the target remains inside the dead zone. */
   private hasActiveDesiredPosition = false;
   private readonly lastActiveDesiredPosition = new Vector3();
   private primed = false;
@@ -149,9 +118,7 @@ export class PositionComposerBody {
     let desiredDepth = this.cameraDistance;
     let insideDepthDeadZone = false;
 
-    // justActivated skips the dead zone check entirely - same reasoning as the lateral one below: it
-    // judges drift in out.position, which on a fresh activation is whatever an earlier, unrelated
-    // activation left behind, not a meaningful "current" to stay near
+    // A fresh activation has no meaningful previous camera position for this check.
     if (!justActivated && this.depthDeadZone > 0) {
       const depthError = currentDepth - this.cameraDistance;
       insideDepthDeadZone = Math.abs(depthError) <= this.depthDeadZone;
@@ -160,8 +127,7 @@ export class PositionComposerBody {
       }
     }
 
-    // unlike the lateral stage below, currentDepth is a fresh reading of the target's own motion each
-    // frame, not a camera-controlled value - freezing desiredDepth would fight ordinary in-zone drift
+    // Recompute the desired depth so target motion remains visible inside the dead zone.
     if (!insideDepthDeadZone) {
       if (justActivated && !skipReset) this.depthDamper.reset();
       const instant = typeof this.damping === 'number' && this.damping <= 0;
@@ -171,7 +137,7 @@ export class PositionComposerBody {
       out.position.addScaledVector(scratchForward, currentDepth - dampedDepth);
     }
 
-    // stage 2: shift laterally to screenPosition (or the dead zone edge)
+    // Shift laterally to screenPosition or the dead-zone edge.
     scratchRelative.copy(scratchTargetPosition).sub(out.position);
     const halfHeight = this.cameraDistance * Math.tan(degreesToRadians(out.fov) / 2);
     const halfWidth = halfHeight * this.aspect;
@@ -196,19 +162,17 @@ export class PositionComposerBody {
     let desiredScreenY = this.screenPosition[1];
     let insideDeadZone = false;
 
-    // justActivated skips the dead zone check entirely — same reasoning as RotationComposerAim's: it
-    // judges drift in out.position, which on a fresh activation is whatever an earlier, unrelated
-    // activation left behind, not a meaningful "current" to stay near
+    // A fresh activation has no meaningful previous camera position for this check.
     if (!justActivated && (this.deadZone[0] > 0 || this.deadZone[1] > 0)) {
       const halfDeadWidth = this.deadZone[0];
       const halfDeadHeight = this.deadZone[1];
-      // capped to the zone's own half-size, or an oversized target would overshoot center and oscillate
+      // Cap the extent to prevent an oversized target from overshooting the zone.
       const deadExtentX = Math.min(extentX, halfDeadWidth);
       const deadExtentY = Math.min(extentY, halfDeadHeight);
 
       const errorX = currentRight / halfWidth - this.screenPosition[0];
       const errorY = currentUp / halfHeight - this.screenPosition[1];
-      // the leading edge (center error + extent) must stay inside the zone, not just the center
+      // Check the target's leading edge, not only its center.
       const edgeErrorX = errorX + Math.sign(errorX) * deadExtentX;
       const edgeErrorY = errorY + Math.sign(errorY) * deadExtentY;
       insideDeadZone = Math.abs(edgeErrorX) <= halfDeadWidth && Math.abs(edgeErrorY) <= halfDeadHeight;
@@ -221,10 +185,7 @@ export class PositionComposerBody {
       }
     }
 
-    // still falls through to the hardLimit pass below even when inside the dead zone - hardLimit is a
-    // SEPARATE, wider box that must hold regardless of the dead zone, not just when the dead zone itself
-    // happened to react this frame (e.g. a misconfigured hardLimit smaller than deadZone would otherwise
-    // never actually enforce anything)
+    // Enforce hardLimit independently of the dead zone.
     if (!insideDeadZone) {
       scratchDesiredPosition
         .copy(out.position)
@@ -233,11 +194,10 @@ export class PositionComposerBody {
       this.lastActiveDesiredPosition.copy(scratchDesiredPosition);
       this.hasActiveDesiredPosition = true;
     } else if (this.hasActiveDesiredPosition) {
-      // chase the last REAL desired position instead of the camera's own current one, so the damper
-      // keeps easing toward a stable point and any residual velocity decays naturally
+      // Keep damping toward the last active target instead of the current camera position.
       scratchDesiredPosition.copy(this.lastActiveDesiredPosition);
     } else {
-      scratchDesiredPosition.copy(out.position); // no prior reference yet - zero correction
+      scratchDesiredPosition.copy(out.position); // No previous target means no correction.
     }
 
     if (justActivated && !skipReset) this.damper.reset();
