@@ -1,7 +1,4 @@
-/** Per-camera bitmask (`|` to combine), OR'd from both sides of a transition - set via
- *  `<VirtualCamera hints={...}>`. Only `sphericalPosition`/`cylindricalPosition`/`ignoreTarget` are
- *  honored so far. No `freezeWhenBlendingOut`: `BlendDriver` already always blends from a frozen snapshot
- *  of the outgoing camera, never its live state - there's nothing an extra flag would change. */
+/** Bitmask controlling how a camera transition is blended. */
 export const BlendHints = {
   none: 0,
   cylindricalPosition: 1 << 0,

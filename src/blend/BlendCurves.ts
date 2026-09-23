@@ -1,25 +1,20 @@
-/** An easing function: raw linear progress `t` (0..1) in, eased progress out. */
+/** Maps linear progress `t` in `[0, 1]` to eased progress. */
 export type Ease = (t: number) => number;
 
-/**
- * Named blend curve styles. "Custom" isn't a fixed curve here — just pass your own `Ease` instead.
- *
- * The In/Out naming describes the TRANSITION (departure vs. arrival), not raw acceleration — e.g.
- * `easeIn` = full-rate departure, eased arrival. That's the OPPOSITE of CSS's "ease-in" (slow start).
- */
+/** Named blend curves. Pass a custom `Ease` for other shapes. */
 export const BlendCurves = {
-  /** Zero-length blend — stays at the start until the very last instant, then snaps. */
+  /** Snaps at the end of the blend. */
   cut: ((t) => (t < 1 ? 0 : 1)) as Ease,
-  /** Mechanical-looking, constant-rate blend. */
+  /** Constant-rate blend. */
   linear: ((t) => t) as Ease,
-  /** S-shaped curve, gentle and smooth. */
+  /** Smooth S-shaped blend. */
   easeInOut: ((t) => t * t * (3 - 2 * t)) as Ease,
-  /** Full-rate departure, eased arrival. */
+  /** Fast departure, eased arrival. */
   easeIn: ((t) => t * (2 - t)) as Ease,
-  /** Eased departure, full-rate arrival. */
+  /** Eased departure, fast arrival. */
   easeOut: ((t) => t * t) as Ease,
-  /** Abrupt departure, gentle arrival. */
+  /** Abrupt departure, smooth arrival. */
   hardOut: ((t) => 1 - (1 - t) ** 3) as Ease,
-  /** Gentle departure, abrupt arrival. */
+  /** Smooth departure, abrupt arrival. */
   hardIn: ((t) => t ** 3) as Ease,
 } as const;
