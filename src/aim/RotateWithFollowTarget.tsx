@@ -21,8 +21,12 @@ export type RotateWithFollowTargetProps = {
 
 /** Thin wrapper — the actual logic lives in `RotateWithFollowTargetAim`. */
 export function RotateWithFollowTarget({ target, damping = 0, maxSpeed = Infinity, ref }: RotateWithFollowTargetProps) {
-  const { controller } = useVirtualCamera();
-  const [aim] = useState(() => new RotateWithFollowTargetAim(target, damping));
+  const { controller, state, initialState } = useVirtualCamera();
+  const [aim] = useState(() => {
+    const instance = new RotateWithFollowTargetAim(target, damping, maxSpeed);
+    if (initialState?.quaternion) instance.primeFrom(state.quaternion);
+    return instance;
+  });
   aim.target = target;
   aim.damping = damping;
   aim.maxSpeed = maxSpeed;

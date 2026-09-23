@@ -86,26 +86,27 @@ export function RotationComposer({
   debug = false,
   ref,
 }: RotationComposerProps) {
-  const { controller } = useVirtualCamera();
+  const { controller, state: cameraState, initialState } = useVirtualCamera();
   const aspect = useThree((state) => state.viewport.aspect);
-  const [aim] = useState(
-    () =>
-      new RotationComposerAim(
-        target,
-        screenPosition,
-        aspect,
-        deadZone,
-        damping,
-        hardLimit,
-        new Vector3(),
-        radius,
-        size,
-        lookaheadTime,
-        lookaheadSmoothing,
-        lookaheadIgnoreY,
-        maxSpeed,
-      ),
-  );
+  const [aim] = useState(() => {
+    const instance = new RotationComposerAim(
+      target,
+      screenPosition,
+      aspect,
+      deadZone,
+      damping,
+      hardLimit,
+      new Vector3(),
+      radius,
+      size,
+      lookaheadTime,
+      lookaheadSmoothing,
+      lookaheadIgnoreY,
+      maxSpeed,
+    );
+    if (initialState?.quaternion) instance.primeFrom(cameraState.quaternion);
+    return instance;
+  });
   aim.target = target;
   aim.screenPosition = screenPosition;
   aim.aspect = aspect;

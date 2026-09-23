@@ -41,8 +41,12 @@ export function Follow({
   maxSpeed = Infinity,
   ref,
 }: FollowProps) {
-  const { controller } = useVirtualCamera();
-  const [body] = useState(() => new FollowBody(target, new Vector3()));
+  const { controller, state, initialState } = useVirtualCamera();
+  const [body] = useState(() => {
+    const instance = new FollowBody(target, new Vector3(), damping);
+    if (initialState?.position) instance.primeFrom(state.position);
+    return instance;
+  });
   body.target = target;
   resolveVector3(body.offset, offset);
   body.damping = damping;

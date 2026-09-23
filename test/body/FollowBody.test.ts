@@ -218,6 +218,46 @@ describe('FollowBody', () => {
     });
   });
 
+  describe('primeFrom', () => {
+    it('the next update() eases from the primed position toward the desired one instead of snapping', () => {
+      const body = new FollowBody(new Vector3(0, 0, 0), new Vector3(10, 0, 0), 0.5);
+      const initial = new Vector3(-50, 0, 0);
+
+      body.primeFrom(initial);
+      const out = createCameraState();
+      out.position.copy(initial);
+      body.update(out, 0.016, true);
+
+      expect(out.position.x).toBeGreaterThan(initial.x); // moved off the primed position
+      expect(out.position.x).toBeLessThan(10); // but not there yet
+    });
+
+    it('without priming, update() still snaps straight to the desired position on justActivated (unchanged default)', () => {
+      const body = new FollowBody(new Vector3(0, 0, 0), new Vector3(10, 0, 0), 0.5);
+      const out = createCameraState();
+
+      body.update(out, 0.016, true);
+      expect(out.position.x).toBe(10);
+    });
+
+    it('is consumed by the first justActivated only - a later reactivation snaps normally', () => {
+      // offset (0,0,0): desired position === target, keeping the expected values simple below
+      const body = new FollowBody(new Vector3(0, 0, 0), new Vector3(0, 0, 0), 0.5);
+      const initial = new Vector3(-50, 0, 0);
+
+      body.primeFrom(initial);
+      const out = createCameraState();
+      out.position.copy(initial);
+      body.update(out, 0.016, true); // consumes the prime, eases
+      body.update(out, 0.016, false);
+
+      body.target = new Vector3(-40, 12, 3);
+      body.update(out, 0.016, true); // a later reactivation - primeFrom was NOT called again
+
+      expect(out.position.equals(new Vector3(-40, 12, 3))).toBe(true);
+    });
+  });
+
   describe('bindingMode', () => {
     it('defaults to lockToTarget (unchanged behavior from before bindingMode existed)', () => {
       const target = new Object3D();

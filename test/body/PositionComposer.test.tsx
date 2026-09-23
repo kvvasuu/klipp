@@ -165,4 +165,25 @@ describe('PositionComposer (React wrapper)', () => {
     const projected = projectToScreen(state.position, state.quaternion, state.fov, aspect, target.position);
     expect(projected.x).toBeCloseTo(0.15, 3);
   });
+
+  it("VirtualCamera's initialState.position seeds the dampers - the first frame eases from there, not a snap", async () => {
+    let core: KlippCore | undefined;
+    const target = new Object3D();
+    target.position.set(0, 0, -20);
+
+    const scene = (
+      <Klipp>
+        <CoreReader onRead={(c) => (core = c)} />
+        <VirtualCamera name="a" priority={10} initialState={{ position: [0, 0, 100] }}>
+          <PositionComposer target={target} cameraDistance={10} damping={0.5} />
+        </VirtualCamera>
+      </Klipp>
+    );
+
+    const renderer = await create(scene);
+    await renderer.advanceFrames(1, 0.016);
+
+    expect(core!.activeState!.position.z).toBeLessThan(100); // moved off initialState
+    expect(core!.activeState!.position.z).toBeGreaterThan(-10); // but not snapped to the composed shot
+  });
 });

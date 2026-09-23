@@ -239,4 +239,71 @@ describe('RotateWithFollowTargetAim', () => {
       expect(out.quaternion.angleTo(newTargetQuaternion)).toBeGreaterThan(0.01);
     });
   });
+
+  describe('primeFrom', () => {
+    it('the next update() eases from the primed rotation toward the target instead of snapping', () => {
+      const target = new Object3D();
+      target.rotation.set(0, Math.PI / 2, 0);
+      const initial = new Quaternion(); // identity - far from the target
+
+      const aim = new RotateWithFollowTargetAim(target, 0.5);
+      aim.primeFrom(initial);
+      const out = createCameraState();
+      out.quaternion.copy(initial);
+      aim.update(out, 0.016, true);
+
+      const targetQuaternion = new Quaternion().setFromEuler(target.rotation);
+      expect(out.quaternion.angleTo(initial)).toBeGreaterThan(0); // moved off the primed rotation
+      expect(out.quaternion.angleTo(targetQuaternion)).toBeGreaterThan(0.01); // but not there yet
+    });
+
+    it('without priming, update() still snaps straight to the target on justActivated (unchanged default)', () => {
+      const target = new Object3D();
+      target.rotation.set(0, Math.PI / 2, 0);
+
+      const aim = new RotateWithFollowTargetAim(target, 0.5);
+      const out = createCameraState();
+      aim.update(out, 0.016, true);
+
+      expectQuaternionsClose(out.quaternion, new Quaternion().setFromEuler(target.rotation));
+    });
+
+    it('is consumed by the first justActivated only - a later reactivation snaps normally', () => {
+      const target = new Object3D();
+      target.rotation.set(0, Math.PI / 2, 0);
+      const initial = new Quaternion();
+
+      const aim = new RotateWithFollowTargetAim(target, 0.5);
+      aim.primeFrom(initial);
+      const out = createCameraState();
+      out.quaternion.copy(initial);
+      aim.update(out, 0.016, true); // consumes the prime, eases
+      aim.update(out, 0.016, false);
+
+      target.rotation.set(1.2, -0.5, 0.3);
+      const newTargetQuaternion = new Quaternion().setFromEuler(target.rotation);
+      aim.update(out, 0.016, true); // a later reactivation - primeFrom was NOT called again
+
+      expectQuaternionsClose(out.quaternion, newTargetQuaternion);
+    });
+
+    it("is still consumed even when the target isn't resolved yet on the primed justActivated call", () => {
+      const initial = new Quaternion();
+      const aim = new RotateWithFollowTargetAim({ current: null }, 0.5);
+      aim.primeFrom(initial);
+      const out = createCameraState();
+      out.quaternion.copy(initial);
+
+      aim.update(out, 0.016, true); // target still unresolved - early return, but primed must be consumed
+      expect(out.quaternion.equals(initial)).toBe(true); // no-op, nothing to update yet
+
+      const target = new Object3D();
+      target.rotation.set(1.2, -0.5, 0.3);
+      aim.target = target;
+      const newTargetQuaternion = new Quaternion().setFromEuler(target.rotation);
+      aim.update(out, 0.016, true); // an unrelated LATER reactivation - must snap, not ease
+
+      expectQuaternionsClose(out.quaternion, newTargetQuaternion);
+    });
+  });
 });

@@ -103,4 +103,27 @@ describe('RotateWithFollowTarget (React wrapper)', () => {
     await renderer.advanceFrames(1, 0.05);
     expectQuaternionsClose(core!.activeState!.quaternion, newTargetQuaternion); // damping off: snaps instantly
   });
+
+  it("VirtualCamera's initialState.quaternion seeds the damper - the first frame eases from there, not a snap", async () => {
+    let core: KlippCore | undefined;
+    const target = new Object3D();
+    target.rotation.set(0, Math.PI / 2, 0);
+    const initialQuaternion = new Quaternion(); // identity - far from the target
+    const targetQuaternion = new Quaternion().setFromEuler(target.rotation);
+
+    const scene = (
+      <Klipp>
+        <CoreReader onRead={(c) => (core = c)} />
+        <VirtualCamera name="a" priority={10} initialState={{ quaternion: initialQuaternion }}>
+          <RotateWithFollowTarget target={target} damping={0.5} />
+        </VirtualCamera>
+      </Klipp>
+    );
+
+    const renderer = await create(scene);
+    await renderer.advanceFrames(1, 0.016);
+
+    expect(core!.activeState!.quaternion.angleTo(initialQuaternion)).toBeGreaterThan(0); // moved off initialState
+    expect(core!.activeState!.quaternion.angleTo(targetQuaternion)).toBeGreaterThan(0.01); // but not snapped there
+  });
 });

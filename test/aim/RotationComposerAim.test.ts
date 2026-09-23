@@ -685,6 +685,71 @@ describe('RotationComposerAim', () => {
     });
   });
 
+  describe('primeFrom', () => {
+    it('the next update() eases from the primed rotation toward the target instead of snapping', () => {
+      const target = new Vector3(10, 0, -10);
+      const aim = new RotationComposerAim(target, [0, 0], 1, [0, 0], 0.5);
+      const initial = new Quaternion(); // identity - far from looking at the target
+
+      aim.primeFrom(initial);
+      const out = createCameraState();
+      out.quaternion.copy(initial);
+      aim.update(out, 0.016, true);
+
+      const projected = projectToScreen(out, 1, target);
+      expect(out.quaternion.angleTo(initial)).toBeGreaterThan(0); // moved off the primed rotation
+      expect(Math.abs(projected.x) + Math.abs(projected.y)).toBeGreaterThan(0.01); // but not centered yet
+    });
+
+    it('without priming, update() still snaps straight to the target on justActivated (unchanged default)', () => {
+      const target = new Vector3(10, 0, -10);
+      const aim = new RotationComposerAim(target, [0, 0], 1, [0, 0], 0.5);
+      const out = createCameraState();
+      aim.update(out, 0.016, true);
+
+      const projected = projectToScreen(out, 1, target);
+      expect(projected.x).toBeCloseTo(0, 5);
+      expect(projected.y).toBeCloseTo(0, 5);
+    });
+
+    it('is consumed by the first justActivated only - a later reactivation snaps normally', () => {
+      const target = new Vector3(10, 0, -10);
+      const aim = new RotationComposerAim(target, [0, 0], 1, [0, 0], 0.5);
+      const initial = new Quaternion();
+
+      aim.primeFrom(initial);
+      const out = createCameraState();
+      out.quaternion.copy(initial);
+      aim.update(out, 0.016, true); // consumes the prime, eases
+      aim.update(out, 0.016, false);
+
+      aim.target = new Vector3(30, -8, -5);
+      aim.update(out, 0.016, true); // a later reactivation - primeFrom was NOT called again
+
+      const projected = projectToScreen(out, 1, aim.target);
+      expect(projected.x).toBeCloseTo(0, 5);
+      expect(projected.y).toBeCloseTo(0, 5);
+    });
+
+    it("is still consumed even when the target isn't resolved yet on the primed justActivated call", () => {
+      const initial = new Quaternion();
+      const aim = new RotationComposerAim({ current: null }, [0, 0], 1, [0, 0], 0.5);
+      aim.primeFrom(initial);
+      const out = createCameraState();
+      out.quaternion.copy(initial);
+
+      aim.update(out, 0.016, true); // target still unresolved - early return, but primed must be consumed
+      expect(out.quaternion.equals(initial)).toBe(true); // no-op, nothing to update yet
+
+      aim.target = new Vector3(10, 0, -10);
+      aim.update(out, 0.016, true); // an unrelated LATER reactivation - must snap, not ease
+
+      const projected = projectToScreen(out, 1, aim.target);
+      expect(projected.x).toBeCloseTo(0, 5);
+      expect(projected.y).toBeCloseTo(0, 5);
+    });
+  });
+
   describe('lookahead', () => {
     const dt = 1 / 60;
 

@@ -30,6 +30,7 @@ export class FollowBody {
   private readonly damper = new Vector3Damper();
   private readonly targetPosition = new Vector3();
   private readonly desiredPosition = new Vector3();
+  private primed = false;
 
   private lastAssignedTarget: Target = undefined;
   private readonly onAssignRotation = new Quaternion();
@@ -49,17 +50,25 @@ export class FollowBody {
   }
 
   update = (out: CameraState, dt: number, justActivated: boolean): void => {
+    if (justActivated) {
+      if (this.primed) this.primed = false;
+      else this.damper.reset();
+    }
     if (!resolveTargetPosition(this.targetPosition, this.target)) return;
 
     this.resolveOffsetRotation(scratchRotation);
     scratchRotatedOffset.copy(this.offset).applyQuaternion(scratchRotation);
     this.desiredPosition.copy(scratchRotatedOffset).add(this.targetPosition);
 
-    if (justActivated) this.damper.reset();
     this.damper.update(out.position, this.desiredPosition, this.damping, dt, this.maxSpeed);
     out.target.copy(out.position).sub(scratchRotatedOffset);
     out.hasTarget = true;
     out.referenceUp.set(0, 1, 0).applyQuaternion(scratchRotation);
+  };
+
+  primeFrom = (position: Vector3): void => {
+    this.damper.update(position, position, this.damping, 0);
+    this.primed = true;
   };
 
   private resolveOffsetRotation(out: Quaternion): void {
