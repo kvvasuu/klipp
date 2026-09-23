@@ -3,8 +3,8 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 import type { Camera, PerspectiveCamera } from 'three';
 import { copyCameraState, copyCameraStateFromCamera, createCameraState, type CameraState } from './CameraState';
 import { KlippContext, useKlipp, type FrameUpdate, type KlippContextValue } from './KlippContext';
-import { KlippCore, type CameraTransitionEventMap, type KlippCoreOptions } from './KlippCore';
-import { useCameraTransitionEvent } from './useCameraTransitionEvent';
+import { KlippCore, type KlippCoreOptions } from './KlippCore';
+import { useCameraTransitionEvent, type CameraTransitionEventProps } from './useCameraTransitionEvent';
 
 /** `instanceof PerspectiveCamera` silently fails whenever two copies of the `three` module end up
  *  loaded (a real risk in monorepos/certain bundler setups, not just a test-environment quirk) — each
@@ -175,13 +175,7 @@ export function Klipp({ children, defaultBlend, customBlends, camera: cameraProp
   return <KlippContext.Provider value={value}>{children}</KlippContext.Provider>;
 }
 
-export type KlippEventsProps = {
-  onActivated?: (event: CameraTransitionEventMap['activated']) => void;
-  onDeactivated?: (event: CameraTransitionEventMap['deactivated']) => void;
-  onBlendCreated?: (event: CameraTransitionEventMap['blendCreated']) => void;
-  onBlendFinished?: (event: CameraTransitionEventMap['blendFinished']) => void;
-  onCut?: (event: CameraTransitionEventMap['cut']) => void;
-};
+export type KlippEventsProps = CameraTransitionEventProps;
 
 /** Opt-in - place inside a `<Klipp>` to hear every `CameraTransitionEventMap` transition across ALL its
  *  cameras (contrast `VirtualCamera.Events`, scoped to one camera). Also available as `Klipp.Events`. */
