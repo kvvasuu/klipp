@@ -2,61 +2,40 @@ import type { Vector3 as Vector3Like } from '@react-three/fiber';
 import { useThree } from '@react-three/fiber';
 import { useEffect, useImperativeHandle, useState, type Ref } from 'react';
 import { Vector3 } from 'three';
-import { DebugZoneOverlay, type DebugZone } from '../DebugZoneOverlay';
 import type { DampingConstant } from '../damping/Damper';
+import { DebugZoneOverlay, type DebugZone } from '../DebugZoneOverlay';
 import { resolveVector3 } from '../resolve/resolveVector3';
 import type { Target } from '../resolve/Target';
 import { useVirtualCamera } from '../VirtualCameraContext';
 import { RotationComposerAim } from './RotationComposerAim';
 
 export type RotationComposerProps = {
-  /** Look At Target — the camera rotates so this position/object composes at `screenPosition`. `null`/
-   *  `undefined`/omitted is a no-op, same as an unmounted ref. */
+  /** Target to compose at `screenPosition`. Unresolved targets are ignored. */
   target?: Target;
-  /** Where the target should land on screen: `[x, y]`, `0` = center, `±1` = edge. Default `[0, 0]`
-   *  (dead center, same result as `HardLookAt`). */
+  /** Where the target should land on screen: `[x, y]`, `0` = center, `±1` = edge. */
   screenPosition?: [number, number];
-  /** How far (`[x, y]`) the target can drift from `screenPosition` with NO camera reaction at all — same
-   *  unit as `screenPosition` itself (`1` reaches the frame edge). Default `[0, 0]` (none — always
-   *  reacts, same as `HardLookAt`). */
+  /** Allowed target drift from `screenPosition` before the camera reacts. */
   deadZone?: [number, number];
-  /** Spring response time to the dead zone's edge once the target steps outside it (or `{into, from}` for
-   *  asymmetric damping). Only matters when `deadZone` is non-zero. `0` (default) = hard, instant snap
-   *  to the edge. */
+  /** Response time when the target leaves the `deadZone`. */
   damping?: DampingConstant;
-  /** Caps how fast `damping` can close the gap, in radians/sec - shared by the rotation itself and the
-   *  published `lookAtTarget` direction. Default `Infinity` (no cap). */
+  /** Maximum damping speed, in radians/sec. */
   maxSpeed?: number;
-  /** A SECOND, normally larger reach (`[x, y]`, same unit as `deadZone`) the target may never visually
-   *  drift past — enforced instantly (bypassing `damping`) after the damped dead zone reaction runs.
-   *  Default `[0, 0]` (none). */
+  /** Maximum allowed target drift, enforced immediately. */
   hardLimit?: [number, number];
-  /** Translation applied to the target's position, in the target's own local rotation space, before all
-   *  composition math — e.g. aim at a character's head instead of its feet/origin. Degrades to a plain
-   *  world-space offset for a target with no rotation (a fixed point). Default `(0, 0, 0)`. */
+  /** Offset applied in the target's local rotation space. */
   targetOffset?: Vector3Like;
-  /** Target's own bounding-sphere radius — `deadZone`/`hardLimit` then react to its nearest EDGE, not its
-   *  center. Ignored if `size` is given. Default: a dimensionless point. */
+  /** Target radius used when composing its visible edge. Ignored when `size` is set. */
   radius?: number;
-  /** Target's full box dimensions — takes priority over `radius`. Auto-detected from a `Mesh` target's own
-   *  geometry bounds when neither is given. */
+  /** Target dimensions used when composing its visible edges. */
   size?: Vector3Like;
-  /** Seconds to extrapolate the target's tracked position ahead by, based on its recent velocity. Default
-   *  `0` (none). Independent of `PositionComposer`'s own `lookaheadTime` - each keeps its own predictor. */
+  /** Seconds to aim ahead of the target's current position. */
   lookaheadTime?: number;
-  /** Smooth-time budget (seconds) for the velocity estimate driving `lookaheadTime`. Default `1`. */
+  /** Smoothing time for the lookahead velocity estimate. */
   lookaheadSmoothing?: number;
-  /** Zeroes the Y component of the predicted offset - keeps lookahead horizontal for a target that bobs
-   *  or jumps vertically. Default `false`. */
+  /** Whether lookahead ignores vertical movement. */
   lookaheadIgnoreY?: boolean;
-  /** Draws `deadZone`/`hardLimit` as bordered rectangles over the canvas - only while this
-   *  `VirtualCamera` is actually the one on screen. Default `false`. */
+  /** Draws the `deadZone` and `hardLimit` overlays. */
   debug?: boolean;
-  /** Imperative access to the underlying `RotationComposerAim`, for reading/writing
-   *  `target`/`screenPosition`/`deadZone`/`damping`/`maxSpeed`/`hardLimit`/`targetOffset`/`radius`/`size`/
-   *  `lookaheadTime`/`lookaheadSmoothing`/`lookaheadIgnoreY` directly instead of through props, and for
-   *  calling `recalculateSize()` on a target that deformed (a `SkinnedMesh` bone animation, a mutated
-   *  `BufferGeometry`) - auto-detected `size` is otherwise only measured once. */
   ref?: Ref<RotationComposerAim>;
 };
 
@@ -65,11 +44,7 @@ const defaultDeadZone: [number, number] = [0, 0];
 const defaultHardLimit: [number, number] = [0, 0];
 const defaultTargetOffset: Vector3Like = [0, 0, 0];
 
-/**
- * Rotation-only Aim, see `RotationComposerAim`'s doc comment for the algorithm. Thin wrapper — the actual
- * logic lives there. `aspect` is read reactively from the canvas (`useThree`), since `CameraState` has no
- * lens/viewport info of its own.
- */
+/** Keeps a target within a chosen screen region by rotating the camera. */
 export function RotationComposer({
   target,
   screenPosition = defaultScreenPosition,

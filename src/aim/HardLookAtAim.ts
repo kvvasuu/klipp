@@ -3,13 +3,10 @@ import type { CameraState } from '../CameraState';
 import { resolveTargetPosition, type Target } from '../resolve/Target';
 
 /**
- * Rotates so the Look At Target is dead-center, zero dead/soft zone. Uses `out.position` as the eye —
- * Body already ran this frame (`<VirtualCamera>` runs Body before Aim), so this looks from wherever the
- * camera actually ended up, not a stale position.
+ * Rotates so the Look At Target is dead-center.
  *
- * Builds the look-at matrix directly rather than calling `.lookAt()` on a scratch `Object3D` — a plain
- * `Object3D` uses the OPPOSITE (eye/target swapped) convention, meant for arrows etc., which silently
- * orients a camera 180° backwards.
+ * Builds the look-at matrix directly because a plain `Object3D` swaps eye and target in `.lookAt()`,
+ * which reverses the camera orientation.
  */
 export class HardLookAtAim {
   target: Target;

@@ -6,11 +6,10 @@ import { resolveTargetRotation, type Target } from '../resolve/Target';
 
 const scratchTargetRotation = new Quaternion();
 
-/** The rotation analog of `HardLockToTargetBody`. */
+/** Follows the target's rotation. */
 export class RotateWithFollowTargetAim {
   target: Target;
   damping: DampingConstant;
-  /** Caps how fast `damping` can close the gap, in radians/sec. Default `Infinity` (no cap). */
   maxSpeed: number;
 
   private readonly damper = new QuaternionDamper();
