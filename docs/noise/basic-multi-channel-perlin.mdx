@@ -1,10 +1,10 @@
 ---
 title: BasicMultiChannelPerlin
-description: Additive Perlin shake on position and rotation, independent per axis.
-nav: 31
+description: Smooth, continuous camera shake.
+nav: 51
 ---
 
-Six independently-seeded Perlin channels - position X/Y/Z (camera-local: X = left/right, Y = up/down, Z = push/pull) and rotation X/Y/Z (degrees, camera-local pitch/yaw/roll) - added on top of whatever Body/Aim already computed.
+Smooth, random shake on each position and rotation axis, relative to the camera: X is left/right, Y is up/down, Z is forward/back. Nothing shakes until you set an amplitude.
 
 ```tsx
 <Noise.BasicMultiChannelPerlin
@@ -16,27 +16,36 @@ Six independently-seeded Perlin channels - position X/Y/Z (camera-local: X = lef
 
 ## Props
 
-| Prop                | Type              | Default     | |
-| ------------------- | ----------------- | ----------- | - |
-| `positionAmplitude` | `Vector3`         | `(0, 0, 0)` | Per-axis shake amplitude, camera-local space. `(0,0,0)` = no shake until dialed in. |
-| `positionFrequency` | `Vector3`         | `(1, 1, 1)` | Per-axis oscillation speed for position noise. |
-| `rotationAmplitude` | `Vector3`         | `(0, 0, 0)` | Per-axis shake amplitude, in degrees. |
-| `rotationFrequency` | `Vector3`         | `(1, 1, 1)` | Per-axis oscillation speed for rotation noise. |
-| `amplitudeGain`     | `number`          | `1`         | Multiplies every amplitude at once. |
-| `frequencyGain`     | `number`          | `1`         | Multiplies every frequency at once (how fast the internal clock advances). |
-| `seed`              | `number`          | random      | Seeds the 6 channels - same seed reproduces identical noise. Chosen once, on mount; changing it later has no effect. |
-| `amplitudeDamping`  | `DampingConstant` | `0`         | Seconds to ease `amplitudeGain` changes instead of cutting instantly. `0` = instant. |
+| Prop | Description | Default |
+| ---- | ----------- | ------- |
+| `positionAmplitude` | How far the camera moves on each axis. | `[0, 0, 0]` |
+| `positionFrequency` | How fast the position shakes on each axis. | `[1, 1, 1]` |
+| `rotationAmplitude` | How far the camera turns on each axis, in degrees. | `[0, 0, 0]` |
+| `rotationFrequency` | How fast the rotation shakes on each axis. | `[1, 1, 1]` |
+| `amplitudeGain` | Multiplies all amplitudes. Set to `0` to turn the shake off. | `1` |
+| `frequencyGain` | Multiplies all frequencies. | `1` |
+| `amplitudeDamping` | Seconds to fade to a new `amplitudeGain`, instead of switching instantly. | `0` |
+| `seed` | Same seed, same shake. Read once on mount. | random |
 
-All amplitudes default to `0` - nothing shakes until you dial one in, the same "0 disables it" convention as `deadZone`/`hardLimit`/`damping` elsewhere in klipp.
+## Fading in and out
 
-## Fading in/out (`amplitudeDamping`)
-
-Noise has no state that persists between frames the way Body/Aim's damping does - the offset is always a fresh `sample × amplitude`, with nothing to "coast" from when you turn it off. Without `amplitudeDamping`, dropping `amplitudeGain` to `0` cuts the shake dead on the very next frame; with it, the *effective* gain eases toward the new value instead, so turning shake off reads as the effect settling down, not a hard cut. Frequency/character of the noise itself doesn't change - only how loud it currently is.
-
-## `ref`
+Change `amplitudeGain` with `amplitudeDamping` set, and the shake fades smoothly instead of starting or stopping abruptly:
 
 ```tsx
-const noiseRef = useRef<BasicMultiChannelPerlinNoise>(null);
+<Noise.BasicMultiChannelPerlin
+  positionAmplitude={[0.1, 0.1, 0]}
+  amplitudeGain={engineRunning ? 1 : 0}
+  amplitudeDamping={0.5}
+/>
 ```
 
-Gives you the underlying `BasicMultiChannelPerlinNoise` - read or write any prop's field directly.
+## Layering
+
+For a slow sway plus a fast jitter, add two of them with different settings:
+
+```tsx
+<Noise.BasicMultiChannelPerlin rotationAmplitude={[1, 1, 0]} frequencyGain={0.3} />
+<Noise.BasicMultiChannelPerlin positionAmplitude={[0.02, 0.02, 0]} frequencyGain={8} />
+```
+
+`ref` gives you the `BasicMultiChannelPerlinNoise`.

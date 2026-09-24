@@ -1,30 +1,24 @@
 ---
 title: HardLockToTarget
-description: Instant position lock onto a target, with optional damping.
-nav: 11
+description: Puts the camera exactly where the target is.
+nav: 21
 ---
 
-Position = `target`'s world position, 1:1 - no offset, no framing. The simplest possible Body, and a reasonable default whenever the camera genuinely needs to sit exactly where the target is (a first-person rig, or a camera physically attached to something else that already handles its own positioning).
+Moves the camera to the target's position, with no offset. Good for first-person cameras, cameras attached to a moving object, or a camera at a fixed point.
 
 ```tsx
-<VirtualCamera name="fps-cam" priority={10}>
-  <Body.HardLockToTarget target={headBoneRef} />
-  <Aim.RotateWithFollowTarget target={headBoneRef} />
+<VirtualCamera name="first-person" priority={10}>
+  <Body.HardLockToTarget target={headRef} />
+  <Aim.RotateWithFollowTarget target={headRef} />
 </VirtualCamera>
 ```
 
 ## Props
 
-| Prop      | Type              | Default | |
-| --------- | ----------------- | ------- | - |
-| `target`  | `Target`          | -       | Tracking Target - the camera's position becomes this position/object's world position. `null`/`undefined`/omitted is a no-op, same as an unmounted ref. |
-| `damping` | `DampingConstant` | `0`     | Spring response time to the target's position, per axis (or `{ into, from }` for asymmetric damping) - see [Damping](/advanced/damping). `0` = hard, instant lock. |
-| `maxSpeed` | `number`         | `Infinity` | Caps how fast `damping` can close the gap, in world units/sec. |
+| Prop | Description | Default |
+| ---- | ----------- | ------- |
+| `target` | What to lock onto. See [Targets](/getting-started/core-concepts#targets). | |
+| `damping` | Seconds to catch up with the target. `0` is instant. See [Damping](/getting-started/core-concepts#damping). | `0` |
+| `maxSpeed` | Maximum catch-up speed, in units per second. | `Infinity` |
 
-## `ref`
-
-```tsx
-const bodyRef = useRef<HardLockToTargetBody>(null);
-```
-
-Gives you the underlying `HardLockToTargetBody` - read or write `.target`/`.damping`/`.maxSpeed` directly.
+`ref` gives you the `HardLockToTargetBody`.

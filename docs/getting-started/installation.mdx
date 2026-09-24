@@ -1,6 +1,6 @@
 ---
 title: Installation
-description: Package layout, entry points, and the optional CameraControls subpath.
+description: Install klipp and pick the right entry point.
 nav: 1
 ---
 
@@ -8,26 +8,50 @@ nav: 1
 npm install @kvvasuu/klipp
 ```
 
-> [!NOTE]
-> klipp is built for [React Three Fiber](https://github.com/pmndrs/react-three-fiber) - but `react`/`@react-three/fiber` are optional peers, so if you want it, the engine also works vanilla, with no React dependency at all.
+klipp is built with React Three Fiber in mind, but its engine has no React dependency, so you can use it in a plain three.js project too.
 
-## Entry points
+## React Three Fiber
 
-klipp ships as three separate entry points, so you only pull in what you actually use:
-
-| Import                              | Needs                              | What's in it                                                                    |
-| ------------------------------------ | ----------------------------------- | -------------------------------------------------------------------------------- |
-| `@kvvasuu/klipp`                     | `three`                             | The framework-agnostic engine - `KlippCore`, `CameraState`, blending, damping. No React. |
-| `@kvvasuu/klipp/react`               | `react`, `@react-three/fiber`       | `<Klipp>`, `<VirtualCamera>`, and every `Body`/`Aim`/`Noise`/`Extension` component. |
-| `@kvvasuu/klipp/react/camera-controls` | `camera-controls`                 | `<CameraControls>`, the user-driven orbit adapter - opt-in since it pulls in its own dependency. |
-
-Most projects only ever need `@kvvasuu/klipp/react`:
+Almost everything you need comes from `@kvvasuu/klipp/react`:
 
 ```tsx
 import { Klipp, VirtualCamera, Body, Aim } from '@kvvasuu/klipp/react';
 ```
 
-If you also want `<CameraControls>`, install its dependency and import from the dedicated subpath:
+Constants, types and plain classes (`BlendCurves`, `BindingModes`, `impulseField`, `FollowBody`, ...) come from the main entry:
+
+```tsx
+import { BlendCurves, BindingModes } from '@kvvasuu/klipp';
+```
+
+## Vanilla three.js
+
+The main entry `@kvvasuu/klipp` only needs `three`. The React components are thin wrappers around classes you can use directly:
+
+```ts
+import { Vector3 } from 'three';
+import { KlippCore, VirtualCameraController, FollowBody, HardLookAtAim, createCameraState, applyCameraState } from '@kvvasuu/klipp';
+
+const core = new KlippCore();
+
+const state = createCameraState();
+const follow = new VirtualCameraController('follow');
+follow.registerBody(new FollowBody(player, new Vector3(0, 3, 8), 0.5).update);
+follow.registerAim(new HardLookAtAim(player).update);
+core.registerCamera({ id: 'follow', priority: 10, state });
+
+let justActivated = true;
+
+function onFrame(dt) {
+  follow.update(state, dt, justActivated);
+  justActivated = false;
+  applyCameraState(camera, core.tick(dt), width, height);
+}
+```
+
+## CameraControls
+
+[`CameraControls`](/body/camera-controls) lives in its own entry point, so `camera-controls` only ends up in your bundle if you use it:
 
 ```bash
 npm install camera-controls
@@ -36,5 +60,3 @@ npm install camera-controls
 ```tsx
 import { CameraControls } from '@kvvasuu/klipp/react/camera-controls';
 ```
-
-`three`, `react`, `@react-three/fiber`, and `camera-controls` are all `peerDependencies` - klipp never bundles its own copy, so your app's versions are always the ones actually running.

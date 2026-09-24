@@ -1,15 +1,15 @@
 ---
 title: Impulse
-description: Event-driven, one-shot reactions like explosions or impacts.
-nav: 33
+description: One-off camera shakes from events like explosions and hits.
+nav: 55
 ---
 
-Event-driven, one-shot reactions - an explosion, an impact, a footstep - instead of continuous shake. `impulseField.generate()` fires an event with its own position, direction/strength, and envelope. `ImpulseListener` samples the sum of every still-active event as an additive position offset, plugging into the same stacking Noise slot [`BasicMultiChannelPerlin`](/noise/basic-multi-channel-perlin) uses - mechanically a Noise-slot filler, but its own top-level concept, not a Noise variant.
+Fire an impulse from anywhere in your game, and every camera with an `<ImpulseListener>` reacts to it.
 
 ```tsx
 import { impulseField, ImpulseShapes } from '@kvvasuu/klipp';
 
-function onExplosion(position: Vector3) {
+function onExplosion(position) {
   impulseField.generate({
     position,
     direction: [0, 0.5, 0],
@@ -21,65 +21,57 @@ function onExplosion(position: Vector3) {
 ```
 
 ```tsx
-<VirtualCamera name="follow-cam" priority={10}>
-  <Body.Follow target={playerRef} offset={[0, 3, 8]} damping={0.5} />
+import { ImpulseListener } from '@kvvasuu/klipp/react';
+
+<VirtualCamera name="follow" priority={10}>
+  <Body.Follow target={playerRef} offset={[0, 3, 8]} />
   <Aim.HardLookAt target={playerRef} />
   <ImpulseListener />
 </VirtualCamera>
 ```
 
-## Generating an event
+## `impulseField.generate`
 
-`impulseField.generate(options, now?)` - `now` defaults to the real clock, pass it explicitly only in tests for determinism.
+| Option | Description | Default |
+| ------ | ----------- | ------- |
+| `position` | Where the impulse happens, in world space. | |
+| `direction` | Which way, and how far, the camera gets pushed at the peak. A bigger vector is a stronger kick. | `[0, 0, 0]` |
+| `shape` | How the strength changes over time: `ImpulseShapes.recoil`, `bump`, `explosion`, `rumble`, or your own `(t) => number`. | `ImpulseShapes.bump` |
+| `duration` | Length in seconds. | `0.4` |
+| `radius` | Distance from `position` where the impulse is felt at full strength. | `0` |
+| `dissipationDistance` | Distance beyond `radius` over which it fades out. `0` means it's felt everywhere. | `0` |
+| `propagationSpeed` | How fast it travels, in units per second, so faraway cameras feel it later. | `Infinity` |
+| `channel` | Bitmask to target specific listeners. See `channelMask` below. | `1` |
 
-| Option                | Type           | Default     | |
-| ---------------------- | -------------- | ----------- | - |
-| `position`             | `Vector3`      | -           | World-space origin of the event. |
-| `direction`            | `Vector3`      | `[0, 0, 0]` | World-space direction **and** strength of the kick - the offset at peak envelope is exactly this vector, not a separately-scaled unit direction. A bigger explosion is a bigger `direction`, not a separate strength field. |
-| `shape`                | `ImpulseShape` | `ImpulseShapes.bump` | The envelope's amplitude curve, normalized progress `t` (0..1 over `duration`) in, amplitude out. Named presets - `ImpulseShapes.recoil`/`bump`/`explosion`/`rumble` - or pass your own `(t) => number` for anything else. |
-| `duration`             | `number`       | `0.4`       | Seconds `shape` is stretched across. |
-| `radius`               | `number`       | `0`         | Distance from `position` within which the event is felt at full strength. |
-| `dissipationDistance`  | `number`       | `0`         | Distance beyond `radius` over which strength falls off linearly to `0`. `0` = no falloff, felt at full strength at any distance. |
-| `propagationSpeed`     | `number`       | `Infinity`  | World units/second the signal travels outward at, delaying a distant listener like a real sound wave. `Infinity` (default) = felt everywhere instantly. |
-| `channel`              | `number`       | `1`         | Bitmask - a listener only reacts if `(channel & listener.channelMask) !== 0`. |
+> [!NOTE]
+> With `frameloop="demand"`, call `invalidate()` after `generate()`. See [On-demand rendering](/advanced/on-demand-rendering).
 
+## `<ImpulseListener>` props
 
-`generate()` is typically called from a physics/gameplay callback - under `frameloop="demand"` that's exactly the kind of mutation [Core Concepts](/getting-started/core-concepts) warns about: call `invalidate()` right after `generate()`, or the impulse won't actually render until something else happens to request a frame.
+| Prop | Description | Default |
+| ---- | ----------- | ------- |
+| `gain` | Multiplies the impulse strength. `0` mutes this listener. | `1` |
+| `shake` | Adds a rattle on top of the push. See below. | |
+| `cameraSpace` | Treat `direction` relative to the camera instead of the world. See below. | `false` |
+| `channelMask` | Only react to impulses where `channel & channelMask` is not `0`. | `1` |
+| `field` | A separate `ImpulseField` to listen to instead of the shared `impulseField`. | `impulseField` |
 
-## `ImpulseListener`
+## Adding a rattle
 
-| Prop          | Type                | Default                          | |
-| ------------- | ------------------- | --------------------------------- | - |
-| `field`       | `ImpulseField`      | shared `impulseField` singleton   | Pass your own instance only for isolated impulse "worlds" (e.g. split-screen with independent explosions per view). |
-| `channelMask` | `number`            | `1`                                | Only reacts to events where `(event.channel & channelMask) !== 0`. |
-| `gain`        | `number`            | `1`                                | Multiplies the sampled offset. `0` mutes this listener entirely. |
-| `shake`       | `ImpulseShakeProps` | none                               | Secondary rattle, riding on top of the kick - see below. |
-| `cameraSpace` | `boolean`           | `false`                            | Rotates the sampled offset by the camera's current orientation - see below. |
-
-## Adding rotation with `shake`
-
-The kick itself (`direction` shaped by `shape`) is position-only. For the rattle-and-shudder look real impacts have - explosions and rumbles pitching the camera, not just pushing it - pass `shake`: the same props as [`<Noise.BasicMultiChannelPerlin>`](/noise/basic-multi-channel-perlin), minus `amplitudeGain` (`ImpulseListener` drives that itself, every frame, from the impulse's current strength - the shake automatically swells with the kick and fades out with it). You tune `positionAmplitude`/`rotationAmplitude`/`frequency` for what it looks like at full strength, same as configuring any other Noise.
+An impulse on its own only pushes the camera. `shake` adds rotation and jitter that grows and fades with it. It takes the same props as [`BasicMultiChannelPerlin`](/noise/basic-multi-channel-perlin), except `amplitudeGain`:
 
 ```tsx
 <ImpulseListener shake={{ positionAmplitude: [0.1, 0.1, 0.1], rotationAmplitude: [4, 4, 4] }} />
 ```
 
-## World-space vs `cameraSpace`
+## Camera-relative impulses
 
-`direction` is a world-space vector by default - right for an explosion that should push the camera away from wherever it actually happened, regardless of which way the camera is facing. For an event that's always about the camera itself - weapon recoil, a landing thump - `cameraSpace` reinterprets the same `direction` relative to the camera's current orientation instead, so a fixed vector always kicks the same way no matter where the camera is or looks:
-
-```tsx
-function onFire() {
-  impulseField.generate({ position: [0, 0, 0], direction: [0, 0.3, 0.1], shape: ImpulseShapes.recoil });
-}
-
-<ImpulseListener cameraSpace />
-```
-
-## `ref`
+By default `direction` is in world space, which suits explosions: the camera gets pushed away from where it happened. For recoil or a landing thump, use `cameraSpace` so the same `direction` always kicks the same way on screen:
 
 ```tsx
-const listenerRef = useRef<ImpulseListenerNoise>(null);
+impulseField.generate({ position: [0, 0, 0], direction: [0, 0.3, 0.1], shape: ImpulseShapes.recoil });
+
+<ImpulseListener cameraSpace />;
 ```
 
-Gives you the underlying `ImpulseListenerNoise` - read or write `.field`/`.channelMask`/`.gain`/`.shake`/`.cameraSpace` directly.
+`ref` gives you the `ImpulseListenerNoise`.

@@ -1,0 +1,48 @@
+---
+title: Debugging
+description: Visualize framing zones and camera frustums.
+nav: 80
+---
+
+## Framing zones
+
+[`PositionComposer`](/body/position-composer), [`RotationComposer`](/aim/rotation-composer) and [`GroupFraming`](/extension/group-framing) take a `debug` prop that draws their zones on top of the canvas while their camera is the winner.
+
+```tsx
+<Body.PositionComposer target={playerRef} deadZone={[0.4, 0.4]} hardLimit={[0.7, 0.7]} debug />
+```
+
+| Component | Draws |
+| --------- | ----- |
+| `PositionComposer`, `RotationComposer` | `deadZone` in green, `hardLimit` in red, and a crosshair at `screenPosition`. |
+| `GroupFraming` | `padding` in blue. |
+
+Each element has a CSS class you can restyle: `klipp-debug-deadzone`, `klipp-debug-hardlimit`, `klipp-debug-groupframing` and `klipp-debug-crosshair`.
+
+```css
+.klipp-debug-deadzone {
+  border-color: lime;
+}
+```
+
+## `<CameraFrustumHelper>`
+
+Draws a camera's frustum in the scene, so you can see where an inactive camera is and what it's looking at. Place it inside the `<VirtualCamera>` you want to see.
+
+```tsx
+import { CameraFrustumHelper } from '@kvvasuu/klipp/react';
+
+<VirtualCamera name="security-cam" priority={5}>
+  <Body.HardLockToTarget target={[5, 4, 5]} />
+  <Aim.HardLookAt target={doorRef} />
+  <CameraFrustumHelper color="orange" />
+</VirtualCamera>
+```
+
+| Prop | Description | Default |
+| ---- | ----------- | ------- |
+| `color` | Color of the helper. | three.js defaults |
+| `maxDistance` | How far the frustum is drawn. | `1` |
+| `hideWhenLive` | Hide it while this camera is on screen. | `true` |
+
+`ref` gives you the `THREE.CameraHelper`.

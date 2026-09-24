@@ -1,13 +1,13 @@
 ---
 title: Follow
-description: Damped offset from a target, with BindingModes controlling how the offset rotates.
-nav: 12
+description: Keeps the camera at a fixed offset from a target.
+nav: 22
 ---
 
-Position = `target`'s world position + a fixed `offset`, optionally rotated along with the target and optionally damped. The offset is interpreted in the target's own rotation space by default, so a chase camera stays behind a turning character instead of sliding off to one side.
+Keeps the camera at `offset` from the target. By default the offset turns with the target, so a chase camera stays behind a character as it turns.
 
 ```tsx
-<VirtualCamera name="chase-cam" priority={10}>
+<VirtualCamera name="chase" priority={10}>
   <Body.Follow target={playerRef} offset={[0, 3, 8]} damping={0.5} />
   <Aim.HardLookAt target={playerRef} />
 </VirtualCamera>
@@ -15,36 +15,32 @@ Position = `target`'s world position + a fixed `offset`, optionally rotated alon
 
 ## Props
 
-| Prop          | Type              | Default        | |
-| ------------- | ----------------- | -------------- | - |
-| `target`      | `Target`          | -              | Tracking Target - the camera keeps a fixed `offset` from this position/object's world transform. |
-| `offset`      | `Vector3`          | `(0, 0, 10)`   | Offset from the target, rotated according to `bindingMode` before being added to its position. |
-| `damping`     | `DampingConstant` | `0`            | Spring response time to the desired position, per axis (or `{ into, from }`) - see [Damping](/advanced/damping). `0` = hard, instant follow. |
-| `maxSpeed`    | `number`          | `Infinity`     | Caps how fast `damping` can close the gap, in world units/sec. |
-| `bindingMode` | `BindingMode`     | `BindingModes.lockToTarget` | Which rotation, if any, `offset` is interpreted in - see below. |
+| Prop | Description | Default |
+| ---- | ----------- | ------- |
+| `target` | What to follow. See [Targets](/getting-started/core-concepts#targets). | |
+| `offset` | Where the camera sits relative to the target. | `[0, 0, 10]` |
+| `damping` | Seconds to catch up with the target. `0` is instant. See [Damping](/getting-started/core-concepts#damping). | `0` |
+| `maxSpeed` | Maximum catch-up speed, in units per second. | `Infinity` |
+| `bindingMode` | How the offset turns with the target. See below. | `BindingModes.lockToTarget` |
 
-`target` degrades gracefully to a plain world-space offset when it's a bare `Vector3` (no rotation to apply `bindingMode` to at all).
-
-## `BindingModes`
-
-| Mode | Offset rotates by |
-| ---- | ------------------ |
-| `worldSpace` | Nothing - always identity, the offset never rotates. |
-| `lockToTarget` (default) | The target's full, live rotation (pitch + yaw + roll). |
-| `lockToTargetWithWorldUp` | Only the target's yaw - its forward vector flattened onto the world XZ plane before rebuilding the rotation, so a barrel roll or a steep dive never tips the offset. |
-| `lockToTargetNoRoll` | The target's full 3D forward direction (pitch *and* yaw), rebuilt without roll - structurally impossible to introduce roll, not just zeroed out after the fact. |
-| `lockToTargetOnAssign` | The target's rotation, captured once the first time `target` changes *identity* (a genuinely different object/ref, not just movement) and held frozen until the next identity change. |
-
-`lockToTargetWithWorldUp` and `lockToTargetNoRoll` both rebuild the rotation through a `lookAt`-style matrix rather than stripping roll out of an Euler decomposition afterward - roll is excluded by construction, so there's no gimbal-lock edge case to worry about.
-
-## Roll and `referenceUp`
-
-`Follow` never touches rotation - `Body` only ever computes position. So how does `bindingMode` end up affecting whether the camera visibly rolls? Through `CameraState.referenceUp`: `Follow` writes it, and an Aim reads it instead of a fixed world up when building its own rotation.
-
-## `ref`
+## `bindingMode`
 
 ```tsx
-const bodyRef = useRef<FollowBody>(null);
+import { BindingModes } from '@kvvasuu/klipp';
+
+<Body.Follow target={planeRef} offset={[0, 2, 10]} bindingMode={BindingModes.lockToTargetWithWorldUp} />
 ```
 
-Gives you the underlying `FollowBody` - read or write `.target`/`.offset`/`.damping`/`.maxSpeed`/`.bindingMode` directly.
+| Mode | The offset turns with the target's |
+| ---- | ---------------------------------- |
+| `lockToTarget` | full rotation, including roll. |
+| `lockToTargetNoRoll` | yaw and pitch, but never rolls. |
+| `lockToTargetWithWorldUp` | yaw only. Good for flying or jumping targets. |
+| `lockToTargetOnAssign` | rotation at the moment `target` is set, then stays fixed. |
+| `worldSpace` | nothing. The offset is always in world space. |
+
+With a fixed-point target like `[0, 1, 0]` there's no rotation to follow, so the offset is always in world space.
+
+The binding mode also tells Aims like [`HardLookAt`](/aim/hard-look-at) which way is up, so with `lockToTarget` the camera rolls along with the target, and with `lockToTargetWithWorldUp` it never does.
+
+`ref` gives you the `FollowBody`.

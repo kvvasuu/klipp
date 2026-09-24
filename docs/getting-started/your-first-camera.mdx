@@ -1,0 +1,136 @@
+---
+title: Your first camera
+description: Build a follow camera and switch to a second shot, step by step.
+nav: 3
+---
+
+This guide builds a camera that follows a moving box, then adds a second shot and switches between the two.
+
+## Start with a scene
+
+A plain React Three Fiber scene with a box that moves in a circle:
+
+```tsx
+import { useRef } from 'react';
+import { Canvas, useFrame } from '@react-three/fiber';
+import type { Mesh } from 'three';
+
+function Player({ ref }) {
+  useFrame(({ clock }) => {
+    const t = clock.getElapsedTime();
+    ref.current.position.set(Math.sin(t) * 4, 0.5, Math.cos(t) * 4);
+  });
+
+  return (
+    <mesh ref={ref}>
+      <boxGeometry />
+      <meshNormalMaterial />
+    </mesh>
+  );
+}
+
+export default function App() {
+  const playerRef = useRef<Mesh>(null);
+
+  return (
+    <Canvas>
+      <Player ref={playerRef} />
+      <gridHelper args={[20, 20]} />
+    </Canvas>
+  );
+}
+```
+
+## Add `<Klipp>`
+
+`<Klipp>` drives the camera. Put it anywhere inside `<Canvas>`:
+
+```tsx
+import { Klipp } from '@kvvasuu/klipp/react';
+
+<Canvas>
+  <Klipp>{/* cameras go here */}</Klipp>
+  <Player ref={playerRef} />
+</Canvas>
+```
+
+## Add a virtual camera
+
+A `<VirtualCamera>` is one shot. You describe it with two pieces:
+
+- a **Body**, which decides where the camera is,
+- an **Aim**, which decides where it looks.
+
+```tsx
+import { Klipp, VirtualCamera, Body, Aim } from '@kvvasuu/klipp/react';
+
+<Klipp>
+  <VirtualCamera name="follow" priority={10}>
+    <Body.Follow target={playerRef} offset={[0, 3, 8]} />
+    <Aim.HardLookAt target={playerRef} />
+  </VirtualCamera>
+</Klipp>
+```
+
+The camera now stays 8 units behind and 3 units above the box, looking straight at it.
+
+## Smooth it out
+
+Add `damping` to let the camera lag behind a little instead of being glued to the box. The value is roughly how many seconds it takes to catch up:
+
+```tsx
+<Body.Follow target={playerRef} offset={[0, 3, 8]} damping={0.5} />
+```
+
+## Add a second shot
+
+Add a wide overview camera with a higher `priority`, and turn it on and off with `active`:
+
+```tsx
+import { useRef, useState } from 'react';
+import { Canvas } from '@react-three/fiber';
+import type { Mesh } from 'three';
+import { Klipp, VirtualCamera, Body, Aim } from '@kvvasuu/klipp/react';
+
+export default function App() {
+  const playerRef = useRef<Mesh>(null);
+  const [overview, setOverview] = useState(false);
+
+  return (
+    <>
+      <button onClick={() => setOverview(!overview)}>Toggle overview</button>
+      <Canvas>
+        <Klipp>
+          <VirtualCamera name="follow" priority={10}>
+            <Body.Follow target={playerRef} offset={[0, 3, 8]} damping={0.5} />
+            <Aim.HardLookAt target={playerRef} />
+          </VirtualCamera>
+
+          <VirtualCamera name="overview" priority={20} active={overview}>
+            <Body.HardLockToTarget target={[0, 15, 15]} />
+            <Aim.HardLookAt target={[0, 0, 0]} />
+          </VirtualCamera>
+        </Klipp>
+        <Player ref={playerRef} />
+      </Canvas>
+    </>
+  );
+}
+```
+
+The highest-priority active camera is the one on screen. Toggle `overview` and klipp blends between the two shots.
+
+## Change the blend
+
+By default a blend takes 2 seconds with an ease-in-out curve. Change it on `<Klipp>`:
+
+```tsx
+import { BlendCurves } from '@kvvasuu/klipp';
+
+<Klipp defaultBlend={{ curve: BlendCurves.easeInOut, time: 0.8 }}>
+```
+
+## Where to go next
+
+- [Body](/body/introduction) and [Aim](/aim/introduction) for every way to position and aim a camera.
+- [Blending](/blending/introduction) for curves, per-camera transitions and blend hints.

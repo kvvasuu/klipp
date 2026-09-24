@@ -1,31 +1,27 @@
 ---
 title: Body
-description: The piece that computes a VirtualCamera's position.
-nav: 10
+description: Decides where the camera is.
+nav: 20
 ---
 
-A Body computes a `<VirtualCamera>`'s **position** - nothing else. It never touches rotation, and at most one Body runs per `<VirtualCamera>` (see [Core Concepts](/getting-started/core-concepts) for why Body and Aim are split like this in the first place).
+A Body decides where the camera is. Where it looks is up to the [Aim](/aim/introduction). Each `<VirtualCamera>` has at most one Body.
 
 ```tsx
-import { Body } from '@kvvasuu/klipp/react';
+import { VirtualCamera, Body, Aim } from '@kvvasuu/klipp/react';
 
-<VirtualCamera name="follow-cam" priority={10}>
+<VirtualCamera name="follow" priority={10}>
   <Body.Follow target={playerRef} offset={[0, 3, 8]} damping={0.5} />
+  <Aim.HardLookAt target={playerRef} />
 </VirtualCamera>
 ```
 
-## Choosing one
+## Which one?
 
-- [`HardLockToTarget`](/body/hard-lock-to-target) - position = target's position, 1:1. Instant, no offset, no framing - the simplest possible Body.
-- [`Follow`](/body/follow) - a damped, constant offset from a target, with `BindingModes` controlling whether (and how) that offset rotates along with the target.
-- [`PositionComposer`](/body/position-composer) - keeps the target at a chosen on-screen position and distance instead of a fixed world-space offset, with a dead zone, hard limit, and damping.
+| Body | Use it for |
+| ---- | ---------- |
+| [`HardLockToTarget`](/body/hard-lock-to-target) | Placing the camera exactly on a target: first person, a camera mounted on something, a fixed spot. |
+| [`Follow`](/body/follow) | Keeping a fixed offset from a target: chase cameras, third person. |
+| [`PositionComposer`](/body/position-composer) | Keeping a target at a spot on screen: top-down, side-scrollers, anything with a fixed rotation. |
+| [`CameraControls`](/body/camera-controls) | Letting the user orbit, pan and zoom. |
 
-[`CameraControls`](/camera-controls/introduction) also plugs into the Body slot, but it's a separate topic - see its own page for why.
-
-## Shared conventions
-
-Every Body shares the same shape:
-
-- **`target`** accepts an `Object3D`, a `RefObject<Object3D | null>`, or the r3f `Vector3` shorthand (`THREE.Vector3 | [x, y, z] | number`) - the same convention as a plain `<mesh position>`. `null`/`undefined`/an unmounted ref is a no-op, not an error.
-- **`damping`** is either a plain number (a spring response time in seconds - see [Damping](/advanced/damping)) or `{ into, from }` for asymmetric easing - `0` (the default almost everywhere) means hard, instant snapping.
-- **`ref`** gives you the underlying class (`FollowBody`, `PositionComposerBody`, ...) for reading or writing its fields directly, or calling methods a prop can't express - `recalculateSize()` on `PositionComposerBody`, for instance.
+Without a Body the camera stays at its [`initialState`](/api/virtual-camera#initialstate) position.

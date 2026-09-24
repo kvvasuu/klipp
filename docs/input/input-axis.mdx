@@ -1,68 +1,51 @@
 ---
-title: Input Axis
-description: A single shaped value with range, wrap, damping and recentering - the thing an InputController drives.
-nav: 48
+title: InputAxis
+description: A single controllable value with limits, damping and recentering.
+nav: 62
 ---
+
+An `InputAxis` is one value the user controls, like `pan` or `tilt` on [`PanTilt`](/aim/pan-tilt). [`<InputController>`](/input/input-controller) feeds it drags, but you can drive it from code as well:
+
+```ts
+const aim = useRef<PanTiltAim>(null);
+
+aim.current.pan.applyDelta(5); // turn by 5°
+aim.current.pan.value;         // read the current value
+```
+
+## Fields
+
+| Field | Description | Default |
+| ----- | ----------- | ------- |
+| `value` | The current value. | `0` |
+| `center` | The value `recentering` returns to. | `0` |
+| `range` | `[min, max]` limits, or `null` for none. | `null` |
+| `wrap` | Loop around at the edges of `range` instead of stopping. | `false` |
+| `damping` | Seconds to catch up with the input. See [Damping](/getting-started/core-concepts#damping). | `0` |
+| `maxSpeed` | Maximum change per second. | `Infinity` |
+| `recentering` | Return to `center` after a while without input. See below. | off |
+| `autoNormalize` | With `wrap` on, bring `value` back inside `range` after each drag. | `false` |
+
+All fields can be changed at any time.
+
+## Recentering
+
+```ts
+axis.recentering = { enabled: true, wait: 1, time: 0.5 };
+```
+
+Once the user lets go and `wait` seconds pass without input, the value eases back to `center` over `time` seconds. Any new input cancels it.
+
+## Using it on its own
+
+`InputAxis` has no React dependency. Call `update(dt)` once per frame:
 
 ```ts
 import { InputAxis } from '@kvvasuu/klipp';
 
-const pan = new InputAxis(0, 0, [-180, 180], true);
-pan.applyDelta(5); // e.g. from a drag, a script, anywhere
-pan.update(dt); // once per frame
-pan.value; // read anywhere
+const zoom = new InputAxis(10, 10, [2, 20]); // value, center, range
+
+zoom.applyDelta(-1);
+zoom.update(dt);
+zoom.value;
 ```
-
-`applyDelta` works the same whether `<InputController>` calls it, a cutscene script, or anything else.
-
-## Constructor
-
-```ts
-new InputAxis(value?, center?, range?, wrap?, recentering?)
-```
-
-| Param | Type | Default | |
-| ----- | ---- | ------- | - |
-| `value` | `number` | `0` | Starting value. |
-| `center` | `number` | `0` | Recentering target. |
-| `range` | `[number, number] \| null` | `null` | Two edges - clamps (when `wrap` is `false`) or defines periodicity (when `true`). `null` = unbounded. |
-| `wrap` | `boolean` | `false` | See below. |
-| `recentering` | `InputAxisRecentering` | disabled | `{ enabled, wait, time }`. |
-
-## `range`/`wrap`
-
-`wrap: false` (the default) hard-clamps `value` to `range`. `wrap: true` loops instead, for a value with no natural edge (a full look-around's yaw): dragging past `range`'s upper edge continues from the lower one.
-
-While `wrap` is `true`, `value` isn't kept inside `range` during a drag - only its span matters, for the loop point. Call `normalize()` (or turn on `autoNormalize`, below) to fold it back inside `range` once the drag has stopped.
-
-## `damping`/`maxSpeed`
-
-```ts
-axis.damping: DampingConstant = 0;
-axis.maxSpeed = Infinity;
-```
-
-Same [`DampingConstant`](/advanced/damping) as everywhere else in klipp, applied to `value`'s approach toward the raw accumulated target - `0` (default) is an exact, instant chase; anything higher eases toward it, and released mid-drag keeps easing toward wherever it last pointed. `maxSpeed` caps that approach, in units/sec.
-
-## `recentering`
-
-```ts
-type InputAxisRecentering = { enabled: boolean; wait: number; time: number };
-```
-
-Once `wait` seconds pass with no `applyDelta` and `held` is `false`, `value` eases back toward `center` over `time` seconds - taking the shortest path around `range`'s seam when `wrap` is `true`. Any new `applyDelta` cancels an in-progress recenter and resets the idle timer.
-
-```ts
-axis.held: boolean = false;
-```
-
-Set by whatever drives the axis (e.g. `InputAxisController`, from the source's actual press/release state) while its source is actively held down - keeps the idle timer from advancing at all, so `wait` counts from release, not from the last time the pointer moved. A `<InputController>` sets this automatically for `mouseButtons`/`touches` sources; a manual `applyDelta` caller can set it directly.
-
-## `normalize()`/`autoNormalize`
-
-```ts
-axis.normalize(): void;
-axis.autoNormalize: boolean = false;
-```
-
-`normalize()` folds `value` back inside `range`, for a `wrap` axis, without changing the angle it represents (`190°` and `-170°` are the same rotation). Call it between drags, not mid-motion - `autoNormalize` does exactly that automatically, once the axis has caught up with its raw target.

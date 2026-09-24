@@ -1,0 +1,107 @@
+---
+title: Custom components
+description: Write your own Body, Aim, Extension or Noise.
+nav: 91
+---
+
+You can add your own logic to a `<VirtualCamera>`. Get its `controller` with [`useVirtualCamera()`](/api/hooks#usevirtualcamera) and register a function that runs every frame:
+
+```ts
+controller.registerBody(update);      // replaces any other Body
+controller.registerAim(update);       // replaces any other Aim
+controller.registerExtension(update); // stacks
+controller.registerNoise(update);     // stacks
+```
+
+Each returns an unregister function, so it fits right into `useEffect`.
+
+## The update function
+
+```ts
+(out: CameraState, dt: number, justActivated: boolean) => boolean | void
+```
+
+- `out` is the camera's state. Change it in place.
+- `dt` is the frame time in seconds.
+- `justActivated` is `true` on the first frame after mounting, or after `active` turns back on. Reset any smoothing here so the camera starts from the right place.
+- Return `true` while your component is still moving, so [on-demand rendering](/advanced/on-demand-rendering) keeps going.
+
+## Example: drift toward the pointer
+
+An Extension that turns the shot slightly toward the mouse, on top of any Body and Aim:
+
+```tsx
+import { useEffect, useState } from 'react';
+import { useThree } from '@react-three/fiber';
+import { Euler, Quaternion } from 'three';
+import { Damper } from '@kvvasuu/klipp';
+import { useVirtualCamera } from '@kvvasuu/klipp/react';
+
+const euler = new Euler();
+const rotation = new Quaternion();
+
+export function PointerDrift({ strength = 0.1, damping = 0.4 }) {
+  const { controller } = useVirtualCamera();
+  const pointer = useThree((state) => state.pointer);
+  const [yawDamper] = useState(() => new Damper());
+  const [pitchDamper] = useState(() => new Damper());
+
+  useEffect(() => {
+    let yaw = 0;
+    let pitch = 0;
+
+    return controller.registerExtension((out, dt, justActivated) => {
+      if (justActivated) {
+        yawDamper.reset();
+        pitchDamper.reset();
+      }
+
+      const targetYaw = -pointer.x * strength;
+      const targetPitch = pointer.y * strength;
+      yaw = yawDamper.update(yaw, targetYaw, damping, dt);
+      pitch = pitchDamper.update(pitch, targetPitch, damping, dt);
+
+      out.quaternion.multiply(rotation.setFromEuler(euler.set(pitch, yaw, 0)));
+      return yaw !== targetYaw || pitch !== targetPitch;
+    });
+  }, [controller, pointer, strength, damping, yawDamper, pitchDamper]);
+
+  return null;
+}
+```
+
+```tsx
+<VirtualCamera name="menu" priority={10}>
+  <Body.HardLockToTarget target={[0, 2, 8]} />
+  <Aim.HardLookAt target={[0, 1, 0]} />
+  <PointerDrift />
+</VirtualCamera>
+```
+
+> [!TIP]
+> Avoid creating objects inside the update function. Allocate scratch objects once, like `euler` and `rotation` above.
+
+## `CameraState`
+
+| Field | Type | Description |
+| ----- | ---- | ----------- |
+| `position` | `Vector3` | Camera position. |
+| `quaternion` | `Quaternion` | Camera rotation. |
+| `fov`, `near`, `far` | `number` | Lens settings. |
+| `viewOffset` | `[number, number]` | Shifts the view without moving the camera. `[0, 0]` is centered. |
+| `target`, `hasTarget` | `Vector3`, `boolean` | The point the Body follows, if any. Used by [blend hints](/blending/introduction#blend-hints). |
+| `lookAtTarget`, `hasLookAtTarget` | `Vector3`, `boolean` | The point the Aim looks at, if any. |
+| `referenceUp` | `Vector3` | Which way is up for Aims. Defaults to `[0, 1, 0]`. |
+
+## Helpers
+
+These are exported from `@kvvasuu/klipp` so your components can behave like the built-in ones:
+
+| Helper | What it does |
+| ------ | ------------ |
+| `Damper` | Smooths a number with a `damping` value. Call `reset()` to snap on the next update. |
+| `Vector3Damper` | The same for a `Vector3`. |
+| `QuaternionDamper` | The same for a rotation. |
+| `resolveTargetPosition(out, target)` | Reads the world position of any [target](/getting-started/core-concepts#targets). Returns `false` if there isn't one. |
+| `resolveTargetRotation(out, target)` | Reads the world rotation of a target. Returns `false` if there isn't one. |
+| `resolveVector3(out, value)` | Turns `[x, y, z]`, a number or a `Vector3` into a `Vector3`. |

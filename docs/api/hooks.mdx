@@ -1,0 +1,48 @@
+---
+title: Hooks
+description: Read klipp's state from your own components.
+nav: 12
+---
+
+## `useIsActiveVirtualCamera`
+
+Whether the nearest `<VirtualCamera>` is the current winner. Turns `true` as soon as the blend into it starts.
+
+```tsx
+function Hud() {
+  const isActive = useIsActiveVirtualCamera();
+  return isActive ? <Crosshair /> : null;
+}
+
+<VirtualCamera name="aim-down-sights" priority={20} active={aiming}>
+  <Hud />
+</VirtualCamera>
+```
+
+## `useIsLiveVirtualCamera`
+
+Whether the nearest `<VirtualCamera>` is fully on screen. Turns `true` only once the blend into it has finished.
+
+```tsx
+const isLive = useIsLiveVirtualCamera();
+```
+
+## `useVirtualCamera`
+
+The nearest `<VirtualCamera>`'s `controller` and raw camera `state`. Mostly needed for [custom components](/advanced/custom-components).
+
+```tsx
+const { controller, state } = useVirtualCamera();
+```
+
+## `useKlipp`
+
+The nearest `<Klipp>`'s `core`, which knows about every camera.
+
+```tsx
+const { core } = useKlipp();
+
+core.activeCameraId; // the current winner
+core.liveCameraId;   // the camera fully on screen
+core.isBlending;     // whether a blend is in progress
+```

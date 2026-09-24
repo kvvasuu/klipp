@@ -1,0 +1,60 @@
+---
+title: VirtualCamera
+description: A single shot that competes for the screen.
+nav: 11
+---
+
+A `<VirtualCamera>` describes one shot. Its children decide where the camera is and where it looks, and its `priority` decides when it's on screen.
+
+```tsx
+import { VirtualCamera, Body, Aim } from '@kvvasuu/klipp/react';
+
+<VirtualCamera name="follow" priority={10}>
+  <Body.Follow target={playerRef} offset={[0, 3, 8]} />
+  <Aim.HardLookAt target={playerRef} />
+</VirtualCamera>
+```
+
+## Props
+
+| Prop | Description | Default |
+| ---- | ----------- | ------- |
+| `name` | Unique name. Used by [custom blends](/blending/introduction#custom-blends) and [events](/api/events). | required |
+| `priority` | The active camera with the highest priority is on screen. | required |
+| `active` | Whether this camera takes part at all. `false` also stops its Body, Aim and so on from running. | `true` |
+| `hints` | Changes the shape of blends in and out of this camera. See [Blend hints](/blending/introduction#blend-hints). | `BlendHints.none` |
+| `initialState` | Starting pose, applied once on mount. See below. | the real camera's pose |
+| `ref` | The underlying `VirtualCameraController`. | |
+
+## Choosing the winner
+
+- The active camera with the highest `priority` wins.
+- On a tie, the camera that was mounted or set `active` most recently wins.
+- To switch shots, toggle `active` or change `priority`. Either one triggers a blend.
+
+```tsx
+<VirtualCamera name="gameplay" priority={10}>...</VirtualCamera>
+<VirtualCamera name="map" priority={20} active={mapOpen}>...</VirtualCamera>
+```
+
+## `initialState`
+
+Sets where the camera starts. Useful for a camera without a Body or Aim, since whatever you set here simply stays put:
+
+```tsx
+<VirtualCamera name="fixed" priority={10} initialState={{ position: [0, 10, 10], fov: 35 }}>
+  <Aim.HardLookAt target={playerRef} />
+</VirtualCamera>
+```
+
+It takes any camera state field, most commonly `position`, `quaternion` and `fov`. `position` accepts the same shorthand as `<mesh position>`.
+
+## `<VirtualCamera.Events>`
+
+Listens to transitions involving this camera only. See [Events](/api/events).
+
+```tsx
+<VirtualCamera name="boss" priority={50} active={bossFight}>
+  <VirtualCamera.Events onBlendFinished={() => startBossMusic()} />
+</VirtualCamera>
+```

@@ -1,25 +1,22 @@
 ---
 title: Noise
-description: Additive shake stacked on top of whatever Body/Aim already computed.
-nav: 30
+description: Adds camera shake on top of the shot.
+nav: 50
 ---
 
-Noise adds an offset on top of whatever Body and Aim already produced - it runs last in the pipeline, so shake lands on an already-correctly-framed shot instead of one that might still get adjusted out from under it. Unlike Body/Aim, Noise is a **stacking** slot: mount as many as you like on the same `<VirtualCamera>`.
+Noise shakes the camera on top of everything else, so the shot stays framed correctly underneath. You can add as many as you like to one `<VirtualCamera>`.
 
 ```tsx
-<VirtualCamera name="follow-cam" priority={10}>
-  <Body.Follow target={playerRef} offset={[0, 3, 8]} damping={0.5} />
+import { Noise } from '@kvvasuu/klipp/react';
+
+<VirtualCamera name="follow" priority={10}>
+  <Body.Follow target={playerRef} offset={[0, 3, 8]} />
   <Aim.HardLookAt target={playerRef} />
   <Noise.BasicMultiChannelPerlin positionAmplitude={[0.1, 0.1, 0]} rotationAmplitude={[0.5, 0.5, 0]} />
 </VirtualCamera>
 ```
 
-## What's here
-
-- [`BasicMultiChannelPerlin`](/noise/basic-multi-channel-perlin) - continuous, procedural shake with independent amplitude/frequency per position and rotation axis.
-
-For event-driven, one-shot reactions (explosions, impacts) instead of continuous shake, see [Impulse](/impulse/introduction) - `ImpulseListener` plugs into this same stacking slot, and can drive a `BasicMultiChannelPerlinNoise` of its own for the rattle.
-
-## Layering multiple frequency bands
-
-For a shake that mixes a slow, heavy sway with a fast, subtle jitter, mount two `<Noise.BasicMultiChannelPerlin>` with different `frequency`/`amplitude` instead of configuring several bands inside one component - Noise already being a stacking slot gives you that layering for free.
+| Noise | Use it for |
+| ----- | ---------- |
+| [`BasicMultiChannelPerlin`](/noise/basic-multi-channel-perlin) | Continuous shake: handheld cameras, engines, earthquakes. |
+| [`ImpulseListener`](/impulse/introduction) | One-off shakes from events: explosions, hits, recoil. |

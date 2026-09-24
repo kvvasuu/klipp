@@ -1,0 +1,25 @@
+---
+title: On-demand rendering
+description: Using klipp with frameloop="demand".
+nav: 90
+---
+
+klipp works with `<Canvas frameloop="demand">`. It keeps requesting frames on its own while anything is still moving: a blend, damping catching up, a shake.
+
+Once the camera has settled, nothing renders until something asks for a frame. Mounting a camera, changing its `active` or `priority`, and changing `Lens` props do that for you. For anything else, call `invalidate()` yourself, for example after:
+
+- changing a Body or Aim prop, like a new `target` or `offset`,
+- moving a target imperatively, for example `target.position.set(...)` in a click handler,
+- firing an impulse with `impulseField.generate()`,
+- changing a component's fields through its `ref`.
+
+```tsx
+const invalidate = useThree((state) => state.invalidate);
+
+function onClick() {
+  targetRef.current.position.set(0, 0, 5);
+  invalidate();
+}
+```
+
+Outside a component, import `invalidate` from `@react-three/fiber` directly.

@@ -1,52 +1,42 @@
 ---
 title: RotationComposer
-description: Keeps a look-at target at a chosen screen position with a dead zone, hard limit, and damping.
-nav: 23
+description: Looks at a target with a dead zone, off-center framing and damping.
+nav: 32
 ---
 
-The rotation counterpart to [`PositionComposer`](/body/position-composer): instead of always centering `target` like `HardLookAt`, it keeps the target inside a configurable dead zone, only rotating once the target tries to leave it, and damps that reaction instead of snapping.
+Rotates the camera to keep the target at `screenPosition`. With a `deadZone` the target can move freely inside it before the camera turns, and `damping` makes the turn smooth.
 
 ```tsx
-<VirtualCamera name="follow-cam" priority={10}>
+<VirtualCamera name="follow" priority={10}>
   <Body.Follow target={playerRef} offset={[0, 3, 8]} damping={0.5} />
   <Aim.RotationComposer target={playerRef} deadZone={[0.2, 0.2]} damping={0.3} />
 </VirtualCamera>
 ```
 
+With the default settings it behaves like [`HardLookAt`](/aim/hard-look-at).
+
 ## Props
 
-| Prop           | Type                 | Default   | |
-| -------------- | -------------------- | --------- | - |
-| `target`       | `Target`             | -         | Look At Target - the camera rotates so this position/object composes at `screenPosition`. |
-| `screenPosition` | `[number, number]` | `[0, 0]`  | Where the target should land on screen. `0` = center, `±1` = edge. |
-| `deadZone`     | `[number, number]`   | `[0, 0]`  | How far the target can drift from `screenPosition` with no reaction at all - same unit as `screenPosition` itself (`1` reaches the frame edge). `[0, 0]` (default) = none, always reacts, same as `HardLookAt`. |
-| `damping`      | `DampingConstant`    | `0`       | Spring response time once the target steps outside the dead zone - see [Damping](/advanced/damping). Only matters when `deadZone` is non-zero. `0` = hard, instant snap to the edge. |
-| `maxSpeed`     | `number`             | `Infinity` | Caps how fast `damping` can close the gap, in radians/sec. Doesn't affect `lookAtTarget`'s own distance easing. |
-| `hardLimit`    | `[number, number]`   | `[0, 0]`  | A second, normally larger reach the target may never visually drift past - enforced instantly, bypassing `damping`, after the damped dead-zone reaction runs. `[0, 0]` = no enforcement. |
-| `targetOffset` | `Vector3`            | `[0,0,0]` | Offset applied to the target's position, in the target's own local rotation space, before the rest of the math - e.g. aim at a character's head instead of its feet. Degrades to a plain world-space offset for a target with no rotation. |
-| `radius`       | `number`             | -         | Target's own bounding-sphere radius - `deadZone`/`hardLimit` then react to its nearest edge, not its center. Ignored if `size` is given. |
-| `size`         | `Vector3`            | -         | Target's full box dimensions - takes priority over `radius`. Auto-detected from a `Mesh`/`Line`/`Points` target's own geometry when neither is given. |
-| `lookaheadTime` | `number`            | `0`       | Seconds to extrapolate the target's tracked position ahead by, based on its recent velocity. `0` = no prediction. |
-| `lookaheadSmoothing` | `number`       | `1`       | Smooth-time budget (seconds) for the velocity estimate driving `lookaheadTime` - reacts faster while the target is slowing down than while it's speeding up, so a sudden burst of speed doesn't yank the predicted point forward instantly. |
-| `lookaheadIgnoreY` | `boolean`        | `false`   | Zeroes the Y component of the predicted offset - keeps lookahead horizontal for a target that bobs or jumps vertically. |
-| `debug`        | `boolean`            | `false`   | Draws `deadZone`/`hardLimit` as bordered, dimmed boxes over the canvas, plus a crosshair at `screenPosition` - see [Debug Zones](/debugging/debug-zones). |
+| Prop | Description | Default |
+| ---- | ----------- | ------- |
+| `target` | What to look at. See [Targets](/getting-started/core-concepts#targets). | |
+| `targetOffset` | Offset from the target, in the target's own space. Use it to look at a head instead of the feet. | `[0, 0, 0]` |
+| `screenPosition` | Where the target should be on screen. `[0, 0]` is the center, `±1` the edges. | `[0, 0]` |
+| `deadZone` | Area around `screenPosition` where the target can move without the camera turning. Same units as `screenPosition`. | `[0, 0]` |
+| `hardLimit` | Area the target can never leave, even while `damping` is catching up. `[0, 0]` turns it off. | `[0, 0]` |
+| `damping` | Seconds to catch up once the target leaves the dead zone. See [Damping](/getting-started/core-concepts#damping). | `0` |
+| `maxSpeed` | Maximum turn speed, in radians per second. | `Infinity` |
+| `radius` | The target's radius, so zones react to its edge instead of its center. | |
+| `size` | The target's box size, used instead of `radius`. Measured automatically for meshes. | |
+| `lookaheadTime` | Seconds to look ahead of a moving target. | `0` |
+| `lookaheadSmoothing` | Seconds used to smooth the target's measured speed for lookahead. | `1` |
+| `lookaheadIgnoreY` | Only look ahead horizontally, handy for jumping characters. | `false` |
+| `debug` | Draws the zones on screen. See [Debugging](/debugging/introduction). | `false` |
 
 ## Combining with `PositionComposer`
 
-Pairing this with `PositionComposer` on the *same* non-zero `screenPosition` needs a non-zero `deadZone` on **both** sides - Body has already composed the target exactly at `screenPosition` before Aim runs, so without its own dead zone, Aim's error signal against that position is structurally always zero and never has anything to react to. With a dead zone on both sides, neither compensates perfectly any more, and the composition converges normally instead of freezing wherever the camera happened to start.
-
-## Target extent (`radius`/`size`)
-
-Without `radius`/`size`, `deadZone`/`hardLimit` react to the target's exact center point, so a target with real, on-screen size can visually leave the zone well before its center does. `radius`/`size` measure the **angular** extent instead - the world-space half-extent projected against the target's actual, changing distance from the camera - so a large or nearby target reacts from its true edge no matter how far away it is. Auto-detection recomputes the bounds only once by default; call `recalculateSize()` (via `ref`) after a target deforms (a `SkinnedMesh` bone animation, a mutated `BufferGeometry`) to force a fresh measurement on the next frame.
-
-## Lookahead
-
-With `lookaheadTime` above `0`, this aims toward the target's *extrapolated* position instead of its raw one - `out.lookAtTarget` sees the shifted point too, so a camera pairing this with a blend hint like `sphericalPosition` still arcs around the point it's actually looking at.
+When pairing it with [`PositionComposer`](/body/position-composer), use the same `screenPosition` on both, and give both a non-zero `deadZone`. Without a dead zone on each side they cancel each other out.
 
 ## `ref`
 
-```tsx
-const aimRef = useRef<RotationComposerAim>(null);
-```
-
-Gives you the underlying `RotationComposerAim` - read or write any prop's field directly, and call `recalculateSize()`.
+`ref` gives you the `RotationComposerAim`. If the target's shape changes (an animated skinned mesh, for example), call `recalculateSize()` to measure it again.

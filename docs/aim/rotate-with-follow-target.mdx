@@ -1,34 +1,24 @@
 ---
 title: RotateWithFollowTarget
-description: Mirrors a target's own rotation directly onto the camera.
-nav: 22
+description: Copies the target's rotation.
+nav: 33
 ---
 
-Sets the camera's rotation to exactly `target`'s own world rotation - "glued" child-like, the way a camera rigidly mounted to a character's back would move. Unlike every other Aim, it never looks at the target's *position* at all, only its rotation.
-
-That makes it a genuinely different tool from `HardLookAt`/`RotationComposer`, not just a variant - with an offset in front of a character, for example, the camera ends up facing the *same* way the character faces (i.e. away from it, a first-person-ish view), not looking back at it like a chase cam would.
+Gives the camera the same rotation as the target, as if it were glued to it. It doesn't look at the target, it only copies how the target is turned.
 
 ```tsx
-<VirtualCamera name="chase-cam" priority={10}>
-  <Body.Follow target={playerRef} offset={[0, 1, -5]} bindingMode={BindingModes.lockToTarget} />
-  <Aim.RotateWithFollowTarget target={playerRef} damping={0.3} />
+<VirtualCamera name="first-person" priority={10}>
+  <Body.HardLockToTarget target={headRef} />
+  <Aim.RotateWithFollowTarget target={headRef} damping={0.1} />
 </VirtualCamera>
 ```
 
 ## Props
 
-| Prop      | Type              | Default | |
-| --------- | ----------------- | ------- | - |
-| `target`  | `Target`          | -       | Rotation source - the camera's rotation becomes this object's world rotation. A fixed-point target (no rotation), `null`/`undefined`/omitted are all a no-op. |
-| `damping` | `DampingConstant` | `0`     | Spring response time to the target's rotation (or `{ into, from }` for asymmetric damping) - see [Damping](/advanced/damping). `0` = hard, instant match. |
-| `maxSpeed` | `number`         | `Infinity` | Caps how fast `damping` can close the gap, in radians/sec. |
+| Prop | Description | Default |
+| ---- | ----------- | ------- |
+| `target` | Whose rotation to copy. Must be an object; a fixed point has no rotation. See [Targets](/getting-started/core-concepts#targets). | |
+| `damping` | Seconds to catch up with the target's rotation. `0` is instant. See [Damping](/getting-started/core-concepts#damping). | `0` |
+| `maxSpeed` | Maximum turn speed, in radians per second. | `Infinity` |
 
-Damping here is gimbal-lock-free and always takes the shortest path to the target's rotation, so it stays continuous even while chasing a target that's rotating quickly and continuously.
-
-## `ref`
-
-```tsx
-const aimRef = useRef<RotateWithFollowTargetAim>(null);
-```
-
-Gives you the underlying `RotateWithFollowTargetAim` - read or write `.target`/`.damping`/`.maxSpeed` directly.
+`ref` gives you the `RotateWithFollowTargetAim`.
