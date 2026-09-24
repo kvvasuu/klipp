@@ -2,9 +2,15 @@ import { useParams } from 'react-router';
 
 const repoUrl = 'https://github.com/kvvasuu/klipp';
 
+/** Scene files are named after their slug in PascalCase, e.g. `pan-tilt-recentering` -> `PanTiltRecentering.tsx`. */
+function sceneFileName(slug: string): string {
+  return slug.replace(/(^|-)(\w)/g, (_, _dash, letter: string) => letter.toUpperCase()) + '.tsx';
+}
+
 export function SourceLink() {
-  const { category } = useParams();
-  const href = category ? `${repoUrl}/tree/main/examples/src/scenes/${category}` : repoUrl;
+  const { category, slug } = useParams();
+  const href =
+    category && slug ? `${repoUrl}/blob/main/examples/src/scenes/${category}/${sceneFileName(slug)}` : repoUrl;
 
   return (
     <a

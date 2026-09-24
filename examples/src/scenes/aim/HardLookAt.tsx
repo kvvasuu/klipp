@@ -3,33 +3,8 @@ import { useFrame } from '@react-three/fiber';
 import { useControls } from 'leva';
 import { useRef, type RefObject } from 'react';
 import type { Mesh } from 'three';
-import { GroundClutter, type GroundBox } from '../../scene/GroundClutter';
+import { GroundClutter } from '../../scene/GroundClutter';
 import { SpectatorFrustum } from '../../scene/SpectatorFrustum';
-
-const groundBoxes: GroundBox[] = [
-  { x: 2, z: 2, width: 0.7, height: 0.12, depth: 0.7 },
-  { x: -3, z: 4, width: 0.6, height: 0.15, depth: 0.8 },
-  { x: 5, z: -3, width: 0.8, height: 0.1, depth: 0.6, color: '#9a9aa8' },
-  { x: -6, z: -2, width: 0.7, height: 0.12, depth: 0.7 },
-  { x: 0, z: -6, width: 0.6, height: 0.1, depth: 0.9 },
-  { x: 4, z: 5, width: 0.8, height: 0.15, depth: 0.6, color: '#9a9aa8' },
-  { x: -5, z: 4, width: 0.7, height: 0.1, depth: 0.7 },
-  { x: 7, z: 2, width: 0.6, height: 0.13, depth: 0.8 },
-  { x: -2, z: -6, width: 0.8, height: 0.1, depth: 0.6, color: '#9a9aa8' },
-  { x: 3, z: -6, width: 0.7, height: 0.12, depth: 0.7 },
-  { x: 10, z: 2, width: 0.6, height: 1.8, depth: 0.6 },
-  { x: 7, z: 8, width: 0.5, height: 2.4, depth: 0.5, color: '#9a9aa8' },
-  { x: 2, z: 11, width: 0.7, height: 3, depth: 0.7 },
-  { x: -4, z: 10.5, width: 0.6, height: 2, depth: 0.6, color: '#c7c7cf' },
-  { x: -9, z: 6, width: 0.8, height: 2.8, depth: 0.8 },
-  { x: -11, z: -1, width: 0.5, height: 1.6, depth: 0.5, color: '#9a9aa8' },
-  { x: -8, z: -7, width: 0.6, height: 3.2, depth: 0.6 },
-  { x: -3, z: -11, width: 0.7, height: 2.2, depth: 0.7, color: '#c7c7cf' },
-  { x: 3, z: -11, width: 0.5, height: 2.6, depth: 0.5 },
-  { x: 9, z: -6, width: 0.6, height: 1.9, depth: 0.6, color: '#9a9aa8' },
-  { x: 12, z: -2, width: 0.7, height: 3, depth: 0.7 },
-  { x: -12, z: 3, width: 0.5, height: 2.1, depth: 0.5, color: '#c7c7cf' },
-];
 
 const cameraPosition: [number, number, number] = [0, 2.5, 9];
 
@@ -77,10 +52,6 @@ function OrbitingTarget({
   );
 }
 
-/** The camera never moves (no Body at all - `initialState.position` is all it needs); `HardLookAt` re-aims
- *  at whichever target is active every single frame, so the orbiting target stays dead-center no matter
- *  how it moves, with zero damping - switching `activeTarget` snaps instantly, since HardLookAt has no
- *  damping prop to begin with. */
 export function HardLookAt() {
   const targetARef = useRef<Mesh>(null);
   const targetBRef = useRef<Mesh>(null);
@@ -107,7 +78,7 @@ export function HardLookAt() {
         vertical
         color={targetBColor}
       />
-      <GroundClutter boxes={groundBoxes} />
+      <GroundClutter layout="standard" />
 
       <Klipp>
         <VirtualCamera name="hard-look-at-demo" priority={10} initialState={{ position: cameraPosition }}>

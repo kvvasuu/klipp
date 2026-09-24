@@ -1,13 +1,12 @@
 import { BindingModes, BlendCurves as Curves, resolveBlendDefinition, type CustomBlend } from '@kvvasuu/klipp';
-import { Follow, HardLookAt, Klipp, VirtualCamera } from '@kvvasuu/klipp/react';
-import { useFrame } from '@react-three/fiber';
+import { Aim, Body, Klipp, VirtualCamera } from '@kvvasuu/klipp/react';
 import { useControls } from 'leva';
-import { useRef, useState } from 'react';
-import { Mesh } from 'three';
+import { useState } from 'react';
 import { CanvasOverlay } from '../../scene/CanvasOverlay';
-import { GroundClutter, type GroundBox } from '../../scene/GroundClutter';
+import { GroundClutter } from '../../scene/GroundClutter';
 import { addOffset, lookAtQuaternion } from '../../scene/lookAtQuaternion';
 import { SpectatorFrustum } from '../../scene/SpectatorFrustum';
+import { SpinningSubject } from '../../scene/SpinningSubject';
 
 const subjectPosition: [number, number, number] = [0, 1.5, 0];
 
@@ -36,13 +35,6 @@ const quaternions = Object.fromEntries(
   cameraNames.map((name) => [name, lookAtQuaternion(positions[name], subjectPosition)]),
 ) as Record<CameraName, ReturnType<typeof lookAtQuaternion>>;
 
-const groundBoxes: GroundBox[] = [
-  { x: -8, z: 2, width: 1.5, height: 1.8, depth: 1.5, color: '#9a9aa8' },
-  { x: 8, z: -3, width: 1.3, height: 2.4, depth: 1.3 },
-  { x: -7, z: -6, width: 1.6, height: 1.4, depth: 1.6, color: '#c7c7cf' },
-  { x: 0, z: -8, width: 1.7, height: 2, depth: 1.7 },
-];
-
 const defaultBlend = { curve: Curves.easeInOut, time: 1.5 };
 
 type LabeledCustomBlend = CustomBlend & { label: string };
@@ -60,19 +52,6 @@ function pickLabel(from: string | null, to: string): string {
   return customBlends.find((entry) => entry.blend === resolved)?.label ?? 'default: easeInOut 1.5s';
 }
 
-function Subject() {
-  const meshRef = useRef<Mesh>(null);
-  useFrame((_, delta) => {
-    if (meshRef.current) meshRef.current.rotation.y += delta * 0.3;
-  });
-  return (
-    <mesh ref={meshRef} position={subjectPosition}>
-      <icosahedronGeometry args={[1, 0]} />
-      <meshStandardMaterial color="#ffd23f" />
-    </mesh>
-  );
-}
-
 function MatchLabel({ label }: { label: string }) {
   return (
     <CanvasOverlay>
@@ -83,32 +62,29 @@ function MatchLabel({ label }: { label: string }) {
   );
 }
 
-/** Four fixed shots - picking one from `pick` triggers a real from→to transition, resolved by the same
- *  `resolveBlendDefinition` the library uses, against a fixed `customBlends` list covering all three
- *  specificity levels (exact, to-only, from-only) plus the `defaultBlend` fallback. The label shows which
- *  one actually won, so the matching rules read off real transitions instead of the docs table alone. */
 export function CustomBlends() {
-  const [camera, setCamera] = useState<CameraName>('wide');
-  const [label, setLabel] = useState('start - pick a camera to trigger a transition');
-  const cameraRef = useRef(camera);
-  cameraRef.current = camera;
+  const [{ camera, label }, setPick] = useState<{ camera: CameraName; label: string }>({
+    camera: 'wide',
+    label: 'start - pick a camera to trigger a transition',
+  });
 
   useControls('CustomBlends', {
     pick: {
       value: 'wide' as CameraName,
       options: cameraNames,
       onChange: (value: CameraName, _path, { initial }) => {
-        if (initial || value === cameraRef.current) return;
-        setLabel(pickLabel(cameraRef.current, value));
-        setCamera(value);
+        if (initial) return;
+        setPick((previous) =>
+          previous.camera === value ? previous : { camera: value, label: pickLabel(previous.camera, value) },
+        );
       },
     },
   });
 
   return (
     <>
-      <Subject />
-      <GroundClutter boxes={groundBoxes} />
+      <SpinningSubject position={subjectPosition} />
+      <GroundClutter layout="singleSubject" />
 
       <Klipp defaultBlend={defaultBlend} customBlends={customBlends}>
         <MatchLabel label={label} />
@@ -118,8 +94,8 @@ export function CustomBlends() {
           priority={10}
           active={camera === 'wide'}
           initialState={{ position: positions.wide, quaternion: quaternions.wide }}>
-          <Follow target={subjectPosition} offset={offsets.wide} bindingMode={BindingModes.worldSpace} />
-          <HardLookAt target={subjectPosition} />
+          <Body.Follow target={subjectPosition} offset={offsets.wide} bindingMode={BindingModes.worldSpace} />
+          <Aim.HardLookAt target={subjectPosition} />
           <SpectatorFrustum color={colors.wide} />
         </VirtualCamera>
 
@@ -128,8 +104,8 @@ export function CustomBlends() {
           priority={10}
           active={camera === 'intro'}
           initialState={{ position: positions.intro, quaternion: quaternions.intro }}>
-          <Follow target={subjectPosition} offset={offsets.intro} bindingMode={BindingModes.worldSpace} />
-          <HardLookAt target={subjectPosition} />
+          <Body.Follow target={subjectPosition} offset={offsets.intro} bindingMode={BindingModes.worldSpace} />
+          <Aim.HardLookAt target={subjectPosition} />
           <SpectatorFrustum color={colors.intro} />
         </VirtualCamera>
 
@@ -138,8 +114,8 @@ export function CustomBlends() {
           priority={10}
           active={camera === 'gameplay'}
           initialState={{ position: positions.gameplay, quaternion: quaternions.gameplay }}>
-          <Follow target={subjectPosition} offset={offsets.gameplay} bindingMode={BindingModes.worldSpace} />
-          <HardLookAt target={subjectPosition} />
+          <Body.Follow target={subjectPosition} offset={offsets.gameplay} bindingMode={BindingModes.worldSpace} />
+          <Aim.HardLookAt target={subjectPosition} />
           <SpectatorFrustum color={colors.gameplay} />
         </VirtualCamera>
 
@@ -148,8 +124,8 @@ export function CustomBlends() {
           priority={10}
           active={camera === 'closeup'}
           initialState={{ position: positions.closeup, quaternion: quaternions.closeup }}>
-          <Follow target={subjectPosition} offset={offsets.closeup} bindingMode={BindingModes.worldSpace} />
-          <HardLookAt target={subjectPosition} />
+          <Body.Follow target={subjectPosition} offset={offsets.closeup} bindingMode={BindingModes.worldSpace} />
+          <Aim.HardLookAt target={subjectPosition} />
           <SpectatorFrustum color={colors.closeup} />
         </VirtualCamera>
       </Klipp>

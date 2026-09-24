@@ -3,7 +3,7 @@ import { useFrame } from '@react-three/fiber';
 import { folder, useControls } from 'leva';
 import { useRef, type RefObject } from 'react';
 import type { Mesh } from 'three';
-import { GroundClutter, type GroundBox } from '../../scene/GroundClutter';
+import { GroundClutter } from '../../scene/GroundClutter';
 import { SpectatorFrustum } from '../../scene/SpectatorFrustum';
 
 const cameraPosition: [number, number, number] = [0, 5, 11];
@@ -13,16 +13,6 @@ const wanderRangeY = 6;
 const wanderSpeedX = 0.3;
 const wanderSpeedY = 0.4;
 const targetRadius = 0.5;
-
-const groundBoxes: GroundBox[] = [
-  { x: -10, z: -3, width: 1.4, height: 2.6, depth: 1.4, color: '#9a9aa8' },
-  { x: 10, z: -4, width: 1.2, height: 3.2, depth: 1.2 },
-  { x: -9, z: -8, width: 1.6, height: 2, depth: 1.6, color: '#c7c7cf' },
-  { x: 9, z: -9, width: 1.3, height: 2.8, depth: 1.3 },
-  { x: -11, z: -6, width: 0.7, height: 3.4, depth: 0.7, color: '#9a9aa8' },
-  { x: 11, z: -6, width: 0.6, height: 2.4, depth: 0.6 },
-  { x: 0, z: -11, width: 1.8, height: 2.2, depth: 1.8, color: '#c7c7cf' },
-];
 
 function Target({
   meshRef,
@@ -58,10 +48,6 @@ function Target({
   );
 }
 
-/** The camera never moves (no Body at all) while a target wanders in front of it - `Aim.RotationComposer`
- *  only rotates once the target steps past `deadZone`, clamped at `hardLimit`, instead of re-centering it
- *  every frame like `HardLookAt`. Turn `autoMove` off to drive the target by hand and walk it through each
- *  zone's edge yourself. */
 export function RotationComposer() {
   const targetRef = useRef<Mesh>(null);
 
@@ -95,7 +81,7 @@ export function RotationComposer() {
 
   return (
     <>
-      <GroundClutter boxes={groundBoxes} />
+      <GroundClutter layout="wanderInFront" />
       <Target meshRef={targetRef} autoMove={autoMove} manualX={manualX} manualY={manualY} />
 
       <Klipp>

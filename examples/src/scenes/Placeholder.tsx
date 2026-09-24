@@ -2,8 +2,7 @@ import { useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import type { Mesh } from 'three';
 
-/** Stands in for every example not built yet - just enough to prove the Canvas actually mounted and is
- *  rendering, not a real demo. Swapped out per entry as TODO-examples.md scenes get built. */
+/** Stands in for examples not built yet. */
 export function Placeholder() {
   const meshRef = useRef<Mesh>(null);
 

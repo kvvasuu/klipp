@@ -29,10 +29,6 @@ function Tunnel() {
   );
 }
 
-/** No Body/Aim - `initialState` fixes the camera in place, and `Extension.Lens` is the only thing touching
- *  fov/near/far from there. The near sphere and the ring tunnel exist purely to make clipping visible:
- *  push `near` past ~1.8 to clip the sphere, pull `far` below the tunnel's far end to clip rings one by
- *  one, and swing `fov` to see the same tunnel stretch or compress. */
 export function Lens() {
   const { fov, near, far, fovDamping, nearDamping, farDamping } = useControls('Lens', {
     fov: { value: 50, min: 10, max: 160, step: 1 },

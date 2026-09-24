@@ -1,4 +1,5 @@
 import { Instance, Instances } from '@react-three/drei';
+import { clutterLayouts, type ClutterLayout } from './clutterLayouts';
 
 export type GroundBox = {
   x: number;
@@ -12,11 +13,10 @@ export type GroundBox = {
 
 const defaultColor = '#b7b7c2';
 
-/** Fixed, hand-placed boxes as a ground-level depth/parallax reference - `BaseScene`'s grid alone is often
- *  too faint, or seen edge-on from a level camera, to read motion against. Each scene picks its own
- *  positions/heights so nothing ever sits in the way of what's actually moving through it. One shared unit
- *  box, scaled per instance, so the whole set is a single draw call. */
-export function GroundClutter({ boxes }: { boxes: GroundBox[] }) {
+/** Hand-placed ground boxes that give motion a visible reference, laid out per scene to stay out of the way. */
+export function GroundClutter({ layout }: { layout: ClutterLayout }) {
+  const boxes: GroundBox[] = clutterLayouts[layout];
+
   return (
     <Instances limit={boxes.length}>
       <boxGeometry args={[1, 1, 1]} />

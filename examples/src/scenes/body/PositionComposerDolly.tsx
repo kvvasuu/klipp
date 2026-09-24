@@ -3,7 +3,7 @@ import { useFrame } from '@react-three/fiber';
 import { folder, useControls } from 'leva';
 import { useRef, type RefObject } from 'react';
 import { DoubleSide, Euler, Mesh, Quaternion, Vector3 } from 'three';
-import { GroundClutter, type GroundBox } from '../../scene/GroundClutter';
+import { GroundClutter } from '../../scene/GroundClutter';
 import { SpectatorFrustum } from '../../scene/SpectatorFrustum';
 
 const cameraHeight = 2;
@@ -11,19 +11,6 @@ const cameraPosition: [number, number, number] = [0, cameraHeight, 10];
 const cameraQuaternion = new Quaternion().setFromEuler(new Euler(0, 0, 0));
 const depthRange = 5;
 const targetRadius = 0.6;
-
-// both camera and target stay exactly on x = 0, so clutter just needs enough clearance off that axis
-const groundBoxes: GroundBox[] = [
-  { x: -3.5, z: -6, width: 1.2, height: 1.6, depth: 1.2 },
-  { x: 3.5, z: -3, width: 1, height: 2, depth: 1 },
-  { x: -4, z: 0, width: 1.4, height: 1.2, depth: 1.4, color: '#9a9aa8' },
-  { x: 4.5, z: 2, width: 1.1, height: 2.4, depth: 1.1 },
-  { x: -3.5, z: 5, width: 1.3, height: 1.8, depth: 1.3, color: '#c7c7cf' },
-  { x: 4, z: 8, width: 1, height: 1.4, depth: 1 },
-  { x: -3.5, z: -12, width: 1.5, height: 2.6, depth: 1.5, color: '#9a9aa8' },
-  { x: 3.5, z: -9, width: 1.2, height: 1.6, depth: 1.2 },
-  { x: 4.5, z: -15, width: 1.4, height: 1.8, depth: 1.4, color: '#c7c7cf' },
-];
 
 const scratchForward = new Vector3();
 
@@ -50,8 +37,7 @@ function Target({
   );
 }
 
-/** Two rings, `cameraDistance ± depthDeadZone` ahead of the camera's own current position - `debug` has no
- *  built-in visual for the dolly stage (only the lateral `deadZone`/`hardLimit`), so this stands in for it. */
+/** Marks `cameraDistance ± depthDeadZone`, since `debug` only draws the screen-space zones. */
 function DepthZoneRings({ cameraDistance, depthDeadZone }: { cameraDistance: number; depthDeadZone: number }) {
   const nearRef = useRef<Mesh>(null);
   const farRef = useRef<Mesh>(null);
@@ -83,10 +69,6 @@ function DepthZoneRings({ cameraDistance, depthDeadZone }: { cameraDistance: num
   );
 }
 
-/** A target drifts toward and away from a fixed-rotation camera along its own forward axis - `Body.
- *  PositionComposer`'s dolly stage chases `cameraDistance`, doing nothing at all while the target stays
- *  within `depthDeadZone` (green/yellow rings mark that band's near/far edge). Turn `autoMove` off to drive
- *  the target by hand. */
 export function PositionComposerDolly() {
   const targetRef = useRef<Mesh>(null);
 
@@ -103,7 +85,7 @@ export function PositionComposerDolly() {
 
   return (
     <>
-      <GroundClutter boxes={groundBoxes} />
+      <GroundClutter layout="dolly" />
       <Target meshRef={targetRef} autoMove={autoMove} manualZ={manualZ} />
       {debug && <DepthZoneRings cameraDistance={cameraDistance} depthDeadZone={depthDeadZone} />}
 
