@@ -168,7 +168,7 @@ export const categories: ExampleCategory[] = [
         Scene: PanTiltRestrictedLook,
         description:
           'A security camera with a limited `panRange` and `tiltRange`. Drag past either pillar and it stops at the edge instead of wrapping around.',
-        spectatorPosition: [8, 6, 8],
+        spectatorPosition: [0, 6, 8],
         spectatorTarget: [0, 2, 0],
         ready: true,
       },

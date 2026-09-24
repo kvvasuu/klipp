@@ -17,8 +17,8 @@ export function PanTiltRecentering() {
 
   const { enabled, wait, time, lockPointer } = useControls('PanTilt: Recentering', {
     enabled: true,
-    wait: { value: 1, min: 0, max: 5, step: 0.1 },
-    time: { value: 1, min: 0.1, max: 3, step: 0.1 },
+    wait: { value: 0.3, min: 0, max: 5, step: 0.1 },
+    time: { value: 0.3, min: 0.1, max: 3, step: 0.1 },
     lockPointer: false,
   });
 

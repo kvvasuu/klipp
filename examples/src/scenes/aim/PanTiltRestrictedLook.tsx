@@ -33,8 +33,8 @@ export function PanTiltRestrictedLook() {
   const controllerRef = useRef<InputAxisController>(null);
 
   const { panMin, panMax, tiltMin, tiltMax, lockPointer } = useControls('PanTilt: Restricted Look', {
-    panMin: { value: -60, min: -180, max: 0, step: 5 },
-    panMax: { value: 60, min: 0, max: 180, step: 5 },
+    panMin: { value: -30, min: -180, max: 0, step: 5 },
+    panMax: { value: 30, min: 0, max: 180, step: 5 },
     tiltMin: { value: -20, min: -90, max: 0, step: 5 },
     tiltMax: { value: 30, min: 0, max: 90, step: 5 },
     lockPointer: false,
