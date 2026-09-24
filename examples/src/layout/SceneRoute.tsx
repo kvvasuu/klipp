@@ -5,11 +5,8 @@ import { findExample } from '../registry';
 import { BaseScene } from '../scene/BaseScene';
 import { SceneInfo } from './SceneInfo';
 
-/** Resolves `:category/:slug` to a registry entry outside the Canvas, then mounts a fresh Canvas per
- *  scene - simpler than keeping one Canvas alive and bridging router context into its separate
- *  reconciler root, and switching examples is not a hot path. `key` is required for this: react-router
- *  reuses this same `SceneRoute` instance across param changes, so without it `BaseScene`'s one-time
- *  `useState` initializers (e.g. the spectator camera's starting pose) would survive scene switches. */
+/** Mounts a fresh Canvas per scene. `key` is needed since react-router reuses this component across
+ *  param changes, which would otherwise keep the previous scene's one-time state. */
 export function SceneRoute() {
   const { category, slug } = useParams();
   const example = findExample(category, slug);

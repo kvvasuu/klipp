@@ -1,13 +1,13 @@
 import { BindingModes, BlendCurves as Curves, Damper, type Ease } from '@kvvasuu/klipp';
-import { Follow, HardLookAt, Klipp, VirtualCamera } from '@kvvasuu/klipp/react';
+import { Aim, Body, Klipp, VirtualCamera } from '@kvvasuu/klipp/react';
 import { useFrame } from '@react-three/fiber';
 import { button, useControls } from 'leva';
 import { useRef, useState } from 'react';
-import { Mesh } from 'three';
 import { CanvasOverlay } from '../../scene/CanvasOverlay';
-import { GroundClutter, type GroundBox } from '../../scene/GroundClutter';
+import { GroundClutter } from '../../scene/GroundClutter';
 import { addOffset, lookAtQuaternion } from '../../scene/lookAtQuaternion';
 import { SpectatorFrustum } from '../../scene/SpectatorFrustum';
+import { SpinningSubject } from '../../scene/SpinningSubject';
 
 const subjectPosition: [number, number, number] = [0, 1.5, 0];
 
@@ -22,30 +22,9 @@ const closeQuaternion = lookAtQuaternion(closePosition, subjectPosition);
 const curveOptions = ['cut', 'linear', 'easeInOut', 'easeIn', 'easeOut', 'hardIn', 'hardOut'] as const;
 type CurveName = (typeof curveOptions)[number];
 
-const groundBoxes: GroundBox[] = [
-  { x: -8, z: 2, width: 1.5, height: 1.8, depth: 1.5, color: '#9a9aa8' },
-  { x: 8, z: -3, width: 1.3, height: 2.4, depth: 1.3 },
-  { x: -7, z: -6, width: 1.6, height: 1.4, depth: 1.6, color: '#c7c7cf' },
-  { x: 0, z: -8, width: 1.7, height: 2, depth: 1.7 },
-];
-
-function Subject() {
-  const meshRef = useRef<Mesh>(null);
-  useFrame((_, delta) => {
-    if (meshRef.current) meshRef.current.rotation.y += delta * 0.3;
-  });
-  return (
-    <mesh ref={meshRef} position={subjectPosition}>
-      <icosahedronGeometry args={[1, 0]} />
-      <meshStandardMaterial color="#ffd23f" />
-    </mesh>
-  );
-}
-
 type BlendMode = 'curve' | 'damping';
 
-/** Mirrors `BlendDriver`'s own damping algorithm (a fresh `Damper` warmed the same way) instead of faking
- *  a stand-in shape, so the fill's pacing - no fixed finish, speed tracking remaining distance - is real. */
+/** Runs a real `Damper` the same way a damped blend does, so the bar matches the actual pacing. */
 function BlendProgressOverlay({
   mode,
   curve,
@@ -65,20 +44,17 @@ function BlendProgressOverlay({
   const blendStart = useRef<number | null>(null);
   const damper = useRef(new Damper());
   const progress = useRef(0);
-  const paramsRef = useRef({ mode, curve, time, damping, maxSpeed });
-  paramsRef.current = { mode, curve, time, damping, maxSpeed };
 
   useFrame((_, dt) => {
     if (blendStart.current === null || !fillRef.current) return;
-    const p = paramsRef.current;
     let weight: number;
-    if (p.mode === 'curve') {
+    if (mode === 'curve') {
       const elapsed = performance.now() / 1000 - blendStart.current;
-      const raw = p.time > 0 ? Math.min(1, elapsed / p.time) : 1;
-      weight = Math.min(1, Math.max(0, p.curve(raw)));
+      const raw = time > 0 ? Math.min(1, elapsed / time) : 1;
+      weight = Math.min(1, Math.max(0, curve(raw)));
       if (raw >= 1) blendStart.current = null;
     } else {
-      weight = damper.current.update(progress.current, 1, p.damping, dt, p.maxSpeed);
+      weight = damper.current.update(progress.current, 1, damping, dt, maxSpeed);
       progress.current = weight;
       if (weight > 0.999) blendStart.current = null;
     }
@@ -91,7 +67,7 @@ function BlendProgressOverlay({
         onBlendCreated={() => {
           blendStart.current = performance.now() / 1000;
           damper.current = new Damper();
-          damper.current.update(0, 0, paramsRef.current.damping, 0);
+          damper.current.update(0, 0, damping, 0);
           progress.current = 0;
         }}
       />
@@ -109,10 +85,6 @@ function BlendProgressOverlay({
   );
 }
 
-/** One transition, replayed under two different `BlendDefinition` shapes via `mode` - `{ curve, time }`
- *  always finishes at exactly `time` seconds; `{ damping }` has no fixed finish, easing forever closer
- *  until it's near enough to snap (same spring as `Damper`). The fill bar makes that contrast legible:
- *  curve mode always caps out right at its own label's time, damping mode trails off instead of stopping. */
 export function BlendCurvesDamping() {
   const [camera, setCamera] = useState<'wide' | 'close'>('wide');
 
@@ -160,8 +132,8 @@ export function BlendCurvesDamping() {
 
   return (
     <>
-      <Subject />
-      <GroundClutter boxes={groundBoxes} />
+      <SpinningSubject position={subjectPosition} />
+      <GroundClutter layout="singleSubject" />
 
       <Klipp defaultBlend={defaultBlend}>
         <BlendProgressOverlay
@@ -178,8 +150,8 @@ export function BlendCurvesDamping() {
           priority={10}
           active={camera === 'wide'}
           initialState={{ position: widePosition, quaternion: wideQuaternion }}>
-          <Follow target={subjectPosition} offset={wideOffset} bindingMode={BindingModes.worldSpace} />
-          <HardLookAt target={subjectPosition} />
+          <Body.Follow target={subjectPosition} offset={wideOffset} bindingMode={BindingModes.worldSpace} />
+          <Aim.HardLookAt target={subjectPosition} />
           <SpectatorFrustum color="#21a9e0" />
         </VirtualCamera>
 
@@ -188,8 +160,8 @@ export function BlendCurvesDamping() {
           priority={10}
           active={camera === 'close'}
           initialState={{ position: closePosition, quaternion: closeQuaternion }}>
-          <Follow target={subjectPosition} offset={closeOffset} bindingMode={BindingModes.worldSpace} />
-          <HardLookAt target={subjectPosition} />
+          <Body.Follow target={subjectPosition} offset={closeOffset} bindingMode={BindingModes.worldSpace} />
+          <Aim.HardLookAt target={subjectPosition} />
           <SpectatorFrustum color="#ff6b4a" />
         </VirtualCamera>
       </Klipp>

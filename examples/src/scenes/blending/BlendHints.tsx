@@ -1,13 +1,12 @@
 import { BindingModes, BlendCurves, BlendHints as Hints, createCameraState, lerpCameraState } from '@kvvasuu/klipp';
-import { Follow, HardLookAt, Klipp, VirtualCamera } from '@kvvasuu/klipp/react';
+import { Aim, Body, Klipp, VirtualCamera } from '@kvvasuu/klipp/react';
 import { Line } from '@react-three/drei';
-import { useFrame } from '@react-three/fiber';
 import { button, useControls } from 'leva';
-import { useMemo, useRef, useState } from 'react';
-import { Mesh } from 'three';
-import { GroundClutter, type GroundBox } from '../../scene/GroundClutter';
+import { useMemo, useState } from 'react';
+import { GroundClutter } from '../../scene/GroundClutter';
 import { addOffset, lookAtQuaternion } from '../../scene/lookAtQuaternion';
 import { SpectatorFrustum } from '../../scene/SpectatorFrustum';
+import { SpinningSubject } from '../../scene/SpinningSubject';
 
 const subjectPosition: [number, number, number] = [0, 1.5, 0];
 const secondSubjectPosition: [number, number, number] = [5, 1.3, -5];
@@ -58,45 +57,6 @@ function PathCurve({ hints }: { hints: number }) {
   );
 }
 
-const groundBoxes: GroundBox[] = [
-  { x: -9, z: 3, width: 1.5, height: 1.8, depth: 1.5, color: '#9a9aa8' },
-  { x: 9, z: -4, width: 1.3, height: 2.4, depth: 1.3 },
-  { x: -8, z: -6, width: 1.6, height: 1.4, depth: 1.6, color: '#c7c7cf' },
-  { x: 8, z: 6, width: 1.4, height: 2, depth: 1.4 },
-  { x: 0, z: -9, width: 1.8, height: 1.6, depth: 1.8, color: '#9a9aa8' },
-  { x: 0, z: 9, width: 1.7, height: 2.6, depth: 1.7 },
-];
-
-function Subject() {
-  const meshRef = useRef<Mesh>(null);
-  useFrame((_, delta) => {
-    if (meshRef.current) meshRef.current.rotation.y += delta * 0.3;
-  });
-  return (
-    <mesh ref={meshRef} position={subjectPosition}>
-      <icosahedronGeometry args={[1, 0]} />
-      <meshStandardMaterial color="#ffd23f" />
-    </mesh>
-  );
-}
-
-function SecondSubject() {
-  const meshRef = useRef<Mesh>(null);
-  useFrame((_, delta) => {
-    if (meshRef.current) meshRef.current.rotation.y += delta * 0.3;
-  });
-  return (
-    <mesh ref={meshRef} position={secondSubjectPosition}>
-      <octahedronGeometry args={[1, 0]} />
-      <meshStandardMaterial color="#c77dff" />
-    </mesh>
-  );
-}
-
-/** Two fixed shots at very different heights, each on its own subject, switched via "Switch Camera".
- *  `PathCurve` plots the position interpolation as a static curve (dashed gray is always the plain straight
- *  line), so `spherical`/`cylindrical` reshape something visible at a glance, not just mid-blend.
- *  `ignoreTarget` only swaps the rotation blend for a plain slerp - it doesn't touch the curve. */
 export function BlendHints() {
   const [camera, setCamera] = useState<'shot-high' | 'shot-low'>('shot-low');
 
@@ -114,9 +74,11 @@ export function BlendHints() {
 
   return (
     <>
-      <Subject />
-      <SecondSubject />
-      <GroundClutter boxes={groundBoxes} />
+      <SpinningSubject position={subjectPosition} />
+      <SpinningSubject position={secondSubjectPosition} color="#c77dff">
+        <octahedronGeometry args={[1, 0]} />
+      </SpinningSubject>
+      <GroundClutter layout="blendHints" />
       <PathCurve hints={hints} />
 
       <Klipp defaultBlend={{ curve: BlendCurves.easeInOut, time: 2.5 }}>
@@ -126,8 +88,8 @@ export function BlendHints() {
           active={camera === 'shot-high'}
           hints={hints}
           initialState={{ position: highPosition, quaternion: highQuaternion }}>
-          <Follow target={secondSubjectPosition} offset={highOffset} bindingMode={BindingModes.worldSpace} />
-          <HardLookAt target={secondSubjectPosition} />
+          <Body.Follow target={secondSubjectPosition} offset={highOffset} bindingMode={BindingModes.worldSpace} />
+          <Aim.HardLookAt target={secondSubjectPosition} />
           <SpectatorFrustum color="#21a9e0" />
         </VirtualCamera>
 
@@ -137,8 +99,8 @@ export function BlendHints() {
           active={camera === 'shot-low'}
           hints={hints}
           initialState={{ position: lowPosition, quaternion: lowQuaternion }}>
-          <Follow target={subjectPosition} offset={lowOffset} bindingMode={BindingModes.worldSpace} />
-          <HardLookAt target={subjectPosition} />
+          <Body.Follow target={subjectPosition} offset={lowOffset} bindingMode={BindingModes.worldSpace} />
+          <Aim.HardLookAt target={subjectPosition} />
           <SpectatorFrustum color="#ff6b4a" />
         </VirtualCamera>
       </Klipp>

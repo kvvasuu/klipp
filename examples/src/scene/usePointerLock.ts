@@ -3,8 +3,7 @@ import { MouseButton } from '@kvvasuu/klipp';
 import { useThree } from '@react-three/fiber';
 import { useEffect, useEffectEvent, useState, type RefObject } from 'react';
 
-/** Wires a left-click-to-toggle Pointer Lock onto `controllerRef`'s element, gated by `enabled` (a panel
- *  checkbox, say) - returns whether the lock is actually engaged right now, not just requested. */
+/** Left-click toggles Pointer Lock while `enabled`. Returns whether the lock is currently engaged. */
 export function usePointerLock(controllerRef: RefObject<InputAxisController | null>, enabled: boolean): boolean {
   const gl = useThree((state) => state.gl);
   const [locked, setLocked] = useState(false);

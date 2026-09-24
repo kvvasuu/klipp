@@ -3,17 +3,14 @@ import { useFrame } from '@react-three/fiber';
 import { useState, type ReactNode } from 'react';
 import { PerspectiveCamera } from 'three';
 
-/** `CameraFrustumHelper`s render onto this layer (see `SpectatorFrustum`) so they show up in the
- *  spectator inset without ever appearing in the main view - that view IS the demo camera's own POV. */
+/** Frustum helpers on this layer show up only in the spectator inset, never in the main view. */
 export const spectatorLayer = 1;
 
 const defaultSpectatorPosition: [number, number, number] = [-6, 5, -9];
 const defaultSpectatorTarget: [number, number, number] = [0, 2, 0];
 
-/** Renders the scene a second time into a small DOM-positioned inset (see `SceneRoute`'s `.spectator-
- *  inset` div), from an orbit-controlled camera independent of whichever camera a scene's own `<Klipp>`
- *  is driving. Taking over rendering at `useFrame` priority 1 replaces r3f's own default render entirely
- *  for this Canvas, so the main pass has to be issued here too, not just the inset one. */
+/** Renders the scene again into the spectator inset. Rendering at `useFrame` priority 1 disables
+ *  r3f's own render, so the main pass is issued here too. */
 function SpectatorInset({
   element,
   position,
@@ -59,11 +56,7 @@ function SpectatorInset({
   return <OrbitControls camera={spectatorCamera} domElement={element} target={target} makeDefault={false} />;
 }
 
-/** Shared across every example - a bright, neutral environment/floor so each scene only has to care
- *  about its own subject, plus a spectator inset (see `SpectatorInset`) for watching a scene's camera
- *  from outside. `spectatorPosition`/`spectatorTarget` (from the registry entry - see `SceneRoute`) let
- *  each scene start the inset framed at whatever's actually worth watching, since that differs scene to
- *  scene (e.g. a fixed camera's own vantage vs. one that moves). */
+/** Environment, floor and spectator inset shared by every example. */
 export function BaseScene({
   children,
   insetElement,

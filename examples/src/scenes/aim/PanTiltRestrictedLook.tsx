@@ -4,22 +4,9 @@ import { useControls } from 'leva';
 import { useRef } from 'react';
 import { CanvasOverlay } from '../../scene/CanvasOverlay';
 import { Crosshair } from '../../scene/Crosshair';
-import { GroundClutter, type GroundBox } from '../../scene/GroundClutter';
+import { GroundClutter } from '../../scene/GroundClutter';
 import { SpectatorFrustum } from '../../scene/SpectatorFrustum';
 import { usePointerLock } from '../../scene/usePointerLock';
-
-const groundBoxes: GroundBox[] = [
-  { x: 2, z: 2, width: 0.7, height: 0.12, depth: 0.7 },
-  { x: -3, z: 4, width: 0.6, height: 0.15, depth: 0.8 },
-  { x: 5, z: -3, width: 0.8, height: 0.1, depth: 0.6, color: '#9a9aa8' },
-  { x: -6, z: -2, width: 0.7, height: 0.12, depth: 0.7 },
-  { x: 0, z: -6, width: 0.6, height: 0.1, depth: 0.9 },
-  { x: 4, z: 5, width: 0.8, height: 0.15, depth: 0.6, color: '#9a9aa8' },
-  { x: -5, z: 4, width: 0.7, height: 0.1, depth: 0.7 },
-  { x: 7, z: 2, width: 0.6, height: 0.13, depth: 0.8 },
-  { x: -2, z: -6, width: 0.8, height: 0.1, depth: 0.6, color: '#9a9aa8' },
-  { x: 3, z: -6, width: 0.7, height: 0.12, depth: 0.7 },
-];
 
 const degreesPerPixel = 0.15;
 const lookSource = { axes: { x: 'pan', y: 'tilt' }, gain: degreesPerPixel };
@@ -42,9 +29,6 @@ function RangeMarker({ angleDeg }: { angleDeg: number }) {
   );
 }
 
-/** `panWrap`/`tiltWrap` both false - a security-camera turret with a hard-limited field of view, instead
- *  of `PanTilt`'s default full, free look-around. Drag to either pillar and keep dragging past it - the
- *  camera stops dead at the edge instead of continuing or wrapping. */
 export function PanTiltRestrictedLook() {
   const controllerRef = useRef<InputAxisController>(null);
 
@@ -60,7 +44,7 @@ export function PanTiltRestrictedLook() {
 
   return (
     <>
-      <GroundClutter boxes={groundBoxes} />
+      <GroundClutter layout="lookAround" />
       <RangeMarker angleDeg={panMin} />
       <RangeMarker angleDeg={panMax} />
 

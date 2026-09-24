@@ -23,8 +23,7 @@ import { Impulse } from '../scenes/impulse/Impulse';
 import { BasicMultiChannelPerlin } from '../scenes/noise/BasicMultiChannelPerlin';
 import type { ExampleCategory } from './types';
 
-/** Every scene not built yet points at `Placeholder` - see TODO-examples.md for the full plan this
- *  mirrors. Swap an entry's `Scene` in place as it gets built, nothing else needs to change. */
+/** Scenes not built yet point at `Placeholder` with `ready: false`, which hides them from the sidebar. */
 export const categories: ExampleCategory[] = [
   {
     slug: 'body',
@@ -35,7 +34,7 @@ export const categories: ExampleCategory[] = [
         title: 'HardLockToTarget',
         Scene: HardLockToTarget,
         description:
-          "The simplest Body: the camera's position becomes exactly the target's position, no offset, no framing. Watch the spectator inset - the frustum trails behind the orbiting anchor by exactly `damping` seconds.",
+          'The camera sits exactly on the blue ball as it orbits. Raise `damping` and watch it lag behind in the spectator view. Turn on `lookAtSubject` to add an Aim that looks at the red shape.',
         ready: true,
       },
       {
@@ -43,7 +42,7 @@ export const categories: ExampleCategory[] = [
         title: 'Follow',
         Scene: Follow,
         description:
-          'A plane flies a continuous figure-eight with a vertical bob, banking hard into every turn. The camera follows at a fixed offset controlled by `bindingMode`.',
+          'The camera follows a plane at a fixed `offset`. `bindingMode` changes how the offset turns with the plane: with `lockToTarget` the camera rolls with every bank, with `lockToTargetWithWorldUp` it stays level.',
         spectatorPosition: [0, 14, 18],
         spectatorTarget: [0, 3, 0],
         ready: true,
@@ -54,7 +53,7 @@ export const categories: ExampleCategory[] = [
         group: 'position-composer',
         Scene: PositionComposer,
         description:
-          'A unit wanders a ground plane below a straight-down camera, which shifts sideways to keep it inside `deadZone`, clamped at `hardLimit`.',
+          'A top-down camera moves to keep the ball inside the green `deadZone`, and never lets it past the red `hardLimit`. Turn off `autoMove` to move the ball yourself.',
         spectatorPosition: [16, 20, 16],
         spectatorTarget: [0, 0, 0],
         ready: true,
@@ -65,7 +64,7 @@ export const categories: ExampleCategory[] = [
         group: 'position-composer',
         Scene: PositionComposerDolly,
         description:
-          'A target drifts toward and away from a fixed-rotation camera, which dollies to hold `cameraDistance`, ignoring anything inside `depthDeadZone` (the rings).',
+          'The camera moves forward and back to stay `cameraDistance` away from the ball, but ignores movement between the two rings (`depthDeadZone`).',
         spectatorPosition: [12, 6, 14],
         spectatorTarget: [0, 0, 0],
         ready: true,
@@ -76,7 +75,7 @@ export const categories: ExampleCategory[] = [
         group: 'position-composer',
         Scene: PositionComposerLookahead,
         description:
-          'A ball loops at varying speed with a vertical bob, trailing off the center crosshair opposite its direction of travel thanks to `lookaheadTime` - drop it to 0 to pin the ball dead-center instead.',
+          'With `lookaheadTime`, the camera frames where the ball is going, so the ball trails behind the crosshair. Set it to 0 to keep the ball centered.',
         spectatorPosition: [0, 16, 22],
         spectatorTarget: [0, 1, 0],
         ready: true,
@@ -92,7 +91,7 @@ export const categories: ExampleCategory[] = [
         title: 'HardLookAt',
         Scene: HardLookAt,
         description:
-          'The simplest Aim: the camera rotates so the target is dead-center, every frame, with zero damping. The camera never moves.\nSwitch "activeTarget" to see the re-aim snap instantly.',
+          'A fixed camera always looks straight at the selected ball. Switch `activeTarget` to see it snap to the other one instantly.',
         spectatorPosition: [0, 4, 15],
         spectatorTarget: [0, 2, 0],
         ready: true,
@@ -102,7 +101,7 @@ export const categories: ExampleCategory[] = [
         title: 'RotateWithFollowTarget',
         Scene: RotateWithFollowTarget,
         description:
-          'A gondola spins and tilts on its own, like a Tilt-A-Whirl car, while the camera rides along and copies its rotation. Toggle `followPosition` off to see the camera stay put and just keep spinning in place.',
+          'The camera rides in the gondola and copies its rotation. Turn off `followPosition` to switch to a camera that stays in the middle and only copies the rotation.',
         spectatorPosition: [0, 12, 16],
         spectatorTarget: [0, 2, 0],
         ready: true,
@@ -113,7 +112,7 @@ export const categories: ExampleCategory[] = [
         group: 'rotation-composer',
         Scene: RotationComposer,
         description:
-          'A target wanders in front of a fixed camera, which only rotates once it steps past `deadZone`, clamped at `hardLimit`.',
+          'A fixed camera turns only when the ball leaves the green `deadZone`, and never lets it past the red `hardLimit`. Turn off `autoMove` to move the ball yourself.',
         spectatorPosition: [0, 6, 18],
         spectatorTarget: [0, 2, 0],
         ready: true,
@@ -124,7 +123,7 @@ export const categories: ExampleCategory[] = [
         group: 'rotation-composer',
         Scene: RotationComposerLookahead,
         description:
-          'A ball loops at varying speed with a vertical bob, trailing off the center crosshair opposite its direction of travel thanks to `lookaheadTime` - the camera never moves, only rotates.',
+          'The camera aims where the ball is going, so the ball trails behind the crosshair. Set `lookaheadTime` to 0 to keep it centered. The camera only turns, it never moves.',
         spectatorPosition: [0, 16, 22],
         spectatorTarget: [0, 1, 0],
         ready: true,
@@ -135,7 +134,7 @@ export const categories: ExampleCategory[] = [
         group: 'rotation-composer',
         Scene: RotationComposerTargetOffset,
         description:
-          "A box wanders and tumbles on two axes with an arrow marking `targetOffset` - its tip stays pinned to the center crosshair through all of it, since the offset tracks the box's own local space, not the world's.",
+          "The camera aims at the tip of the yellow arrow (`targetOffset`) instead of the box's center. The offset moves and turns with the box.",
         spectatorPosition: [0, 6, 14],
         spectatorTarget: [0, 2, 0],
         ready: true,
@@ -146,7 +145,7 @@ export const categories: ExampleCategory[] = [
         group: 'pan-tilt',
         Scene: PanTilt,
         description:
-          'A fixed camera, pure first-person rotation - left-click toggles Pointer Lock, right-drag or touch look around without locking. `damping`/`maxSpeed` shape how the response feels.',
+          'Drag or touch to look around. Turn on `lockPointer` and left-click for mouse look with Pointer Lock. `damping` and `maxSpeed` change how the camera responds.',
         spectatorPosition: [8, 5, 8],
         spectatorTarget: [0, 2, 0],
         ready: true,
@@ -157,7 +156,7 @@ export const categories: ExampleCategory[] = [
         group: 'pan-tilt',
         Scene: PanTiltReferenceFrame,
         description:
-          "Riding a plane banking through a figure-eight, seated via `Body.Follow`. `rigidMount` toggles `Aim.PanTilt`'s `target` - on, the view rolls/pitches with the plane (rigidly mounted); off, it aims to stay level (gimbal-stabilized) - drag to look around either way.",
+          "Look around from the cockpit of a flying plane. With `rigidMount` on, `pan` and `tilt` are relative to the plane, so the view turns, banks and dips with it. Turn it off and the view keeps a fixed heading, but still tilts with the plane's bank and pitch, since `Follow` passes the plane's up direction on to the Aim.",
         spectatorPosition: [0, 10, 16],
         spectatorTarget: [0, 3, 0],
         ready: true,
@@ -168,7 +167,7 @@ export const categories: ExampleCategory[] = [
         group: 'pan-tilt',
         Scene: PanTiltRestrictedLook,
         description:
-          'A security-camera turret: `panWrap`/`tiltWrap` both false, `panRange`/`tiltRange` hard-clamp instead of looping. Drag past either pillar and keep dragging - the camera stops dead at the edge.',
+          'A security camera with a limited `panRange` and `tiltRange`. Drag past either pillar and it stops at the edge instead of wrapping around.',
         spectatorPosition: [8, 6, 8],
         spectatorTarget: [0, 2, 0],
         ready: true,
@@ -179,7 +178,7 @@ export const categories: ExampleCategory[] = [
         group: 'pan-tilt',
         Scene: PanTiltRecentering,
         description:
-          'Drag away from the glowing marker, release, and wait - `recentering` eases `pan`/`tilt` back to center once `wait` seconds pass with no further input.',
+          'Drag away from the green marker and let go. After `wait` seconds the camera eases back to the center on its own.',
         spectatorPosition: [8, 5, 8],
         spectatorTarget: [0, 2, 0],
         ready: true,
@@ -195,7 +194,7 @@ export const categories: ExampleCategory[] = [
         title: 'BasicMultiChannelPerlin',
         Scene: BasicMultiChannelPerlin,
         description:
-          'Drag to orbit and scroll to dolly around the subject (via `CameraControls`) while continuous Perlin noise shakes the camera on top.',
+          'Continuous shake on top of an orbit camera. Drag to orbit, scroll to zoom, and tune the shake in the panel.',
         spectatorPosition: [4, 5, 12],
         spectatorTarget: [0, 2, 4],
         ready: true,
@@ -211,7 +210,7 @@ export const categories: ExampleCategory[] = [
         title: 'Impulse',
         Scene: Impulse,
         description:
-          'One button per built-in `ImpulseShapes` preset (Recoil/Bump/Explosion/Rumble), plus a fifth with a custom shape drawn as a Bezier curve, `cameraSpace` toggling between world- and camera-relative kicks, and an optional secondary shake.',
+          'Each button fires an impulse from its colored marker. Try `cameraSpace` for recoil-style kicks and `shake` for extra rattle. The last button uses the curve you draw in the panel.',
         spectatorPosition: [10, 8, 16],
         spectatorTarget: [0, 1, -3],
         ready: true,
@@ -227,7 +226,7 @@ export const categories: ExampleCategory[] = [
         title: 'GroupFraming',
         Scene: GroupFraming,
         description:
-          'Four spheres orbit independently, sometimes clustering and sometimes spreading wide - the camera dollies to keep everyone in frame.',
+          "Four spheres orbit at different distances, and the camera moves closer or farther to keep all of them in view. Compare `fitMode` 'rigid' and 'ceiling'.",
         spectatorPosition: [26, 19, 32],
         spectatorTarget: [0, 0, 0],
         ready: true,
@@ -237,7 +236,7 @@ export const categories: ExampleCategory[] = [
         title: 'Lens',
         Scene: Lens,
         description:
-          'A fixed camera looks down a ring tunnel, with a sphere sitting close in front of it. Fov/near/far are all live in the panel: push `near` in to clip the sphere, pull `far` back to clip the far rings, and swing `fov` to stretch or compress the tunnel.',
+          'Change `fov`, `near` and `far` live. Push `near` up to clip the yellow sphere, pull `far` in to clip the tunnel, and swing `fov` to stretch it.',
         spectatorPosition: [4, 5, 10],
         spectatorTarget: [0, 1.5, -10],
         ready: true,
@@ -267,7 +266,7 @@ export const categories: ExampleCategory[] = [
         group: 'blend-curves',
         Scene: BlendCurves,
         description:
-          "Five fixed shots, picked via the camera select or Prev/Next - two orbit their subject through Follow's lockToTarget binding. The bar plots curve(t) live (white tick is raw linear time) so a blend's shape reads directly, not just by eye.",
+          "Pick a shot and watch the blend. The bar shows the curve's progress against plain linear time (the white tick), so you can see each curve's shape.",
         spectatorPosition: [8, 10, 14],
         spectatorTarget: [0, 1.5, 0],
         ready: true,
@@ -278,7 +277,7 @@ export const categories: ExampleCategory[] = [
         group: 'blend-curves',
         Scene: BlendCurvesDamping,
         description:
-          'The same wide/close transition replayed under two BlendDefinition shapes - { curve, time } always finishes at exactly time seconds, while { damping } has no fixed finish and eases forever closer via the same spring as Damper. The fill bar traces whichever real algorithm is picked, so curve mode caps out right on its own time while damping trails off instead of stopping.',
+          'The same switch with two kinds of blend: a curve always finishes in exactly `time` seconds, while damping eases in like a spring and has no fixed end.',
         spectatorPosition: [10, 8, 14],
         spectatorTarget: [0, 1.5, 0],
         ready: true,
@@ -288,7 +287,7 @@ export const categories: ExampleCategory[] = [
         title: 'BlendHints',
         Scene: BlendHints,
         description:
-          'Two shots at very different heights, each on its own subject - PathCurve plots the actual position interpolation as a static curve (dashed gray is always the plain straight line), so sphericalPosition/cylindricalPosition reshape something visible at a glance instead of only mid-blend. ignoreTarget swaps the rotation blend for a plain slerp.',
+          "Switch between a high and a low shot. The line shows the camera's path: straight by default, arcing with `spherical` or `cylindrical`. `ignoreTarget` changes how the camera turns during the blend.",
         spectatorPosition: [-22, 10, -2],
         spectatorTarget: [0, 6, 0],
         ready: true,
@@ -298,7 +297,7 @@ export const categories: ExampleCategory[] = [
         title: 'CustomBlends',
         Scene: CustomBlends,
         description:
-          'Four fixed shots - picking one from `pick` triggers a real transition resolved by the same `resolveBlendDefinition` the library uses, against a fixed `customBlends` list covering all three specificity levels (exact, to-only, from-only) plus the `defaultBlend` fallback. The label shows which one actually won.',
+          'Pick a camera to trigger a transition. Some camera pairs have their own blend in `customBlends`, and the label shows which rule was used.',
         spectatorPosition: [14, 12, -10],
         spectatorTarget: [0, 2, 0],
         ready: true,

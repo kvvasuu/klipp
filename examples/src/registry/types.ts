@@ -5,18 +5,14 @@ export type ExampleEntry = {
   slug: string;
   title: string;
   Scene: ComponentType;
-  /** Shown behind the scene-info button in `SceneRoute` - omitted entirely (button included) while a
-   *  scene has no writeup yet. */
+  /** Shown behind the scene-info button. Omit to hide the button. */
   description?: string;
-  /** Starting pose for `BaseScene`'s spectator inset - each scene's subject sits somewhere different, so
-   *  the one-size-fits-all default rarely frames it well. Omit either to keep `BaseScene`'s default. */
+  /** Starting pose for the spectator inset. Omit to use `BaseScene`'s default. */
   spectatorPosition?: [number, number, number];
   spectatorTarget?: [number, number, number];
-  /** Required, not defaulted - forces flipping this the moment a real Scene replaces Placeholder.
-   *  false hides the entry from the sidebar entirely. */
+  /** `false` hides the entry from the sidebar. */
   ready: boolean;
-  /** Consecutive entries sharing this value render as one visually connected sub-list in the sidebar,
-   *  instead of separate top-level items - for one component split across several focused scenes. */
+  /** Consecutive entries with the same `group` render as one sub-list in the sidebar. */
   group?: string;
 };
 
