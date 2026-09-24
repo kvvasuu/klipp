@@ -1,0 +1,46 @@
+---
+title: CameraControls
+description: Lets the user orbit, pan and zoom with the mouse or touch.
+nav: 24
+---
+
+A user-controlled orbit camera, built on [`camera-controls`](https://github.com/yomotsu/camera-controls). It still takes part in priority and blending like any other camera. Unlike other Bodies, it controls both position and rotation, so don't add an Aim next to it.
+
+```bash
+npm install camera-controls
+```
+
+```tsx
+import { CameraControls } from '@kvvasuu/klipp/react/camera-controls';
+
+<VirtualCamera name="orbit" priority={10}>
+  <CameraControls target={ballRef} />
+</VirtualCamera>
+```
+
+With a `target`, the camera orbits around it and follows it when it moves. Without one, it's free: orbit, pan and zoom anywhere.
+
+## Props
+
+Any option of a `camera-controls` instance can be passed as a prop, like `minDistance` or `dollySpeed`. On top of that:
+
+| Prop | Description | Default |
+| ---- | ----------- | ------- |
+| `target` | What to orbit around. See [Targets](/getting-started/core-concepts#targets). Omit for free controls. | |
+| `initialPosition` | Where the camera starts. | |
+| `waitForBlend` | Ignore input until the blend into this camera has finished. | `true` |
+| `makeDefault` | Set as r3f's `state.controls` while it accepts input. | `false` |
+| `enableTransition` | Animate the internal `camera-controls` calls. | `false` |
+| `regress` | Lower render quality while moving (`performance.regress()`). | `false` |
+| `impl` | A custom `CameraControlsImpl` subclass to use instead. | |
+
+The `camera-controls` events are available as props too: `onControlStart`, `onControl`, `onControlEnd`, `onTransitionStart`, `onUpdate`, `onWake`, `onRest` and `onSleep`.
+
+Input only works while this camera is on screen, so you can mount several orbit cameras without them fighting over the mouse.
+
+> [!NOTE]
+> Use `initialPosition` to set the starting point. `<VirtualCamera initialState>` has no effect on `CameraControls`.
+
+## `ref`
+
+`ref` gives you the `CameraControlsBody`. Its `.controls` is the `camera-controls` instance, for calling methods like `rotateTo` or `setLookAt`.

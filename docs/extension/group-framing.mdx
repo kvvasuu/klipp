@@ -1,52 +1,50 @@
 ---
 title: GroupFraming
-description: Keeps a weighted group of targets in frame by dollying the camera.
+description: Moves the camera closer or farther to keep several targets in view.
 nav: 41
 ---
 
-Dollies the camera back along its own current view axis just far enough to keep every member of `members` (plus `padding`) inside the frame. `fitMode` decides whether it can also dolly *closer*: `'ceiling'` (default) never moves the camera closer than Body/Aim already placed it, `'rigid'` always sits exactly at the fit distance. Never touches rotation or FOV either way - it needs an Aim that's already looking at the group.
+Keeps every member on screen. It places the camera in line with the group's center, along the camera's current view direction, at the distance where every member fits. By default it never moves the camera closer than the Body placed it; with `fitMode="rigid"` it always sits at exactly that distance, so it also moves in as the group gets smaller.
+
+It doesn't rotate the camera, so pair it with an Aim that already looks at the group.
 
 ```tsx
-<VirtualCamera name="follow-cam" priority={10}>
-  <Body.Follow target={boxRef} offset={[0, 2, 5]} damping={0} />
-  <Aim.HardLookAt target={boxRef} />
-  <Extension.GroupFraming members={[{ target: boxRef }]} padding={1} damping={0.5} />
+<VirtualCamera name="party" priority={10}>
+  <Body.Follow target={leaderRef} offset={[0, 4, 10]} />
+  <Aim.HardLookAt target={leaderRef} />
+  <Extension.GroupFraming
+    members={[{ target: aRef }, { target: bRef, radius: 2 }]}
+    padding={1}
+    damping={0.5}
+  />
 </VirtualCamera>
 ```
 
 ## Props
 
-| Prop            | Type                     | Default        | |
-| --------------- | ------------------------ | -------------- | - |
-| `members`       | `TargetGroupMember[]`    | -              | Targets to keep framed, each with its own weight/radius/size. |
-| `positionMode`  | `'groupCenter' \| 'groupAverage'` | `'groupCenter'` | `groupCenter` - center of the AABB enclosing every member's own bounding sphere. `groupAverage` - weighted mean of member positions, ignoring radius. |
-| `padding`       | `number`                 | `0`            | Margin kept clear around the group's members, in world units. |
-| `damping`       | `DampingConstant`        | `0`            | Spring response time to the distance ceiling (and `screenPosition`) as they change - see [Damping](/advanced/damping). `0` = hard, instant. |
-| `maxSpeed`      | `number`                 | `Infinity`     | Caps how fast `damping` can close the distance-ceiling gap, in world units/sec. Doesn't affect `screenPosition`'s own easing. |
-| `screenPosition` | `[number, number]`      | `[0, 0]`       | Shifts the frustum without moving/rotating the camera - e.g. to keep the group visually centered in the space left over after reserving room for UI on one side. Same convention as `PositionComposer`'s `screenPosition`, not pixels. |
-| `fitMode`       | `'ceiling' \| 'rigid'`   | `'ceiling'`    | `ceiling` - only dollies back, never closer than Body/Aim already placed the camera. `rigid` - always sits exactly at the fit distance, dollying in as the group shrinks too. |
-| `minDistance`   | `number`                 | `0`            | Clamps the fit distance this extension computes - not Body/Aim's own placement in `ceiling` mode. |
-| `maxDistance`   | `number`                 | `Infinity`     | Same clamp, upper bound. |
-| `framingMode`   | `'horizontal' \| 'vertical' \| 'horizontalAndVertical'` | `'horizontalAndVertical'` | Which screen dimension(s) the fit distance has to satisfy - the excluded axis's spread is ignored entirely. |
-| `debug`         | `boolean`                | `false`        | Draws `padding` as a bordered, inset box - see [Debug Zones](/debugging/debug-zones). |
+| Prop | Description | Default |
+| ---- | ----------- | ------- |
+| `members` | The targets to keep in view. See below. | |
+| `padding` | Extra space around the members, in world units. | `0` |
+| `fitMode` | `'ceiling'` never moves the camera closer than the Body placed it. `'rigid'` always sits at exactly the distance that fits the group. | `'ceiling'` |
+| `framingMode` | Which screen dimensions to fit: `'horizontal'`, `'vertical'` or `'horizontalAndVertical'`. | `'horizontalAndVertical'` |
+| `minDistance` | Closest the camera may get to the group. | `0` |
+| `maxDistance` | Farthest `GroupFraming` will move the camera away from the group. | `Infinity` |
+| `damping` | Seconds to catch up with the right distance. See [Damping](/getting-started/core-concepts#damping). | `0` |
+| `maxSpeed` | Maximum catch-up speed, in units per second. | `Infinity` |
+| `screenPosition` | Shifts the view without moving the camera, for example to leave room for UI. `[0, 0]` is centered. | `[0, 0]` |
+| `positionMode` | How the group's center, which the camera lines up with, is computed: `'groupCenter'` (center of the bounds) or `'groupAverage'` (weighted average of positions). | `'groupCenter'` |
+| `debug` | Draws the padding on screen. See [Debugging](/debugging/introduction). | `false` |
 
-### `TargetGroupMember`
+## Members
 
-| Field    | Type      | Default | |
-| -------- | --------- | ------- | - |
-| `target` | `Target`  | -       | A member that can't currently resolve (`null`/an unmounted ref) is skipped, not treated as sitting at the origin. |
-| `weight` | `number`  | `1`     | Influence on the group's position in `groupAverage` mode. Unused in `groupCenter` mode. |
-| `radius` | `number`  | `0`     | This member's own bounding-sphere radius, folded into the group's bounds. Ignored if `size` is given. |
-| `size`   | `Vector3` | -       | Full box dimensions - takes priority over `radius`. Auto-detected from a `Mesh` target's own geometry when neither is given. |
-
-## Sphere vs. box members
-
-Both use the exact frustum-plane distance against the camera's current up/right/forward, checked separately per axis - an offset mostly along one axis isn't penalized as if it could be along the other. A member with `size` additionally checks all 8 corners of its rotated box - a corner's own depth affects how close it can get, so height/width and depth aren't independent, and rotation matters.
+| Field | Description | Default |
+| ----- | ----------- | ------- |
+| `target` | The member. See [Targets](/getting-started/core-concepts#targets). | |
+| `weight` | Influence on the center in `'groupAverage'` mode. | `1` |
+| `radius` | The member's radius, so its edge stays in view instead of its center. | `0` |
+| `size` | The member's box size, used instead of `radius`. Measured automatically for meshes. | |
 
 ## `ref`
 
-```tsx
-const extensionRef = useRef<GroupFramingExtension>(null);
-```
-
-Gives you the underlying `GroupFramingExtension` (or the `TargetGroup` it owns via `.group`) - read or write any field directly, and call `recalculateSize()` after a member's auto-detected size deforms (a `SkinnedMesh` bone animation, a mutated `BufferGeometry`) to force a fresh measurement on the next frame.
+`ref` gives you the `GroupFramingExtension`. If a member's shape changes, call `recalculateSize()` to measure it again.

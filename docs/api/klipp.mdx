@@ -1,0 +1,53 @@
+---
+title: Klipp
+description: The component that drives the real camera.
+nav: 10
+---
+
+`<Klipp>` picks the winning [`<VirtualCamera>`](/api/virtual-camera), blends between shots, and writes the result onto the React Three Fiber camera every frame. It has to be inside `<Canvas>`.
+
+```tsx
+import { Klipp } from '@kvvasuu/klipp/react';
+import { BlendCurves } from '@kvvasuu/klipp';
+
+<Canvas>
+  <Klipp defaultBlend={{ curve: BlendCurves.easeInOut, time: 1 }}>
+    <VirtualCamera name="main" priority={10}>...</VirtualCamera>
+  </Klipp>
+</Canvas>
+```
+
+## Props
+
+| Prop | Description | Default |
+| ---- | ----------- | ------- |
+| `defaultBlend` | How to blend between cameras. See [Blending](/blending/introduction). | `{ curve: BlendCurves.easeInOut, time: 2 }` |
+| `customBlends` | Blends for specific camera pairs. See [Custom blends](/blending/introduction#custom-blends). | `[]` |
+| `camera` | The camera to drive. | the r3f default camera |
+| `mode` | `'enabled'`, `'standby'` or `'disabled'`. See below. | `'enabled'` |
+
+Virtual cameras start from the real camera's current `fov`, `near`, `far`, position and rotation, so whatever you set on `<Canvas camera={...}>` is the starting point.
+
+## `mode`
+
+| Mode | Cameras update | Real camera is written |
+| ---- | -------------- | ---------------------- |
+| `'enabled'` | yes | yes |
+| `'standby'` | yes | no |
+| `'disabled'` | no | no |
+
+Use `'standby'` to hand the camera to something else for a while (an editor, a photo mode). klipp keeps its cameras updated in the background, so they're ready the moment you switch back.
+
+## `<Klipp.Events>`
+
+Listens to every camera transition. See [Events](/api/events).
+
+```tsx
+<Klipp>
+  <Klipp.Events onActivated={(e) => console.log(`${e.outgoing} -> ${e.incoming}`)} />
+</Klipp>
+```
+
+## Accessing the core
+
+[`useKlipp()`](/api/hooks#useklipp) gives you the `KlippCore` instance behind `<Klipp>`, for example to check which camera is on screen.

@@ -1,10 +1,10 @@
 ---
 title: Input
-description: Drag, touch, wheel and Pointer Lock input, shaped into named InputAxis values any Body/Aim/Extension can consume.
-nav: 46
+description: Mouse, touch and pointer lock input for cameras.
+nav: 60
 ---
 
-Klipp's input layer turns raw pointer/touch/wheel events into named, shaped values - `InputAxis` instances - that a Body/Aim/Extension exposes as `inputAxes` for a `<InputController>` to drive. A Body/Aim/Extension's own update logic reads `axis.value`.
+Some components can be controlled by the user, like [`PanTilt`](/aim/pan-tilt). They expose named **axes** (`pan`, `tilt`), and an [`<InputController>`](/input/input-controller) placed inside them maps mouse and touch drags onto those axes.
 
 ```tsx
 import { Aim, InputController } from '@kvvasuu/klipp/react';
@@ -19,16 +19,6 @@ import { Aim, InputController } from '@kvvasuu/klipp/react';
 </VirtualCamera>
 ```
 
-`<InputController>` finds `Aim.PanTilt`'s `inputAxes` (`{ pan, tilt }`, see [PanTilt](/aim/pan-tilt)) automatically through context - no ref, no manual wiring. It's a Body/Aim/Extension's own choice to expose `inputAxes` at all; most don't need to.
+This reads as: dragging with the right mouse button, or with one finger, moves `pan` horizontally and `tilt` vertically.
 
-## Three layers
-
-- **[`InputSystem`](/input/input-system)** - the lowest level. Buffers raw pointer/touch/wheel/Pointer-Lock deltas from a DOM element into named per-source buffers, drained once per frame. Zero knowledge of cameras or `InputAxis`.
-- **`InputAxis`** - see [Input Axis](/input/input-axis). A single shaped value with `range`/`wrap`/`damping`/`recentering`, driven by `applyDelta` - from an `InputController`, a cutscene script, an AI look-at.
-- **[`InputController`](/input/input-controller)** - the React glue between the two: resolves named `mouseButtons`/`touches` sources against a target's `inputAxes`, shapes each source's delta (`gain`/`invert`), and feeds it through `InputSystem` → `applyDelta` every frame.
-
-`InputAxisController` is `InputController`'s underlying, framework-agnostic class (`ref` gives you it directly) - use it without React for a vanilla three.js project.
-
-## Named axes
-
-A Body/Aim/Extension declares whichever axes make sense for it (`{ pan, tilt }`, `{ azimuth, elevation }`, a single `{ zoom }`) as `inputAxes: Record<string, InputAxis>`. `<InputController>` maps `mouseButtons`/`touches` sources onto them by name (`axes: { x: 'pan', y: 'tilt' }`).
+Each axis is an [`InputAxis`](/input/input-axis), a value with limits, wrapping, damping and optional recentering. You can also drive an axis from your own code, for example in a cutscene.

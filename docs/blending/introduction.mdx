@@ -1,0 +1,85 @@
+---
+title: Blending
+description: Control how klipp moves from one camera to the next.
+nav: 70
+---
+
+When a different camera wins, klipp blends from the old shot to the new one. By default that takes 2 seconds with an ease-in-out curve. Change it with `defaultBlend` on `<Klipp>`:
+
+```tsx
+import { BlendCurves } from '@kvvasuu/klipp';
+
+<Klipp defaultBlend={{ curve: BlendCurves.easeInOut, time: 1 }}>
+```
+
+## Curve or damping
+
+A blend is one of two kinds:
+
+```tsx
+{ curve: BlendCurves.easeInOut, time: 1 } // takes exactly `time` seconds
+{ damping: 0.5, maxSpeed: 20 }           // eases in like a spring, see Damping
+```
+
+Use a curve for scripted, predictable transitions. Use [damping](/getting-started/core-concepts#damping) for transitions that should feel physical, especially when the target camera is moving.
+
+Set `time: 0` for an instant cut.
+
+## Curves
+
+| Curve | Feels like |
+| ----- | ---------- |
+| `BlendCurves.linear` | Constant speed. |
+| `BlendCurves.easeInOut` | Starts and ends gently. |
+| `BlendCurves.easeIn` | Leaves quickly, arrives gently. |
+| `BlendCurves.easeOut` | Leaves gently, arrives quickly. |
+| `BlendCurves.hardIn` | Leaves gently, arrives abruptly. |
+| `BlendCurves.hardOut` | Leaves abruptly, arrives gently. |
+| `BlendCurves.cut` | Holds the old shot, then jumps at the end of `time`. |
+
+> [!WARNING]
+> `easeIn` means easing *into* the new shot, a gentle arrival. That's the opposite of CSS's `ease-in`, which is a gentle start.
+
+Any `(t) => number` function works as a curve too:
+
+```tsx
+<Klipp defaultBlend={{ curve: (t) => t * t * t, time: 1 }}>
+```
+
+## Custom blends
+
+Use `customBlends` to give specific camera pairs their own blend. `from` and `to` are camera `name`s; leave one out to match any camera.
+
+```tsx
+<Klipp
+  defaultBlend={{ curve: BlendCurves.easeInOut, time: 1 }}
+  customBlends={[
+    { to: 'closeup', blend: { curve: BlendCurves.linear, time: 0 } },
+    { from: 'intro', to: 'gameplay', blend: { damping: 0.8 } },
+  ]}
+>
+```
+
+When several entries match, the most specific one wins: `from` and `to` together, then `to` only, then `from` only, then `defaultBlend`.
+
+## Blend hints
+
+By default the camera moves in a straight line between the two shots. If both shots follow the same target from different sides, that line can pass right through it. Blend hints change the path:
+
+```tsx
+import { BlendHints } from '@kvvasuu/klipp';
+
+<VirtualCamera name="orbit" priority={10} hints={BlendHints.sphericalPosition}>
+```
+
+| Hint | Effect |
+| ---- | ------ |
+| `BlendHints.sphericalPosition` | Arcs around the target instead of cutting through it. |
+| `BlendHints.cylindricalPosition` | Arcs around the target horizontally, moves straight vertically. |
+| `BlendHints.ignoreTarget` | Rotates directly between the two shots instead of keeping the target in view during the blend. |
+
+A hint applies to every blend into or out of its camera. Combine hints with `|`:
+
+```tsx
+hints={BlendHints.sphericalPosition | BlendHints.ignoreTarget}
+```

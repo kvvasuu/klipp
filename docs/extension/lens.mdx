@@ -1,43 +1,44 @@
 ---
 title: Lens
-description: Overrides fov/near/far after Body/Aim/Noise, each independently damped.
+description: Changes fov, near and far, with damping.
 nav: 42
 ---
 
-Nothing else in klipp's pipeline writes `fov`/`near`/`far` (`initialState`/blending aside) - without `Lens` claiming them, an external `useFrame` mutating `camera.fov` directly would get silently overwritten by `<Klipp>`'s own driver every frame. A field left `undefined` is a no-op - whatever `initialState`/blending already set stays untouched.
+Sets the camera's `fov`, `near` and `far`. Leave a prop out to keep the current value. Each one can be damped separately, for effects like a speed zoom.
 
 ```tsx
-<VirtualCamera name="follow-cam" priority={10}>
-  <Body.Follow target={playerRef} offset={[0, 3, 8]} damping={0.5} />
-  <Aim.HardLookAt target={playerRef} />
-  <Extension.Lens fov={speedBasedFov} fovDamping={0.4} />
+<VirtualCamera name="chase" priority={10}>
+  <Body.Follow target={carRef} offset={[0, 2, 6]} />
+  <Aim.HardLookAt target={carRef} />
+  <Extension.Lens fov={boosting ? 75 : 50} fovDamping={0.4} />
 </VirtualCamera>
 ```
 
+> [!NOTE]
+> Set lens values through `Lens`, not on the camera directly. `<Klipp>` controls the camera's lens, so direct changes get overwritten, for example by the next blend.
+
 ## Props
 
-| Prop           | Type              | Default | |
-| -------------- | ----------------- | ------- | - |
-| `fov`          | `number`          | -       | Overrides the camera's field of view, in degrees. `undefined` = untouched. |
-| `near`         | `number`          | -       | Overrides the near clip plane. `undefined` = untouched. |
-| `far`          | `number`          | -       | Overrides the far clip plane. `undefined` = untouched. |
-| `fovDamping`   | `DampingConstant` | `0`     | Spring response time to `fov` as it changes - see [Damping](/advanced/damping). `0` = hard, instant. |
-| `nearDamping`  | `DampingConstant` | `0`     | Spring response time to `near` as it changes. `0` = hard, instant. |
-| `farDamping`   | `DampingConstant` | `0`     | Spring response time to `far` as it changes. `0` = hard, instant. |
-| `fovMaxSpeed`  | `number`          | `Infinity` | Caps how fast `fovDamping` can close the gap, in degrees/sec. |
-| `nearMaxSpeed` | `number`          | `Infinity` | Caps how fast `nearDamping` can close the gap, in world units/sec. |
-| `farMaxSpeed`  | `number`          | `Infinity` | Caps how fast `farDamping` can close the gap, in world units/sec. |
-
-Each field damps independently - `fov` can be easing in over half a second while `near`/`far` snap instantly, since they're three separate `Damper`s under the hood.
-
-## Prop vs. `ref`
-
-Both `fov={x}` and `lensRef.current.fov = x` set the exact same underlying field - there's no special casing between them. The prop exists for a reactive, one-shot jump (with automatic, smooth damping like everywhere else in klipp); `ref` exists for mutating the value every frame from an external `useFrame` without forcing a React re-render for it. Pick whichever fits how the value changes in your scene.
+| Prop | Description | Default |
+| ---- | ----------- | ------- |
+| `fov` | Field of view, in degrees. | |
+| `near` | Near clipping plane. | |
+| `far` | Far clipping plane. | |
+| `fovDamping` | Seconds to reach a new `fov`. See [Damping](/getting-started/core-concepts#damping). | `0` |
+| `nearDamping` | Seconds to reach a new `near`. | `0` |
+| `farDamping` | Seconds to reach a new `far`. | `0` |
+| `fovMaxSpeed` | Maximum `fov` change, in degrees per second. | `Infinity` |
+| `nearMaxSpeed` | Maximum `near` change, in units per second. | `Infinity` |
+| `farMaxSpeed` | Maximum `far` change, in units per second. | `Infinity` |
 
 ## `ref`
 
-```tsx
-const lensRef = useRef<LensExtension>(null);
-```
+`ref` gives you the `LensExtension`. To change the lens every frame without re-rendering, set its fields directly:
 
-Gives you the underlying `LensExtension` - read or write `.fov`/`.near`/`.far`/`.fovDamping`/`.nearDamping`/`.farDamping`/`.fovMaxSpeed`/`.nearMaxSpeed`/`.farMaxSpeed` directly.
+```tsx
+const lens = useRef<LensExtension>(null);
+
+useFrame(() => {
+  lens.current.fov = 50 + speed * 0.5;
+});
+```

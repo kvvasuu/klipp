@@ -1,0 +1,58 @@
+---
+title: Events
+description: React to camera switches and blends.
+nav: 13
+---
+
+`<Klipp.Events>` hears every camera transition. `<VirtualCamera.Events>` hears only the ones its camera is part of.
+
+```tsx
+<Klipp>
+  <Klipp.Events onActivated={(e) => console.log(`${e.outgoing} -> ${e.incoming}`)} />
+
+  <VirtualCamera name="follow" priority={10}>
+    <Body.Follow target={playerRef} />
+    <VirtualCamera.Events onDeactivated={() => console.log('follow is off screen')} />
+  </VirtualCamera>
+</Klipp>
+```
+
+## Events
+
+| Prop | Payload | Fires when |
+| ---- | ------- | ---------- |
+| `onActivated` | `{ incoming, outgoing }` | A camera becomes the winner. |
+| `onDeactivated` | `{ outgoing }` | A camera has fully left the screen. |
+| `onBlendCreated` | `{ incoming, outgoing }` | A blend starts. |
+| `onBlendFinished` | `{ liveId }` | A blend ends and `liveId` is fully on screen. |
+| `onCut` | `{ incoming, outgoing }` | A switch happens instantly, without a blend. |
+
+`incoming`, `outgoing` and `liveId` are camera `name`s. `outgoing` is `null` for the very first camera.
+
+A cut happens for the first camera ever shown, and for any blend with `time: 0`. A `time: 0` switch fires `onBlendCreated` too, but never `onBlendFinished`.
+
+## Filtering in `<VirtualCamera.Events>`
+
+| Prop | Fires when this camera is |
+| ---- | ------------------------- |
+| `onActivated` | `incoming` |
+| `onDeactivated` | `outgoing` |
+| `onBlendCreated`, `onCut` | `incoming` or `outgoing` |
+| `onBlendFinished` | `liveId` |
+
+## Imperative listeners
+
+A `<VirtualCamera>`'s `ref` is an event target with the same filtering:
+
+```tsx
+const camera = useRef<VirtualCameraController>(null);
+
+useEffect(() => {
+  const controller = camera.current;
+  const onActivated = () => console.log('follow is on');
+  controller.addEventListener('activated', onActivated);
+  return () => controller.removeEventListener('activated', onActivated);
+}, []);
+
+<VirtualCamera ref={camera} name="follow" priority={10}>...</VirtualCamera>;
+```

@@ -1,53 +1,86 @@
 ---
-title: Core Concepts
-description: How KlippCore, VirtualCamera, and the Body→Aim→Extension→Noise pipeline fit together.
+title: Core concepts
+description: Virtual cameras, priority, and the pieces that build a shot.
 nav: 2
 ---
 
-## `<Klipp>` and `KlippCore`
+## Virtual cameras
 
-`<Klipp>` is both the provider and the driver - it must be mounted inside `<Canvas>`, since it drives itself via its own `useFrame`. Every frame it:
+A [`<VirtualCamera>`](/api/virtual-camera) is a shot you might want to show. You can mount as many as you like. [`<Klipp>`](/api/klipp) decides which one is on screen:
 
-1. Updates every mounted, `active` `<VirtualCamera>` (its own Body→Aim→Extension→Noise pipeline, see below).
-2. Calls `KlippCore.tick(dt)`, which arbitrates priority and blends toward the winner.
-3. Writes the result onto the real camera.
-
-`KlippCore` is the piece that actually owns this - a plain class with no React dependency, reachable via `useKlipp().core` if you need it directly. It keeps a registry of every candidate camera and decides which one wins:
-
-- **Highest `priority` wins.** Ties go to whichever camera was live most recently, not registration order.
-- **A camera that stops winning stays live until its own outgoing blend finishes** - switching priority back and forth mid-blend doesn't cut, it re-targets the blend already in flight (*mid-blend interruption*).
-
-## `<VirtualCamera>`
-
-A `<VirtualCamera>` is a candidate, not necessarily what's on screen - `name` and `priority` are what `KlippCore` arbitrates on, and `active` (default `true`) controls whether it's a candidate **at all**, independent of `priority`. `active={false}` fully unregisters it - its Body/Aim/Noise don't even run, not just "loses arbitration."
+- the **active** camera with the highest `priority` wins,
+- `active={false}` takes a camera out of the running completely,
+- when the winner changes, klipp [blends](/blending/introduction) from the old shot to the new one.
 
 ```tsx
-<VirtualCamera name="follow-cam" priority={10} active={true}>
-  {/* one Body, one Aim, any number of Extension/Noise */}
+<Klipp>
+  <VirtualCamera name="gameplay" priority={10}>...</VirtualCamera>
+  <VirtualCamera name="dialogue" priority={20} active={isTalking}>...</VirtualCamera>
+</Klipp>
+```
+
+## Building a shot
+
+Each camera is made of up to four kinds of pieces, which run in this order every frame:
+
+| Piece | What it does | How many | Examples |
+| ----- | ------------ | -------- | -------- |
+| [Body](/body/introduction) | Moves the camera | one | `Follow`, `PositionComposer` |
+| [Aim](/aim/introduction) | Rotates the camera | one | `HardLookAt`, `RotationComposer` |
+| [Extension](/extension/introduction) | Adjusts the finished shot | any | `GroupFraming`, `Lens` |
+| [Noise](/noise/introduction) | Adds shake on top | any | `BasicMultiChannelPerlin`, `ImpulseListener` |
+
+Body and Aim are independent, so a camera can follow one object while looking at another:
+
+```tsx
+<VirtualCamera name="side-view" priority={10}>
+  <Body.Follow target={carRef} offset={[6, 1, 0]} />
+  <Aim.HardLookAt target={finishLineRef} />
 </VirtualCamera>
 ```
 
-## The pipeline: Body → Aim → Extension → Noise
+Every piece is optional. A camera without an Aim keeps its starting rotation, which is handy for top-down or side-scrolling games.
 
-Each `<VirtualCamera>` owns one mutable `CameraState` (see below) that its children write into, always in this order:
+## Targets
 
-1. **Body** computes **position**. At most one per `<VirtualCamera>` - `HardLockToTarget`, `Follow`, `PositionComposer`, or [`CameraControls`](/camera-controls/introduction)*.
-2. **Aim** computes **rotation**, reading whatever position Body just wrote. At most one - `HardLookAt`, `RotateWithFollowTarget`, or `RotationComposer`.
-3. **Extension** runs after Body+Aim, since it needs the shot's final orientation - `GroupFraming` dollies along the camera's own current view axis, `Lens` overrides `fov`/`near`/`far`. Unlike Body/Aim, this slot **stacks**: mount as many as you need.
-4. **Noise** runs last, adding shake on top of an already-correctly-framed shot instead of one an Extension might still adjust out from under it. Also a stacking slot.
+Every `target` prop accepts the same things:
 
-Body never touches rotation and Aim never touches position - they're deliberately independent, so you can follow one target with one damping curve while looking at a completely different one.
+```tsx
+<Aim.HardLookAt target={playerRef} />   // a ref to an Object3D
+<Aim.HardLookAt target={player} />      // an Object3D
+<Aim.HardLookAt target={[0, 1, 0]} />   // a fixed point, like <mesh position>
+```
 
-\* `CameraControls` is the one deliberate exception: orbiting couples position and rotation inherently (an orbit camera always looks at its target), so it writes both. It's an adapter around the [`camera-controls`](https://github.com/yomotsu/camera-controls) library for user-driven input, not one of klipp's own composable pieces - see its [own page](/camera-controls/introduction) rather than treating it as just another Body.
+Objects are tracked live, including their rotation. A ref that isn't mounted yet, or `null`, is simply ignored until it resolves.
 
-## `CameraState`
+## Damping
 
-The value threaded through that whole pipeline is a single, plain `CameraState` object: `position`, `quaternion`, `fov`, `near`, `far`, `viewOffset`, plus the Body's `target`/Aim's `lookAtTarget` (used by blend hints, see [Blend Hints](/blending/blend-hints)). It's zero-allocation by convention - every Body/Aim/Extension/Noise mutates the `out` parameter it's given in place rather than returning a new object, safe to call every frame without generating garbage.
+Most pieces take a `damping` prop that makes them ease toward their goal instead of snapping to it. It's a time in seconds: `0` is instant, `0.5` feels smooth, `2` feels heavy.
 
-## Blending and priority arbitration
+```tsx
+<Body.Follow target={playerRef} damping={0.5} />
+```
 
-Only one camera is ever actually **live** - what `<Klipp>` currently writes onto the real camera. When arbitration picks a new winner, `KlippCore` blends from the previous live `CameraState` to the new one, not an instant cut - either a [named curve](/blending/blend-curves) over a fixed duration, or `damping` (seconds), which approaches the new camera asymptotically instead of finishing at a fixed pace, the same spring as every other damped field in klipp. `defaultBlend` on `<Klipp>` sets this globally; [Custom Blends](/blending/custom-blends) override it for specific from→to camera pairs. `<Klipp.Events>`/`<VirtualCamera.Events>` let you listen for each transition as it happens - see [Events](/advanced/events).
+Pass `{ into, from }` to ease differently while the gap is growing (`into`) and while it's closing again (`from`):
 
-## `frameloop="demand"` and re-renders
+```tsx
+<Body.Follow target={playerRef} damping={{ into: 0.2, from: 1 }} />
+```
 
-If your `<Canvas>` uses `frameloop="demand"`, klipp keeps the loop alive on its own **as long as something is actually changing** frame to frame - a moving target, an in-progress blend, damping still catching up. But a mutation that doesn't go through React or `useFrame` (an imperative `target.position.set(...)` in a click handler, for example) won't wake the loop by itself. Call `invalidate()` right after a mutation like that, or it'll sit un-rendered until something else happens to request a frame.
+Next to `damping` you'll usually find `maxSpeed`, which caps how fast the camera may move while catching up.
+
+## Refs
+
+Every Body, Aim, Extension and Noise gives you the class that does the actual work through `ref`. Use it to read values, or to change them every frame without re-rendering:
+
+```tsx
+const body = useRef<FollowBody>(null);
+
+useFrame(() => {
+  body.current.offset.z = zoom;
+});
+
+<Body.Follow ref={body} target={playerRef} />;
+```
+
+Ready to build one? Continue with [Your first camera](/getting-started/your-first-camera).
