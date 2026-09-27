@@ -177,6 +177,19 @@ describe('ImpulseField', () => {
     expect(out.y).toBeCloseTo(20, 5);
   });
 
+  it('generate() prunes expired events even when nothing samples the field', () => {
+    const field = new ImpulseField();
+    for (let i = 0; i < 10_000; i++) field.generate({ position: [0, 0, 0], duration: 0.4 }, i);
+    expect(field['events']).toHaveLength(1);
+  });
+
+  it('generate() keeps events that are still live', () => {
+    const field = new ImpulseField();
+    field.generate({ position: [0, 0, 0], direction: [1, 0, 0], shape: always, duration: 1 }, 0);
+    field.generate({ position: [0, 0, 0], direction: [1, 0, 0], shape: always, duration: 1 }, 0.5);
+    expect(field.sampleAt(new Vector3(), new Vector3(), 1, 1, 0.75)).toBe(2);
+  });
+
   it("a Vector3Like position/direction (r3f's [x,y,z] shorthand) works, not just real Vector3 instances", () => {
     const field = new ImpulseField();
     expect(() =>

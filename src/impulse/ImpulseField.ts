@@ -65,6 +65,8 @@ export class ImpulseField {
 
   /** Register a new impulse event. */
   generate(options: GenerateImpulseOptions, now: ImpulseClockSeconds = defaultNow()): void {
+    // sampleAt only runs while a listener is active, so prune here too.
+    this.prune(now);
     const duration = options.duration ?? 0.4;
     const radius = options.radius ?? 0;
     const dissipationDistance = options.dissipationDistance ?? 0;
@@ -99,13 +101,7 @@ export class ImpulseField {
     outPositionOffset.set(0, 0, 0);
     if (this.events.length === 0) return 0;
 
-    // Prune in place to avoid allocating during sampling.
-    let writeIndex = 0;
-    for (let readIndex = 0; readIndex < this.events.length; readIndex++) {
-      const event = this.events[readIndex];
-      if (now <= event.expiresAt) this.events[writeIndex++] = event;
-    }
-    this.events.length = writeIndex;
+    this.prune(now);
 
     let strength = 0;
     for (const event of this.events) {
@@ -126,6 +122,16 @@ export class ImpulseField {
     }
 
     return strength;
+  }
+
+  /** Drop expired events in place, without allocating. */
+  private prune(now: ImpulseClockSeconds): void {
+    let writeIndex = 0;
+    for (let readIndex = 0; readIndex < this.events.length; readIndex++) {
+      const event = this.events[readIndex];
+      if (now <= event.expiresAt) this.events[writeIndex++] = event;
+    }
+    this.events.length = writeIndex;
   }
 
   /** Whether any event remains within its lifetime. */
