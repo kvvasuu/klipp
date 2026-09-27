@@ -25,7 +25,7 @@ export function SceneRoute() {
   const { Scene } = example;
   return (
     <>
-      <Canvas camera={{ position: [4, 3, 6], fov: 50 }}>
+      <Canvas camera={{ position: [4, 3, 6], fov: 50 }} dpr={[1, 1.5]}>
         <BaseScene
           insetElement={insetElement}
           spectatorPosition={example.spectatorPosition}
