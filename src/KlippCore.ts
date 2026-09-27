@@ -122,7 +122,9 @@ export class KlippCore extends EventDispatcher<CameraTransitionEventMap> {
       if (this.candidates.get(config.id) !== candidate) return;
       this.candidates.delete(config.id);
       // Continue from the current output if the camera disappears.
-      this.withLiveIdChangeNotification(() => this.driver.forget(config.id));
+      const previousLiveId = this.driver.liveId;
+      this.driver.forget(config.id);
+      this.notifyIfLiveIdChanged(previousLiveId);
       this.recompute();
     };
   }
@@ -161,58 +163,48 @@ export class KlippCore extends EventDispatcher<CameraTransitionEventMap> {
     if (newActiveId !== null) this.dispatchEvent({ type: 'activated', incoming: newActiveId, outgoing });
   }
 
-  /** Run `action` and notify listeners if the live camera changed. */
-  private withLiveIdChangeNotification(action: () => void): void {
-    const previousLiveId = this.driver.liveId;
-    action();
-    if (this.driver.liveId !== previousLiveId) {
-      for (const listener of this.liveIdListeners) listener();
-      if (previousLiveId !== null) this.dispatchEvent({ type: 'deactivated', outgoing: previousLiveId });
-    }
+  /** Notify listeners if the live camera changed since `previousLiveId` was read. */
+  private notifyIfLiveIdChanged(previousLiveId: string | null): void {
+    if (this.driver.liveId === previousLiveId) return;
+    for (const listener of this.liveIdListeners) listener();
+    if (previousLiveId !== null) this.dispatchEvent({ type: 'deactivated', outgoing: previousLiveId });
   }
 
   /** Advance the blend and return the reusable output state. */
   tick(dt: number): CameraState {
-    let result!: CameraState;
-    // Track live-id changes across target selection and ticking.
-    this.withLiveIdChangeNotification(() => {
-      let justCreatedCut = false;
-      if (this.activeId !== null && this.activeId !== this.driver.blendTargetId) {
-        // Capture the id before dispatching events.
-        const incoming = this.activeId;
-        const definition = resolveBlendDefinition(
-          this.customBlends,
-          this.customBlendFromId,
-          incoming,
-          this.defaultBlend,
-        );
-        const toHints = this.candidates.get(incoming)?.hints ?? BlendHints.none;
-        // Prefer current hints when the outgoing candidate still exists.
-        const fromCandidate = this.customBlendFromId !== null ? this.candidates.get(this.customBlendFromId) : undefined;
-        const fromHints = fromCandidate?.hints ?? this.customBlendFromHints;
-        const outgoing = this.driver.blendTargetId;
-        const isFirstEver = !this.driver.hasEverActivated;
-        this.driver.setTarget(incoming, definition, fromHints | toHints);
-        this.customBlendFromId = incoming;
-        this.customBlendFromHints = toHints;
+    const previousLiveId = this.driver.liveId;
+    const justCreatedCut =
+      this.activeId !== null && this.activeId !== this.driver.blendTargetId && this.retarget(this.activeId);
 
-        if (isFirstEver) {
-          this.dispatchEvent({ type: 'cut', incoming, outgoing: null });
-        } else {
-          this.dispatchEvent({ type: 'blendCreated', incoming, outgoing });
-          if (!('damping' in definition) && definition.time <= 0) {
-            justCreatedCut = true;
-            this.dispatchEvent({ type: 'cut', incoming, outgoing });
-          }
-        }
-      }
-
-      const wasBlending = this.driver.isBlending;
-      result = this.driver.tick(dt);
-      if (wasBlending && !this.driver.isBlending && !justCreatedCut) {
-        this.dispatchEvent({ type: 'blendFinished', liveId: this.driver.liveId! });
-      }
-    });
+    const wasBlending = this.driver.isBlending;
+    const result = this.driver.tick(dt);
+    if (wasBlending && !this.driver.isBlending && !justCreatedCut) {
+      this.dispatchEvent({ type: 'blendFinished', liveId: this.driver.liveId! });
+    }
+    this.notifyIfLiveIdChanged(previousLiveId);
     return result;
+  }
+
+  /** Start a transition to `incoming`. Returns `true` when it resolved to an instant cut. */
+  private retarget(incoming: string): boolean {
+    const definition = resolveBlendDefinition(this.customBlends, this.customBlendFromId, incoming, this.defaultBlend);
+    const toHints = this.candidates.get(incoming)?.hints ?? BlendHints.none;
+    // Prefer current hints when the outgoing candidate still exists.
+    const fromCandidate = this.customBlendFromId !== null ? this.candidates.get(this.customBlendFromId) : undefined;
+    const fromHints = fromCandidate?.hints ?? this.customBlendFromHints;
+    const outgoing = this.driver.blendTargetId;
+    const isFirstEver = !this.driver.hasEverActivated;
+    this.driver.setTarget(incoming, definition, fromHints | toHints);
+    this.customBlendFromId = incoming;
+    this.customBlendFromHints = toHints;
+
+    if (isFirstEver) {
+      this.dispatchEvent({ type: 'cut', incoming, outgoing: null });
+      return false;
+    }
+    this.dispatchEvent({ type: 'blendCreated', incoming, outgoing });
+    if ('damping' in definition || definition.time > 0) return false;
+    this.dispatchEvent({ type: 'cut', incoming, outgoing });
+    return true;
   }
 }
