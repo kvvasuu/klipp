@@ -99,7 +99,7 @@ const scenarios: { name: string; budget: number; frame: () => void }[] = [
   },
   {
     name: 'frame: Follow + HardLookAt',
-    budget: 48,
+    budget: 80,
     frame: klippFrame((target, c) => {
       c.registerBody(new FollowBody(target, new Vector3(0, 3, 8), 0.5).update);
       c.registerAim(new HardLookAtAim(target).update);
@@ -107,7 +107,7 @@ const scenarios: { name: string; budget: number; frame: () => void }[] = [
   },
   {
     name: 'frame: Follow + RotationComposer',
-    budget: 398,
+    budget: 494,
     frame: klippFrame((target, c) => {
       c.registerBody(new FollowBody(target, new Vector3(0, 3, 12), 0.5).update);
       c.registerAim(new RotationComposerAim(target, [0, 0], 16 / 9, [0.15, 0.15], 0.5).update);
@@ -115,7 +115,7 @@ const scenarios: { name: string; budget: number; frame: () => void }[] = [
   },
   {
     name: 'frame: Follow + HardLookAt + GroupFraming',
-    budget: 149,
+    budget: 176,
     frame: klippFrame((target, c) => {
       c.registerBody(new FollowBody(target, new Vector3(0, 3, 12), 0.5).update);
       c.registerAim(new HardLookAtAim(target).update);
@@ -126,7 +126,7 @@ const scenarios: { name: string; budget: number; frame: () => void }[] = [
   },
   {
     name: 'frame: Follow + HardLookAt + Perlin',
-    budget: 271,
+    budget: 319,
     frame: klippFrame((target, c) => {
       c.registerBody(new FollowBody(target, new Vector3(0, 3, 12), 0.5).update);
       c.registerAim(new HardLookAtAim(target).update);

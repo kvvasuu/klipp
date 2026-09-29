@@ -9,7 +9,7 @@ export {
 } from './CameraState';
 export { resolveTargetPosition, resolveTargetRotation, type Target } from './resolve/Target';
 export { resolveVector3, isVector3Like } from './resolve/resolveVector3';
-export { Damper, type DampingConstant } from './damping/Damper';
+export { Damper, damp, createDamperState, resetDamper, type DamperState, type DampingConstant } from './damping/Damper';
 export { Vector3Damper } from './damping/Vector3Damper';
 export { QuaternionDamper } from './damping/QuaternionDamper';
 
