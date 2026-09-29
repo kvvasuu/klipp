@@ -156,9 +156,7 @@ export const scenarios: Scenario[] = [
   aim('aim.rotateWithFollowTarget', (w) => new RotateWithFollowTargetAim(w.target, 0.3).update),
   aim(
     'aim.rotationComposer',
-    (w) =>
-      new RotationComposerAim(w.target, [0.1, -0.1], 16 / 9, [0.1, 0.1], 0.3, [0.4, 0.4], new Vector3(0, 0.5, 0), 1)
-        .update,
+    (w) => new RotationComposerAim(w.target, [0.1, -0.1], 16 / 9, [0.1, 0.1], 0.3, [0.4, 0.4], [0, 0.5, 0], 1).update,
   ),
   aim(
     'aim.rotationComposer.lookahead',
@@ -170,7 +168,7 @@ export const scenarios: Scenario[] = [
         [0.05, 0.05],
         0.2,
         [0.3, 0.3],
-        new Vector3(),
+        [0, 0, 0],
         1,
         undefined,
         0.8,

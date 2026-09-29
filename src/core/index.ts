@@ -71,6 +71,14 @@ export {
   type RotateWithFollowTargetState,
 } from './aim/rotateWithFollowTarget';
 export { updatePanTilt, seedPanTilt, createPanTiltState, type PanTiltState } from './aim/panTilt';
+export {
+  updateRotationComposer,
+  primeRotationComposer,
+  createRotationComposerState,
+  rotationComposerNeedsExtent,
+  type RotationComposerParams,
+  type RotationComposerState,
+} from './aim/rotationComposer';
 
 export { LensExtension } from './extension/LensExtension';
 export { InputAxis, type InputAxisRecentering } from './input/InputAxis';
