@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { Damper } from '../../src/damping/Damper';
+import { Damper, createDamperState, damp, resetDamper } from '../../src/damping/Damper';
 
 describe('Damper', () => {
   it('the very first update() call ever snaps directly to target, regardless of damping', () => {
@@ -181,5 +181,55 @@ describe('Damper', () => {
       // a fast "from" closes almost the entire remaining (tiny) gap in one step
       expect(current).toBeCloseTo(afterWidening + 0.01, 2);
     });
+  });
+});
+
+describe('damp (stateless function)', () => {
+  it('moves state.value in place and returns the same state, like math spring.damp', () => {
+    const state = createDamperState(0);
+    damp(state, 10, 0.5, 0.016); // consume the first-call snap
+    state.value = 0;
+
+    const returned = damp(state, 10, 0.5, 0.016);
+
+    expect(returned).toBe(state);
+    expect(state.value).toBeGreaterThan(0);
+    expect(state.value).toBeLessThan(10);
+    expect(state.velocity).toBeGreaterThan(0);
+  });
+
+  it('first call snaps state.value to the target', () => {
+    const state = createDamperState(3);
+
+    expect(damp(state, 10, 0.5, 0.016).value).toBe(10);
+    expect(state.velocity).toBe(0);
+  });
+
+  it('chaining on state.value matches the Damper wrapper fed current explicitly (maxSpeed, asymmetric, moving target)', () => {
+    const wrapper = new Damper();
+    const state = createDamperState();
+    const damping = { into: 0.3, from: 0.8 };
+    let current = 0;
+
+    for (let i = 0; i < 300; i++) {
+      const target = Math.sin(i * 0.05) * 20;
+      const dt = i % 3 === 0 ? 1 / 30 : 1 / 60;
+      current = wrapper.update(current, target, damping, dt, 40);
+      damp(state, target, damping, dt, 40);
+
+      expect(state.value).toBe(current);
+      expect(state.velocity).toBe(wrapper.velocity);
+    }
+  });
+
+  it('resetDamper re-arms the first-call snap', () => {
+    const state = createDamperState();
+    damp(state, 10, 0.5, 0.016);
+    state.value = 0;
+    damp(state, 10, 0.5, 0.016);
+    resetDamper(state);
+
+    expect(damp(state, -50, 0.5, 0.016).value).toBe(-50);
+    expect(state.velocity).toBe(0);
   });
 });
