@@ -23,8 +23,10 @@ import { PositionComposerBody } from '../../src/body/PositionComposerBody';
 import { GroupFramingExtension } from '../../src/extension/GroupFramingExtension';
 import { LensExtension } from '../../src/extension/LensExtension';
 import { TargetGroup } from '../../src/extension/TargetGroup';
+import { ClearShot } from '../../src/groups/ClearShot';
 import { MixingCamera } from '../../src/groups/MixingCamera';
 import { Sequencer } from '../../src/groups/Sequencer';
+import { StateDrivenCamera } from '../../src/groups/StateDrivenCamera';
 import { ImpulseField } from '../../src/impulse/ImpulseField';
 import { ImpulseListenerNoise } from '../../src/impulse/ImpulseListenerNoise';
 import { BasicMultiChannelPerlinNoise } from '../../src/noise/BasicMultiChannelPerlinNoise';
@@ -304,6 +306,87 @@ export const scenarios: Scenario[] = [
           a.controller.update(a.state, dt, frame === 0);
           b.controller.update(b.state, dt, frame === 0);
           return sequencer.tick(dt);
+        };
+      }),
+  },
+  {
+    name: 'groups.clearShot',
+    run: () =>
+      simulate((w) => {
+        const a = rig(w);
+        const b = rig(w, undefined, new Vector3(-5, 6, 2));
+        const c = rig(w, undefined, new Vector3(4, 1, -6));
+        // quality per 0.6 s phase: plain pick, random tie (b/c, committed once a pick holds),
+        // priority tie-break (a over b), per-frame flicker (debounced by activateAfter), c wins,
+        // then the switch back to a waits out minDuration
+        const qualities: Record<string, number>[] = [
+          { a: 2, b: 1, c: 1 },
+          { a: 1, b: 3, c: 3 },
+          { a: 3, b: 3, c: 0 },
+          { a: 0, b: 0, c: 0 },
+          { a: 0, b: 1, c: 5 },
+        ];
+        const quality = (id: string): number => {
+          const phase = Math.floor(w.clock.time / 0.6) % qualities.length;
+          if (phase === 3) return id === (Math.floor(w.clock.time * 60) % 2 ? 'b' : 'c') ? 4 : 0;
+          return qualities[phase][id];
+        };
+        let seed = 1; // deterministic Park-Miller LCG instead of Math.random
+        const random = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+        const clearShot = new ClearShot(
+          [
+            { cameraId: 'a', state: a.state, priority: 2 },
+            { cameraId: 'b', state: b.state, priority: 1 },
+            { cameraId: 'c', state: c.state, priority: 1 },
+          ],
+          {
+            evaluator: (candidate) => quality(candidate.cameraId),
+            defaultBlend: { curve: BlendCurves.easeInOut, time: 0.4 },
+            activateAfter: 0.05,
+            minDuration: 0.8,
+            randomizeChoice: true,
+            random,
+          },
+        );
+        return (dt, frame) => {
+          a.controller.update(a.state, dt, frame === 0);
+          b.controller.update(b.state, dt, frame === 0);
+          c.controller.update(c.state, dt, frame === 0);
+          return clearShot.tick(dt);
+        };
+      }),
+  },
+  {
+    name: 'groups.stateDriven',
+    run: () =>
+      simulate((w) => {
+        const a = rig(w);
+        const b = rig(w, undefined, new Vector3(-5, 6, 2));
+        const c = rig(w, undefined, new Vector3(4, 1, -6));
+        const stateDriven = new StateDrivenCamera(
+          [
+            { cameraId: 'a', state: a.state, priority: 1, forState: 'idle' },
+            { cameraId: 'b', state: b.state, priority: 1, forState: 'run' },
+            { cameraId: 'c', state: c.state, priority: 5, forState: 'run' },
+            { cameraId: 'b', state: b.state, priority: 0, forState: 'aim' },
+          ],
+          { defaultBlend: { curve: BlendCurves.easeInOut, time: 0.5 } },
+        );
+        // frames 0-9 sample the untouched default state; 'unknown' holds c; 135 retargets mid-blend
+        const states: Record<number, string> = {
+          10: 'idle',
+          50: 'run',
+          90: 'unknown',
+          120: 'idle',
+          135: 'run',
+          200: 'aim',
+        };
+        return (dt, frame) => {
+          a.controller.update(a.state, dt, frame === 0);
+          b.controller.update(b.state, dt, frame === 0);
+          c.controller.update(c.state, dt, frame === 0);
+          if (states[frame]) stateDriven.setState(states[frame]);
+          return stateDriven.tick(dt);
         };
       }),
   },
