@@ -81,4 +81,17 @@ export {
 } from './aim/rotationComposer';
 
 export { LensExtension } from './extension/LensExtension';
+export { updateLens, createLensState, type LensParams, type LensState } from './extension/lens';
+export {
+  updateGroupFraming,
+  computeGroupBounds,
+  createGroupFramingState,
+  createGroupMember,
+  type GroupMember,
+  type GroupPositionMode,
+  type GroupFramingParams,
+  type GroupFramingState,
+  type GroupFramingFitMode,
+  type GroupFramingMode,
+} from './extension/groupFraming';
 export { InputAxis, type InputAxisRecentering } from './input/InputAxis';

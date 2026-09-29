@@ -1,8 +1,9 @@
 import type { CameraState } from '../CameraState';
-import { Damper, type DampingConstant } from '../damping/Damper';
+import type { DampingConstant } from '../damping/Damper';
+import { createLensState, updateLens, type LensParams } from './lens';
 
 /** Overrides lens fields with independent damping. */
-export class LensExtension {
+export class LensExtension implements LensParams {
   fov?: number;
   near?: number;
   far?: number;
@@ -13,12 +14,7 @@ export class LensExtension {
   nearMaxSpeed: number;
   farMaxSpeed: number;
 
-  private readonly fovDamper = new Damper();
-  private readonly nearDamper = new Damper();
-  private readonly farDamper = new Damper();
-  private currentFov = 0;
-  private currentNear = 0;
-  private currentFar = 0;
+  readonly state = createLensState();
 
   constructor(
     fov?: number,
@@ -42,39 +38,6 @@ export class LensExtension {
     this.farMaxSpeed = farMaxSpeed;
   }
 
-  update = (out: CameraState, dt: number, justActivated: boolean): boolean => {
-    if (justActivated) {
-      this.fovDamper.reset();
-      this.nearDamper.reset();
-      this.farDamper.reset();
-    }
-
-    if (this.fov !== undefined) {
-      this.currentFov =
-        typeof this.fovDamping === 'number' && this.fovDamping <= 0
-          ? this.fov
-          : this.fovDamper.update(this.currentFov, this.fov, this.fovDamping, dt, this.fovMaxSpeed);
-      out.fov = this.currentFov;
-    }
-    if (this.near !== undefined) {
-      this.currentNear =
-        typeof this.nearDamping === 'number' && this.nearDamping <= 0
-          ? this.near
-          : this.nearDamper.update(this.currentNear, this.near, this.nearDamping, dt, this.nearMaxSpeed);
-      out.near = this.currentNear;
-    }
-    if (this.far !== undefined) {
-      this.currentFar =
-        typeof this.farDamping === 'number' && this.farDamping <= 0
-          ? this.far
-          : this.farDamper.update(this.currentFar, this.far, this.farDamping, dt, this.farMaxSpeed);
-      out.far = this.currentFar;
-    }
-
-    return (
-      (this.fov !== undefined && this.currentFov !== this.fov) ||
-      (this.near !== undefined && this.currentNear !== this.near) ||
-      (this.far !== undefined && this.currentFar !== this.far)
-    );
-  };
+  update = (out: CameraState, dt: number, justActivated: boolean): boolean =>
+    updateLens(out, this.state, this, dt, justActivated);
 }
