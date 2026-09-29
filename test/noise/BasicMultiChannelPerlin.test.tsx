@@ -5,6 +5,7 @@ import { Klipp } from '../../src/Klipp';
 import { useKlipp } from '../../src/KlippContext';
 import type { KlippCore } from '../../src/KlippCore';
 import { VirtualCamera } from '../../src/VirtualCamera';
+import { toVector3 } from '../tuples';
 
 function CoreReader({ onRead }: { onRead: (core: KlippCore) => void }) {
   onRead(useKlipp().core);
@@ -27,7 +28,7 @@ describe('BasicMultiChannelPerlin (React wrapper)', () => {
     const renderer = await create(scene);
     await renderer.advanceFrames(1, 0.1);
 
-    expect(core!.activeState!.position.length()).toBeGreaterThan(0);
+    expect(toVector3(core!.activeState!.position).length()).toBeGreaterThan(0);
   });
 
   it('a positionAmplitude prop change is picked up on the next frame (field mutation, not re-registration)', async () => {
@@ -44,11 +45,11 @@ describe('BasicMultiChannelPerlin (React wrapper)', () => {
 
     const renderer = await create(scene([0, 0, 0]));
     await renderer.advanceFrames(1, 0.1);
-    const quietPosition = core!.activeState!.position.clone();
+    const quietPosition = toVector3(core!.activeState!.position);
 
     await renderer.update(scene([5, 5, 5]));
     await renderer.advanceFrames(1, 0.1);
-    expect(core!.activeState!.position.equals(quietPosition)).toBe(false);
+    expect(toVector3(core!.activeState!.position).equals(quietPosition)).toBe(false);
   });
 
   it('unmounting stops the noise from running', async () => {
@@ -84,7 +85,7 @@ describe('BasicMultiChannelPerlin (React wrapper)', () => {
     await renderer.advanceFrames(1, 0.1);
 
     // two independent, seeded, nonzero contributions should (almost certainly) not cancel to exactly 0
-    expect(core!.activeState!.position.length()).toBeGreaterThan(0);
+    expect(toVector3(core!.activeState!.position).length()).toBeGreaterThan(0);
   });
 
   it('an amplitudeDamping prop change is picked up on the next frame — eases instead of cutting instantly', async () => {
@@ -111,6 +112,6 @@ describe('BasicMultiChannelPerlin (React wrapper)', () => {
     await renderer.advanceFrames(1, 0.016);
 
     // damped: one small step after amplitudeGain drops to 0 should NOT have cut the shake dead yet
-    expect(core!.activeState!.position.length()).toBeGreaterThan(0);
+    expect(toVector3(core!.activeState!.position).length()).toBeGreaterThan(0);
   });
 });

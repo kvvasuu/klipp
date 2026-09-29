@@ -1,19 +1,21 @@
+import { vec3, vec4 } from 'math';
 import { Quaternion, Vector3 } from 'three';
 import { describe, expect, it } from 'vitest';
 import { createCameraState } from '../../src/CameraState';
 import { BasicMultiChannelPerlinNoise } from '../../src/noise/BasicMultiChannelPerlinNoise';
+import { toQuaternion, toVector3 } from '../tuples';
 
 describe('BasicMultiChannelPerlinNoise', () => {
   it('all amplitudes default to 0: a complete no-op on position and rotation', () => {
     const noise = new BasicMultiChannelPerlinNoise();
     const out = createCameraState();
-    const positionBefore = out.position.clone();
-    const quaternionBefore = out.quaternion.clone();
+    const positionBefore = toVector3(out.position);
+    const quaternionBefore = toQuaternion(out.quaternion);
 
     for (let i = 0; i < 10; i++) noise.update(out, 0.1);
 
-    expect(out.position.equals(positionBefore)).toBe(true);
-    expect(out.quaternion.equals(quaternionBefore)).toBe(true);
+    expect(toVector3(out.position).equals(positionBefore)).toBe(true);
+    expect(toQuaternion(out.quaternion).equals(quaternionBefore)).toBe(true);
   });
 
   it('positionAmplitude scales the shake magnitude — stays within a sane multiple of the amplitude on each axis', () => {
@@ -25,10 +27,10 @@ describe('BasicMultiChannelPerlinNoise', () => {
 
     for (let i = 0; i < 200; i++) {
       noise.update(out, 0.05);
-      expect(Math.abs(out.position.x)).toBeLessThanOrEqual(2 * 1.5);
-      expect(Math.abs(out.position.y)).toBeLessThanOrEqual(3 * 1.5);
-      expect(Math.abs(out.position.z)).toBeLessThanOrEqual(4 * 1.5);
-      out.position.set(0, 0, 0); // reset — position noise is additive per-frame, not a running total
+      expect(Math.abs(out.position[0])).toBeLessThanOrEqual(2 * 1.5);
+      expect(Math.abs(out.position[1])).toBeLessThanOrEqual(3 * 1.5);
+      expect(Math.abs(out.position[2])).toBeLessThanOrEqual(4 * 1.5);
+      vec3.set(out.position, 0, 0, 0); // reset — position noise is additive per-frame, not a running total
     }
   });
 
@@ -38,9 +40,9 @@ describe('BasicMultiChannelPerlinNoise', () => {
 
     let sawNonZero = false;
     for (let i = 0; i < 50; i++) {
-      out.position.set(0, 0, 0);
+      vec3.set(out.position, 0, 0, 0);
       noise.update(out, 0.05);
-      if (out.position.length() > 1e-6) sawNonZero = true;
+      if (toVector3(out.position).length() > 1e-6) sawNonZero = true;
     }
     expect(sawNonZero).toBe(true);
   });
@@ -52,21 +54,23 @@ describe('BasicMultiChannelPerlinNoise', () => {
 
     const rotated = new BasicMultiChannelPerlinNoise(new Vector3(1, 0, 0), undefined, undefined, undefined, 1, 1, seed);
     const outRotated = createCameraState();
-    outRotated.quaternion.setFromAxisAngle(new Vector3(0, 1, 0), Math.PI / 2); // yawed 90°
+    toQuaternion(outRotated.quaternion)
+      .setFromAxisAngle(new Vector3(0, 1, 0), Math.PI / 2)
+      .toArray(outRotated.quaternion); // yawed 90°
 
     // advance both through the SAME sequence of dt's — same seed/clock, so the LOCAL offset must be
     // identical at every step; only the world-space direction should differ
     for (let i = 0; i < 5; i++) {
-      outIdentity.position.set(0, 0, 0);
-      outRotated.position.set(0, 0, 0);
+      vec3.set(outIdentity.position, 0, 0, 0);
+      vec3.set(outRotated.position, 0, 0, 0);
       local.update(outIdentity, 0.1);
       rotated.update(outRotated, 0.1);
     }
 
     // same seed/time → same LOCAL offset magnitude, but rotated 90° around Y: local +X becomes world -Z
-    expect(Math.abs(outIdentity.position.x)).toBeGreaterThan(1e-4);
-    expect(outRotated.position.x).toBeCloseTo(0, 5);
-    expect(Math.abs(outRotated.position.z)).toBeCloseTo(Math.abs(outIdentity.position.x), 5);
+    expect(Math.abs(outIdentity.position[0])).toBeGreaterThan(1e-4);
+    expect(outRotated.position[0]).toBeCloseTo(0, 5);
+    expect(Math.abs(outRotated.position[2])).toBeCloseTo(Math.abs(outIdentity.position[0]), 5);
   });
 
   it('rotationAmplitude perturbs the quaternion away from identity, bounded by the amplitude', () => {
@@ -75,9 +79,9 @@ describe('BasicMultiChannelPerlinNoise', () => {
 
     let sawNonIdentity = false;
     for (let i = 0; i < 50; i++) {
-      out.quaternion.identity();
+      vec4.set(out.quaternion, 0, 0, 0, 1);
       noise.update(out, 0.05);
-      const angleDegrees = (out.quaternion.angleTo(new Quaternion()) * 180) / Math.PI;
+      const angleDegrees = (toQuaternion(out.quaternion).angleTo(new Quaternion()) * 180) / Math.PI;
       if (angleDegrees > 1e-4) sawNonIdentity = true;
       // generous safety margin, not a hard bound — see the position test's comment on Perlin's rare spikes
       expect(angleDegrees).toBeLessThan(45);
@@ -89,13 +93,13 @@ describe('BasicMultiChannelPerlinNoise', () => {
     const noise = new BasicMultiChannelPerlinNoise(new Vector3(5, 5, 5), undefined, new Vector3(20, 20, 20));
     noise.amplitudeGain = 0;
     const out = createCameraState();
-    const positionBefore = out.position.clone();
-    const quaternionBefore = out.quaternion.clone();
+    const positionBefore = toVector3(out.position);
+    const quaternionBefore = toQuaternion(out.quaternion);
 
     for (let i = 0; i < 10; i++) noise.update(out, 0.1);
 
-    expect(out.position.equals(positionBefore)).toBe(true);
-    expect(out.quaternion.equals(quaternionBefore)).toBe(true);
+    expect(toVector3(out.position).equals(positionBefore)).toBe(true);
+    expect(toQuaternion(out.quaternion).equals(quaternionBefore)).toBe(true);
   });
 
   it('the same seed produces identical noise; a different seed produces different noise', () => {
@@ -110,8 +114,8 @@ describe('BasicMultiChannelPerlinNoise', () => {
     b.update(outB, 0.1);
     c.update(outC, 0.1);
 
-    expect(outA.position.equals(outB.position)).toBe(true);
-    expect(outA.position.equals(outC.position)).toBe(false);
+    expect(toVector3(outA.position).equals(toVector3(outB.position))).toBe(true);
+    expect(toVector3(outA.position).equals(toVector3(outC.position))).toBe(false);
   });
 
   it('frequencyGain scales how fast the internal clock advances', () => {
@@ -123,7 +127,7 @@ describe('BasicMultiChannelPerlinNoise', () => {
     fast.update(outFast, 0.1); // internal time: 0.1 * 2 = 0.2
     slow.update(outSlow, 0.2); // internal time: 0.2 * 1 = 0.2 — same clock position
 
-    expect(outFast.position.x).toBeCloseTo(outSlow.position.x, 10);
+    expect(outFast.position[0]).toBeCloseTo(outSlow.position[0], 10);
   });
 
   it('update is a bound instance method — safe to pass by reference (e.g. slots.registerNoise(noise.update))', () => {
@@ -139,11 +143,11 @@ describe('BasicMultiChannelPerlinNoise', () => {
     const out = createCameraState();
 
     noise.update(out, 0.1);
-    expect(out.position.equals(new Vector3())).toBe(true); // still 0: default amplitude
+    expect(toVector3(out.position).equals(new Vector3())).toBe(true); // still 0: default amplitude
 
     noise.positionAmplitude = new Vector3(10, 0, 0);
     noise.update(out, 0.1);
-    expect(out.position.equals(new Vector3())).toBe(false); // now shaking
+    expect(toVector3(out.position).equals(new Vector3())).toBe(false); // now shaking
   });
 
   describe('amplitudeDamping', () => {
@@ -151,12 +155,12 @@ describe('BasicMultiChannelPerlinNoise', () => {
       const noise = new BasicMultiChannelPerlinNoise(new Vector3(5, 5, 5));
       const out = createCameraState();
       noise.update(out, 0.1);
-      expect(out.position.length()).toBeGreaterThan(0);
+      expect(toVector3(out.position).length()).toBeGreaterThan(0);
 
       noise.amplitudeGain = 0;
-      out.position.set(0, 0, 0);
+      vec3.set(out.position, 0, 0, 0);
       noise.update(out, 0.1);
-      expect(out.position.equals(new Vector3())).toBe(true);
+      expect(toVector3(out.position).equals(new Vector3())).toBe(true);
     });
 
     it('> 0: the effective gain eases toward amplitudeGain instead of jumping straight to it', () => {
@@ -174,9 +178,9 @@ describe('BasicMultiChannelPerlinNoise', () => {
       noise.update(out, 0.05); // effectiveAmplitudeGain settles at amplitudeGain (1) — nothing to ease yet
 
       noise.amplitudeGain = 0;
-      out.position.set(0, 0, 0);
+      vec3.set(out.position, 0, 0, 0);
       noise.update(out, 0.016); // one small step — effective gain shouldn't have reached 0 yet
-      expect(out.position.length()).toBeGreaterThan(0);
+      expect(toVector3(out.position).length()).toBeGreaterThan(0);
     });
 
     it('> 0: converges to the new amplitudeGain over repeated ticks', () => {
@@ -195,10 +199,10 @@ describe('BasicMultiChannelPerlinNoise', () => {
 
       noise.amplitudeGain = 0;
       for (let i = 0; i < 300; i++) {
-        out.position.set(0, 0, 0);
+        vec3.set(out.position, 0, 0, 0);
         noise.update(out, 0.016);
       }
-      expect(out.position.length()).toBeCloseTo(0, 5);
+      expect(toVector3(out.position).length()).toBeCloseTo(0, 5);
     });
 
     it('is a mutable field', () => {
@@ -228,8 +232,8 @@ describe('BasicMultiChannelPerlinNoise', () => {
 
       reference.amplitudeGain = 0;
       damped.amplitudeGain = 0;
-      refOut.position.set(0, 0, 0);
-      dampedOut.position.set(0, 0, 0);
+      vec3.set(refOut.position, 0, 0, 0);
+      vec3.set(dampedOut.position, 0, 0, 0);
       reference.update(refOut, 0.016, false);
       damped.update(dampedOut, 0.016, false); // damped hasn't fully eased down to 0 yet — genuinely mid-ease
 
@@ -237,12 +241,12 @@ describe('BasicMultiChannelPerlinNoise', () => {
       // frozen near 0 from the earlier session
       reference.amplitudeGain = 1;
       damped.amplitudeGain = 1;
-      refOut.position.set(0, 0, 0);
-      dampedOut.position.set(0, 0, 0);
+      vec3.set(refOut.position, 0, 0, 0);
+      vec3.set(dampedOut.position, 0, 0, 0);
       reference.update(refOut, 0.016, true);
       damped.update(dampedOut, 0.016, true);
 
-      expect(dampedOut.position.length()).toBeCloseTo(refOut.position.length(), 5);
+      expect(toVector3(dampedOut.position).length()).toBeCloseTo(toVector3(refOut.position).length(), 5);
     });
 
     it('without justActivated, the same scenario eases instead of snapping (the bug this fixes)', () => {
@@ -256,19 +260,19 @@ describe('BasicMultiChannelPerlinNoise', () => {
 
       reference.amplitudeGain = 0;
       damped.amplitudeGain = 0;
-      refOut.position.set(0, 0, 0);
-      dampedOut.position.set(0, 0, 0);
+      vec3.set(refOut.position, 0, 0, 0);
+      vec3.set(dampedOut.position, 0, 0, 0);
       reference.update(refOut, 0.016, false);
       damped.update(dampedOut, 0.016, false);
 
       reference.amplitudeGain = 1;
       damped.amplitudeGain = 1;
-      refOut.position.set(0, 0, 0);
-      dampedOut.position.set(0, 0, 0);
+      vec3.set(refOut.position, 0, 0, 0);
+      vec3.set(dampedOut.position, 0, 0, 0);
       reference.update(refOut, 0.016, false); // no reactivation signal — resumes easing instead of snapping
       damped.update(dampedOut, 0.016, false);
 
-      expect(dampedOut.position.length()).toBeLessThan(refOut.position.length());
+      expect(toVector3(dampedOut.position).length()).toBeLessThan(toVector3(refOut.position).length());
     });
   });
 });

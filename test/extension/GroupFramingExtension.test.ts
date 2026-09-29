@@ -1,30 +1,32 @@
+import { vec3, vec4 } from 'math';
 import { BoxGeometry, Mesh, PerspectiveCamera, Vector3 } from 'three';
 import { describe, expect, it } from 'vitest';
 import { applyCameraState, createCameraState } from '../../src/CameraState';
 import { GroupFramingExtension } from '../../src/extension/GroupFramingExtension';
 import { TargetGroup } from '../../src/extension/TargetGroup';
+import { toQuaternion, toVector3 } from '../tuples';
 
 describe('GroupFramingExtension', () => {
   it('no-op (out untouched) when the group has nothing to resolve', () => {
     const group = new TargetGroup([]);
     const extension = new GroupFramingExtension(group, 0, 800, 600);
     const out = createCameraState();
-    out.position.set(1, 2, 3);
+    vec3.set(out.position, 1, 2, 3);
 
     extension.update(out, 0.1);
 
-    expect(out.position.equals(new Vector3(1, 2, 3))).toBe(true);
+    expect(toVector3(out.position).equals(new Vector3(1, 2, 3))).toBe(true);
   });
 
   it('no-op when the group resolves to a dimensionless point (radius 0)', () => {
     const group = new TargetGroup([{ target: new Vector3(5, 5, 5) }]); // no radius given, defaults to 0
     const extension = new GroupFramingExtension(group, 0, 800, 600);
     const out = createCameraState();
-    out.position.set(1, 2, 3);
+    vec3.set(out.position, 1, 2, 3);
 
     extension.update(out, 0.1);
 
-    expect(out.position.equals(new Vector3(1, 2, 3))).toBe(true);
+    expect(toVector3(out.position).equals(new Vector3(1, 2, 3))).toBe(true);
   });
 
   it('90° vertical FOV, square viewport, no padding: distance = radius / sin(45°)', () => {
@@ -32,14 +34,14 @@ describe('GroupFramingExtension', () => {
     const extension = new GroupFramingExtension(group, 0, 100, 100);
     const out = createCameraState();
     out.fov = 90;
-    out.quaternion.identity(); // default THREE orientation: looks down -Z, so backward = +Z
+    vec4.set(out.quaternion, 0, 0, 0, 1); // default THREE orientation: looks down -Z, so backward = +Z
 
     extension.update(out, 0.1);
 
     const expectedDistance = 1 / Math.sin(Math.PI / 4);
-    expect(out.position.x).toBeCloseTo(0, 10);
-    expect(out.position.y).toBeCloseTo(0, 10);
-    expect(out.position.z).toBeCloseTo(expectedDistance, 10);
+    expect(out.position[0]).toBeCloseTo(0, 10);
+    expect(out.position[1]).toBeCloseTo(0, 10);
+    expect(out.position[2]).toBeCloseTo(expectedDistance, 10);
   });
 
   it("dollies along the camera's OWN current backward direction, not a fixed world axis", () => {
@@ -47,15 +49,17 @@ describe('GroupFramingExtension', () => {
     const extension = new GroupFramingExtension(group, 0, 100, 100);
     const out = createCameraState();
     out.fov = 90;
-    out.quaternion.setFromAxisAngle(new Vector3(0, 1, 0), Math.PI / 2); // now looking down -X instead
+    toQuaternion(out.quaternion)
+      .setFromAxisAngle(new Vector3(0, 1, 0), Math.PI / 2)
+      .toArray(out.quaternion); // now looking down -X instead
 
     extension.update(out, 0.1);
 
     const expectedDistance = 1 / Math.sin(Math.PI / 4);
     // world +Z rotated +90° around Y lands on +X — backward follows the rotation, not a hardcoded axis
-    expect(out.position.x).toBeCloseTo(expectedDistance, 10);
-    expect(out.position.y).toBeCloseTo(0, 10);
-    expect(out.position.z).toBeCloseTo(0, 10);
+    expect(out.position[0]).toBeCloseTo(expectedDistance, 10);
+    expect(out.position[1]).toBeCloseTo(0, 10);
+    expect(out.position[2]).toBeCloseTo(0, 10);
   });
 
   it('more padding pushes the camera farther away', () => {
@@ -69,7 +73,7 @@ describe('GroupFramingExtension', () => {
     withPadding.fov = 90;
     new GroupFramingExtension(group, 20, 100, 100).update(withPadding, 0.1);
 
-    expect(withPadding.position.z).toBeGreaterThan(noPadding.position.z);
+    expect(withPadding.position[2]).toBeGreaterThan(noPadding.position[2]);
   });
 
   it('an off-axis sphere member needs the exact per-axis distance, not an isotropic offset.length() (real bug: a member offset mostly along the WIDER axis was penalized as if it could be along the narrower one)', () => {
@@ -86,10 +90,10 @@ describe('GroupFramingExtension', () => {
     extension.update(out, 0.1);
 
     // exact: horizontal = (radius + 5*cos(hHalf)) / sin(hHalf), with hHalf = atan(tan(45°) * 10)
-    expect(out.position.z).toBeCloseTo(1.5049875621120896, 10);
+    expect(out.position[2]).toBeCloseTo(1.5049875621120896, 10);
     // the old isotropic formula (offset.length() + radius = 6, divided by sin of the tighter axis) gave
     // ~8.49 here - almost 6x farther back than needed for a member that isn't along that axis at all
-    expect(out.position.z).toBeLessThan(2);
+    expect(out.position[2]).toBeLessThan(2);
   });
 
   describe('ceiling behavior (does not override Body/Aim unless the padded group would not fit)', () => {
@@ -98,13 +102,13 @@ describe('GroupFramingExtension', () => {
       const extension = new GroupFramingExtension(group, 0, 100, 100);
       const out = createCameraState();
       out.fov = 90;
-      out.quaternion.identity();
-      out.position.set(0, 0, 50); // Body already put the camera way farther than the fit requires
+      vec4.set(out.quaternion, 0, 0, 0, 1);
+      vec3.set(out.position, 0, 0, 50); // Body already put the camera way farther than the fit requires
 
       extension.update(out, 0.1);
 
       // required fit distance for radius 1 at 90° vertical FOV is ~1.41 — Body's own 50 must win
-      expect(out.position.z).toBeCloseTo(50, 10);
+      expect(out.position[2]).toBeCloseTo(50, 10);
     });
 
     it('dollies back to the required distance when Body placed the camera CLOSER than the padded group needs', () => {
@@ -112,13 +116,13 @@ describe('GroupFramingExtension', () => {
       const extension = new GroupFramingExtension(group, 0, 100, 100);
       const out = createCameraState();
       out.fov = 90;
-      out.quaternion.identity();
-      out.position.set(0, 0, 0.5); // Body put the camera too close for the group to fit in frame
+      vec4.set(out.quaternion, 0, 0, 0, 1);
+      vec3.set(out.position, 0, 0, 0.5); // Body put the camera too close for the group to fit in frame
 
       extension.update(out, 0.1);
 
       const expectedDistance = 1 / Math.sin(Math.PI / 4);
-      expect(out.position.z).toBeCloseTo(expectedDistance, 10);
+      expect(out.position[2]).toBeCloseTo(expectedDistance, 10);
     });
 
     it("tracks Body's own distance 1:1 once it exceeds the required fit distance (real bug this fixes: used to always snap to the rigid fit distance, ignoring Body entirely)", () => {
@@ -126,15 +130,15 @@ describe('GroupFramingExtension', () => {
       const extension = new GroupFramingExtension(group, 0, 100, 100);
       const out = createCameraState();
       out.fov = 90;
-      out.quaternion.identity();
+      vec4.set(out.quaternion, 0, 0, 0, 1);
 
-      out.position.set(0, 0, 10);
+      vec3.set(out.position, 0, 0, 10);
       extension.update(out, 0.1);
-      expect(out.position.z).toBeCloseTo(10, 10);
+      expect(out.position[2]).toBeCloseTo(10, 10);
 
-      out.position.set(0, 0, 25);
+      vec3.set(out.position, 0, 0, 25);
       extension.update(out, 0.1);
-      expect(out.position.z).toBeCloseTo(25, 10);
+      expect(out.position[2]).toBeCloseTo(25, 10);
     });
   });
 
@@ -144,13 +148,13 @@ describe('GroupFramingExtension', () => {
       const extension = new GroupFramingExtension(group, 0, 100, 100, 0, [0, 0], 'rigid');
       const out = createCameraState();
       out.fov = 90;
-      out.quaternion.identity();
-      out.position.set(0, 0, 50); // Body placed the camera way farther than the fit requires
+      vec4.set(out.quaternion, 0, 0, 0, 1);
+      vec3.set(out.position, 0, 0, 50); // Body placed the camera way farther than the fit requires
 
       extension.update(out, 0.1);
 
       const expectedDistance = 1 / Math.sin(Math.PI / 4);
-      expect(out.position.z).toBeCloseTo(expectedDistance, 10);
+      expect(out.position[2]).toBeCloseTo(expectedDistance, 10);
     });
 
     it('tracks a shrinking group back in, instead of staying at whatever distance it last reached', () => {
@@ -158,17 +162,17 @@ describe('GroupFramingExtension', () => {
       const extension = new GroupFramingExtension(group, 0, 100, 100, 0, [0, 0], 'rigid');
       const out = createCameraState();
       out.fov = 90;
-      out.quaternion.identity();
+      vec4.set(out.quaternion, 0, 0, 0, 1);
 
       extension.update(out, 0.1);
-      const farDistance = out.position.z;
+      const farDistance = out.position[2];
 
       group.members[0].radius = 1; // group shrinks
       extension.update(out, 0.1);
 
       const nearDistance = 1 / Math.sin(Math.PI / 4);
-      expect(out.position.z).toBeCloseTo(nearDistance, 10);
-      expect(out.position.z).toBeLessThan(farDistance);
+      expect(out.position[2]).toBeCloseTo(nearDistance, 10);
+      expect(out.position[2]).toBeLessThan(farDistance);
     });
   });
 
@@ -178,11 +182,11 @@ describe('GroupFramingExtension', () => {
       const extension = new GroupFramingExtension(group, 0, 100, 100, 0, [0, 0], 'rigid', 0, 5);
       const out = createCameraState();
       out.fov = 90;
-      out.quaternion.identity();
+      vec4.set(out.quaternion, 0, 0, 0, 1);
 
       extension.update(out, 0.1);
 
-      expect(out.position.z).toBeCloseTo(5, 10);
+      expect(out.position[2]).toBeCloseTo(5, 10);
     });
 
     it('minDistance forces a floor on the fit distance, even for a tiny group', () => {
@@ -190,11 +194,11 @@ describe('GroupFramingExtension', () => {
       const extension = new GroupFramingExtension(group, 0, 100, 100, 0, [0, 0], 'rigid', 10);
       const out = createCameraState();
       out.fov = 90;
-      out.quaternion.identity();
+      vec4.set(out.quaternion, 0, 0, 0, 1);
 
       extension.update(out, 0.1);
 
-      expect(out.position.z).toBeCloseTo(10, 10);
+      expect(out.position[2]).toBeCloseTo(10, 10);
     });
 
     it("maxDistance clamps only this extension's own fit, not Body/Aim's placement in 'ceiling' mode", () => {
@@ -202,12 +206,12 @@ describe('GroupFramingExtension', () => {
       const extension = new GroupFramingExtension(group, 0, 100, 100, 0, [0, 0], 'ceiling', 0, 5);
       const out = createCameraState();
       out.fov = 90;
-      out.quaternion.identity();
-      out.position.set(0, 0, 50); // Body placed the camera much farther than maxDistance
+      vec4.set(out.quaternion, 0, 0, 0, 1);
+      vec3.set(out.position, 0, 0, 50); // Body placed the camera much farther than maxDistance
 
       extension.update(out, 0.1);
 
-      expect(out.position.z).toBeCloseTo(50, 10);
+      expect(out.position[2]).toBeCloseTo(50, 10);
     });
   });
 
@@ -220,13 +224,13 @@ describe('GroupFramingExtension', () => {
       const extension = new GroupFramingExtension(group, 0, 100, 100, 0, [0, 0], 'ceiling', 0, Infinity, 'horizontal');
       const out = createCameraState();
       out.fov = 90;
-      out.quaternion.identity();
-      out.position.set(0, 0, 0.5);
+      vec4.set(out.quaternion, 0, 0, 0, 1);
+      vec3.set(out.position, 0, 0, 0.5);
 
       extension.update(out, 0.1);
 
       const expectedDistance = 1 / Math.sin(Math.PI / 4);
-      expect(out.position.z).toBeCloseTo(expectedDistance, 10);
+      expect(out.position[2]).toBeCloseTo(expectedDistance, 10);
     });
 
     it("'vertical' ignores an offset that's purely horizontal", () => {
@@ -237,13 +241,13 @@ describe('GroupFramingExtension', () => {
       const extension = new GroupFramingExtension(group, 0, 100, 100, 0, [0, 0], 'ceiling', 0, Infinity, 'vertical');
       const out = createCameraState();
       out.fov = 90;
-      out.quaternion.identity();
-      out.position.set(0, 0, 0.5);
+      vec4.set(out.quaternion, 0, 0, 0, 1);
+      vec3.set(out.position, 0, 0, 0.5);
 
       extension.update(out, 0.1);
 
       const expectedDistance = 1 / Math.sin(Math.PI / 4);
-      expect(out.position.z).toBeCloseTo(expectedDistance, 10);
+      expect(out.position[2]).toBeCloseTo(expectedDistance, 10);
     });
   });
 
@@ -252,18 +256,18 @@ describe('GroupFramingExtension', () => {
       const group = new TargetGroup([{ target: new Vector3(0, 0, 0), size: [2, 2, 2] }]);
       const out = createCameraState();
       out.fov = 90;
-      out.quaternion.identity();
+      vec4.set(out.quaternion, 0, 0, 0, 1);
 
       new GroupFramingExtension(group, 0, 100, 100).update(out, 0.1);
 
       // face-on, a 2x2x2 box needs half-width 1 to fit, plus half its own depth (1) so the NEAR face —
       // not the center — lands at the fit distance (matches camera-controls' own `+ depth * 0.5`)
       const expectedDistance = 1 / Math.tan(Math.PI / 4) + 1;
-      expect(out.position.z).toBeCloseTo(expectedDistance, 10);
+      expect(out.position[2]).toBeCloseTo(expectedDistance, 10);
 
       // the OLD sphere-based (half-diagonal) fit would have required sqrt(3)/sin(45°) ≈ 2.45 — farther still
       const oldSphereDistance = Math.sqrt(3) / Math.sin(Math.PI / 4);
-      expect(out.position.z).toBeLessThan(oldSphereDistance);
+      expect(out.position[2]).toBeLessThan(oldSphereDistance);
     });
 
     it('a box seen from a pitched camera needs less distance than naively summing half-height and half-depth (real bug this fixes: the tallest corner and the nearest corner are not always the same one)', () => {
@@ -271,10 +275,12 @@ describe('GroupFramingExtension', () => {
       const group = new TargetGroup([{ target: new Vector3(0, 0, 0), size: [2, 2, 2] }]);
       const out = createCameraState();
       out.fov = 90;
-      out.quaternion.setFromAxisAngle(new Vector3(1, 0, 0), theta);
+      toQuaternion(out.quaternion)
+        .setFromAxisAngle(new Vector3(1, 0, 0), theta)
+        .toArray(out.quaternion);
 
       new GroupFramingExtension(group, 0, 100, 100).update(out, 0.1);
-      const actualDistance = out.position.length();
+      const actualDistance = toVector3(out.position).length();
 
       const tanHalf = Math.tan(Math.PI / 4);
       const cos = Math.cos(theta);
@@ -294,7 +300,7 @@ describe('GroupFramingExtension', () => {
       const faceOnGroup = new TargetGroup([{ target: new Vector3(0, 0, 0), size: [2, 2, 2] }]);
       const faceOnOut = createCameraState();
       faceOnOut.fov = 90;
-      faceOnOut.quaternion.identity();
+      vec4.set(faceOnOut.quaternion, 0, 0, 0, 1);
       new GroupFramingExtension(faceOnGroup, 0, 100, 100).update(faceOnOut, 0.1);
 
       const rotatedBox = new Mesh(new BoxGeometry(2, 2, 2));
@@ -302,10 +308,10 @@ describe('GroupFramingExtension', () => {
       const rotatedGroup = new TargetGroup([{ target: rotatedBox, size: [2, 2, 2] }]);
       const rotatedOut = createCameraState();
       rotatedOut.fov = 90;
-      rotatedOut.quaternion.identity();
+      vec4.set(rotatedOut.quaternion, 0, 0, 0, 1);
       new GroupFramingExtension(rotatedGroup, 0, 100, 100).update(rotatedOut, 0.1);
 
-      expect(rotatedOut.position.z).toBeGreaterThan(faceOnOut.position.z);
+      expect(rotatedOut.position[2]).toBeGreaterThan(faceOnOut.position[2]);
     });
 
     it('auto-detects size from a Mesh target end-to-end (no explicit size/radius)', () => {
@@ -313,12 +319,12 @@ describe('GroupFramingExtension', () => {
       const group = new TargetGroup([{ target: mesh }]);
       const out = createCameraState();
       out.fov = 90;
-      out.quaternion.identity();
+      vec4.set(out.quaternion, 0, 0, 0, 1);
 
       new GroupFramingExtension(group, 0, 100, 100).update(out, 0.1);
 
       const expectedDistance = 1 / Math.tan(Math.PI / 4) + 1;
-      expect(out.position.z).toBeCloseTo(expectedDistance, 10);
+      expect(out.position[2]).toBeCloseTo(expectedDistance, 10);
     });
 
     // raw vertex mutation, not .scale()/.applyMatrix4() - the one case three.js never keeps a cached
@@ -337,14 +343,14 @@ describe('GroupFramingExtension', () => {
       const extension = new GroupFramingExtension(group, 0, 100, 100);
       const out = createCameraState();
       out.fov = 90;
-      out.quaternion.identity();
+      vec4.set(out.quaternion, 0, 0, 0, 1);
       extension.update(out, 0.1); // caches the original half-extent (1)
 
       growMeshGeometryThreefold(mesh); // now half-extent 3, but the cache doesn't know that
       extension.update(out, 0.1);
 
       const expectedDistance = 1 / Math.tan(Math.PI / 4) + 1; // same as the un-grown mesh
-      expect(out.position.z).toBeCloseTo(expectedDistance, 10);
+      expect(out.position[2]).toBeCloseTo(expectedDistance, 10);
     });
 
     it('recalculateSize() reacts to the GROWN size on the very next update() call', () => {
@@ -353,7 +359,7 @@ describe('GroupFramingExtension', () => {
       const extension = new GroupFramingExtension(group, 0, 100, 100);
       const out = createCameraState();
       out.fov = 90;
-      out.quaternion.identity();
+      vec4.set(out.quaternion, 0, 0, 0, 1);
       extension.update(out, 0.1);
 
       growMeshGeometryThreefold(mesh); // half-extent now 3
@@ -361,7 +367,7 @@ describe('GroupFramingExtension', () => {
       extension.update(out, 0.1);
 
       const expectedDistance = 3 / Math.tan(Math.PI / 4) + 3; // matches the GROWN half-extent
-      expect(out.position.z).toBeCloseTo(expectedDistance, 10);
+      expect(out.position[2]).toBeCloseTo(expectedDistance, 10);
     });
 
     it('recalculateSize() only forces ONE recompute - a LATER deformation goes stale again', () => {
@@ -370,18 +376,18 @@ describe('GroupFramingExtension', () => {
       const extension = new GroupFramingExtension(group, 0, 100, 100);
       const out = createCameraState();
       out.fov = 90;
-      out.quaternion.identity();
+      vec4.set(out.quaternion, 0, 0, 0, 1);
       extension.update(out, 0.1);
 
       growMeshGeometryThreefold(mesh); // half-extent 1 -> 3
       extension.recalculateSize();
       extension.update(out, 0.1);
-      const afterFirstRecalc = out.position.clone();
+      const afterFirstRecalc = toVector3(out.position);
 
       growMeshGeometryThreefold(mesh); // half-extent 3 -> 9, but NOT recalculated again
       extension.update(out, 0.1);
 
-      expect(out.position.equals(afterFirstRecalc)).toBe(true); // still reacting to the 3x measurement
+      expect(toVector3(out.position).equals(afterFirstRecalc)).toBe(true); // still reacting to the 3x measurement
     });
 
     it('a mixed group (sphere + box) takes whichever member actually requires more distance', () => {
@@ -391,12 +397,12 @@ describe('GroupFramingExtension', () => {
       ]);
       const out = createCameraState();
       out.fov = 90;
-      out.quaternion.identity();
+      vec4.set(out.quaternion, 0, 0, 0, 1);
 
       new GroupFramingExtension(group, 0, 100, 100).update(out, 0.1);
 
       const expectedFromSphere = 1 / Math.sin(Math.PI / 4);
-      expect(out.position.z).toBeCloseTo(expectedFromSphere, 10);
+      expect(out.position[2]).toBeCloseTo(expectedFromSphere, 10);
     });
 
     it('padding adds a flat world-unit margin to a box, same as it does for a sphere', () => {
@@ -404,17 +410,17 @@ describe('GroupFramingExtension', () => {
 
       const noPadding = createCameraState();
       noPadding.fov = 90;
-      noPadding.quaternion.identity();
+      vec4.set(noPadding.quaternion, 0, 0, 0, 1);
       new GroupFramingExtension(group, 0, 100, 100).update(noPadding, 0.1);
 
       const withPadding = createCameraState();
       withPadding.fov = 90;
-      withPadding.quaternion.identity();
+      vec4.set(withPadding.quaternion, 0, 0, 0, 1);
       new GroupFramingExtension(group, 1, 100, 100).update(withPadding, 0.1);
 
       const expectedWithPadding = (1 + 1) / Math.tan(Math.PI / 4) + 1; // half-width 1 + padding 1, plus depth
-      expect(withPadding.position.z).toBeCloseTo(expectedWithPadding, 10);
-      expect(withPadding.position.z).toBeGreaterThan(noPadding.position.z);
+      expect(withPadding.position[2]).toBeCloseTo(expectedWithPadding, 10);
+      expect(withPadding.position[2]).toBeGreaterThan(noPadding.position[2]);
     });
   });
 
@@ -427,7 +433,7 @@ describe('GroupFramingExtension', () => {
     new GroupFramingExtension(group, 0, 1000, 100).update(out, 0.1);
 
     const expectedDistance = 1 / Math.sin(Math.PI / 4); // the (aspect-independent) vertical requirement
-    expect(out.position.z).toBeCloseTo(expectedDistance, 5);
+    expect(out.position[2]).toBeCloseTo(expectedDistance, 5);
   });
 
   it('reads group/padding/viewport LIVE off its own fields, not a snapshot taken at construction', () => {
@@ -437,12 +443,12 @@ describe('GroupFramingExtension', () => {
     out.fov = 90;
 
     extension.update(out, 0.1);
-    const distanceForRadius1 = out.position.z;
+    const distanceForRadius1 = out.position[2];
 
     group.members[0].radius = 2; // grow the framed box after construction
     extension.update(out, 0.1);
 
-    expect(out.position.z).toBeGreaterThan(distanceForRadius1);
+    expect(out.position[2]).toBeGreaterThan(distanceForRadius1);
   });
 
   describe('damping', () => {
@@ -457,7 +463,7 @@ describe('GroupFramingExtension', () => {
       extension.update(out, 0.1);
 
       const expectedDistance = 5 / Math.sin(Math.PI / 4);
-      expect(out.position.z).toBeCloseTo(expectedDistance, 10); // fully caught up in a single step
+      expect(out.position[2]).toBeCloseTo(expectedDistance, 10); // fully caught up in a single step
     });
 
     it("the first-ever update still snaps hard, matching the rest of klipp's damping convention", () => {
@@ -469,7 +475,7 @@ describe('GroupFramingExtension', () => {
       extension.update(out, 0.1);
 
       const expectedDistance = 1 / Math.sin(Math.PI / 4);
-      expect(out.position.z).toBeCloseTo(expectedDistance, 10); // no lag on the very first frame
+      expect(out.position[2]).toBeCloseTo(expectedDistance, 10); // no lag on the very first frame
     });
 
     it('a SUBSEQUENT change eases in over time instead of snapping instantly', () => {
@@ -479,14 +485,14 @@ describe('GroupFramingExtension', () => {
       out.fov = 90;
 
       extension.update(out, 0.1); // first-ever call snaps
-      const initialDistance = out.position.z;
+      const initialDistance = out.position[2];
 
       group.members[0].radius = 5; // grow the box a lot
       extension.update(out, 0.1); // one small step toward the new, much farther distance
 
       const distanceIfInstant = 5 / Math.sin(Math.PI / 4);
-      expect(out.position.z).toBeGreaterThan(initialDistance); // moved...
-      expect(out.position.z).toBeLessThan(distanceIfInstant); // ...but not all the way there yet
+      expect(out.position[2]).toBeGreaterThan(initialDistance); // moved...
+      expect(out.position[2]).toBeLessThan(distanceIfInstant); // ...but not all the way there yet
     });
 
     it(
@@ -499,20 +505,20 @@ describe('GroupFramingExtension', () => {
         out.fov = 90;
         const bodyWrittenPosition = new Vector3(0, 2, 5); // stand-in for Body.Follow's damping=0 output
 
-        out.position.copy(bodyWrittenPosition);
+        bodyWrittenPosition.toArray(out.position);
         extension.update(out, 0.1); // first-ever call snaps to the desired distance regardless
-        const afterFirst = out.position.z;
+        const afterFirst = out.position[2];
 
         group.members[0].radius = 5; // grow the box — new desired distance is much farther
         for (let i = 0; i < 5; i++) {
-          out.position.copy(bodyWrittenPosition); // simulates Body resetting the shared CameraState
+          bodyWrittenPosition.toArray(out.position); // simulates Body resetting the shared CameraState
           extension.update(out, 0.1);
         }
 
         // if damping incorrectly read its "current" value FROM out.position (which Body keeps stomping
         // back to bodyWrittenPosition), every step would restart from the same spot and net progress
         // would be ~0 — a persistent internal memory keeps advancing regardless
-        expect(out.position.z).toBeGreaterThan(afterFirst);
+        expect(out.position[2]).toBeGreaterThan(afterFirst);
       },
     );
 
@@ -524,19 +530,21 @@ describe('GroupFramingExtension', () => {
         const extension = new GroupFramingExtension(group, 0, 100, 100, 1); // damping = 1s
         const out = createCameraState();
         out.fov = 90;
-        out.quaternion.identity();
+        vec4.set(out.quaternion, 0, 0, 0, 1);
         extension.update(out, 0.1); // first-ever call snaps
 
         group.members[0].radius = 5; // distance target changes...
         for (let i = 1; i <= 5; i++) {
-          out.quaternion.setFromAxisAngle(new Vector3(0, 1, 0), i * 0.1); // ...AND rotation sweeps too
+          toQuaternion(out.quaternion)
+            .setFromAxisAngle(new Vector3(0, 1, 0), i * 0.1)
+            .toArray(out.quaternion); // ...AND rotation sweeps too
           extension.update(out, 0.1);
 
           // damping the full position (instead of just the scalar distance) would let this drift off the
           // "look straight at the group" ray whenever rotation changes mid-damp — direction-to-group must
           // exactly match the camera's forward axis on EVERY frame, not just once distance settles
-          const forward = new Vector3(0, 0, -1).applyQuaternion(out.quaternion);
-          const toGroup = new Vector3().subVectors(new Vector3(0, 0, 0), out.position).normalize();
+          const forward = new Vector3(0, 0, -1).applyQuaternion(toQuaternion(out.quaternion));
+          const toGroup = new Vector3().subVectors(new Vector3(0, 0, 0), toVector3(out.position)).normalize();
           expect(forward.dot(toGroup)).toBeCloseTo(1, 10);
         }
       },
@@ -573,7 +581,7 @@ describe('GroupFramingExtension', () => {
       clampedGroup.members[0].radius = 5;
       clamped.update(outClamped, 0.1);
 
-      expect(outClamped.position.z).toBeLessThan(outUnclamped.position.z);
+      expect(outClamped.position[2]).toBeLessThan(outUnclamped.position[2]);
     });
   });
 
@@ -637,7 +645,7 @@ describe('GroupFramingExtension', () => {
       const extension = new GroupFramingExtension(group, 0, 100, 100, 0, [0.5, 0]);
       const out = createCameraState();
       out.fov = 90;
-      out.quaternion.identity(); // looking down -Z, target dead ahead
+      vec4.set(out.quaternion, 0, 0, 0, 1); // looking down -Z, target dead ahead
 
       extension.update(out, 0.1);
 
@@ -706,7 +714,7 @@ describe('GroupFramingExtension', () => {
       const extension = new GroupFramingExtension(group, 0, 100, 100, 0.5);
       const out = createCameraState();
       out.fov = 90;
-      out.quaternion.identity();
+      vec4.set(out.quaternion, 0, 0, 0, 1);
 
       extension.update(out, 0.1, true); // first-ever session: snaps, warms up the damper
       extension.update(out, 0.1, false);
@@ -716,7 +724,7 @@ describe('GroupFramingExtension', () => {
       extension.update(out, 0.1, true);
 
       const expectedDistance = 10 / Math.sin(Math.PI / 4);
-      expect(out.position.z).toBeCloseTo(expectedDistance, 8); // backward = +Z from an identity quaternion
+      expect(out.position[2]).toBeCloseTo(expectedDistance, 8); // backward = +Z from an identity quaternion
     });
 
     it('without justActivated, the same scenario eases instead of snapping (the bug this fixes)', () => {
@@ -724,7 +732,7 @@ describe('GroupFramingExtension', () => {
       const extension = new GroupFramingExtension(group, 0, 100, 100, 0.5);
       const out = createCameraState();
       out.fov = 90;
-      out.quaternion.identity();
+      vec4.set(out.quaternion, 0, 0, 0, 1);
 
       extension.update(out, 0.1, true);
       extension.update(out, 0.1, false);
@@ -733,7 +741,7 @@ describe('GroupFramingExtension', () => {
       extension.update(out, 0.1, false); // no reactivation signal — damper treats this as a normal retarget
 
       const expectedDistance = 10 / Math.sin(Math.PI / 4);
-      expect(out.position.z).not.toBeCloseTo(expectedDistance, 1);
+      expect(out.position[2]).not.toBeCloseTo(expectedDistance, 1);
     });
   });
 });

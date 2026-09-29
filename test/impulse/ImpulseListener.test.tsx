@@ -7,6 +7,7 @@ import { ImpulseField } from '../../src/impulse/ImpulseField';
 import { ImpulseListener } from '../../src/impulse/ImpulseListener';
 import type { ImpulseListenerNoise } from '../../src/impulse/ImpulseListenerNoise';
 import { VirtualCamera } from '../../src/VirtualCamera';
+import { toVector3 } from '../tuples';
 
 const always = () => 1;
 
@@ -33,7 +34,7 @@ describe('ImpulseListener (React wrapper)', () => {
     const renderer = await create(scene);
     await renderer.advanceFrames(1, 0.1);
 
-    expect(core!.activeState!.position.x).toBeCloseTo(5, 3);
+    expect(core!.activeState!.position[0]).toBeCloseTo(5, 3);
   });
 
   it('a gain prop change is picked up on the next frame (field mutation, not re-registration)', async () => {
@@ -52,11 +53,11 @@ describe('ImpulseListener (React wrapper)', () => {
 
     const renderer = await create(scene(0));
     await renderer.advanceFrames(1, 0.1);
-    expect(core!.activeState!.position.x).toBeCloseTo(0, 3);
+    expect(core!.activeState!.position[0]).toBeCloseTo(0, 3);
 
     await renderer.update(scene(2));
     await renderer.advanceFrames(1, 0.1);
-    expect(core!.activeState!.position.x).toBeCloseTo(10, 3);
+    expect(core!.activeState!.position[0]).toBeCloseTo(10, 3);
   });
 
   it('unmounting stops the listener from running', async () => {
@@ -92,11 +93,11 @@ describe('ImpulseListener (React wrapper)', () => {
 
     const renderer = await create(scene(0b01)); // wrong channel
     await renderer.advanceFrames(1, 0.1);
-    expect(core!.activeState!.position.x).toBeCloseTo(0, 3);
+    expect(core!.activeState!.position[0]).toBeCloseTo(0, 3);
 
     await renderer.update(scene(0b10)); // right channel
     await renderer.advanceFrames(1, 0.1);
-    expect(core!.activeState!.position.x).toBeCloseTo(5, 3);
+    expect(core!.activeState!.position[0]).toBeCloseTo(5, 3);
   });
 
   it('a shake prop (plain config, not a live instance) is wired up and reacts to the impulse', async () => {
@@ -116,7 +117,7 @@ describe('ImpulseListener (React wrapper)', () => {
     const renderer = await create(scene);
     await renderer.advanceFrames(5, 0.1);
 
-    expect(core!.activeState!.position.length()).toBeGreaterThan(0);
+    expect(toVector3(core!.activeState!.position).length()).toBeGreaterThan(0);
   });
 
   it('shake prop presence toggles listener.shake between an instance and undefined (mount/unmount)', async () => {

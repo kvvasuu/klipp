@@ -1,6 +1,11 @@
+import { vec3, vec4 } from 'math';
+import { Quaternion } from 'three';
 import { createCameraState, type CameraState } from '../CameraState';
 
 const MAX_SLOTS = 8;
+
+const scratchQuaternion = new Quaternion();
+const scratchOther = new Quaternion();
 
 export type MixingCameraSlot = {
   cameraId: string;
@@ -37,14 +42,14 @@ export class MixingCamera {
     for (const slot of this.slots) if (slot.weight > 0) totalWeight += slot.weight;
     if (totalWeight <= 0) return this.output;
 
-    this.output.position.set(0, 0, 0);
+    vec3.set(this.output.position, 0, 0, 0);
     let fov = 0;
     let near = 0;
     let far = 0;
     for (const slot of this.slots) {
       if (slot.weight <= 0) continue;
       const share = slot.weight / totalWeight;
-      this.output.position.addScaledVector(slot.state.position, share);
+      vec3.scaleAndAdd(this.output.position, this.output.position, slot.state.position, share);
       fov += slot.state.fov * share;
       near += slot.state.near * share;
       far += slot.state.far * share;
@@ -57,9 +62,12 @@ export class MixingCamera {
     for (const slot of this.slots) {
       if (slot.weight <= 0) continue;
       if (accumulatedWeight === 0) {
-        this.output.quaternion.copy(slot.state.quaternion);
+        vec4.copy(this.output.quaternion, slot.state.quaternion);
       } else {
-        this.output.quaternion.slerp(slot.state.quaternion, slot.weight / (accumulatedWeight + slot.weight));
+        scratchQuaternion
+          .fromArray(this.output.quaternion)
+          .slerp(scratchOther.fromArray(slot.state.quaternion), slot.weight / (accumulatedWeight + slot.weight))
+          .toArray(this.output.quaternion);
       }
       accumulatedWeight += slot.weight;
     }

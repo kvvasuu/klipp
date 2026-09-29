@@ -9,6 +9,7 @@ import { GroupFramingExtension, type GroupFramingFitMode, type GroupFramingMode 
 import { TargetGroup, type TargetGroupMember, type TargetGroupPositionMode } from './TargetGroup';
 
 const scratchGroupPosition = new Vector3();
+const scratchCameraPosition = new Vector3();
 /** Minimum visible change for the debug overlay. */
 const DEBUG_BOX_EPSILON = 0.002;
 
@@ -99,7 +100,7 @@ export function GroupFraming({
       setPaddingBox((previous) => (previous === null ? previous : null));
       return;
     }
-    const distance = cameraState.position.distanceTo(scratchGroupPosition);
+    const distance = scratchCameraPosition.fromArray(cameraState.position).distanceTo(scratchGroupPosition);
     const verticalHalfFov = degreesToRadians(cameraState.fov) / 2;
     const horizontalHalfFov = Math.atan(Math.tan(verticalHalfFov) * (size.width / size.height));
     // an excluded axis has no padding boundary to show - full frame, not a fabricated constraint

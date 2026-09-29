@@ -3,6 +3,7 @@
  * teleport), two extra group members, an orbiting camera path for aims, and an irregular dt.
  * Do not change anything here after fixtures are recorded: fixtures depend on every number.
  */
+import { vec3 } from 'math';
 import { Object3D } from 'three';
 import type { CameraState } from '../../src/CameraState';
 
@@ -52,7 +53,7 @@ export function createWorld() {
 
 /** Camera path used by aim-only scenarios, so aims are tested independently of bodies. */
 export function orbitCamera(state: CameraState, time: number): void {
-  state.position.set(Math.sin(time * 0.5) * 15, 4 + Math.sin(time), Math.cos(time * 0.5) * 15);
+  vec3.set(state.position, Math.sin(time * 0.5) * 15, 4 + Math.sin(time), Math.cos(time * 0.5) * 15);
 }
 
 export const COLUMNS = ['px', 'py', 'pz', 'qx', 'qy', 'qz', 'qw', 'fov', 'near', 'far'] as const;
@@ -60,7 +61,7 @@ export const COLUMNS = ['px', 'py', 'pz', 'qx', 'qy', 'qz', 'qw', 'fov', 'near',
 /** The observable output of a frame. Keep in sync with COLUMNS. */
 export function sample(state: CameraState): number[] {
   const { position: p, quaternion: q } = state;
-  return [p.x, p.y, p.z, q.x, q.y, q.z, q.w, state.fov, state.near, state.far];
+  return [p[0], p[1], p[2], q[0], q[1], q[2], q[3], state.fov, state.near, state.far];
 }
 
 /** Runs FRAMES frames and collects a sample every SAMPLE_EVERY frames plus the last one. */

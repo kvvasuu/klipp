@@ -1,14 +1,15 @@
-import { BoxGeometry, Mesh, MeshBasicMaterial, Object3D, PerspectiveCamera, Vector3 } from 'three';
+import { BoxGeometry, Mesh, MeshBasicMaterial, Object3D, PerspectiveCamera, Quaternion, Vector3 } from 'three';
 import { describe, expect, it } from 'vitest';
 import { createCameraState } from '../../src/CameraState';
 import { PositionComposerBody } from '../../src/body/PositionComposerBody';
+import { toQuaternion, toTuple, toVector3 } from '../tuples';
 
 /** Projects `target` through a REAL three.js PerspectiveCamera at `out`'s position/rotation/fov/aspect —
  *  independent ground truth (three.js's own `project()`), not a re-derivation of our own formula. */
 function projectToScreen(out: ReturnType<typeof createCameraState>, aspect: number, target: Vector3): Vector3 {
   const camera = new PerspectiveCamera(out.fov, aspect, 0.1, 1000);
-  camera.position.copy(out.position);
-  camera.quaternion.copy(out.quaternion);
+  camera.position.copy(toVector3(out.position));
+  camera.quaternion.copy(toQuaternion(out.quaternion));
   camera.updateMatrixWorld(true);
   camera.updateProjectionMatrix();
   return target.clone().project(camera);
@@ -23,7 +24,7 @@ describe('PositionComposerBody', () => {
     body.update(out, 0.1);
 
     expect(out.hasTarget).toBe(true);
-    expect(out.target.equals(target)).toBe(true);
+    expect(toVector3(out.target).equals(target)).toBe(true);
   });
 
   it('dollies along the camera forward axis until the target is at cameraDistance', () => {
@@ -35,7 +36,7 @@ describe('PositionComposerBody', () => {
 
     const depth = target
       .clone()
-      .sub(out.position)
+      .sub(toVector3(out.position))
       .dot(new Vector3(0, 0, -1));
     expect(depth).toBeCloseTo(10, 10);
   });
@@ -44,12 +45,12 @@ describe('PositionComposerBody', () => {
     const target = new Vector3(3, 1, -8);
     const body = new PositionComposerBody(target, 10);
     const out = createCameraState();
-    out.quaternion.set(0.1, 0.2, 0.3, 0.9).normalize();
-    const before = out.quaternion.clone();
+    new Quaternion(0.1, 0.2, 0.3, 0.9).normalize().toArray(out.quaternion);
+    const before = toQuaternion(out.quaternion);
 
     body.update(out, 0.1);
 
-    expect(out.quaternion.equals(before)).toBe(true);
+    expect(toQuaternion(out.quaternion).equals(before)).toBe(true);
   });
 
   it('centers the target on screen when screenPosition is [0, 0] (default)', () => {
@@ -95,7 +96,9 @@ describe('PositionComposerBody', () => {
     const target = new Vector3(10, 5, 10);
     const body = new PositionComposerBody(target, 12, [0.2, 0.1], 1.6);
     const out = createCameraState();
-    out.quaternion.setFromAxisAngle(new Vector3(0, 1, 0), Math.PI / 3); // yawed 60°
+    toQuaternion(out.quaternion)
+      .setFromAxisAngle(new Vector3(0, 1, 0), Math.PI / 3)
+      .toArray(out.quaternion); // yawed 60°
     out.fov = 45;
 
     body.update(out, 0.1);
@@ -118,8 +121,8 @@ describe('PositionComposerBody', () => {
 
     // world position of child is (100, 0, -10); centering it (screenPosition [0,0]) with the camera
     // facing pure -Z means the camera lines up on the SAME world X, 10 units in front on Z
-    expect(out.position.x).toBeCloseTo(100, 8);
-    expect(out.position.z).toBeCloseTo(0, 8);
+    expect(out.position[0]).toBeCloseTo(100, 8);
+    expect(out.position[2]).toBeCloseTo(0, 8);
   });
 
   it('a null target is a no-op, not a crash', () => {
@@ -127,7 +130,7 @@ describe('PositionComposerBody', () => {
     const out = createCameraState();
 
     expect(() => body.update(out, 0.1)).not.toThrow();
-    expect(out.position.equals(new Vector3())).toBe(true);
+    expect(toVector3(out.position).equals(new Vector3())).toBe(true);
   });
 
   it('target/cameraDistance/screenPosition/aspect are mutable fields', () => {
@@ -137,7 +140,7 @@ describe('PositionComposerBody', () => {
     const out = createCameraState();
 
     body.update(out, 0.1);
-    expect(out.position.z).toBeCloseTo(0, 8);
+    expect(out.position[2]).toBeCloseTo(0, 8);
 
     body.target = targetB;
     body.cameraDistance = 20;
@@ -145,7 +148,7 @@ describe('PositionComposerBody', () => {
 
     const depth = targetB
       .clone()
-      .sub(out.position)
+      .sub(toVector3(out.position))
       .dot(new Vector3(0, 0, -1));
     expect(depth).toBeCloseTo(20, 8);
   });
@@ -168,13 +171,13 @@ describe('PositionComposerBody', () => {
 
       // several frames outside the dead zone - damper builds up real lag, doesn't fully catch up
       for (let i = 0; i < 5; i++) body.update(out, dt);
-      const beforeSettle = out.position.clone();
+      const beforeSettle = toVector3(out.position);
 
       // target jumps to dead-center - well inside the dead zone from here on
       target.set(0, 0, -20);
       body.update(out, dt);
 
-      expect(out.position.equals(beforeSettle)).toBe(false); // kept easing, didn't freeze outright
+      expect(toVector3(out.position).equals(beforeSettle)).toBe(false); // kept easing, didn't freeze outright
     });
 
     it('eventually converges and stays put once fully settled inside the dead zone', () => {
@@ -187,9 +190,9 @@ describe('PositionComposerBody', () => {
       target.set(0, 0, -20);
       for (let i = 0; i < 300; i++) body.update(out, dt); // plenty of time to fully settle
 
-      const settled = out.position.clone();
+      const settled = toVector3(out.position);
       body.update(out, dt);
-      expect(out.position.equals(settled)).toBe(true);
+      expect(toVector3(out.position).equals(settled)).toBe(true);
     });
 
     it('does not backtrack toward the old direction when the target reverses after settling inside the dead zone (real bug: stale damper velocity surviving the freeze)', () => {
@@ -208,12 +211,12 @@ describe('PositionComposerBody', () => {
       for (let i = 0; i < 300; i++) body.update(out, dt);
 
       // now reverses direction - camera must never tick back toward the old (rightward) direction
-      let previousX = out.position.x;
+      let previousX = out.position[0];
       for (let i = 0; i < 60; i++) {
         target.x -= 0.3;
         body.update(out, dt);
-        expect(out.position.x).toBeLessThanOrEqual(previousX + 1e-9);
-        previousX = out.position.x;
+        expect(out.position[0]).toBeLessThanOrEqual(previousX + 1e-9);
+        previousX = out.position[0];
       }
     });
   });
@@ -226,11 +229,11 @@ describe('PositionComposerBody', () => {
       const out = createCameraState();
       body.update(out, 0.1);
 
-      const afterFirstUpdate = out.position.clone();
+      const afterFirstUpdate = toVector3(out.position);
       target.set(0, 0, -11.5); // depth now 11.5, within the depth dead zone (2) around cameraDistance (10)
       body.update(out, 0.1);
 
-      expect(out.position.equals(afterFirstUpdate)).toBe(true);
+      expect(toVector3(out.position).equals(afterFirstUpdate)).toBe(true);
     });
 
     it('keeps tolerating gradual in-zone drift over many frames with damping enabled (real bug: a frozen desired depth fought the target instead of tolerating it)', () => {
@@ -241,13 +244,13 @@ describe('PositionComposerBody', () => {
       const dt = 0.016;
       body.update(out, dt);
 
-      const afterFirstUpdate = out.position.clone();
+      const afterFirstUpdate = toVector3(out.position);
       for (let i = 0; i < 20; i++) {
         target.z -= 0.3; // depth keeps growing (10 -> 16), but stays within the ±20 tolerance throughout
         body.update(out, dt);
       }
 
-      expect(out.position.equals(afterFirstUpdate)).toBe(true);
+      expect(toVector3(out.position).equals(afterFirstUpdate)).toBe(true);
     });
 
     it('target outside the depth dead zone with damping <= 0: snaps instantly to the dead zone edge, not to cameraDistance exactly', () => {
@@ -260,7 +263,7 @@ describe('PositionComposerBody', () => {
 
       const depth = target
         .clone()
-        .sub(out.position)
+        .sub(toVector3(out.position))
         .dot(new Vector3(0, 0, -1));
       expect(depth).toBeCloseTo(13, 4); // clamped to cameraDistance(10) + depthDeadZone(3), not all the way to 10
     });
@@ -276,7 +279,7 @@ describe('PositionComposerBody', () => {
       const out = createCameraState();
       body.update(out, 0.016);
 
-      expect(out.position.distanceTo(undamped.position)).toBeGreaterThan(0.01);
+      expect(toVector3(out.position).distanceTo(toVector3(undamped.position))).toBeGreaterThan(0.01);
     });
 
     it('converges to cameraDistance over repeated ticks with damping enabled', () => {
@@ -288,7 +291,7 @@ describe('PositionComposerBody', () => {
 
       const depth = target
         .clone()
-        .sub(out.position)
+        .sub(toVector3(out.position))
         .dot(new Vector3(0, 0, -1));
       expect(depth).toBeCloseTo(10, 2);
     });
@@ -307,7 +310,7 @@ describe('PositionComposerBody', () => {
 
       const depth = target
         .clone()
-        .sub(out.position)
+        .sub(toVector3(out.position))
         .dot(new Vector3(0, 0, -1));
       expect(depth).toBeCloseTo(10, 4); // reacted fully, not clamped to the dead zone edge
     });
@@ -320,11 +323,11 @@ describe('PositionComposerBody', () => {
       const out = createCameraState();
       body.update(out, 0.1); // establishes stage-1 dolly, target dead-center
 
-      const afterFirstUpdate = out.position.clone();
+      const afterFirstUpdate = toVector3(out.position);
       target.set(0.5, 0, -20); // nudge sideways, but within the [0.4, 0.4] dead zone
       body.update(out, 0.1);
 
-      expect(out.position.equals(afterFirstUpdate)).toBe(true);
+      expect(toVector3(out.position).equals(afterFirstUpdate)).toBe(true);
     });
 
     it('hardLimit still enforces when the target sits inside a LARGER deadZone (real bug: the dead zone used to return from the whole update, skipping the hardLimit pass entirely)', () => {
@@ -335,11 +338,11 @@ describe('PositionComposerBody', () => {
       const out = createCameraState();
       body.update(out, 0.1); // establishes stage-1 dolly, target dead-center
 
-      const afterFirstUpdate = out.position.clone();
+      const afterFirstUpdate = toVector3(out.position);
       target.set(0.5, 0, -20); // same nudge as above — inside deadZone (no lateral reaction there)...
       body.update(out, 0.1); // ...but hardLimit=[0.1,0.1] is narrower, so it must still correct this
 
-      expect(out.position.equals(afterFirstUpdate)).toBe(false);
+      expect(toVector3(out.position).equals(afterFirstUpdate)).toBe(false);
     });
 
     it('target outside the dead zone with damping <= 0: snaps instantly to the dead zone EDGE, not to screenPosition center', () => {
@@ -366,7 +369,7 @@ describe('PositionComposerBody', () => {
       const out = createCameraState();
       body.update(out, 0.016);
 
-      expect(out.position.distanceTo(undamped.position)).toBeGreaterThan(0.01);
+      expect(toVector3(out.position).distanceTo(toVector3(undamped.position))).toBeGreaterThan(0.01);
     });
 
     it('converges to the dead zone edge over repeated ticks with damping enabled', () => {
@@ -386,10 +389,10 @@ describe('PositionComposerBody', () => {
       const out = createCameraState();
       body.update(out, 0.1); // snaps to the edge, target far outside
 
-      const afterEdgeSnap = out.position.clone();
+      const afterEdgeSnap = toVector3(out.position);
       body.update(out, 0.1); // same target, now sitting exactly at the (inclusive) dead zone boundary
 
-      expect(out.position.equals(afterEdgeSnap)).toBe(true);
+      expect(toVector3(out.position).equals(afterEdgeSnap)).toBe(true);
     });
 
     it('deadZone/damping are mutable fields', () => {
@@ -424,7 +427,7 @@ describe('PositionComposerBody', () => {
       const outClamped = createCameraState();
       clamped.update(outClamped, 0.05); // maxSpeed = 2 units/sec
 
-      expect(outClamped.position.x).toBeLessThan(outUnclamped.position.x);
+      expect(outClamped.position[0]).toBeLessThan(outUnclamped.position[0]);
     });
   });
 
@@ -483,13 +486,13 @@ describe('PositionComposerBody', () => {
       const body = new PositionComposerBody(target, 10, [0, 0], 1, [0, 0], 0.5);
       const initial = new Vector3(0, 0, 50);
 
-      body.primeFrom(initial);
+      body.primeFrom(toTuple(initial));
       const out = createCameraState();
-      out.position.copy(initial);
+      initial.toArray(out.position);
       body.update(out, 0.016, true);
 
-      expect(out.position.z).toBeLessThan(50); // moved off the primed position
-      expect(out.position.z).toBeGreaterThan(-10); // but not snapped to the fully composed shot (z = -10)
+      expect(out.position[2]).toBeLessThan(50); // moved off the primed position
+      expect(out.position[2]).toBeGreaterThan(-10); // but not snapped to the fully composed shot (z = -10)
     });
 
     it('without priming, update() still snaps straight to the composed shot on justActivated (unchanged default)', () => {
@@ -498,7 +501,7 @@ describe('PositionComposerBody', () => {
       const out = createCameraState();
       body.update(out, 0.016, true);
 
-      expect(out.position.z).toBeCloseTo(-10, 5);
+      expect(out.position[2]).toBeCloseTo(-10, 5);
     });
 
     it('is consumed by the first justActivated only - a later reactivation snaps normally', () => {
@@ -506,9 +509,9 @@ describe('PositionComposerBody', () => {
       const body = new PositionComposerBody(target, 10, [0, 0], 1, [0, 0], 0.5);
       const initial = new Vector3(0, 0, 50);
 
-      body.primeFrom(initial);
+      body.primeFrom(toTuple(initial));
       const out = createCameraState();
-      out.position.copy(initial);
+      initial.toArray(out.position);
       body.update(out, 0.016, true); // consumes the prime, eases
       body.update(out, 0.016, false);
 
@@ -523,17 +526,17 @@ describe('PositionComposerBody', () => {
     it("is still consumed even when the target isn't resolved yet on the primed justActivated call", () => {
       const initial = new Vector3(0, 0, 50);
       const body = new PositionComposerBody({ current: null }, 10, [0, 0], 1, [0, 0], 0.5);
-      body.primeFrom(initial);
+      body.primeFrom(toTuple(initial));
       const out = createCameraState();
-      out.position.copy(initial);
+      initial.toArray(out.position);
 
       body.update(out, 0.016, true); // target still unresolved - early return, but primed must be consumed
-      expect(out.position.equals(initial)).toBe(true); // no-op, nothing to update yet
+      expect(toVector3(out.position).equals(initial)).toBe(true); // no-op, nothing to update yet
 
       body.target = new Vector3(0, 0, -20);
       body.update(out, 0.016, true); // an unrelated LATER reactivation - must snap, not ease
 
-      expect(out.position.z).toBeCloseTo(-10, 5);
+      expect(out.position[2]).toBeCloseTo(-10, 5);
     });
   });
 
@@ -560,12 +563,12 @@ describe('PositionComposerBody', () => {
       const out = createCameraState();
       out.fov = 90;
       body.update(out, 0.1);
-      const afterFirstUpdate = out.position.clone();
+      const afterFirstUpdate = toVector3(out.position);
 
       target.set(1.5, 0, -20);
       body.update(out, 0.1);
 
-      expect(out.position.equals(afterFirstUpdate)).toBe(true);
+      expect(toVector3(out.position).equals(afterFirstUpdate)).toBe(true);
     });
 
     it('an axis-aligned size reproduces the same edge as an equivalent radius', () => {
@@ -676,12 +679,12 @@ describe('PositionComposerBody', () => {
       growMeshGeometryThreefold(mesh); // half-extent 1 -> 3, extentX 0.1 -> 0.3
       body.recalculateSize();
       body.update(out, 0.1);
-      const afterFirstRecalc = out.position.clone();
+      const afterFirstRecalc = toVector3(out.position);
 
       growMeshGeometryThreefold(mesh); // half-extent 3 -> 9, extentX -> 0.9, but NOT recalculated again
       body.update(out, 0.1);
 
-      expect(out.position.equals(afterFirstRecalc)).toBe(true); // still reacting to the 3x measurement
+      expect(toVector3(out.position).equals(afterFirstRecalc)).toBe(true); // still reacting to the 3x measurement
     });
   });
 
@@ -693,11 +696,11 @@ describe('PositionComposerBody', () => {
       body.update(out, 0.1, true); // baseline, dead-center
 
       target.set(0.3, 0, -20); // nudge off-center
-      let previousX = out.position.x;
+      let previousX = out.position[0];
       for (let i = 0; i < 20; i++) {
         body.update(out, 0.1, false);
-        if (i > 0) expect(out.position.x).toBeCloseTo(previousX, 8); // settles immediately, doesn't alternate
-        previousX = out.position.x;
+        if (i > 0) expect(out.position[0]).toBeCloseTo(previousX, 8); // settles immediately, doesn't alternate
+        previousX = out.position[0];
       }
 
       const projected = projectToScreen(out, 1, target);
@@ -714,11 +717,11 @@ describe('PositionComposerBody', () => {
       body.update(out, 0.1, true);
 
       targetObject.position.set(0.3, 0, -20);
-      let previousX = out.position.x;
+      let previousX = out.position[0];
       for (let i = 0; i < 20; i++) {
         body.update(out, 0.1, false);
-        if (i > 0) expect(out.position.x).toBeCloseTo(previousX, 8);
-        previousX = out.position.x;
+        if (i > 0) expect(out.position[0]).toBeCloseTo(previousX, 8);
+        previousX = out.position[0];
       }
 
       const projected = projectToScreen(out, 1, targetObject.position.clone());
@@ -782,7 +785,7 @@ describe('PositionComposerBody', () => {
       const withLimit = createCameraState();
       bodyWithLimit.update(withLimit, 0.1);
 
-      expect(withoutLimit.position.equals(withLimit.position)).toBe(false);
+      expect(toVector3(withoutLimit.position).equals(toVector3(withLimit.position))).toBe(false);
       const projected = projectToScreen(withoutLimit, 1, target);
       expect(Math.abs(projected.x)).toBeGreaterThan(0.15); // past where hardLimit=[0.15,0.15] would have clamped it
     });
@@ -795,7 +798,7 @@ describe('PositionComposerBody', () => {
       const withLimit = createCameraState();
       new PositionComposerBody(target, 10, [0, 0], 1, [0.2, 0.2], 0.3, [1000, 1000]).update(withLimit, 0.016);
 
-      expect(withLimit.position.equals(withoutLimit.position)).toBe(true);
+      expect(toVector3(withLimit.position).equals(toVector3(withoutLimit.position))).toBe(true);
     });
   });
 
@@ -811,7 +814,7 @@ describe('PositionComposerBody', () => {
       target.set(5, 0, -20);
       body.update(out, dt, false);
 
-      expect(out.target.equals(target)).toBe(true);
+      expect(toVector3(out.target).equals(target)).toBe(true);
     });
 
     it('extrapolates out.target ahead of a target moving at constant velocity', () => {
@@ -828,7 +831,7 @@ describe('PositionComposerBody', () => {
       }
 
       // steady state: predicted 0.5s ahead at 10 units/s = +5 beyond the raw target
-      expect(out.target.x - target.x).toBeCloseTo(5, 1);
+      expect(out.target[0] - target.x).toBeCloseTo(5, 1);
     });
 
     it('a fresh activation resets the predictor — the first frame after it predicts nothing yet', () => {
@@ -843,11 +846,11 @@ describe('PositionComposerBody', () => {
         target.x += 10 * dt;
         body.update(out, dt, false);
       }
-      expect(out.target.x - target.x).not.toBeCloseTo(0, 1); // built up a real lookahead offset
+      expect(out.target[0] - target.x).not.toBeCloseTo(0, 1); // built up a real lookahead offset
 
       // a later, unrelated activation — same still-moving target, but the predictor shouldn't carry over
       body.update(out, dt, true);
-      expect(out.target.x).toBeCloseTo(target.x, 4);
+      expect(out.target[0]).toBeCloseTo(target.x, 4);
     });
 
     it('retargeting to a different reference resets the predictor too, even without justActivated', () => {
@@ -867,7 +870,7 @@ describe('PositionComposerBody', () => {
       body.target = targetB;
       body.update(out, dt, false); // no justActivated — only the target reference changed
 
-      expect(out.target.equals(targetB)).toBe(true); // no offset carried over from targetA's velocity
+      expect(toVector3(out.target).equals(targetB)).toBe(true); // no offset carried over from targetA's velocity
     });
 
     it('ignoreY zeroes the vertical component of the predicted offset', () => {
@@ -884,7 +887,7 @@ describe('PositionComposerBody', () => {
         body.update(out, dt, false);
       }
 
-      expect(out.target.y).toBeCloseTo(target.y, 4); // vertical lookahead suppressed
+      expect(out.target[1]).toBeCloseTo(target.y, 4); // vertical lookahead suppressed
     });
   });
 });

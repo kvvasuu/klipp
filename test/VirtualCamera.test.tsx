@@ -12,6 +12,7 @@ import { useIsActiveVirtualCamera, useIsLiveVirtualCamera, useVirtualCamera } fr
 import type { VirtualCameraController } from '../src/VirtualCameraController';
 import { BlendCurves } from '../src/blend/BlendCurves';
 import { BlendHints } from '../src/blend/BlendHints';
+import { toQuaternion, toVector3 } from './tuples';
 
 function CoreReader({ onRead }: { onRead: (core: KlippCore) => void }) {
   onRead(useKlipp().core);
@@ -176,7 +177,7 @@ describe('VirtualCamera — Body/Aim/Noise wiring', () => {
     let core: KlippCore | undefined;
     function Writer() {
       const { controller } = useVirtualCamera();
-      useEffect(() => controller.registerBody((out) => (out.position.x = 42)), [controller]);
+      useEffect(() => controller.registerBody((out) => (out.position[0] = 42)), [controller]);
       return null;
     }
 
@@ -190,7 +191,7 @@ describe('VirtualCamera — Body/Aim/Noise wiring', () => {
     );
 
     await renderer.advanceFrames(1, 0.1);
-    expect(core!.activeState!.position.x).toBe(42);
+    expect(core!.activeState!.position[0]).toBe(42);
   });
 });
 
@@ -204,7 +205,7 @@ describe('VirtualCamera — initialState prop', () => {
       </Klipp>,
     );
 
-    expect(core!.activeState!.position.equals(new Vector3(5, 20, 5))).toBe(true);
+    expect(toVector3(core!.activeState!.position).equals(new Vector3(5, 20, 5))).toBe(true);
   });
 
   it('position/target/lookAtTarget accept the r3f Vector3Like shorthand, not just a real THREE.Vector3', async () => {
@@ -216,8 +217,8 @@ describe('VirtualCamera — initialState prop', () => {
       </Klipp>,
     );
 
-    expect(core!.activeState!.position.equals(new Vector3(5, 20, 5))).toBe(true);
-    expect(core!.activeState!.target.equals(new Vector3(1, 2, 3))).toBe(true);
+    expect(toVector3(core!.activeState!.position).equals(new Vector3(5, 20, 5))).toBe(true);
+    expect(toVector3(core!.activeState!.target).equals(new Vector3(1, 2, 3))).toBe(true);
   });
 
   it("only overrides the given fields — an unset field still inherits the real camera's pristine state", async () => {
@@ -239,7 +240,7 @@ describe('VirtualCamera — initialState prop', () => {
       </Klipp>,
     );
 
-    expect(seededState!.position.equals(new Vector3(5, 20, 5))).toBe(true);
+    expect(toVector3(seededState!.position).equals(new Vector3(5, 20, 5))).toBe(true);
     expect(seededState!.fov).toBe(plainState!.fov); // fov wasn't part of initialState — still inherited
   });
 
@@ -262,8 +263,10 @@ describe('VirtualCamera — initialState prop', () => {
     callerPosition.set(99, 99, 99);
     callerQuaternion.set(0, 0, 0, 1);
 
-    expect(core!.activeState!.position.equals(new Vector3(1, 2, 3))).toBe(true);
-    expect(core!.activeState!.quaternion.equals(new Quaternion(0.1, 0.2, 0.3, 0.9).normalize())).toBe(true);
+    expect(toVector3(core!.activeState!.position).equals(new Vector3(1, 2, 3))).toBe(true);
+    expect(toQuaternion(core!.activeState!.quaternion).equals(new Quaternion(0.1, 0.2, 0.3, 0.9).normalize())).toBe(
+      true,
+    );
   });
 
   it('is applied once at mount, not reactive to a later prop change', async () => {
@@ -276,10 +279,10 @@ describe('VirtualCamera — initialState prop', () => {
     );
 
     const renderer = await create(scene(new Vector3(5, 20, 5)));
-    expect(core!.activeState!.position.equals(new Vector3(5, 20, 5))).toBe(true);
+    expect(toVector3(core!.activeState!.position).equals(new Vector3(5, 20, 5))).toBe(true);
 
     await renderer.update(scene(new Vector3(1, 1, 1)));
-    expect(core!.activeState!.position.equals(new Vector3(5, 20, 5))).toBe(true); // unchanged — state was seeded once
+    expect(toVector3(core!.activeState!.position).equals(new Vector3(5, 20, 5))).toBe(true); // unchanged — state was seeded once
   });
 });
 
@@ -447,7 +450,7 @@ describe('useVirtualCamera - state', () => {
     }
     function Writer() {
       const { controller } = useVirtualCamera();
-      useEffect(() => controller.registerBody((out) => (out.position.x = 7)), [controller]);
+      useEffect(() => controller.registerBody((out) => (out.position[0] = 7)), [controller]);
       return null;
     }
 
@@ -461,7 +464,7 @@ describe('useVirtualCamera - state', () => {
     );
 
     await renderer.advanceFrames(1, 0.1);
-    expect(capturedState!.position.x).toBe(7);
+    expect(capturedState!.position[0]).toBe(7);
   });
 });
 

@@ -8,6 +8,8 @@ import {
   type ReactNode,
   type Ref,
 } from 'react';
+import { vec4 } from 'math';
+import { Quaternion, Vector3 } from 'three';
 import { BlendHints } from './blend/BlendHints';
 import { copyCameraState, createCameraState, mergeCameraState } from './CameraState';
 import { useKlipp } from './KlippContext';
@@ -51,11 +53,15 @@ export function VirtualCamera({
   const [context] = useState<VirtualCameraContextValue>(() => {
     const seeded = copyCameraState(createCameraState(), initialCameraState);
     if (initialState) {
-      const { position, target, lookAtTarget, ...rest } = initialState;
+      const { position, quaternion, target, lookAtTarget, referenceUp, ...rest } = initialState;
       mergeCameraState(seeded, rest);
-      if (position) resolveVector3(seeded.position, position);
-      if (target) resolveVector3(seeded.target, target);
-      if (lookAtTarget) resolveVector3(seeded.lookAtTarget, lookAtTarget);
+      const scratch = new Vector3();
+      if (position) resolveVector3(scratch, position).toArray(seeded.position);
+      if (quaternion instanceof Quaternion) quaternion.toArray(seeded.quaternion);
+      else if (quaternion) vec4.copy(seeded.quaternion, quaternion);
+      if (target) resolveVector3(scratch, target).toArray(seeded.target);
+      if (lookAtTarget) resolveVector3(scratch, lookAtTarget).toArray(seeded.lookAtTarget);
+      if (referenceUp) resolveVector3(scratch, referenceUp).toArray(seeded.referenceUp);
     }
     return { controller: new VirtualCameraController(name), state: seeded, initialState };
   });

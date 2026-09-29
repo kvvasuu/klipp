@@ -1,3 +1,4 @@
+import { vec3 } from 'math';
 import { create } from '@react-three/test-renderer';
 import { useEffect } from 'react';
 import type { CameraHelper } from 'three';
@@ -28,7 +29,7 @@ describe('CameraFrustumHelper', () => {
         <VirtualCamera name="a" priority={10}>
           <Writer
             onWrite={(out) => {
-              out.position.set(1, 2, 3);
+              vec3.set(out.position, 1, 2, 3);
               out.fov = 70;
             }}
           />
@@ -54,7 +55,7 @@ describe('CameraFrustumHelper', () => {
       <Klipp>
         <VirtualCamera name="winner" priority={20} />
         <VirtualCamera name="loser" priority={10}>
-          <Writer onWrite={(out) => out.position.set(5, 0, 0)} />
+          <Writer onWrite={(out) => vec3.set(out.position, 5, 0, 0)} />
           <CameraFrustumHelper ref={(h) => (helper = h)} />
         </VirtualCamera>
       </Klipp>,

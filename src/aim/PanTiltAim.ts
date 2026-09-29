@@ -1,4 +1,4 @@
-import { degreesToRadians, radiansToDegrees } from 'math';
+import { degreesToRadians, radiansToDegrees, type Quat, type Vec3 } from 'math';
 import { Euler, Quaternion, Vector3 } from 'three';
 import type { CameraState } from '../CameraState';
 import { InputAxis } from '../input/InputAxis';
@@ -16,6 +16,8 @@ const scratchA = new Vector3();
 const scratchB = new Vector3();
 const scratchRight = new Vector3();
 const scratchCross = new Vector3();
+const scratchRotation = new Quaternion();
+const scratchUp = new Vector3();
 
 /** Signed angle (degrees) from `from` to `to`, measured around `axis`. */
 function signedAngleDeg(from: Vector3, to: Vector3, axis: Vector3): number {
@@ -35,16 +37,17 @@ export class PanTiltAim {
     this.pan.update(dt);
     this.tilt.update(dt);
 
-    this.resolveReferenceFrame(scratchReferenceFrame, out.referenceUp);
+    this.resolveReferenceFrame(scratchReferenceFrame, scratchUp.fromArray(out.referenceUp));
 
     scratchEuler.set(-degreesToRadians(this.tilt.value), -degreesToRadians(this.pan.value), 0);
-    out.quaternion.setFromEuler(scratchEuler);
-    out.quaternion.premultiply(scratchReferenceFrame);
+    scratchRotation.setFromEuler(scratchEuler).premultiply(scratchReferenceFrame).toArray(out.quaternion);
   };
 
   /** Seeds `pan`/`tilt` from `rotation`'s forward direction, relative to the current reference frame -
    *  call before any `applyDelta`, since it assumes both axes are still at `rawValue`. */
-  setFromRotation = (rotation: Quaternion, referenceUp: Vector3): void => {
+  setFromRotation = (rotationTuple: Quat, referenceUpTuple: Vec3): void => {
+    const rotation = scratchRotation.fromArray(rotationTuple);
+    const referenceUp = scratchUp.fromArray(referenceUpTuple);
     this.resolveReferenceFrame(scratchReferenceFrame, referenceUp);
     scratchForward.copy(forwardAxis).applyQuaternion(scratchReferenceFrame);
     scratchTargetForward.copy(forwardAxis).applyQuaternion(rotation);

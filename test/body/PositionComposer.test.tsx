@@ -7,6 +7,7 @@ import { Klipp } from '../../src/Klipp';
 import { useKlipp } from '../../src/KlippContext';
 import type { KlippCore } from '../../src/KlippCore';
 import { VirtualCamera } from '../../src/VirtualCamera';
+import { toQuaternion, toVector3 } from '../tuples';
 
 function CoreReader({ onRead }: { onRead: (core: KlippCore) => void }) {
   onRead(useKlipp().core);
@@ -45,7 +46,7 @@ describe('PositionComposer (React wrapper)', () => {
     const renderer = await create(scene);
     await renderer.advanceFrames(1, 0.1);
 
-    expect(core!.activeState!.position.z).toBeCloseTo(-10, 5);
+    expect(core!.activeState!.position[2]).toBeCloseTo(-10, 5);
   });
 
   it('a target prop change is picked up on the next frame (field mutation, not re-registration)', async () => {
@@ -66,11 +67,11 @@ describe('PositionComposer (React wrapper)', () => {
 
     const renderer = await create(scene(objectA));
     await renderer.advanceFrames(1, 0.1);
-    expect(core!.activeState!.position.z).toBeCloseTo(-5, 5);
+    expect(core!.activeState!.position[2]).toBeCloseTo(-5, 5);
 
     await renderer.update(scene(objectB));
     await renderer.advanceFrames(1, 0.1);
-    expect(core!.activeState!.position.z).toBeCloseTo(-35, 5);
+    expect(core!.activeState!.position[2]).toBeCloseTo(-35, 5);
   });
 
   it('unmounting stops the body from running', async () => {
@@ -105,11 +106,11 @@ describe('PositionComposer (React wrapper)', () => {
 
     const renderer = await create(scene(10));
     await renderer.advanceFrames(1, 0.1);
-    expect(core!.activeState!.position.z).toBeCloseTo(-20, 5);
+    expect(core!.activeState!.position[2]).toBeCloseTo(-20, 5);
 
     await renderer.update(scene(25));
     await renderer.advanceFrames(1, 0.1);
-    expect(core!.activeState!.position.z).toBeCloseTo(-5, 5);
+    expect(core!.activeState!.position[2]).toBeCloseTo(-5, 5);
   });
 
   it('a target inside deadZone gets no lateral reaction; damping eases the catch-up once outside it', async () => {
@@ -128,11 +129,11 @@ describe('PositionComposer (React wrapper)', () => {
 
     const renderer = await create(scene);
     await renderer.advanceFrames(1, 0.1); // target dead-ahead: within deadZone, no lateral reaction
-    const beforeReaction = core!.activeState!.position.clone();
+    const beforeReaction = toVector3(core!.activeState!.position);
 
     target.position.set(20, 0, -20); // now far outside deadZone
     await renderer.advanceFrames(1, 0.05);
-    expect(core!.activeState!.position.distanceTo(beforeReaction)).toBeGreaterThan(0);
+    expect(toVector3(core!.activeState!.position).distanceTo(beforeReaction)).toBeGreaterThan(0);
   });
 
   it('a hardLimit prop forces the target back inside bounds even under heavy damping', async () => {
@@ -163,7 +164,13 @@ describe('PositionComposer (React wrapper)', () => {
     await renderer.advanceFrames(1, 0.1);
 
     const state = core!.activeState!;
-    const projected = projectToScreen(state.position, state.quaternion, state.fov, aspect, target.position);
+    const projected = projectToScreen(
+      toVector3(state.position),
+      toQuaternion(state.quaternion),
+      state.fov,
+      aspect,
+      target.position,
+    );
     expect(projected.x).toBeCloseTo(0.15, 3);
   });
 
@@ -184,7 +191,7 @@ describe('PositionComposer (React wrapper)', () => {
     const renderer = await create(scene);
     await renderer.advanceFrames(1, 0.016);
 
-    expect(core!.activeState!.position.z).toBeLessThan(100); // moved off initialState
-    expect(core!.activeState!.position.z).toBeGreaterThan(-10); // but not snapped to the composed shot
+    expect(core!.activeState!.position[2]).toBeLessThan(100); // moved off initialState
+    expect(core!.activeState!.position[2]).toBeGreaterThan(-10); // but not snapped to the composed shot
   });
 });

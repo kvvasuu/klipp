@@ -32,7 +32,7 @@ describe('HardLockToTarget (React wrapper)', () => {
     const renderer = await create(<Scene />);
     await renderer.advanceFrames(1, 0.1);
 
-    expect(core!.activeState!.position.x).toBeCloseTo(3, 10);
+    expect(core!.activeState!.position[0]).toBeCloseTo(3, 10);
   });
 
   it('a target prop change is picked up on the next frame (field mutation, not re-registration)', async () => {
@@ -53,11 +53,11 @@ describe('HardLockToTarget (React wrapper)', () => {
 
     const renderer = await create(scene(objectA));
     await renderer.advanceFrames(1, 0.1);
-    expect(core!.activeState!.position.x).toBeCloseTo(1, 10);
+    expect(core!.activeState!.position[0]).toBeCloseTo(1, 10);
 
     await renderer.update(scene(objectB));
     await renderer.advanceFrames(1, 0.1);
-    expect(core!.activeState!.position.x).toBeCloseTo(9, 10);
+    expect(core!.activeState!.position[0]).toBeCloseTo(9, 10);
   });
 
   it('unmounting stops the body from running', async () => {
@@ -94,11 +94,11 @@ describe('HardLockToTarget (React wrapper)', () => {
     await renderer.advanceFrames(1, 0.05); // consume the first-ever-update hard snap
     target.position.set(20, 0, 0); // move the target so there's a genuine gap for damping to close
     await renderer.advanceFrames(1, 0.05);
-    expect(core!.activeState!.position.x).toBeGreaterThan(10);
-    expect(core!.activeState!.position.x).toBeLessThan(20); // still catching up, damped
+    expect(core!.activeState!.position[0]).toBeGreaterThan(10);
+    expect(core!.activeState!.position[0]).toBeLessThan(20); // still catching up, damped
 
     await renderer.update(scene(0));
     await renderer.advanceFrames(1, 0.05);
-    expect(core!.activeState!.position.x).toBe(20); // damping off: snaps instantly
+    expect(core!.activeState!.position[0]).toBe(20); // damping off: snaps instantly
   });
 });

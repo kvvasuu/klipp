@@ -1,7 +1,10 @@
 import { useFrame, useThree } from '@react-three/fiber';
 import { useEffect, useImperativeHandle, useRef, useState, type Ref } from 'react';
-import { CameraHelper, Color, PerspectiveCamera, type ColorRepresentation } from 'three';
+import { CameraHelper, Color, PerspectiveCamera, Quaternion, Vector3, type ColorRepresentation } from 'three';
 import { useIsLiveVirtualCamera, useVirtualCamera } from './VirtualCameraContext';
+
+const scratchPosition = new Vector3();
+const scratchQuaternion = new Quaternion();
 
 export type CameraFrustumHelperProps = {
   /** Single color for the whole helper. */
@@ -55,11 +58,13 @@ export function CameraFrustumHelper({
       lens.aspect = aspect;
     }
 
+    scratchPosition.fromArray(state.position);
+    scratchQuaternion.fromArray(state.quaternion);
     const transformChanged =
-      !scratchCamera.position.equals(state.position) || !scratchCamera.quaternion.equals(state.quaternion);
+      !scratchCamera.position.equals(scratchPosition) || !scratchCamera.quaternion.equals(scratchQuaternion);
     if (transformChanged) {
-      scratchCamera.position.copy(state.position);
-      scratchCamera.quaternion.copy(state.quaternion);
+      scratchCamera.position.copy(scratchPosition);
+      scratchCamera.quaternion.copy(scratchQuaternion);
       scratchCamera.updateMatrixWorld(true);
     }
 

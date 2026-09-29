@@ -11,6 +11,7 @@ import { Klipp } from '../../src/Klipp';
 import { useKlipp } from '../../src/KlippContext';
 import type { KlippCore } from '../../src/KlippCore';
 import { VirtualCamera } from '../../src/VirtualCamera';
+import { toQuaternion, toVector3 } from '../tuples';
 
 function CoreReader({ onRead }: { onRead: (core: KlippCore) => void }) {
   onRead(useKlipp().core);
@@ -35,8 +36,8 @@ describe('CameraControls (React wrapper)', () => {
     await renderer.advanceFrames(5, 0.05);
 
     const state = core!.activeState!;
-    const forward = new Vector3(0, 0, -1).applyQuaternion(state.quaternion);
-    const towardTarget = target.clone().sub(state.position).normalize();
+    const forward = new Vector3(0, 0, -1).applyQuaternion(toQuaternion(state.quaternion));
+    const towardTarget = target.clone().sub(toVector3(state.position)).normalize();
     expect(forward.dot(towardTarget)).toBeGreaterThan(0.99);
   });
 
@@ -115,8 +116,8 @@ describe('CameraControls (React wrapper)', () => {
     await renderer.advanceFrames(10, 0.05);
 
     const state = core!.activeState!;
-    const forward = new Vector3(0, 0, -1).applyQuaternion(state.quaternion);
-    const towardB = targetB.clone().sub(state.position).normalize();
+    const forward = new Vector3(0, 0, -1).applyQuaternion(toQuaternion(state.quaternion));
+    const towardB = targetB.clone().sub(toVector3(state.position)).normalize();
     expect(forward.dot(towardB)).toBeGreaterThan(0.99);
   });
 

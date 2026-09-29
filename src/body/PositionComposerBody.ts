@@ -1,6 +1,6 @@
 import type { Vector3 as Vector3Like } from '@react-three/fiber';
-import { clamp, degreesToRadians } from 'math';
-import { Vector3 } from 'three';
+import { clamp, degreesToRadians, type Vec3 } from 'math';
+import { Quaternion, Vector3 } from 'three';
 import type { CameraState } from '../CameraState';
 import { Damper, type DampingConstant } from '../damping/Damper';
 import { Predictor } from '../damping/Predictor';
@@ -14,6 +14,8 @@ const scratchTargetPosition = new Vector3();
 const scratchRelative = new Vector3();
 const scratchDesiredPosition = new Vector3();
 const scratchLookaheadDelta = new Vector3();
+const scratchPosition = new Vector3();
+const scratchRotation = new Quaternion();
 /** Reused target extents. */
 const scratchExtents: [number, number] = [0, 0];
 
@@ -82,13 +84,21 @@ export class PositionComposerBody {
     this.forceSizeRecalculation = true;
   }
 
-  primeFrom = (position: Vector3): void => {
-    this.damper.update(position, position, this.damping, 0);
+  primeFrom = (position: Vec3): void => {
+    scratchPosition.fromArray(position);
+    this.damper.update(scratchPosition, scratchPosition, this.damping, 0).toArray(position);
     this.depthDamper.update(0, 0, this.damping, 0);
     this.primed = true;
   };
 
   update = (out: CameraState, dt: number, justActivated: boolean): void => {
+    scratchPosition.fromArray(out.position);
+    scratchRotation.fromArray(out.quaternion);
+    this.compose(out, scratchPosition, scratchRotation, dt, justActivated);
+    scratchPosition.toArray(out.position);
+  };
+
+  private compose(out: CameraState, position: Vector3, rotation: Quaternion, dt: number, justActivated: boolean): void {
     const skipReset = justActivated && this.primed;
     if (justActivated) this.primed = false;
 
@@ -105,14 +115,14 @@ export class PositionComposerBody {
       scratchTargetPosition.add(scratchLookaheadDelta);
     }
 
-    out.target.copy(scratchTargetPosition);
+    scratchTargetPosition.toArray(out.target);
     out.hasTarget = true;
 
-    scratchForward.set(0, 0, -1).applyQuaternion(out.quaternion);
-    scratchRight.set(1, 0, 0).applyQuaternion(out.quaternion);
-    scratchUp.set(0, 1, 0).applyQuaternion(out.quaternion);
+    scratchForward.set(0, 0, -1).applyQuaternion(rotation);
+    scratchRight.set(1, 0, 0).applyQuaternion(rotation);
+    scratchUp.set(0, 1, 0).applyQuaternion(rotation);
 
-    scratchRelative.copy(scratchTargetPosition).sub(out.position);
+    scratchRelative.copy(scratchTargetPosition).sub(position);
     const currentDepth = scratchRelative.dot(scratchForward);
 
     let desiredDepth = this.cameraDistance;
@@ -134,11 +144,11 @@ export class PositionComposerBody {
       const dampedDepth = instant
         ? desiredDepth
         : this.depthDamper.update(currentDepth, desiredDepth, this.damping, dt, this.maxSpeed);
-      out.position.addScaledVector(scratchForward, currentDepth - dampedDepth);
+      position.addScaledVector(scratchForward, currentDepth - dampedDepth);
     }
 
     // Shift laterally to screenPosition or the dead-zone edge.
-    scratchRelative.copy(scratchTargetPosition).sub(out.position);
+    scratchRelative.copy(scratchTargetPosition).sub(position);
     const halfHeight = this.cameraDistance * Math.tan(degreesToRadians(out.fov) / 2);
     const halfWidth = halfHeight * this.aspect;
 
@@ -188,7 +198,7 @@ export class PositionComposerBody {
     // Enforce hardLimit independently of the dead zone.
     if (!insideDeadZone) {
       scratchDesiredPosition
-        .copy(out.position)
+        .copy(position)
         .addScaledVector(scratchRight, currentRight - desiredScreenX * halfWidth)
         .addScaledVector(scratchUp, currentUp - desiredScreenY * halfHeight);
       this.lastActiveDesiredPosition.copy(scratchDesiredPosition);
@@ -197,16 +207,16 @@ export class PositionComposerBody {
       // Keep damping toward the last active target instead of the current camera position.
       scratchDesiredPosition.copy(this.lastActiveDesiredPosition);
     } else {
-      scratchDesiredPosition.copy(out.position); // No previous target means no correction.
+      scratchDesiredPosition.copy(position); // No previous target means no correction.
     }
 
     if (justActivated && !skipReset) this.damper.reset();
-    this.damper.update(out.position, scratchDesiredPosition, this.damping, dt, this.maxSpeed);
+    this.damper.update(position, scratchDesiredPosition, this.damping, dt, this.maxSpeed);
 
     if (this.hardLimit[0] <= 0 && this.hardLimit[1] <= 0) return;
 
     // undamped pass: same stage-2 math again, clamped to hardLimit instead of the dead zone edge
-    scratchRelative.copy(scratchTargetPosition).sub(out.position);
+    scratchRelative.copy(scratchTargetPosition).sub(position);
     const afterRight = scratchRelative.dot(scratchRight);
     const afterUp = scratchRelative.dot(scratchUp);
 
@@ -230,8 +240,8 @@ export class PositionComposerBody {
       this.screenPosition[1] +
       clamp(limitEdgeErrorY, -halfLimitHeight, halfLimitHeight) -
       Math.sign(limitErrorY) * limitExtentY;
-    out.position
+    position
       .addScaledVector(scratchRight, afterRight - clampedX * halfWidth)
       .addScaledVector(scratchUp, afterUp - clampedY * halfHeight);
-  };
+  }
 }

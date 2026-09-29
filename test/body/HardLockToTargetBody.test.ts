@@ -1,7 +1,9 @@
+import { vec3 } from 'math';
 import { Object3D, Vector3 } from 'three';
 import { describe, expect, it } from 'vitest';
 import { createCameraState } from '../../src/CameraState';
 import { HardLockToTargetBody } from '../../src/body/HardLockToTargetBody';
+import { toVector3 } from '../tuples';
 
 describe('HardLockToTargetBody', () => {
   it("writes the target's WORLD position into out.position (accounting for a parent transform)", () => {
@@ -15,7 +17,7 @@ describe('HardLockToTargetBody', () => {
     const out = createCameraState();
     body.update(out, 0.1);
 
-    expect(out.position.x).toBeCloseTo(7, 10);
+    expect(out.position[0]).toBeCloseTo(7, 10);
   });
 
   it("writes the resolved target position and hasTarget onto out, for BlendHints' sphericalPosition", () => {
@@ -27,7 +29,7 @@ describe('HardLockToTargetBody', () => {
     body.update(out, 0.1);
 
     expect(out.hasTarget).toBe(true);
-    expect(out.target.equals(new Vector3(2, 3, 4))).toBe(true);
+    expect(toVector3(out.target).equals(new Vector3(2, 3, 4))).toBe(true);
   });
 
   it("with damping mid-catch-up, out.target tracks the DAMPED out.position, not the raw resolved target - real bug: publishing the raw target let BlendHints.cylindricalPosition/sphericalPosition read the damping lag as a legitimate orbit offset, popping the blend the instant the target moved (same class of bug already fixed for RotationComposerAim's lookAtTarget)", () => {
@@ -35,12 +37,12 @@ describe('HardLockToTargetBody', () => {
     const out = createCameraState();
 
     body.update(out, 0.016); // consume the first-ever-update hard snap
-    out.position.set(0, 0, 0); // move back away from target to genuinely exercise damping below
+    vec3.set(out.position, 0, 0, 0); // move back away from target to genuinely exercise damping below
     body.update(out, 0.016); // now easing - out.position is partway, not at the target yet
 
-    expect(out.position.x).toBeGreaterThan(0);
-    expect(out.position.x).toBeLessThan(10);
-    expect(out.target.equals(out.position)).toBe(true);
+    expect(out.position[0]).toBeGreaterThan(0);
+    expect(out.position[0]).toBeLessThan(10);
+    expect(toVector3(out.target).equals(toVector3(out.position))).toBe(true);
   });
 
   it('target is a mutable field — reassigning it changes what gets tracked, no re-registration needed', () => {
@@ -53,11 +55,11 @@ describe('HardLockToTargetBody', () => {
     const out = createCameraState();
 
     body.update(out, 0.1);
-    expect(out.position.x).toBeCloseTo(1, 10);
+    expect(out.position[0]).toBeCloseTo(1, 10);
 
     body.target = b;
     body.update(out, 0.1);
-    expect(out.position.x).toBeCloseTo(9, 10);
+    expect(out.position[0]).toBeCloseTo(9, 10);
   });
 
   it('accepts a plain Vector3 target, copied as-is', () => {
@@ -65,7 +67,7 @@ describe('HardLockToTargetBody', () => {
     const out = createCameraState();
 
     body.update(out, 0.1);
-    expect(out.position.equals(new Vector3(4, 5, 6))).toBe(true);
+    expect(toVector3(out.position).equals(new Vector3(4, 5, 6))).toBe(true);
   });
 
   it('accepts a RefObject<Object3D | null> and tracks it live', () => {
@@ -77,7 +79,7 @@ describe('HardLockToTargetBody', () => {
     const out = createCameraState();
     body.update(out, 0.1);
 
-    expect(out.position.x).toBeCloseTo(3, 10);
+    expect(out.position[0]).toBeCloseTo(3, 10);
   });
 
   it('a ref whose .current is null is a no-op, not a crash', () => {
@@ -85,7 +87,7 @@ describe('HardLockToTargetBody', () => {
     const out = createCameraState();
 
     expect(() => body.update(out, 0.1)).not.toThrow();
-    expect(out.position.x).toBe(0);
+    expect(out.position[0]).toBe(0);
   });
 
   it('a null target is a no-op, not a crash', () => {
@@ -93,7 +95,7 @@ describe('HardLockToTargetBody', () => {
     const out = createCameraState();
 
     expect(() => body.update(out, 0.1)).not.toThrow();
-    expect(out.position.x).toBe(0);
+    expect(out.position[0]).toBe(0);
   });
 
   it('update is a bound instance method — safe to pass by reference (e.g. slots.registerBody(body.update))', () => {
@@ -105,7 +107,7 @@ describe('HardLockToTargetBody', () => {
     const out = createCameraState();
     update(out, 0.1);
 
-    expect(out.position.x).toBeCloseTo(1, 10);
+    expect(out.position[0]).toBeCloseTo(1, 10);
   });
 
   describe('damping', () => {
@@ -115,7 +117,7 @@ describe('HardLockToTargetBody', () => {
 
       body.update(out, 0.016);
 
-      expect(out.position.x).toBe(10);
+      expect(out.position[0]).toBe(10);
     });
 
     it('the very first update() ever snaps directly to the target, even with damping > 0 — avoids flying in from (0,0,0)', () => {
@@ -124,7 +126,7 @@ describe('HardLockToTargetBody', () => {
 
       body.update(out, 0.016);
 
-      expect(out.position.x).toBe(10);
+      expect(out.position[0]).toBe(10);
     });
 
     it('damping > 0 catches up gradually instead of snapping in one frame', () => {
@@ -132,11 +134,11 @@ describe('HardLockToTargetBody', () => {
       const out = createCameraState(); // starts at position (0,0,0)
 
       body.update(out, 0.016); // consume the first-ever-update hard snap
-      out.position.set(0, 0, 0); // move back away from target to genuinely exercise damping below
+      vec3.set(out.position, 0, 0, 0); // move back away from target to genuinely exercise damping below
       body.update(out, 0.016);
 
-      expect(out.position.x).toBeGreaterThan(0);
-      expect(out.position.x).toBeLessThan(10);
+      expect(out.position[0]).toBeGreaterThan(0);
+      expect(out.position[0]).toBeLessThan(10);
     });
 
     it('converges to the target over repeated ticks with damping enabled', () => {
@@ -147,9 +149,9 @@ describe('HardLockToTargetBody', () => {
         body.update(out, 0.016);
       }
 
-      expect(out.position.x).toBeCloseTo(10, 2);
-      expect(out.position.y).toBeCloseTo(5, 2);
-      expect(out.position.z).toBeCloseTo(-3, 2);
+      expect(out.position[0]).toBeCloseTo(10, 2);
+      expect(out.position[1]).toBeCloseTo(5, 2);
+      expect(out.position[2]).toBeCloseTo(-3, 2);
     });
 
     it('damps each axis independently — a moved target still catches up per axis, not radially', () => {
@@ -158,11 +160,11 @@ describe('HardLockToTargetBody', () => {
       const out = createCameraState();
 
       body.update(out, 0.1); // moving on X only
-      expect(out.position.y).toBe(0); // untouched — no cross-axis coupling
+      expect(out.position[1]).toBe(0); // untouched — no cross-axis coupling
 
       target.set(10, 10, 0); // Y now also has somewhere to go
       body.update(out, 0.1);
-      expect(out.position.y).toBeGreaterThan(0);
+      expect(out.position[1]).toBeGreaterThan(0);
     });
 
     it('damping is a mutable field — toggling it back to 0 snaps instantly on the next frame', () => {
@@ -170,14 +172,14 @@ describe('HardLockToTargetBody', () => {
       const out = createCameraState();
 
       body.update(out, 0.05); // consume the first-ever-update hard snap
-      out.position.set(0, 0, 0); // move back away from target to genuinely exercise damping below
+      vec3.set(out.position, 0, 0, 0); // move back away from target to genuinely exercise damping below
       body.update(out, 0.05);
-      expect(out.position.x).toBeGreaterThan(0);
-      expect(out.position.x).toBeLessThan(10);
+      expect(out.position[0]).toBeGreaterThan(0);
+      expect(out.position[0]).toBeLessThan(10);
 
       body.damping = 0;
       body.update(out, 0.05);
-      expect(out.position.x).toBe(10);
+      expect(out.position[0]).toBe(10);
     });
   });
 
@@ -186,16 +188,16 @@ describe('HardLockToTargetBody', () => {
       const unclamped = new HardLockToTargetBody(new Vector3(100, 0, 0), 1);
       const outUnclamped = createCameraState();
       unclamped.update(outUnclamped, 0.05); // consume the first-ever-update hard snap
-      outUnclamped.position.set(0, 0, 0); // move back away from target to genuinely exercise damping below
+      vec3.set(outUnclamped.position, 0, 0, 0); // move back away from target to genuinely exercise damping below
       unclamped.update(outUnclamped, 0.05);
 
       const clamped = new HardLockToTargetBody(new Vector3(100, 0, 0), 1, 2);
       const outClamped = createCameraState();
       clamped.update(outClamped, 0.05);
-      outClamped.position.set(0, 0, 0);
+      vec3.set(outClamped.position, 0, 0, 0);
       clamped.update(outClamped, 0.05); // maxSpeed = 2 units/sec
 
-      expect(outClamped.position.x).toBeLessThan(outUnclamped.position.x);
+      expect(outClamped.position[0]).toBeLessThan(outUnclamped.position[0]);
     });
   });
 
@@ -213,7 +215,7 @@ describe('HardLockToTargetBody', () => {
       body.target = new Vector3(-40, 12, 3);
       body.update(out, 0.016, true);
 
-      expect(out.position.equals(new Vector3(-40, 12, 3))).toBe(true);
+      expect(toVector3(out.position).equals(new Vector3(-40, 12, 3))).toBe(true);
     });
 
     it('without justActivated, the same stale-state scenario eases instead of snapping (the bug this fixes)', () => {
@@ -226,7 +228,7 @@ describe('HardLockToTargetBody', () => {
       body.target = new Vector3(-40, 12, 3);
       body.update(out, 0.016, false); // no reactivation signal — damper treats this as a normal retarget
 
-      expect(out.position.equals(new Vector3(-40, 12, 3))).toBe(false);
+      expect(toVector3(out.position).equals(new Vector3(-40, 12, 3))).toBe(false);
     });
   });
 });

@@ -54,7 +54,7 @@ export function PanTilt({
   const [aim] = useState(() => {
     const instance = new PanTiltAim();
     if (initialState?.quaternion) {
-      instance.setFromRotation(initialState.quaternion, state.referenceUp);
+      instance.setFromRotation(state.quaternion, state.referenceUp);
       instance.pan.reset();
       instance.tilt.reset();
     }
