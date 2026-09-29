@@ -1,6 +1,7 @@
 import { Vector3 } from 'three';
 import { describe, expect, it } from 'vitest';
-import { Vector3Damper } from '../../src/damping/Vector3Damper';
+import type { Vec3 } from 'math';
+import { createVector3DamperState, dampVector3, Vector3Damper } from '../../src/damping/Vector3Damper';
 
 describe('Vector3Damper', () => {
   it('damping <= 0 (default) is an exact, instant lock — no smoothing at all', () => {
@@ -106,5 +107,21 @@ describe('Vector3Damper', () => {
     damper.update(out, new Vector3(1, 2, 3), 0.5, 0.016);
 
     expect(out.equals(new Vector3(1, 2, 3))).toBe(true);
+  });
+});
+
+describe('dampVector3', () => {
+  it('matches the Vector3Damper wrapper exactly on tuples', () => {
+    const wrapper = new Vector3Damper();
+    const state = createVector3DamperState();
+    const vector = new Vector3();
+    const tuple: Vec3 = [0, 0, 0];
+
+    for (let i = 0; i < 60; i++) {
+      const target = new Vector3(Math.sin(i * 0.1) * 10, i * 0.2, -i);
+      wrapper.update(vector, target, { into: 0.2, from: 0.5 }, 1 / 60, 30);
+      dampVector3(state, tuple, [target.x, target.y, target.z], { into: 0.2, from: 0.5 }, 1 / 60, 30);
+      expect(tuple).toEqual(vector.toArray());
+    }
   });
 });

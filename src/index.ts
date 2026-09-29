@@ -10,8 +10,14 @@ export {
 export { resolveTargetPosition, resolveTargetRotation, type Target } from './resolve/Target';
 export { resolveVector3, isVector3Like } from './resolve/resolveVector3';
 export { Damper, damp, createDamperState, resetDamper, type DamperState, type DampingConstant } from './damping/Damper';
-export { Vector3Damper } from './damping/Vector3Damper';
-export { QuaternionDamper } from './damping/QuaternionDamper';
+export {
+  Vector3Damper,
+  dampVector3,
+  createVector3DamperState,
+  resetVector3Damper,
+  type Vector3DamperState,
+} from './damping/Vector3Damper';
+export { QuaternionDamper, dampQuaternion } from './damping/QuaternionDamper';
 
 export { lerpCameraState } from './blend/lerpCameraState';
 export { resolveBlendDefinition, type BlendDefinition, type CustomBlend } from './blend/BlendDefinition';
