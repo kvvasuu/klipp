@@ -546,9 +546,8 @@ group('lerpCameraState @blend', () => {
 });
 
 // How to read the output: `avg (min…max) p75/p99` is time per call — compare that to a frame's budget
-// (16.67ms at 60fps, 8.33ms at 120fps) to see how many of these fit in one frame. The `heap` row matters
-// most for klipp specifically: zero-allocation rule means every one of these should show
-// ~0 bytes/iter at steady state — a nonzero, growing heap number on a Body/Aim/Noise/Extension bench
-// means something in that hot path is allocating despite the rule, worth chasing down even if the timing
-// itself still looks fast. Run `pnpm bench --baseline` once to save a reference point, then `pnpm bench
+// (16.67ms at 60fps, 8.33ms at 120fps) to see how many of these fit in one frame. Don't read allocations
+// off the `heap` row: it overstates per-call bytes by orders of magnitude for sub-microsecond calls. The
+// zero-allocation rule is enforced by `pnpm bench:alloc` (test/allocations.ts), which counts bytes per
+// frame via v8.GCProfiler. Run `pnpm bench --baseline` once to save a reference point, then `pnpm bench
 // --compare` after a change to see if it moved outside noise (statistically, not just eyeballed).
