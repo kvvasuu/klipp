@@ -5,6 +5,7 @@ import type { Camera, PerspectiveCamera } from 'three';
 import { copyCameraState, copyCameraStateFromCamera, createCameraState, type CameraState } from './CameraState';
 import { KlippContext, useKlipp, type FrameUpdate, type KlippContextValue } from './KlippContext';
 import { KlippCore, type KlippCoreOptions } from './KlippCore';
+import { TargetRegistry } from './resolve/TargetRegistry';
 import { useCameraTransitionEvent, type CameraTransitionEventProps } from './useCameraTransitionEvent';
 
 /** `three` can load twice in monorepos; `instanceof` then fails. Use the camera's own flag instead. */
@@ -32,6 +33,7 @@ export type KlippProps = KlippCoreOptions & {
 export function Klipp({ children, defaultBlend, customBlends, camera: cameraProp, mode = 'enabled' }: KlippProps) {
   const [core] = useState(() => new KlippCore({ defaultBlend, customBlends }));
   const [updates] = useState(() => new Set<FrameUpdate>());
+  const [targets] = useState(() => new TargetRegistry());
 
   const defaultCamera = useThree((state) => state.camera);
   const size = useThree((state) => state.size);
@@ -60,8 +62,8 @@ export function Klipp({ children, defaultBlend, customBlends, camera: cameraProp
   });
 
   const value = useMemo<KlippContextValue>(
-    () => ({ core, registerUpdate, initialCameraState }),
-    [core, registerUpdate, initialCameraState],
+    () => ({ core, registerUpdate, initialCameraState, targets }),
+    [core, registerUpdate, initialCameraState, targets],
   );
 
   // Track the last applied result so demand-loop invalidation only fires when the camera actually moves.
@@ -75,6 +77,7 @@ export function Klipp({ children, defaultBlend, customBlends, camera: cameraProp
     const delta = state.frameloop === 'demand' ? Math.min(rawDelta, DEMAND_MODE_MAX_DELTA) : rawDelta;
 
     // Keep `=== true` semantics: some writers return a real boolean value even when typed as void.
+    targets.refresh();
     let stillInFlight = false;
     for (const update of updates) {
       if (update(delta) === true) stillInFlight = true;

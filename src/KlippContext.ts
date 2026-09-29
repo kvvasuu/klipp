@@ -1,6 +1,7 @@
 import { createContext, use } from 'react';
 import type { CameraState } from './CameraState';
 import type { KlippCore } from './KlippCore';
+import type { TargetRegistry } from './resolve/TargetRegistry';
 
 /** Per-frame update for a virtual camera. Return `true` while future work remains. */
 export type FrameUpdate = (dt: number) => boolean | void;
@@ -9,6 +10,7 @@ export type KlippContextValue = {
   core: KlippCore;
   registerUpdate: (update: FrameUpdate) => () => void;
   initialCameraState: CameraState;
+  targets: TargetRegistry;
 };
 
 export const KlippContext = createContext<KlippContextValue | null>(null);

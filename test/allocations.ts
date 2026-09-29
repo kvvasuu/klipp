@@ -25,6 +25,7 @@ import { lerpCameraState } from '../src/blend/lerpCameraState';
 import { GroupFramingExtension } from '../src/extension/GroupFramingExtension';
 import { TargetGroup } from '../src/extension/TargetGroup';
 import { BasicMultiChannelPerlinNoise } from '../src/noise/BasicMultiChannelPerlinNoise';
+import { TargetRegistry } from '../src/resolve/TargetRegistry';
 
 const FRAMES = 300_000;
 const WARMUP = 50_000;
@@ -137,6 +138,22 @@ const scenarios: { name: string; budget: number; frame: () => void }[] = [
         new BasicMultiChannelPerlinNoise(new Vector3(0.1, 0.1, 0.1), undefined, new Vector3(2, 2, 2)).update,
       );
     }),
+  },
+  {
+    name: 'TargetRegistry.refresh, two targets',
+    budget: 0,
+    frame: (() => {
+      const registry = new TargetRegistry();
+      const root = new Object3D();
+      const leaf = new Object3D();
+      root.add(leaf);
+      registry.acquire(leaf);
+      registry.acquire({ current: new Object3D() });
+      return () => {
+        root.position.x += 0.01;
+        registry.refresh();
+      };
+    })(),
   },
   {
     name: 'lerpCameraState, lookAt blend in flight',
