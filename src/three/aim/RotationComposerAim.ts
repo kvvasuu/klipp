@@ -4,9 +4,10 @@ import type { CameraState } from '../../core/CameraState';
 import { Damper, type DampingConstant } from '../../core/damping/Damper';
 import { Predictor } from '../damping/Predictor';
 import { QuaternionDamper } from '../damping/QuaternionDamper';
-import { resolveTargetHalfExtents, resolveTargetPosition, resolveTargetRotation, type Target } from '../resolve/Target';
+import { resolveTargetPosition, resolveTargetRotation, type Target } from '../resolve/Target';
 import type { TargetSlot } from '../resolve/TargetRegistry';
 import type { Vector3Like } from '../resolve/resolveVector3';
+import { resolveTargetHalfExtents } from '../readTargetExtent';
 
 const forwardAxis = new Vector3(0, 0, -1);
 const scratchTargetPosition = new Vector3();

@@ -1,5 +1,6 @@
 export { createCameraState, copyCameraState, mergeCameraState, type CameraState } from './CameraState';
 export { createTargetPose, type TargetPose } from './TargetPose';
+export { createTargetExtent, projectTargetExtent, type TargetExtent } from './TargetExtent';
 export { EventDispatcher, type DispatchedEvent, type EventListener } from './EventDispatcher';
 export { VirtualCameraController, type VirtualCameraSlots, type CameraStateWriter } from './VirtualCameraController';
 export { KlippCore, type VirtualCameraConfig, type KlippCoreOptions, type CameraTransitionEventMap } from './KlippCore';
@@ -48,6 +49,19 @@ export {
   type FollowParams,
   type FollowState,
 } from './body/follow';
+export {
+  updateHardLockToTarget,
+  createHardLockToTargetState,
+  type HardLockToTargetParams,
+  type HardLockToTargetState,
+} from './body/hardLockToTarget';
+export {
+  updatePositionComposer,
+  primePositionComposer,
+  createPositionComposerState,
+  type PositionComposerParams,
+  type PositionComposerState,
+} from './body/positionComposer';
 export { updateHardLookAt } from './aim/hardLookAt';
 
 export { LensExtension } from './extension/LensExtension';

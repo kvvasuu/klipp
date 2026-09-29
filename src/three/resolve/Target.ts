@@ -48,46 +48,6 @@ export function resolveTargetSize(
   return true;
 }
 
-const scratchHalfSize = new Vector3();
-const scratchAxisX = new Vector3();
-const scratchAxisY = new Vector3();
-const scratchAxisZ = new Vector3();
-const scratchTargetRotation = new Quaternion();
-const scratchTargetSize = new Vector3();
-
-/** Resolve target half-extents along two world axes. */
-export function resolveTargetHalfExtents(
-  outExtents: [number, number],
-  target: Target,
-  size: Vector3Like | undefined,
-  radius: number | undefined,
-  axisA: Vector3,
-  axisB: Vector3,
-  dynamicSize = false,
-  slot?: TargetSlot | null,
-): void {
-  if (radius !== undefined && !size) {
-    outExtents[0] = radius;
-    outExtents[1] = radius;
-    return;
-  }
-  if (!resolveTargetSize(scratchTargetSize, target, size, radius, dynamicSize, slot)) {
-    outExtents[0] = 0;
-    outExtents[1] = 0;
-    return;
-  }
-
-  if (!resolveTargetRotation(scratchTargetRotation, target, slot)) scratchTargetRotation.identity();
-  scratchHalfSize.copy(scratchTargetSize).multiplyScalar(0.5);
-  scratchAxisX.set(scratchHalfSize.x, 0, 0).applyQuaternion(scratchTargetRotation);
-  scratchAxisY.set(0, scratchHalfSize.y, 0).applyQuaternion(scratchTargetRotation);
-  scratchAxisZ.set(0, 0, scratchHalfSize.z).applyQuaternion(scratchTargetRotation);
-  outExtents[0] =
-    Math.abs(scratchAxisX.dot(axisA)) + Math.abs(scratchAxisY.dot(axisA)) + Math.abs(scratchAxisZ.dot(axisA));
-  outExtents[1] =
-    Math.abs(scratchAxisX.dot(axisB)) + Math.abs(scratchAxisY.dot(axisB)) + Math.abs(scratchAxisZ.dot(axisB));
-}
-
 /** Resolve a target to a world position, from `slot` when it holds this frame's value. */
 export function resolveTargetPosition(out: Vector3, target: Target, slot?: TargetSlot | null): boolean {
   if (slot?.valid) {
