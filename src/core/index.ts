@@ -63,6 +63,14 @@ export {
   type PositionComposerState,
 } from './body/positionComposer';
 export { updateHardLookAt } from './aim/hardLookAt';
+export {
+  updateRotateWithFollowTarget,
+  primeRotateWithFollowTarget,
+  createRotateWithFollowTargetState,
+  type RotateWithFollowTargetParams,
+  type RotateWithFollowTargetState,
+} from './aim/rotateWithFollowTarget';
+export { updatePanTilt, seedPanTilt, createPanTiltState, type PanTiltState } from './aim/panTilt';
 
 export { LensExtension } from './extension/LensExtension';
 export { InputAxis, type InputAxisRecentering } from './input/InputAxis';

@@ -1,5 +1,5 @@
 export { copyCameraStateFromCamera, applyCameraState, writeCameraTransform, writeCameraLens } from './camera';
-export { readTargetPose } from './readTargetPose';
+export { readTargetPose, readTargetRotation } from './readTargetPose';
 export { readTargetExtent } from './readTargetExtent';
 export {
   resolveTargetPosition,
