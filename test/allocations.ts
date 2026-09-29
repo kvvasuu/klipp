@@ -190,7 +190,7 @@ const scenarios: { name: string; budget: number; frame: () => void }[] = [
   },
   {
     name: 'lerpCameraState, lookAt blend in flight',
-    budget: 95,
+    budget: 32,
     frame: (() => {
       const a = lookingAtOrigin(new Vector3(5, 5, 5));
       const b = lookingAtOrigin(new Vector3(0, 0, 5));

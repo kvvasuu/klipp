@@ -1,40 +1,49 @@
-import { clamp, deltaAngle, lerp, vec3, vec4, type Quat, type Vec3 } from 'math';
-import { Matrix4, Quaternion, Spherical, Vector3 } from 'three';
+import {
+  clamp,
+  deltaAngle,
+  lerp,
+  mat3,
+  mat4,
+  quat,
+  spherical,
+  vec3,
+  vec4,
+  type Mat3,
+  type Mat4,
+  type Quat,
+  type Spherical,
+  type Vec3,
+} from 'math';
 import type { CameraState } from '../CameraState';
 import { BlendHints, hasBlendHint } from './BlendHints';
 
 /** Reused quaternion for the sign-adjusted destination case. */
 const negatedB: Quat = [0, 0, 0, 1];
 
-const scratchOffsetA = new Vector3();
-const scratchOffsetB = new Vector3();
-const scratchSphericalA = new Spherical();
-const scratchSphericalB = new Spherical();
-const scratchLookMatrix = new Matrix4();
-const scratchLookAtCurrent = new Quaternion();
-const scratchDeltaA = new Quaternion();
-const scratchDeltaB = new Quaternion();
-const scratchEye = new Vector3();
-const scratchCenter = new Vector3();
-const scratchUp = new Vector3();
-const scratchRotation = new Quaternion();
-const scratchTarget = new Vector3();
-const scratchPosition = new Vector3();
+const scratchOffsetA: Vec3 = [0, 0, 0];
+const scratchOffsetB: Vec3 = [0, 0, 0];
+const scratchSphericalA: Spherical = [0, 0, 0];
+const scratchSphericalB: Spherical = [0, 0, 0];
+const scratchSphericalOut: Spherical = [0, 0, 0];
+const scratchLookMatrix: Mat4 = mat4.create();
+const scratchRotationMatrix: Mat3 = mat3.create();
+const scratchLookAtCurrent: Quat = [0, 0, 0, 1];
+const scratchDeltaA: Quat = [0, 0, 0, 1];
+const scratchDeltaB: Quat = [0, 0, 0, 1];
 
 /** Interpolates look-at rotation while preserving each state's additional aim offset. */
 function lerpLookAtRotation(out: Quat, a: CameraState, b: CameraState, t: number, current: CameraState): void {
-  lookAt(a.position, a.lookAtTarget, a.referenceUp);
-  scratchDeltaA.setFromRotationMatrix(scratchLookMatrix).invert().multiply(scratchRotation.fromArray(a.quaternion));
-  lookAt(b.position, b.lookAtTarget, b.referenceUp);
-  scratchDeltaB.setFromRotationMatrix(scratchLookMatrix).invert().multiply(scratchRotation.fromArray(b.quaternion));
-
-  lookAt(current.position, current.lookAtTarget, current.referenceUp);
-  scratchLookAtCurrent.setFromRotationMatrix(scratchLookMatrix);
-  scratchRotation.slerpQuaternions(scratchDeltaA, scratchDeltaB, t).premultiply(scratchLookAtCurrent).toArray(out);
+  quat.multiply(scratchDeltaA, quat.conjugate(scratchDeltaA, lookAtRotation(scratchDeltaA, a)), a.quaternion);
+  quat.multiply(scratchDeltaB, quat.conjugate(scratchDeltaB, lookAtRotation(scratchDeltaB, b)), b.quaternion);
+  lookAtRotation(scratchLookAtCurrent, current);
+  quat.multiply(out, scratchLookAtCurrent, quat.slerp(out, scratchDeltaA, scratchDeltaB, t));
 }
 
-function lookAt(eye: Vec3, center: Vec3, up: Vec3): void {
-  scratchLookMatrix.lookAt(scratchEye.fromArray(eye), scratchCenter.fromArray(center), scratchUp.fromArray(up));
+/** The rotation looking from `state.position` at `state.lookAtTarget`. */
+function lookAtRotation(out: Quat, state: CameraState): Quat {
+  mat4.targetTo(scratchLookMatrix, state.position, state.lookAtTarget, state.referenceUp);
+  // Not quat.fromMat4: it allocates a Mat3 per call.
+  return quat.fromMat3(out, mat3.fromMat4(scratchRotationMatrix, scratchLookMatrix));
 }
 
 /** Below this radius, angular values are not meaningful. */
@@ -50,40 +59,30 @@ function blendAngle(angleA: number, radiusA: number, angleB: number, radiusB: nu
 
 /** Interpolates the camera offset in spherical or cylindrical coordinates. */
 function lerpPositionAroundTarget(out: Vec3, a: CameraState, b: CameraState, t: number, cylindrical: boolean): void {
-  scratchOffsetA.fromArray(a.position).sub(scratchTarget.fromArray(a.target));
-  scratchOffsetB.fromArray(b.position).sub(scratchTarget.fromArray(b.target));
+  vec3.subtract(scratchOffsetA, a.position, a.target);
+  vec3.subtract(scratchOffsetB, b.position, b.target);
 
   if (cylindrical) {
-    const radiusA = Math.hypot(scratchOffsetA.x, scratchOffsetA.z);
-    const radiusB = Math.hypot(scratchOffsetB.x, scratchOffsetB.z);
+    const radiusA = Math.hypot(scratchOffsetA[0], scratchOffsetA[2]);
+    const radiusB = Math.hypot(scratchOffsetB[0], scratchOffsetB[2]);
     const angle = blendAngle(
-      Math.atan2(scratchOffsetA.x, scratchOffsetA.z),
+      Math.atan2(scratchOffsetA[0], scratchOffsetA[2]),
       radiusA,
-      Math.atan2(scratchOffsetB.x, scratchOffsetB.z),
+      Math.atan2(scratchOffsetB[0], scratchOffsetB[2]),
       radiusB,
       t,
     );
     const radius = lerp(radiusA, radiusB, t);
-    vec3.set(out, radius * Math.sin(angle), lerp(scratchOffsetA.y, scratchOffsetB.y, t), radius * Math.cos(angle));
+    vec3.set(out, radius * Math.sin(angle), lerp(scratchOffsetA[1], scratchOffsetB[1], t), radius * Math.cos(angle));
   } else {
-    scratchSphericalA.setFromVector3(scratchOffsetA);
-    scratchSphericalB.setFromVector3(scratchOffsetB);
-    const theta = blendAngle(
-      scratchSphericalA.theta,
-      scratchSphericalA.radius,
-      scratchSphericalB.theta,
-      scratchSphericalB.radius,
-      t,
+    spherical.setFromVec3(scratchSphericalA, scratchOffsetA);
+    spherical.setFromVec3(scratchSphericalB, scratchOffsetB);
+    const theta = blendAngle(scratchSphericalA[1], scratchSphericalA[0], scratchSphericalB[1], scratchSphericalB[0], t);
+    const phi = blendAngle(scratchSphericalA[2], scratchSphericalA[0], scratchSphericalB[2], scratchSphericalB[0], t);
+    spherical.toVec3(
+      out,
+      spherical.set(scratchSphericalOut, lerp(scratchSphericalA[0], scratchSphericalB[0], t), theta, phi),
     );
-    const phi = blendAngle(
-      scratchSphericalA.phi,
-      scratchSphericalA.radius,
-      scratchSphericalB.phi,
-      scratchSphericalB.radius,
-      t,
-    );
-    scratchPosition.setFromSphericalCoords(lerp(scratchSphericalA.radius, scratchSphericalB.radius, t), phi, theta);
-    scratchPosition.toArray(out);
   }
 
   out[0] += lerp(a.target[0], b.target[0], t);
@@ -113,8 +112,10 @@ function slerpWithContinuity(out: Quat, from: Quat, to: Quat, t: number): void {
   } else {
     // Lerp and normalize when the angle is near zero or pi.
     const s = 1 - t;
-    scratchRotation.set(fromX * s + toX * t, fromY * s + toY * t, fromZ * s + toZ * t, fromW * s + toW * t);
-    scratchRotation.normalize().toArray(out);
+    vec4.set(out, fromX * s + toX * t, fromY * s + toY * t, fromZ * s + toZ * t, fromW * s + toW * t);
+    // Opposite endpoints can cancel out; fall back to identity like three.js does.
+    if (vec4.squaredLength(out) === 0) quat.identity(out);
+    else quat.normalize(out, out);
   }
 }
 

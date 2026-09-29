@@ -1,11 +1,7 @@
-import { vec3, vec4 } from 'math';
-import { Quaternion } from 'three';
+import { quat, vec3 } from 'math';
 import { createCameraState, type CameraState } from '../CameraState';
 
 const MAX_SLOTS = 8;
-
-const scratchQuaternion = new Quaternion();
-const scratchOther = new Quaternion();
 
 export type MixingCameraSlot = {
   cameraId: string;
@@ -62,12 +58,10 @@ export class MixingCamera {
     for (const slot of this.slots) {
       if (slot.weight <= 0) continue;
       if (accumulatedWeight === 0) {
-        vec4.copy(this.output.quaternion, slot.state.quaternion);
+        quat.copy(this.output.quaternion, slot.state.quaternion);
       } else {
-        scratchQuaternion
-          .fromArray(this.output.quaternion)
-          .slerp(scratchOther.fromArray(slot.state.quaternion), slot.weight / (accumulatedWeight + slot.weight))
-          .toArray(this.output.quaternion);
+        const t = slot.weight / (accumulatedWeight + slot.weight);
+        quat.slerp(this.output.quaternion, this.output.quaternion, slot.state.quaternion, t);
       }
       accumulatedWeight += slot.weight;
     }
