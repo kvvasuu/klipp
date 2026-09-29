@@ -5,6 +5,7 @@
  * API. Never re-record fixtures to make a failing scenario pass, unless the behavior change is
  * deliberate and documented.
  */
+import { vec3 } from 'math';
 import { Vector3 } from 'three';
 import { createCameraState, type CameraState } from '../../src/CameraState';
 import { KlippCore } from '../../src/KlippCore';
@@ -38,7 +39,7 @@ type Update = (out: CameraState, dt: number, justActivated: boolean) => unknown;
 
 function initialState(): CameraState {
   const state = createCameraState();
-  state.position.set(0, 2, 15);
+  vec3.set(state.position, 0, 2, 15);
   return state;
 }
 

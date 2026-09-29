@@ -1,3 +1,4 @@
+import type { Quat } from 'math';
 import { Quaternion } from 'three';
 import type { CameraState } from '../CameraState';
 import type { DampingConstant } from '../damping/Damper';
@@ -5,6 +6,7 @@ import { QuaternionDamper } from '../damping/QuaternionDamper';
 import { resolveTargetRotation, type Target } from '../resolve/Target';
 
 const scratchTargetRotation = new Quaternion();
+const scratchRotation = new Quaternion();
 
 /** Follows the target's rotation. */
 export class RotateWithFollowTargetAim {
@@ -27,11 +29,13 @@ export class RotateWithFollowTargetAim {
       else this.damper.reset();
     }
     if (!resolveTargetRotation(scratchTargetRotation, this.target)) return;
-    this.damper.update(out.quaternion, scratchTargetRotation, this.damping, dt, this.maxSpeed);
+    scratchRotation.fromArray(out.quaternion);
+    this.damper.update(scratchRotation, scratchTargetRotation, this.damping, dt, this.maxSpeed).toArray(out.quaternion);
   };
 
-  primeFrom = (rotation: Quaternion): void => {
-    this.damper.update(rotation, rotation, this.damping, 0);
+  primeFrom = (rotation: Quat): void => {
+    scratchRotation.fromArray(rotation);
+    this.damper.update(scratchRotation, scratchRotation, this.damping, 0).toArray(rotation);
     this.primed = true;
   };
 }

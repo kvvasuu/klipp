@@ -7,6 +7,7 @@ import { Klipp } from '../../src/Klipp';
 import { useKlipp } from '../../src/KlippContext';
 import type { KlippCore } from '../../src/KlippCore';
 import { VirtualCamera } from '../../src/VirtualCamera';
+import { toQuaternion, toVector3 } from '../tuples';
 
 function CoreReader({ onRead }: { onRead: (core: KlippCore) => void }) {
   onRead(useKlipp().core);
@@ -50,7 +51,13 @@ describe('RotationComposer (React wrapper)', () => {
     await renderer.advanceFrames(1, 0.1);
 
     const state = core!.activeState!;
-    const projected = projectToScreen(state.position, state.quaternion, state.fov, aspect, target.position);
+    const projected = projectToScreen(
+      toVector3(state.position),
+      toQuaternion(state.quaternion),
+      state.fov,
+      aspect,
+      target.position,
+    );
     expect(projected.x).toBeCloseTo(0, 4);
     expect(projected.y).toBeCloseTo(0, 4);
   });
@@ -80,7 +87,13 @@ describe('RotationComposer (React wrapper)', () => {
     await renderer.advanceFrames(1, 0.1);
 
     const state = core!.activeState!;
-    const projected = projectToScreen(state.position, state.quaternion, state.fov, aspect, targetB.position);
+    const projected = projectToScreen(
+      toVector3(state.position),
+      toQuaternion(state.quaternion),
+      state.fov,
+      aspect,
+      targetB.position,
+    );
     expect(projected.x).toBeCloseTo(0, 4);
     expect(projected.y).toBeCloseTo(0, 4);
   });
@@ -120,13 +133,25 @@ describe('RotationComposer (React wrapper)', () => {
     const renderer = await create(scene([0, 0]));
     await renderer.advanceFrames(1, 0.1);
     let state = core!.activeState!;
-    let projected = projectToScreen(state.position, state.quaternion, state.fov, aspect, target.position);
+    let projected = projectToScreen(
+      toVector3(state.position),
+      toQuaternion(state.quaternion),
+      state.fov,
+      aspect,
+      target.position,
+    );
     expect(projected.x).toBeCloseTo(0, 4);
 
     await renderer.update(scene([0.3, 0]));
     await renderer.advanceFrames(1, 0.1);
     state = core!.activeState!;
-    projected = projectToScreen(state.position, state.quaternion, state.fov, aspect, target.position);
+    projected = projectToScreen(
+      toVector3(state.position),
+      toQuaternion(state.quaternion),
+      state.fov,
+      aspect,
+      target.position,
+    );
     expect(projected.x).toBeCloseTo(0.3, 4);
   });
 
@@ -146,11 +171,11 @@ describe('RotationComposer (React wrapper)', () => {
 
     const renderer = await create(scene);
     await renderer.advanceFrames(1, 0.1); // target dead-ahead: within deadZone, no reaction
-    const beforeReaction = core!.activeState!.quaternion.clone();
+    const beforeReaction = toQuaternion(core!.activeState!.quaternion);
 
     target.position.set(20, 0, -20); // now far outside deadZone
     await renderer.advanceFrames(1, 0.05);
-    expect(core!.activeState!.quaternion.angleTo(beforeReaction)).toBeGreaterThan(0);
+    expect(toQuaternion(core!.activeState!.quaternion).angleTo(beforeReaction)).toBeGreaterThan(0);
   });
 
   it('a targetOffset prop shifts the look-at point (degrades to world space for a non-rotated target)', async () => {
@@ -173,7 +198,13 @@ describe('RotationComposer (React wrapper)', () => {
     await renderer.advanceFrames(1, 0.1);
 
     const state = core!.activeState!;
-    const projected = projectToScreen(state.position, state.quaternion, state.fov, aspect, new Vector3(5, 0, -20));
+    const projected = projectToScreen(
+      toVector3(state.position),
+      toQuaternion(state.quaternion),
+      state.fov,
+      aspect,
+      new Vector3(5, 0, -20),
+    );
     expect(projected.x).toBeCloseTo(0, 4);
     expect(projected.y).toBeCloseTo(0, 4);
   });
@@ -200,7 +231,13 @@ describe('RotationComposer (React wrapper)', () => {
     await renderer.advanceFrames(1, 0.1);
 
     const state = core!.activeState!;
-    const projected = projectToScreen(state.position, state.quaternion, state.fov, aspect, target.position);
+    const projected = projectToScreen(
+      toVector3(state.position),
+      toQuaternion(state.quaternion),
+      state.fov,
+      aspect,
+      target.position,
+    );
     expect(projected.x).toBeCloseTo(0.15, 3);
   });
 
@@ -225,8 +262,14 @@ describe('RotationComposer (React wrapper)', () => {
     await renderer.advanceFrames(1, 0.016);
 
     const state = core!.activeState!;
-    const projected = projectToScreen(state.position, state.quaternion, state.fov, aspect, target.position);
-    expect(state.quaternion.angleTo(initialQuaternion)).toBeGreaterThan(0); // moved off initialState
+    const projected = projectToScreen(
+      toVector3(state.position),
+      toQuaternion(state.quaternion),
+      state.fov,
+      aspect,
+      target.position,
+    );
+    expect(toQuaternion(state.quaternion).angleTo(initialQuaternion)).toBeGreaterThan(0); // moved off initialState
     expect(Math.abs(projected.x) + Math.abs(projected.y)).toBeGreaterThan(0.01); // but not centered yet
   });
 

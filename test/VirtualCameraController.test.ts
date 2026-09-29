@@ -20,47 +20,47 @@ describe('VirtualCameraController', () => {
 
   it('passes the actual dt through to every writer', () => {
     const controller = new VirtualCameraController('a');
-    controller.registerBody((out, dt) => (out.position.x = dt * 10));
+    controller.registerBody((out, dt) => (out.position[0] = dt * 10));
 
     const out = createCameraState();
     controller.update(out, 0.5, false);
 
-    expect(out.position.x).toBeCloseTo(5, 10);
+    expect(out.position[0]).toBeCloseTo(5, 10);
   });
 
   it('Noise writers stack — every registered one runs, not just the last', () => {
     const controller = new VirtualCameraController('a');
-    controller.registerNoise((out) => (out.position.x += 1));
-    controller.registerNoise((out) => (out.position.x += 10));
+    controller.registerNoise((out) => (out.position[0] += 1));
+    controller.registerNoise((out) => (out.position[0] += 10));
 
     const out = createCameraState();
     controller.update(out, 0.1, false);
 
-    expect(out.position.x).toBe(11);
+    expect(out.position[0]).toBe(11);
   });
 
   it('Extension writers stack — every registered one runs, not just the last', () => {
     const controller = new VirtualCameraController('a');
-    controller.registerExtension((out) => (out.position.x += 1));
-    controller.registerExtension((out) => (out.position.x += 10));
+    controller.registerExtension((out) => (out.position[0] += 1));
+    controller.registerExtension((out) => (out.position[0] += 10));
 
     const out = createCameraState();
     controller.update(out, 0.1, false);
 
-    expect(out.position.x).toBe(11);
+    expect(out.position[0]).toBe(11);
   });
 
   it('the unregister function returned by registerExtension stops that writer', () => {
     const controller = new VirtualCameraController('a');
-    const unregister = controller.registerExtension((out) => (out.position.x += 100));
+    const unregister = controller.registerExtension((out) => (out.position[0] += 100));
 
     const out = createCameraState();
     controller.update(out, 0.1, false);
-    expect(out.position.x).toBe(100);
+    expect(out.position[0]).toBe(100);
 
     unregister();
     controller.update(out, 0.1, false);
-    expect(out.position.x).toBe(100); // unchanged — the extension no longer runs
+    expect(out.position[0]).toBe(100); // unchanged — the extension no longer runs
   });
 
   it('a missing Body/Aim is a no-op, not a crash', () => {
@@ -72,35 +72,35 @@ describe('VirtualCameraController', () => {
 
   it('the unregister function returned by registerBody/registerAim/registerNoise stops that writer', () => {
     const controller = new VirtualCameraController('a');
-    const unregisterBody = controller.registerBody((out) => (out.position.x += 1));
-    const unregisterNoise = controller.registerNoise((out) => (out.position.x += 100));
+    const unregisterBody = controller.registerBody((out) => (out.position[0] += 1));
+    const unregisterNoise = controller.registerNoise((out) => (out.position[0] += 100));
 
     const out = createCameraState();
     controller.update(out, 0.1, false);
-    expect(out.position.x).toBe(101);
+    expect(out.position[0]).toBe(101);
 
     unregisterBody();
     unregisterNoise();
     controller.update(out, 0.1, false);
-    expect(out.position.x).toBe(101); // unchanged — neither writer runs anymore
+    expect(out.position[0]).toBe(101); // unchanged — neither writer runs anymore
   });
 
   it('unregistering a STALE writer (already replaced by a newer one) does not remove the new one', () => {
     const controller = new VirtualCameraController('a');
-    const unregisterFirst = controller.registerBody((out) => (out.position.x = 1));
-    controller.registerBody((out) => (out.position.x = 2));
+    const unregisterFirst = controller.registerBody((out) => (out.position[0] = 1));
+    controller.registerBody((out) => (out.position[0] = 2));
 
     unregisterFirst(); // stale — the second registration already replaced it
 
     const out = createCameraState();
     controller.update(out, 0.1, false);
-    expect(out.position.x).toBe(2);
+    expect(out.position[0]).toBe(2);
   });
 
   it('false when no writer reports being active — most Body/Aim/Noise return void, treated as not-active', () => {
     const controller = new VirtualCameraController('a');
     controller.registerBody((out) => {
-      out.position.x = 1;
+      out.position[0] = 1;
     });
     controller.registerAim(() => {});
     controller.registerNoise(() => {});
@@ -116,7 +116,7 @@ describe('VirtualCameraController', () => {
       const controller = new VirtualCameraController('a');
       // deliberately the exact accidental shape this guards against: no braces, so the arrow's value IS
       // the assignment's result (a number), even though its declared type is `void`
-      controller.registerBody((out, dt) => (out.position.x = dt));
+      controller.registerBody((out, dt) => (out.position[0] = dt));
 
       const out = createCameraState();
       expect(controller.update(out, 0.1, false)).toBe(false);

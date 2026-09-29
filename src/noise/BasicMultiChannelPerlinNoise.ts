@@ -7,6 +7,8 @@ import { Damper, type DampingConstant } from '../damping/Damper';
 const scratchPositionOffset = new Vector3();
 const scratchEuler = new Euler();
 const scratchRotationOffset = new Quaternion();
+const scratchPosition = new Vector3();
+const scratchQuaternion = new Quaternion();
 
 // Avoid the lattice line where the noise gradients can become degenerate.
 const sampleY = 0.5;
@@ -87,8 +89,8 @@ export class BasicMultiChannelPerlinNoise {
         perlin2d.sample(this.channels[2], this.positionPhase.z, sampleY) * this.positionAmplitude.z,
       )
       .multiplyScalar(this.effectiveAmplitudeGain)
-      .applyQuaternion(out.quaternion); // Convert local shake to world space.
-    out.position.add(scratchPositionOffset);
+      .applyQuaternion(scratchQuaternion.fromArray(out.quaternion)); // Convert local shake to world space.
+    scratchPosition.fromArray(out.position).add(scratchPositionOffset).toArray(out.position);
 
     scratchEuler.set(
       degreesToRadians(perlin2d.sample(this.channels[3], this.rotationPhase.x, sampleY) * this.rotationAmplitude.x) *
@@ -99,6 +101,6 @@ export class BasicMultiChannelPerlinNoise {
         this.effectiveAmplitudeGain,
     );
     scratchRotationOffset.setFromEuler(scratchEuler);
-    out.quaternion.multiply(scratchRotationOffset); // Apply local rotation noise.
+    scratchQuaternion.multiply(scratchRotationOffset).toArray(out.quaternion); // Apply local rotation noise.
   };
 }

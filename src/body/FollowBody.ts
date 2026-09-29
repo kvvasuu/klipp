@@ -1,3 +1,4 @@
+import type { Vec3 } from 'math';
 import { Matrix4, Quaternion, Vector3 } from 'three';
 import type { CameraState } from '../CameraState';
 import type { DampingConstant } from '../damping/Damper';
@@ -11,6 +12,8 @@ const scratchRotation = new Quaternion();
 const scratchRotatedOffset = new Vector3();
 const scratchForward = new Vector3();
 const scratchLookMatrix = new Matrix4();
+const scratchPosition = new Vector3();
+const scratchVector = new Vector3();
 
 /** Follows a target with an offset rotated according to `bindingMode`. */
 export class FollowBody {
@@ -53,14 +56,16 @@ export class FollowBody {
     scratchRotatedOffset.copy(this.offset).applyQuaternion(scratchRotation);
     this.desiredPosition.copy(scratchRotatedOffset).add(this.targetPosition);
 
-    this.damper.update(out.position, this.desiredPosition, this.damping, dt, this.maxSpeed);
-    out.target.copy(out.position).sub(scratchRotatedOffset);
+    scratchPosition.fromArray(out.position);
+    this.damper.update(scratchPosition, this.desiredPosition, this.damping, dt, this.maxSpeed).toArray(out.position);
+    scratchVector.copy(scratchPosition).sub(scratchRotatedOffset).toArray(out.target);
     out.hasTarget = true;
-    out.referenceUp.set(0, 1, 0).applyQuaternion(scratchRotation);
+    scratchVector.set(0, 1, 0).applyQuaternion(scratchRotation).toArray(out.referenceUp);
   };
 
-  primeFrom = (position: Vector3): void => {
-    this.damper.update(position, position, this.damping, 0);
+  primeFrom = (position: Vec3): void => {
+    scratchPosition.fromArray(position);
+    this.damper.update(scratchPosition, scratchPosition, this.damping, 0).toArray(position);
     this.primed = true;
   };
 

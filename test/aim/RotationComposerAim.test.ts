@@ -1,3 +1,4 @@
+import { vec3 } from 'math';
 import {
   BoxGeometry,
   Euler,
@@ -12,13 +13,14 @@ import {
 import { describe, expect, it } from 'vitest';
 import { createCameraState } from '../../src/CameraState';
 import { RotationComposerAim } from '../../src/aim/RotationComposerAim';
+import { toQuaternion, toTuple, toVector3 } from '../tuples';
 
 /** Projects `target` through a REAL three.js PerspectiveCamera at `out`'s position/rotation/fov/aspect —
  *  independent ground truth (three.js's own `project()`), not a re-derivation of our own formula. */
 function projectToScreen(out: ReturnType<typeof createCameraState>, aspect: number, target: Vector3): Vector3 {
   const camera = new PerspectiveCamera(out.fov, aspect, 0.1, 1000);
-  camera.position.copy(out.position);
-  camera.quaternion.copy(out.quaternion);
+  camera.position.copy(toVector3(out.position));
+  camera.quaternion.copy(toQuaternion(out.quaternion));
   camera.updateMatrixWorld(true);
   camera.updateProjectionMatrix();
   return target.clone().project(camera);
@@ -29,7 +31,7 @@ describe('RotationComposerAim', () => {
     const target = new Vector3(5, 2, -30);
     const aim = new RotationComposerAim(target);
     const out = createCameraState();
-    out.position.set(1, 1, 0);
+    vec3.set(out.position, 1, 1, 0);
 
     aim.update(out, 0.1);
 
@@ -42,64 +44,66 @@ describe('RotationComposerAim', () => {
     const target = new Vector3(5, 2, -30);
     const aim = new RotationComposerAim(target);
     const out = createCameraState();
-    out.position.set(1, 1, 0);
+    vec3.set(out.position, 1, 1, 0);
     const tiltedUp = new Vector3(1, 1, 0).normalize();
-    out.referenceUp.copy(tiltedUp);
+    tiltedUp.toArray(out.referenceUp);
 
     aim.update(out, 0.1);
 
-    const expected = new Quaternion().setFromRotationMatrix(new Matrix4().lookAt(out.position, target, tiltedUp));
-    expect(out.quaternion.angleTo(expected)).toBeLessThan(1e-9);
+    const expected = new Quaternion().setFromRotationMatrix(
+      new Matrix4().lookAt(toVector3(out.position), target, tiltedUp),
+    );
+    expect(toQuaternion(out.quaternion).angleTo(expected)).toBeLessThan(1e-9);
   });
 
   it("writes the resolved target's world position and hasLookAtTarget onto out, for the blend's always-on lookAt rotation - the raw target, unaffected by screenPosition/deadZone offsets", () => {
     const target = new Vector3(5, 2, -30);
     const aim = new RotationComposerAim(target, [0.3, 0.2]); // non-zero screenPosition on purpose
     const out = createCameraState();
-    out.position.set(1, 1, 0);
+    vec3.set(out.position, 1, 1, 0);
 
     aim.update(out, 0.1);
 
     expect(out.hasLookAtTarget).toBe(true);
-    expect(out.lookAtTarget.equals(target)).toBe(true);
+    expect(toVector3(out.lookAtTarget).equals(target)).toBe(true);
   });
 
   it("with damping, the published lookAtTarget eases across a target change instead of teleporting - a blend measures this camera's (damped) rotation against it", () => {
     const aim = new RotationComposerAim(new Vector3(-6, 1, 0), [0, 0], 1, [0, 0], 0.5);
     const out = createCameraState();
-    out.position.set(-6, 3, 7);
+    vec3.set(out.position, -6, 3, 7);
 
     aim.update(out, 1 / 60, true); // activation snaps, same as the rotation itself
-    expect(out.lookAtTarget.equals(new Vector3(-6, 1, 0))).toBe(true);
+    expect(toVector3(out.lookAtTarget).equals(new Vector3(-6, 1, 0))).toBe(true);
 
     for (let i = 0; i < 10; i++) aim.update(out, 1 / 60, false);
-    const settled = out.lookAtTarget.clone();
+    const settled = toVector3(out.lookAtTarget);
 
     aim.target = new Vector3(6, 5, 1); // 13+ units away
     aim.update(out, 1 / 60, false);
 
     // publishing the raw target moved this 12.7 units in one tick, against 0.14° of actual rotation
-    expect(out.lookAtTarget.distanceTo(settled)).toBeLessThan(0.5);
+    expect(toVector3(out.lookAtTarget).distanceTo(settled)).toBeLessThan(0.5);
 
     // ...and it does still get there
     for (let i = 0; i < 240; i++) aim.update(out, 1 / 60, false);
-    expect(out.lookAtTarget.distanceTo(new Vector3(6, 5, 1))).toBeLessThan(1e-6);
+    expect(toVector3(out.lookAtTarget).distanceTo(new Vector3(6, 5, 1))).toBeLessThan(1e-6);
   });
 
   it('eases the published lookAtTarget when only its DISTANCE changes - the direction damper converges instantly there, so the point must not skip ahead along the ray', () => {
     const aim = new RotationComposerAim(new Vector3(0, 0, -200), [0, 0], 1, [0, 0], 0.4);
     const out = createCameraState();
-    out.position.set(0, 0, 0);
+    vec3.set(out.position, 0, 0, 0);
     aim.update(out, 1 / 60, true);
 
     aim.target = new Vector3(0, 0, -400); // same direction, twice as far
     aim.update(out, 1 / 60, false);
 
     // publishing the target as soon as the DIRECTION had converged jumped this the full 200 units
-    expect(Math.abs(out.lookAtTarget.z + 200)).toBeLessThan(2);
+    expect(Math.abs(out.lookAtTarget[2] + 200)).toBeLessThan(2);
 
     for (let i = 0; i < 240; i++) aim.update(out, 1 / 60, false);
-    expect(out.lookAtTarget.z).toBeCloseTo(-400, 6);
+    expect(out.lookAtTarget[2]).toBeCloseTo(-400, 6);
   });
 
   it('lands the target at a non-zero screenPosition, independent of distance', () => {
@@ -122,7 +126,7 @@ describe('RotationComposerAim', () => {
     const target = new Vector3(0, 0, -20);
     const aim = new RotationComposerAim(target, [-0.4, 0.6], 2.5);
     const out = createCameraState();
-    out.position.set(3, -1, 5);
+    vec3.set(out.position, 3, -1, 5);
     out.fov = 35;
 
     aim.update(out, 0.1);
@@ -136,12 +140,12 @@ describe('RotationComposerAim', () => {
     const target = new Vector3(3, 1, -8);
     const aim = new RotationComposerAim(target, [0.2, 0.1]);
     const out = createCameraState();
-    out.position.set(9, 8, 7);
-    const before = out.position.clone();
+    vec3.set(out.position, 9, 8, 7);
+    const before = toVector3(out.position);
 
     aim.update(out, 0.1);
 
-    expect(out.position.equals(before)).toBe(true);
+    expect(toVector3(out.position).equals(before)).toBe(true);
   });
 
   it("accounts for the target's WORLD position (parent transform included)", () => {
@@ -165,7 +169,7 @@ describe('RotationComposerAim', () => {
     const out = createCameraState();
 
     expect(() => aim.update(out, 0.1)).not.toThrow();
-    expect(out.quaternion.equals(createCameraState().quaternion)).toBe(true);
+    expect(toQuaternion(out.quaternion).equals(toQuaternion(createCameraState().quaternion))).toBe(true);
   });
 
   it('target/screenPosition/aspect are mutable fields', () => {
@@ -197,14 +201,14 @@ describe('RotationComposerAim', () => {
       const target = new Vector3(0, 0, -20);
       const aim = new RotationComposerAim(target, [0, 0], 1, [0.4, 0.4], 0);
       const out = createCameraState();
-      out.position.set(0, 0, 0);
+      vec3.set(out.position, 0, 0, 0);
 
       // move the target slightly off-center, but within the [0.4, 0.4] dead zone
       target.set(1, 1, -20);
-      const before = out.quaternion.clone();
+      const before = toQuaternion(out.quaternion);
       aim.update(out, 0.1);
 
-      expect(out.quaternion.equals(before)).toBe(true);
+      expect(toQuaternion(out.quaternion).equals(before)).toBe(true);
     });
 
     it('hardLimit still enforces when the target sits inside a LARGER deadZone (real bug: the dead zone used to return from the whole update, skipping the hardLimit pass entirely)', () => {
@@ -213,13 +217,13 @@ describe('RotationComposerAim', () => {
       // wider, outer box), but hardLimit's guarantee should hold regardless
       const aim = new RotationComposerAim(target, [0, 0], 1, [0.4, 0.4], 0, [0.05, 0.05]);
       const out = createCameraState();
-      out.position.set(0, 0, 0);
+      vec3.set(out.position, 0, 0, 0);
 
       target.set(1, 1, -20); // same offset as above — inside deadZone (no reaction there)...
-      const before = out.quaternion.clone();
+      const before = toQuaternion(out.quaternion);
       aim.update(out, 0.1); // ...but hardLimit=[0.05,0.05] is narrower, so it must still correct this
 
-      expect(out.quaternion.equals(before)).toBe(false);
+      expect(toQuaternion(out.quaternion).equals(before)).toBe(false);
     });
 
     it('target outside the dead zone with damping <= 0: snaps instantly to the dead zone EDGE, not to screenPosition center', () => {
@@ -247,8 +251,8 @@ describe('RotationComposerAim', () => {
       const out = createCameraState();
       aim.update(out, 0.016);
 
-      expect(out.quaternion.angleTo(new Quaternion())).toBeGreaterThan(0); // moved off identity
-      expect(out.quaternion.angleTo(undamped.quaternion)).toBeGreaterThan(0.01); // but not there yet
+      expect(toQuaternion(out.quaternion).angleTo(new Quaternion())).toBeGreaterThan(0); // moved off identity
+      expect(toQuaternion(out.quaternion).angleTo(toQuaternion(undamped.quaternion))).toBeGreaterThan(0.01); // but not there yet
     });
 
     it('converges to the dead zone edge over repeated ticks with damping enabled', () => {
@@ -268,10 +272,10 @@ describe('RotationComposerAim', () => {
       const out = createCameraState();
       aim.update(out, 0.1); // snaps to the edge, target far outside
 
-      const afterEdgeSnap = out.quaternion.clone();
+      const afterEdgeSnap = toQuaternion(out.quaternion);
       aim.update(out, 0.1); // same target, now sitting exactly at the (inclusive) dead zone boundary
 
-      expect(out.quaternion.equals(afterEdgeSnap)).toBe(true);
+      expect(toQuaternion(out.quaternion).equals(afterEdgeSnap)).toBe(true);
     });
 
     it('deadZone/damping are mutable fields', () => {
@@ -308,12 +312,12 @@ describe('RotationComposerAim', () => {
       // now reverses direction - once the camera starts turning back, it must keep turning the SAME way
       // (a stale, still-rightward damper velocity would show up as an opposite-signed blip right when
       // reaction resumes)
-      let previousYaw = new Euler().setFromQuaternion(out.quaternion, 'YXZ').y;
+      let previousYaw = new Euler().setFromQuaternion(toQuaternion(out.quaternion), 'YXZ').y;
       let firstChangeSign = 0;
       for (let i = 0; i < 60; i++) {
         target.x -= 0.3;
         aim.update(out, dt);
-        const yaw = new Euler().setFromQuaternion(out.quaternion, 'YXZ').y;
+        const yaw = new Euler().setFromQuaternion(toQuaternion(out.quaternion), 'YXZ').y;
         const delta = yaw - previousYaw;
         if (Math.abs(delta) > 1e-9) {
           if (firstChangeSign === 0) firstChangeSign = Math.sign(delta);
@@ -333,28 +337,28 @@ describe('RotationComposerAim', () => {
 
       const instant = new RotationComposerAim(target, [0, 0], 1, [0, 0], 0);
       const outInstant = createCameraState();
-      outInstant.position.set(0, 0, 0);
+      vec3.set(outInstant.position, 0, 0, 0);
       instant.update(outInstant, 0.05);
 
       const unclamped = new RotationComposerAim(target, [0, 0], 1, [0, 0], 1);
       const outUnclampedWarmup = createCameraState();
-      outUnclampedWarmup.position.set(0, 0, 0);
+      vec3.set(outUnclampedWarmup.position, 0, 0, 0);
       unclamped.update(outUnclampedWarmup, 0.05); // consume the first-ever-update hard snap
       const outUnclamped = createCameraState();
-      outUnclamped.position.set(0, 0, 0);
+      vec3.set(outUnclamped.position, 0, 0, 0);
       unclamped.update(outUnclamped, 0.05);
 
       const clamped = new RotationComposerAim(target, [0, 0], 1, [0, 0], 1);
       clamped.maxSpeed = 0.3;
       const outClampedWarmup = createCameraState();
-      outClampedWarmup.position.set(0, 0, 0);
+      vec3.set(outClampedWarmup.position, 0, 0, 0);
       clamped.update(outClampedWarmup, 0.05);
       const outClamped = createCameraState();
-      outClamped.position.set(0, 0, 0);
+      vec3.set(outClamped.position, 0, 0, 0);
       clamped.update(outClamped, 0.05); // maxSpeed = 0.3 rad/sec
 
-      expect(outClamped.quaternion.angleTo(outInstant.quaternion)).toBeGreaterThan(
-        outUnclamped.quaternion.angleTo(outInstant.quaternion),
+      expect(toQuaternion(outClamped.quaternion).angleTo(toQuaternion(outInstant.quaternion))).toBeGreaterThan(
+        toQuaternion(outUnclamped.quaternion).angleTo(toQuaternion(outInstant.quaternion)),
       );
     });
   });
@@ -382,12 +386,12 @@ describe('RotationComposerAim', () => {
       const out = createCameraState();
       out.fov = 90;
       aim.update(out, 0.1);
-      const before = out.quaternion.clone();
+      const before = toQuaternion(out.quaternion);
 
       target.set(1.5, 0, -10);
       aim.update(out, 0.1);
 
-      expect(out.quaternion.equals(before)).toBe(true);
+      expect(toQuaternion(out.quaternion).equals(before)).toBe(true);
     });
 
     it('an axis-aligned size reproduces the same edge as an equivalent radius', () => {
@@ -500,12 +504,12 @@ describe('RotationComposerAim', () => {
       growMeshGeometryThreefold(mesh); // half-extent 1 -> 3
       aim.recalculateSize(); // only the FIRST of these settling calls actually forces a recompute
       for (let i = 0; i < 30; i++) aim.update(out, 0.1);
-      const afterFirstRecalc = out.quaternion.clone();
+      const afterFirstRecalc = toQuaternion(out.quaternion);
 
       growMeshGeometryThreefold(mesh); // half-extent 3 -> 9, but NOT recalculated again
       for (let i = 0; i < 30; i++) aim.update(out, 0.1);
 
-      expect(out.quaternion.angleTo(afterFirstRecalc)).toBeLessThan(1e-6); // still reacting to the 3x measurement
+      expect(toQuaternion(out.quaternion).angleTo(afterFirstRecalc)).toBeLessThan(1e-6); // still reacting to the 3x measurement
     });
   });
 
@@ -519,11 +523,11 @@ describe('RotationComposerAim', () => {
 
       target.set(0.3, 0, -10); // nudge off-center
       aim.update(out, 0.1); // first reaction to the nudge - expected to move
-      let previous = out.quaternion.clone();
+      let previous = toQuaternion(out.quaternion);
       for (let i = 0; i < 20; i++) {
         aim.update(out, 0.1);
-        expect(out.quaternion.angleTo(previous)).toBeLessThan(1e-6); // stays put after that, doesn't alternate
-        previous = out.quaternion.clone();
+        expect(toQuaternion(out.quaternion).angleTo(previous)).toBeLessThan(1e-6); // stays put after that, doesn't alternate
+        previous = toQuaternion(out.quaternion);
       }
 
       const projected = projectToScreen(out, 1, target);
@@ -540,11 +544,11 @@ describe('RotationComposerAim', () => {
 
       target.set(3, 0, -10); // nudge - stays inside the huge deadZone, so only hardLimit reacts
       aim.update(out, 0.1); // first reaction to the nudge - expected to move
-      let previous = out.quaternion.clone();
+      let previous = toQuaternion(out.quaternion);
       for (let i = 0; i < 20; i++) {
         aim.update(out, 0.1);
-        expect(out.quaternion.angleTo(previous)).toBeLessThan(1e-6); // stays put after that, doesn't alternate
-        previous = out.quaternion.clone();
+        expect(toQuaternion(out.quaternion).angleTo(previous)).toBeLessThan(1e-6); // stays put after that, doesn't alternate
+        previous = toQuaternion(out.quaternion);
       }
 
       const projected = projectToScreen(out, 1, target);
@@ -619,7 +623,7 @@ describe('RotationComposerAim', () => {
       const withLimit = createCameraState();
       aimWithLimit.update(withLimit, 0.1);
 
-      expect(withoutLimit.quaternion.equals(withLimit.quaternion)).toBe(false);
+      expect(toQuaternion(withoutLimit.quaternion).equals(toQuaternion(withLimit.quaternion))).toBe(false);
       const projected = projectToScreen(withoutLimit, 1, target);
       expect(Math.abs(projected.x)).toBeGreaterThan(0.15); // past where hardLimit=[0.15,0.15] would have clamped it
     });
@@ -632,7 +636,7 @@ describe('RotationComposerAim', () => {
       const withLimit = createCameraState();
       new RotationComposerAim(target, [0, 0], 1, [0.2, 0.2], 0.3, [1000, 1000]).update(withLimit, 0.016);
 
-      expect(withLimit.quaternion.equals(withoutLimit.quaternion)).toBe(true);
+      expect(toQuaternion(withLimit.quaternion).equals(toQuaternion(withoutLimit.quaternion))).toBe(true);
     });
   });
 
@@ -691,13 +695,13 @@ describe('RotationComposerAim', () => {
       const aim = new RotationComposerAim(target, [0, 0], 1, [0, 0], 0.5);
       const initial = new Quaternion(); // identity - far from looking at the target
 
-      aim.primeFrom(initial);
+      aim.primeFrom(toTuple(initial));
       const out = createCameraState();
-      out.quaternion.copy(initial);
+      initial.toArray(out.quaternion);
       aim.update(out, 0.016, true);
 
       const projected = projectToScreen(out, 1, target);
-      expect(out.quaternion.angleTo(initial)).toBeGreaterThan(0); // moved off the primed rotation
+      expect(toQuaternion(out.quaternion).angleTo(initial)).toBeGreaterThan(0); // moved off the primed rotation
       expect(Math.abs(projected.x) + Math.abs(projected.y)).toBeGreaterThan(0.01); // but not centered yet
     });
 
@@ -717,9 +721,9 @@ describe('RotationComposerAim', () => {
       const aim = new RotationComposerAim(target, [0, 0], 1, [0, 0], 0.5);
       const initial = new Quaternion();
 
-      aim.primeFrom(initial);
+      aim.primeFrom(toTuple(initial));
       const out = createCameraState();
-      out.quaternion.copy(initial);
+      initial.toArray(out.quaternion);
       aim.update(out, 0.016, true); // consumes the prime, eases
       aim.update(out, 0.016, false);
 
@@ -734,12 +738,12 @@ describe('RotationComposerAim', () => {
     it("is still consumed even when the target isn't resolved yet on the primed justActivated call", () => {
       const initial = new Quaternion();
       const aim = new RotationComposerAim({ current: null }, [0, 0], 1, [0, 0], 0.5);
-      aim.primeFrom(initial);
+      aim.primeFrom(toTuple(initial));
       const out = createCameraState();
-      out.quaternion.copy(initial);
+      initial.toArray(out.quaternion);
 
       aim.update(out, 0.016, true); // target still unresolved - early return, but primed must be consumed
-      expect(out.quaternion.equals(initial)).toBe(true); // no-op, nothing to update yet
+      expect(toQuaternion(out.quaternion).equals(initial)).toBe(true); // no-op, nothing to update yet
 
       aim.target = new Vector3(10, 0, -10);
       aim.update(out, 0.016, true); // an unrelated LATER reactivation - must snap, not ease
@@ -762,7 +766,7 @@ describe('RotationComposerAim', () => {
       target.set(5, 0, -20);
       aim.update(out, dt, false);
 
-      expect(out.lookAtTarget.equals(target)).toBe(true);
+      expect(toVector3(out.lookAtTarget).equals(target)).toBe(true);
     });
 
     it('extrapolates out.lookAtTarget ahead of a target moving at constant velocity', () => {
@@ -779,7 +783,7 @@ describe('RotationComposerAim', () => {
       }
 
       // steady state: predicted 0.5s ahead at 10 units/s = +5 beyond the raw target
-      expect(out.lookAtTarget.x - target.x).toBeCloseTo(5, 1);
+      expect(out.lookAtTarget[0] - target.x).toBeCloseTo(5, 1);
     });
 
     it('a fresh activation resets the predictor - the first frame after it predicts nothing yet', () => {
@@ -794,11 +798,11 @@ describe('RotationComposerAim', () => {
         target.x += 10 * dt;
         aim.update(out, dt, false);
       }
-      expect(out.lookAtTarget.x - target.x).not.toBeCloseTo(0, 1); // built up a real lookahead offset
+      expect(out.lookAtTarget[0] - target.x).not.toBeCloseTo(0, 1); // built up a real lookahead offset
 
       // a later, unrelated activation - same still-moving target, but the predictor shouldn't carry over
       aim.update(out, dt, true);
-      expect(out.lookAtTarget.x).toBeCloseTo(target.x, 4);
+      expect(out.lookAtTarget[0]).toBeCloseTo(target.x, 4);
     });
 
     it('retargeting to a different reference resets the predictor too, even without justActivated', () => {
@@ -821,7 +825,7 @@ describe('RotationComposerAim', () => {
       // out.lookAtTarget is reconstructed through its own direction+distance damper (unlike out.target's
       // direct passthrough), so a huge jump leaves a tiny numeric residual even at damping 0 - a few
       // hundredths is still far below the ~5 unit lookahead offset a stale predictor would have added
-      expect(out.lookAtTarget.distanceTo(targetB)).toBeLessThan(0.01);
+      expect(toVector3(out.lookAtTarget).distanceTo(targetB)).toBeLessThan(0.01);
     });
 
     it('ignoreY zeroes the vertical component of the predicted offset', () => {
@@ -838,7 +842,7 @@ describe('RotationComposerAim', () => {
         aim.update(out, dt, false);
       }
 
-      expect(out.lookAtTarget.y).toBeCloseTo(target.y, 4); // vertical lookahead suppressed
+      expect(out.lookAtTarget[1]).toBeCloseTo(target.y, 4); // vertical lookahead suppressed
     });
   });
 });

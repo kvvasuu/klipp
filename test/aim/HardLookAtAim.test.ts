@@ -1,7 +1,9 @@
+import { vec3 } from 'math';
 import { Matrix4, Object3D, PerspectiveCamera, Quaternion, Vector3 } from 'three';
 import { describe, expect, it } from 'vitest';
 import { createCameraState } from '../../src/CameraState';
 import { HardLookAtAim } from '../../src/aim/HardLookAtAim';
+import { toQuaternion, toVector3 } from '../tuples';
 
 function expectQuaternionsClose(
   actual: { x: number; y: number; z: number; w: number },
@@ -22,10 +24,10 @@ describe('HardLookAtAim', () => {
 
     const aim = new HardLookAtAim(target);
     const out = createCameraState();
-    out.position.copy(eyePosition);
+    eyePosition.toArray(out.position);
     aim.update(out, 0.1);
 
-    const forward = new Vector3(0, 0, -1).applyQuaternion(out.quaternion);
+    const forward = new Vector3(0, 0, -1).applyQuaternion(toQuaternion(out.quaternion));
     const towardTarget = targetPosition.clone().sub(eyePosition).normalize();
 
     // a camera facing the wrong way (180° off) would score -1 here — this is exactly the bug that
@@ -38,12 +40,12 @@ describe('HardLookAtAim', () => {
     target.position.set(5, -1, 0);
     const aim = new HardLookAtAim(target);
     const out = createCameraState();
-    out.position.set(1, 2, 3);
+    vec3.set(out.position, 1, 2, 3);
 
     aim.update(out, 0.1);
 
     expect(out.hasLookAtTarget).toBe(true);
-    expect(out.lookAtTarget.equals(new Vector3(5, -1, 0))).toBe(true);
+    expect(toVector3(out.lookAtTarget).equals(new Vector3(5, -1, 0))).toBe(true);
   });
 
   it("matches THREE's own camera-convention lookAt (PerspectiveCamera.lookAt) for the same eye/target", () => {
@@ -52,14 +54,14 @@ describe('HardLookAtAim', () => {
     const aim = new HardLookAtAim(target);
 
     const out = createCameraState();
-    out.position.set(1, 2, 3);
+    vec3.set(out.position, 1, 2, 3);
     aim.update(out, 0.1);
 
     const reference = new PerspectiveCamera();
     reference.position.set(1, 2, 3);
     reference.lookAt(5, -1, 0);
 
-    expectQuaternionsClose(out.quaternion, reference.quaternion);
+    expectQuaternionsClose(toQuaternion(out.quaternion), reference.quaternion);
   });
 
   it("looks at the target's WORLD position, not its local position", () => {
@@ -71,27 +73,27 @@ describe('HardLookAtAim', () => {
 
     const aim = new HardLookAtAim(target);
     const out = createCameraState();
-    out.position.set(0, 0, 0);
+    vec3.set(out.position, 0, 0, 0);
     aim.update(out, 0.1);
 
     const reference = new PerspectiveCamera();
     reference.position.set(0, 0, 0);
     reference.lookAt(10, 0, -5); // world position of the nested target, not its local (0,0,-5)
 
-    expectQuaternionsClose(out.quaternion, reference.quaternion);
+    expectQuaternionsClose(toQuaternion(out.quaternion), reference.quaternion);
   });
 
   it('accepts a plain Vector3 target — no Object3D/ref required for a fixed point', () => {
     const aim = new HardLookAtAim(new Vector3(5, -1, 0));
     const out = createCameraState();
-    out.position.set(1, 2, 3);
+    vec3.set(out.position, 1, 2, 3);
     aim.update(out, 0.1);
 
     const reference = new PerspectiveCamera();
     reference.position.set(1, 2, 3);
     reference.lookAt(5, -1, 0);
 
-    expectQuaternionsClose(out.quaternion, reference.quaternion);
+    expectQuaternionsClose(toQuaternion(out.quaternion), reference.quaternion);
   });
 
   it('target is a mutable field — reassigning it changes what gets looked at', () => {
@@ -102,7 +104,7 @@ describe('HardLookAtAim', () => {
 
     const aim = new HardLookAtAim(a);
     const out = createCameraState();
-    out.position.set(1, 2, 3);
+    vec3.set(out.position, 1, 2, 3);
     aim.update(out, 0.1);
 
     aim.target = b;
@@ -112,7 +114,7 @@ describe('HardLookAtAim', () => {
     reference.position.set(1, 2, 3);
     reference.lookAt(5, -1, 0);
 
-    expectQuaternionsClose(out.quaternion, reference.quaternion);
+    expectQuaternionsClose(toQuaternion(out.quaternion), reference.quaternion);
   });
 
   it('a ref whose .current is null is a no-op, not a crash', () => {
@@ -120,7 +122,7 @@ describe('HardLookAtAim', () => {
     const out = createCameraState();
 
     expect(() => aim.update(out, 0.1)).not.toThrow();
-    expectQuaternionsClose(out.quaternion, { x: 0, y: 0, z: 0, w: 1 });
+    expectQuaternionsClose(toQuaternion(out.quaternion), { x: 0, y: 0, z: 0, w: 1 });
   });
 
   it('a null target is a no-op, not a crash', () => {
@@ -128,7 +130,7 @@ describe('HardLookAtAim', () => {
     const out = createCameraState();
 
     expect(() => aim.update(out, 0.1)).not.toThrow();
-    expectQuaternionsClose(out.quaternion, { x: 0, y: 0, z: 0, w: 1 });
+    expectQuaternionsClose(toQuaternion(out.quaternion), { x: 0, y: 0, z: 0, w: 1 });
   });
 
   it("uses out.referenceUp instead of a fixed world up - e.g. Follow's bindingMode can hand it roll", () => {
@@ -138,18 +140,18 @@ describe('HardLookAtAim', () => {
 
     const tiltedUp = new Vector3(1, 1, 0).normalize();
     const out = createCameraState();
-    out.position.set(1, 2, 3);
-    out.referenceUp.copy(tiltedUp);
+    vec3.set(out.position, 1, 2, 3);
+    tiltedUp.toArray(out.referenceUp);
     aim.update(out, 0.1);
 
     const expected = new Quaternion().setFromRotationMatrix(
       new Matrix4().lookAt(new Vector3(1, 2, 3), new Vector3(5, -1, 0), tiltedUp),
     );
-    expectQuaternionsClose(out.quaternion, expected);
+    expectQuaternionsClose(toQuaternion(out.quaternion), expected);
 
     const reference = new PerspectiveCamera(); // default world-up lookAt, for contrast
     reference.position.set(1, 2, 3);
     reference.lookAt(5, -1, 0);
-    expect(out.quaternion.equals(reference.quaternion)).toBe(false);
+    expect(toQuaternion(out.quaternion).equals(reference.quaternion)).toBe(false);
   });
 });

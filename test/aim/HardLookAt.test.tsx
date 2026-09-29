@@ -8,6 +8,7 @@ import { Klipp } from '../../src/Klipp';
 import { useKlipp } from '../../src/KlippContext';
 import type { KlippCore } from '../../src/KlippCore';
 import { VirtualCamera } from '../../src/VirtualCamera';
+import { toQuaternion } from '../tuples';
 
 function CoreReader({ onRead }: { onRead: (core: KlippCore) => void }) {
   onRead(useKlipp().core);
@@ -50,7 +51,7 @@ describe('HardLookAt (React wrapper)', () => {
     reference.position.set(1, 2, 3);
     reference.lookAt(5, -1, 0);
 
-    expectQuaternionsClose(core!.activeState!.quaternion, reference.quaternion);
+    expectQuaternionsClose(toQuaternion(core!.activeState!.quaternion), reference.quaternion);
   });
 
   it('a target prop change is picked up on the next frame (field mutation, not re-registration)', async () => {
@@ -79,6 +80,6 @@ describe('HardLookAt (React wrapper)', () => {
     const reference = new PerspectiveCamera();
     reference.position.set(0, 0, 0);
     reference.lookAt(5, -1, 0);
-    expectQuaternionsClose(core!.activeState!.quaternion, reference.quaternion);
+    expectQuaternionsClose(toQuaternion(core!.activeState!.quaternion), reference.quaternion);
   });
 });

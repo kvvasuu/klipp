@@ -1,5 +1,6 @@
 import { useFrame, useThree } from '@react-three/fiber';
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { vec3, vec4 } from 'math';
 import type { Camera, PerspectiveCamera } from 'three';
 import { copyCameraState, copyCameraStateFromCamera, createCameraState, type CameraState } from './CameraState';
 import { KlippContext, useKlipp, type FrameUpdate, type KlippContextValue } from './KlippContext';
@@ -93,8 +94,8 @@ export function Klipp({ children, defaultBlend, customBlends, camera: cameraProp
 
     const transformUnchanged =
       settledRef.current &&
-      result.position.equals(previousResult.position) &&
-      result.quaternion.equals(previousResult.quaternion);
+      vec3.exactEquals(result.position, previousResult.position) &&
+      vec4.exactEquals(result.quaternion, previousResult.quaternion);
     // Lens changes also cover view-offset changes.
     const lensUnchanged =
       settledRef.current &&
@@ -109,8 +110,8 @@ export function Klipp({ children, defaultBlend, customBlends, camera: cameraProp
       settledRef.current = true;
 
       if (!transformUnchanged) {
-        camera.position.copy(result.position);
-        camera.quaternion.copy(result.quaternion);
+        camera.position.fromArray(result.position);
+        camera.quaternion.fromArray(result.quaternion);
       }
       if (!lensUnchanged && isPerspectiveCamera(camera)) {
         camera.fov = result.fov;

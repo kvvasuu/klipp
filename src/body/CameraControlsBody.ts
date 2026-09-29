@@ -70,13 +70,13 @@ export class CameraControlsBody {
     const hasSomethingToShow =
       this.target == null || resolved || this.hasResolvedTargetOnce || this.initialPosition !== null;
     if (hasSomethingToShow) {
-      out.position.copy(this.camera.position);
-      out.quaternion.copy(this.camera.quaternion);
+      this.camera.position.toArray(out.position);
+      this.camera.quaternion.toArray(out.quaternion);
     }
     out.hasTarget = resolved;
-    if (resolved) out.target.copy(scratchTargetPosition);
+    if (resolved) scratchTargetPosition.toArray(out.target);
     // A resolved target is also the look-at point used for blending.
     out.hasLookAtTarget = resolved;
-    if (resolved) out.lookAtTarget.copy(scratchTargetPosition);
+    if (resolved) scratchTargetPosition.toArray(out.lookAtTarget);
   };
 }

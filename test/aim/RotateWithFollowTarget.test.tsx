@@ -6,6 +6,7 @@ import { Klipp } from '../../src/Klipp';
 import { useKlipp } from '../../src/KlippContext';
 import type { KlippCore } from '../../src/KlippCore';
 import { VirtualCamera } from '../../src/VirtualCamera';
+import { toQuaternion } from '../tuples';
 
 function CoreReader({ onRead }: { onRead: (core: KlippCore) => void }) {
   onRead(useKlipp().core);
@@ -34,7 +35,7 @@ describe('RotateWithFollowTarget (React wrapper)', () => {
     const renderer = await create(scene);
     await renderer.advanceFrames(1, 0.1);
 
-    expectQuaternionsClose(core!.activeState!.quaternion, new Quaternion().setFromEuler(target.rotation));
+    expectQuaternionsClose(toQuaternion(core!.activeState!.quaternion), new Quaternion().setFromEuler(target.rotation));
   });
 
   it('a target prop change is picked up on the next frame (field mutation, not re-registration)', async () => {
@@ -55,11 +56,17 @@ describe('RotateWithFollowTarget (React wrapper)', () => {
 
     const renderer = await create(scene(targetA));
     await renderer.advanceFrames(1, 0.1);
-    expectQuaternionsClose(core!.activeState!.quaternion, new Quaternion().setFromEuler(targetA.rotation));
+    expectQuaternionsClose(
+      toQuaternion(core!.activeState!.quaternion),
+      new Quaternion().setFromEuler(targetA.rotation),
+    );
 
     await renderer.update(scene(targetB));
     await renderer.advanceFrames(1, 0.1);
-    expectQuaternionsClose(core!.activeState!.quaternion, new Quaternion().setFromEuler(targetB.rotation));
+    expectQuaternionsClose(
+      toQuaternion(core!.activeState!.quaternion),
+      new Quaternion().setFromEuler(targetB.rotation),
+    );
   });
 
   it('unmounting stops the aim from running', async () => {
@@ -97,11 +104,11 @@ describe('RotateWithFollowTarget (React wrapper)', () => {
     target.rotation.set(0, -1.5, 0); // rotate the target so there's a genuine gap for damping to close
     const newTargetQuaternion = new Quaternion().setFromEuler(target.rotation);
     await renderer.advanceFrames(1, 0.05);
-    expect(core!.activeState!.quaternion.angleTo(newTargetQuaternion)).toBeGreaterThan(0.01); // still catching up
+    expect(toQuaternion(core!.activeState!.quaternion).angleTo(newTargetQuaternion)).toBeGreaterThan(0.01); // still catching up
 
     await renderer.update(scene(0));
     await renderer.advanceFrames(1, 0.05);
-    expectQuaternionsClose(core!.activeState!.quaternion, newTargetQuaternion); // damping off: snaps instantly
+    expectQuaternionsClose(toQuaternion(core!.activeState!.quaternion), newTargetQuaternion); // damping off: snaps instantly
   });
 
   it("VirtualCamera's initialState.quaternion seeds the damper - the first frame eases from there, not a snap", async () => {
@@ -123,7 +130,7 @@ describe('RotateWithFollowTarget (React wrapper)', () => {
     const renderer = await create(scene);
     await renderer.advanceFrames(1, 0.016);
 
-    expect(core!.activeState!.quaternion.angleTo(initialQuaternion)).toBeGreaterThan(0); // moved off initialState
-    expect(core!.activeState!.quaternion.angleTo(targetQuaternion)).toBeGreaterThan(0.01); // but not snapped there
+    expect(toQuaternion(core!.activeState!.quaternion).angleTo(initialQuaternion)).toBeGreaterThan(0); // moved off initialState
+    expect(toQuaternion(core!.activeState!.quaternion).angleTo(targetQuaternion)).toBeGreaterThan(0.01); // but not snapped there
   });
 });

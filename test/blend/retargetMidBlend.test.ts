@@ -1,3 +1,4 @@
+import { vec4 } from 'math';
 import { Vector3 } from 'three';
 import { describe, expect, it } from 'vitest';
 import { createCameraState, type CameraState } from '../../src/CameraState';
@@ -6,6 +7,7 @@ import { RotationComposerAim } from '../../src/aim/RotationComposerAim';
 import { BlendDriver } from '../../src/blend/BlendDriver';
 import { FollowBody } from '../../src/body/FollowBody';
 import { HardLockToTargetBody } from '../../src/body/HardLockToTargetBody';
+import { toQuaternion } from '../tuples';
 
 const dt = 1 / 60;
 
@@ -71,8 +73,9 @@ function runFocusPull(retargetAtTick: number | null, reactivateOntoSameTargetFir
     tickBoth(false);
     const out: CameraState = driver.tick(dt);
 
-    if (hasPrevious) steps.push((previous.quaternion.angleTo(out.quaternion) * 180) / Math.PI);
-    previous.quaternion.copy(out.quaternion);
+    if (hasPrevious)
+      steps.push((toQuaternion(previous.quaternion).angleTo(toQuaternion(out.quaternion)) * 180) / Math.PI);
+    vec4.copy(previous.quaternion, out.quaternion);
     hasPrevious = true;
   }
 

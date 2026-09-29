@@ -1,3 +1,4 @@
+import { vec3 } from 'math';
 import { describe, expect, it } from 'vitest';
 import { createCameraState, type CameraState } from '../../src/CameraState';
 import { BlendCurves } from '../../src/blend/BlendCurves';
@@ -5,7 +6,7 @@ import { BlendDriver } from '../../src/blend/BlendDriver';
 
 function stateAt(x: number): CameraState {
   const state = createCameraState();
-  state.position.set(x, 0, 0);
+  vec3.set(state.position, x, 0, 0);
   return state;
 }
 
@@ -21,7 +22,7 @@ describe('BlendDriver', () => {
 
     expect(driver.isBlending).toBe(false);
     expect(driver.liveId).toBe('a');
-    expect(driver.tick(0).position.x).toBe(5);
+    expect(driver.tick(0).position[0]).toBe(5);
   });
 
   it('setTarget is a no-op when toId already matches blendTargetId', () => {
@@ -47,7 +48,7 @@ describe('BlendDriver', () => {
     expect(driver.liveId).toBe('a'); // still 'a' until the blend finishes
 
     const out = driver.tick(1); // halfway through a 2s linear blend
-    expect(out.position.x).toBeCloseTo(5, 5);
+    expect(out.position[0]).toBeCloseTo(5, 5);
   });
 
   it('commits liveId and clears isBlending once the blend reaches t >= 1', () => {
@@ -63,7 +64,7 @@ describe('BlendDriver', () => {
 
     expect(driver.isBlending).toBe(false);
     expect(driver.liveId).toBe('b');
-    expect(out.position.x).toBeCloseTo(10, 5);
+    expect(out.position[0]).toBeCloseTo(10, 5);
   });
 
   it('a `time: 0` (cut) definition resolves to the destination on the very next tick', () => {
@@ -77,7 +78,7 @@ describe('BlendDriver', () => {
 
     expect(driver.isBlending).toBe(false);
     expect(driver.liveId).toBe('b');
-    expect(out.position.x).toBe(10);
+    expect(out.position[0]).toBe(10);
   });
 
   it('mid-blend interruption: retargeting blends from the CURRENT composited output, not the original start', () => {
@@ -91,10 +92,10 @@ describe('BlendDriver', () => {
 
     driver.setTarget('c', linear2s); // interrupt — retarget to 'c' from wherever we are NOW
     const justAfterRetarget = driver.tick(0);
-    expect(justAfterRetarget.position.x).toBeCloseTo(5, 5); // still at the interruption point, not back at 'a'
+    expect(justAfterRetarget.position[0]).toBeCloseTo(5, 5); // still at the interruption point, not back at 'a'
 
     const out = driver.tick(2); // full 2s of the NEW blend, from x=5 toward c's x=-10
-    expect(out.position.x).toBeCloseTo(-10, 5);
+    expect(out.position[0]).toBeCloseTo(-10, 5);
   });
 
   it('the target candidate is tracked LIVE while settled — a moving state pulls the output with it', () => {
@@ -104,10 +105,10 @@ describe('BlendDriver', () => {
     driver.setTarget('a', linear2s);
     driver.tick(0);
 
-    target.position.set(42, 0, 0); // the live candidate's own state moves
+    vec3.set(target.position, 42, 0, 0); // the live candidate's own state moves
     const out = driver.tick(0.1);
 
-    expect(out.position.x).toBe(42);
+    expect(out.position[0]).toBe(42);
   });
 
   it('a vanished-then-replaced candidate blends from the frozen output, not a fresh snap (real scenario KlippCore relies on)', () => {
@@ -123,7 +124,7 @@ describe('BlendDriver', () => {
 
     expect(driver.isBlending).toBe(true); // blends, doesn't snap — hasEverActivated was already true
     const out = driver.tick(1); // halfway through
-    expect(out.position.x).toBeCloseTo(10, 5); // from 0 (frozen output) toward 20, not a snap to 20
+    expect(out.position[0]).toBeCloseTo(10, 5); // from 0 (frozen output) toward 20, not a snap to 20
   });
 
   describe('forget', () => {
@@ -166,7 +167,7 @@ describe('BlendDriver', () => {
 
       expect(driver.isBlending).toBe(true); // not a snap
       const out = driver.tick(1); // halfway through 2s
-      expect(out.position.x).toBeCloseTo(10, 5); // from the frozen 0, not a snap to 20
+      expect(out.position[0]).toBeCloseTo(10, 5); // from the frozen 0, not a snap to 20
     });
 
     it('forgetting the live id does NOT clear hasEverActivated — unlike liveId, it stays true (the whole point: a caller can tell "momentarily orphaned" from "arbitration never picked anyone")', () => {
@@ -230,11 +231,11 @@ describe('BlendDriver', () => {
       driver.setTarget('b', damped);
       expect(driver.isBlending).toBe(true);
 
-      const first = driver.tick(0.05).position.x;
+      const first = driver.tick(0.05).position[0];
       expect(first).toBeGreaterThan(0);
       expect(first).toBeLessThan(10);
 
-      const second = driver.tick(0.05).position.x;
+      const second = driver.tick(0.05).position[0];
       expect(second).toBeGreaterThan(first);
       expect(second).toBeLessThan(10);
     });
@@ -261,7 +262,7 @@ describe('BlendDriver', () => {
 
       for (let i = 0; i < 500 && driver.isBlending; i++) {
         const out = driver.tick(0.016);
-        expect(out.position.x).toBeLessThanOrEqual(10 + 1e-6);
+        expect(out.position[0]).toBeLessThanOrEqual(10 + 1e-6);
       }
     });
 
@@ -272,13 +273,13 @@ describe('BlendDriver', () => {
       unclamped.setTarget('a', damped);
       unclamped.tick(0);
       unclamped.setTarget('b', damped);
-      const xUnclamped = unclamped.tick(0.05).position.x;
+      const xUnclamped = unclamped.tick(0.05).position[0];
 
       const clamped = new BlendDriver<'a' | 'b'>((id) => states[id]);
       clamped.setTarget('a', damped);
       clamped.tick(0);
       clamped.setTarget('b', { damping: 0.3, maxSpeed: 1 });
-      const xClamped = clamped.tick(0.05).position.x;
+      const xClamped = clamped.tick(0.05).position[0];
 
       expect(xClamped).toBeLessThan(xUnclamped);
     });

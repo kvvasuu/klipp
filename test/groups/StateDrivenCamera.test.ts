@@ -1,3 +1,4 @@
+import { vec3 } from 'math';
 import { describe, expect, it } from 'vitest';
 import { createCameraState } from '../../src/CameraState';
 import { BlendCurves } from '../../src/blend/BlendCurves';
@@ -5,7 +6,7 @@ import { StateDrivenCamera, type StateDrivenCandidate } from '../../src/groups/S
 
 function candidateAt(cameraId: string, x: number, priority: number, forState: string): StateDrivenCandidate {
   const state = createCameraState();
-  state.position.set(x, 0, 0);
+  vec3.set(state.position, x, 0, 0);
   return { cameraId, state, priority, forState };
 }
 
@@ -19,7 +20,7 @@ describe('StateDrivenCamera', () => {
     const out = sdc.tick(0);
 
     expect(sdc.liveCameraId).toBeNull();
-    expect(out.position.x).toBe(0); // default CameraState, not candidate 'a's — caller must check liveCameraId
+    expect(out.position[0]).toBe(0); // default CameraState, not candidate 'a's — caller must check liveCameraId
   });
 
   it('snaps to the matching candidate on the very first tick', () => {
@@ -29,7 +30,7 @@ describe('StateDrivenCamera', () => {
 
     expect(sdc.liveCameraId).toBe('a');
     expect(sdc.isBlending).toBe(false);
-    expect(out.position.x).toBe(1);
+    expect(out.position[0]).toBe(1);
   });
 
   it('several candidates mapping to the same state: highest priority wins', () => {
@@ -66,14 +67,14 @@ describe('StateDrivenCamera', () => {
     sdc.tick(0);
 
     sdc.setState('moving');
-    expect(sdc.tick(0.25).position.x).toBeCloseTo(2.5, 10);
+    expect(sdc.tick(0.25).position[0]).toBeCloseTo(2.5, 10);
     expect(sdc.isBlending).toBe(true);
     expect(sdc.liveCameraId).toBe('a');
 
     sdc.tick(0.25);
     sdc.tick(0.25);
     const out = sdc.tick(0.25);
-    expect(out.position.x).toBeCloseTo(10, 10);
+    expect(out.position[0]).toBeCloseTo(10, 10);
     expect(sdc.isBlending).toBe(false);
     expect(sdc.liveCameraId).toBe('b');
   });
@@ -87,11 +88,11 @@ describe('StateDrivenCamera', () => {
     sdc.tick(0);
 
     sdc.setState('moving');
-    expect(sdc.tick(0.25).position.x).toBeCloseTo(2.5, 10);
+    expect(sdc.tick(0.25).position[0]).toBeCloseTo(2.5, 10);
 
     sdc.setState('running');
     const interrupted = sdc.tick(0.5);
-    expect(interrupted.position.x).toBeCloseTo(2.5 + (100 - 2.5) * 0.5, 10);
+    expect(interrupted.position[0]).toBeCloseTo(2.5 + (100 - 2.5) * 0.5, 10);
   });
 
   it('the live-blend target is tracked LIVE — a mock camera that moves mid-blend pulls the output with it', () => {
@@ -102,10 +103,10 @@ describe('StateDrivenCamera', () => {
     sdc.tick(0);
     sdc.setState('moving');
 
-    expect(sdc.tick(0.5).position.x).toBeCloseTo(5, 10);
+    expect(sdc.tick(0.5).position[0]).toBeCloseTo(5, 10);
 
-    b.state.position.x = 50;
+    b.state.position[0] = 50;
 
-    expect(sdc.tick(0.5).position.x).toBeCloseTo(50, 10);
+    expect(sdc.tick(0.5).position[0]).toBeCloseTo(50, 10);
   });
 });

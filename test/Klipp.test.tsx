@@ -406,7 +406,7 @@ describe('Klipp / useKlipp', () => {
 
       // internal state is warm — the winning candidate settled, activeState reflects the real target
       expect(core!.liveCameraId).toBe('a');
-      expect(core!.activeState!.position.x).toBeCloseTo(3, 10);
+      expect(core!.activeState!.position[0]).toBeCloseTo(3, 10);
       // ...but the actual r3f camera never got written to
       expect(camera!.position.equals(cameraBefore)).toBe(true);
     });

@@ -1,7 +1,9 @@
+import { vec3 } from 'math';
 import { Euler, Object3D, Vector3 } from 'three';
 import { describe, expect, it } from 'vitest';
 import { createCameraState } from '../../src/CameraState';
 import { PanTiltAim } from '../../src/aim/PanTiltAim';
+import { toQuaternion, toTuple } from '../tuples';
 
 function decompose(quaternion: { x: number; y: number; z: number; w: number }) {
   const euler = new Euler(0, 0, 0, 'YXZ');
@@ -25,7 +27,7 @@ describe('PanTiltAim', () => {
     const out = createCameraState();
     aim.update(out, 0.016);
 
-    const { pitchDeg, yawDeg } = decompose(out.quaternion);
+    const { pitchDeg, yawDeg } = decompose(toQuaternion(out.quaternion));
     expect(pitchDeg).toBeCloseTo(0, 5);
     expect(yawDeg).toBeCloseTo(0, 5);
   });
@@ -37,7 +39,7 @@ describe('PanTiltAim', () => {
     const out = createCameraState();
     aim.update(out, 0.016);
 
-    const { yawDeg, pitchDeg } = decompose(out.quaternion);
+    const { yawDeg, pitchDeg } = decompose(toQuaternion(out.quaternion));
     expect(yawDeg).toBeCloseTo(-30, 4);
     expect(pitchDeg).toBeCloseTo(0, 5);
   });
@@ -49,7 +51,7 @@ describe('PanTiltAim', () => {
     const out = createCameraState();
     aim.update(out, 0.016);
 
-    const { pitchDeg, yawDeg } = decompose(out.quaternion);
+    const { pitchDeg, yawDeg } = decompose(toQuaternion(out.quaternion));
     expect(pitchDeg).toBeCloseTo(-20, 4);
     expect(yawDeg).toBeCloseTo(0, 5);
   });
@@ -62,7 +64,7 @@ describe('PanTiltAim', () => {
     const out = createCameraState();
     aim.update(out, 0.016);
 
-    const { pitchDeg, yawDeg } = decompose(out.quaternion);
+    const { pitchDeg, yawDeg } = decompose(toQuaternion(out.quaternion));
     expect(yawDeg).toBeCloseTo(-45, 4);
     expect(pitchDeg).toBeCloseTo(15, 4);
   });
@@ -115,13 +117,13 @@ describe('PanTiltAim', () => {
       aim.pan.applyDelta(90);
       settleAxes(aim);
       const out = createCameraState();
-      out.referenceUp.set(0, 0, 1); // scene tilted 90° - "up" is world +Z, not +Y
+      vec3.set(out.referenceUp, 0, 0, 1); // scene tilted 90° - "up" is world +Z, not +Y
 
       aim.update(out, 0.016);
 
       // forward (0,0,-1) rotated 90° yaw around the TILTED up axis - sanity check via dot products
       // rather than decompose(), which assumes a +Y-up Euler frame that no longer applies here
-      const forward = new Vector3(0, 0, -1).applyQuaternion(out.quaternion);
+      const forward = new Vector3(0, 0, -1).applyQuaternion(toQuaternion(out.quaternion));
       expect(forward.dot(new Vector3(0, 0, -1))).toBeCloseTo(0, 4); // no longer facing the old forward
       expect(Math.abs(forward.y)).toBeLessThan(1e-4); // stayed level relative to the tilted horizon
     });
@@ -136,7 +138,7 @@ describe('PanTiltAim', () => {
       const out = createCameraState();
       aim.update(out, 0.016); // pan/tilt both 0 - should just inherit the target's own facing
 
-      const forward = new Vector3(0, 0, -1).applyQuaternion(out.quaternion);
+      const forward = new Vector3(0, 0, -1).applyQuaternion(toQuaternion(out.quaternion));
       const targetForward = new Vector3(0, 0, -1).applyQuaternion(target.quaternion);
       expect(forward.dot(targetForward)).toBeCloseTo(1, 4);
     });
@@ -148,7 +150,7 @@ describe('PanTiltAim', () => {
       const out = createCameraState();
       expect(() => aim.update(out, 0.016)).not.toThrow();
 
-      const { pitchDeg, yawDeg } = decompose(out.quaternion);
+      const { pitchDeg, yawDeg } = decompose(toQuaternion(out.quaternion));
       expect(pitchDeg).toBeCloseTo(0, 5);
       expect(yawDeg).toBeCloseTo(0, 5);
     });
@@ -178,11 +180,11 @@ describe('PanTiltAim', () => {
       source.tilt.applyDelta(25);
       settleAxes(source);
       const out = createCameraState();
-      out.referenceUp.copy(referenceUp);
+      referenceUp.toArray(out.referenceUp);
       source.update(out, 0.016);
 
       const recovered = new PanTiltAim();
-      recovered.setFromRotation(out.quaternion, referenceUp);
+      recovered.setFromRotation(out.quaternion, toTuple(referenceUp));
       settleAxes(recovered);
 
       expect(recovered.pan.value).toBeCloseTo(-70, 4);
@@ -201,12 +203,12 @@ describe('PanTiltAim', () => {
       source.tilt.applyDelta(-10);
       settleAxes(source);
       const out = createCameraState();
-      out.referenceUp.copy(referenceUp);
+      referenceUp.toArray(out.referenceUp);
       source.update(out, 0.016);
 
       const recovered = new PanTiltAim();
       recovered.target = target;
-      recovered.setFromRotation(out.quaternion, referenceUp);
+      recovered.setFromRotation(out.quaternion, toTuple(referenceUp));
       settleAxes(recovered);
 
       expect(recovered.pan.value).toBeCloseTo(20, 4);
@@ -220,7 +222,7 @@ describe('PanTiltAim', () => {
 
       const aim = new PanTiltAim();
       aim.target = target;
-      aim.setFromRotation(target.quaternion, new Vector3(0, 1, 0));
+      aim.setFromRotation(toTuple(target.quaternion), [0, 1, 0]);
       settleAxes(aim);
 
       expect(aim.pan.value).toBeCloseTo(0, 4);
@@ -241,7 +243,7 @@ describe('PanTiltAim', () => {
       const recoveredOut = createCameraState();
       recovered.update(recoveredOut, 0.016);
 
-      expect(recoveredOut.quaternion.angleTo(sourceOut.quaternion)).toBeLessThan(1e-3);
+      expect(toQuaternion(recoveredOut.quaternion).angleTo(toQuaternion(sourceOut.quaternion))).toBeLessThan(1e-3);
     });
   });
 });

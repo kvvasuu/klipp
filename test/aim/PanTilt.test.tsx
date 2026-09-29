@@ -10,6 +10,7 @@ import { Klipp } from '../../src/Klipp';
 import { useKlipp } from '../../src/KlippContext';
 import type { KlippCore } from '../../src/KlippCore';
 import { VirtualCamera } from '../../src/VirtualCamera';
+import { toQuaternion } from '../tuples';
 
 function CoreReader({ onRead }: { onRead: (core: KlippCore) => void }) {
   onRead(useKlipp().core);
@@ -41,7 +42,7 @@ describe('PanTilt (React wrapper)', () => {
     const renderer = await create(scene);
     await renderer.advanceFrames(1, 0.05);
 
-    const before = core!.activeState!.quaternion.clone();
+    const before = toQuaternion(core!.activeState!.quaternion);
 
     const el = domElement!;
     el.dispatchEvent(
@@ -66,7 +67,7 @@ describe('PanTilt (React wrapper)', () => {
     );
     await renderer.advanceFrames(1, 0.05);
 
-    expect(core!.activeState!.quaternion.equals(before)).toBe(false);
+    expect(toQuaternion(core!.activeState!.quaternion).equals(before)).toBe(false);
   });
 
   it('target prop reaches the underlying PanTiltAim', async () => {
@@ -87,7 +88,7 @@ describe('PanTilt (React wrapper)', () => {
     const renderer = await create(scene);
     await renderer.advanceFrames(1, 0.05);
 
-    const forward = new Vector3(0, 0, -1).applyQuaternion(core!.activeState!.quaternion);
+    const forward = new Vector3(0, 0, -1).applyQuaternion(toQuaternion(core!.activeState!.quaternion));
     const targetForward = new Vector3(0, 0, -1).applyQuaternion(target.quaternion);
     expect(forward.dot(targetForward)).toBeCloseTo(1, 4);
   });
@@ -108,7 +109,7 @@ describe('PanTilt (React wrapper)', () => {
     const renderer = await create(scene);
     await renderer.advanceFrames(1, 0.05);
 
-    expect(core!.activeState!.quaternion.angleTo(initialQuaternion)).toBeLessThan(1e-3);
+    expect(toQuaternion(core!.activeState!.quaternion).angleTo(initialQuaternion)).toBeLessThan(1e-3);
   });
 
   it('damping/maxSpeed props apply to both pan and tilt', async () => {

@@ -1,3 +1,4 @@
+import { vec3 } from 'math';
 import { describe, expect, it } from 'vitest';
 import { createCameraState } from '../../src/CameraState';
 import { BlendCurves } from '../../src/blend/BlendCurves';
@@ -5,7 +6,7 @@ import { Sequencer, type SequencerInstruction } from '../../src/groups/Sequencer
 
 function stateAt(x: number): ReturnType<typeof createCameraState> {
   const state = createCameraState();
-  state.position.set(x, 0, 0);
+  vec3.set(state.position, x, 0, 0);
   return state;
 }
 
@@ -30,7 +31,7 @@ describe('Sequencer', () => {
     expect(sequencer.currentCameraId).toBe('a');
     expect(sequencer.currentIndex).toBe(0);
     expect(sequencer.isBlending).toBe(false);
-    expect(out.position.x).toBe(1);
+    expect(out.position[0]).toBe(1);
   });
 
   it('holds until its duration elapses, then blends to the next instruction over the configured time', () => {
@@ -48,9 +49,9 @@ describe('Sequencer', () => {
     expect(sequencer.isBlending).toBe(true);
     expect(sequencer.currentCameraId).toBe('a');
 
-    expect(sequencer.tick(0.5).position.x).toBeCloseTo(5, 10);
+    expect(sequencer.tick(0.5).position[0]).toBeCloseTo(5, 10);
     const out = sequencer.tick(0.5);
-    expect(out.position.x).toBeCloseTo(10, 10);
+    expect(out.position[0]).toBeCloseTo(10, 10);
     expect(sequencer.isBlending).toBe(false);
     expect(sequencer.currentCameraId).toBe('b');
   });
@@ -68,7 +69,7 @@ describe('Sequencer', () => {
     const out = sequencer.tick(0.001); // cut resolves within the same tick it advances
     expect(sequencer.isBlending).toBe(false);
     expect(sequencer.currentCameraId).toBe('b');
-    expect(out.position.x).toBeCloseTo(10, 10);
+    expect(out.position[0]).toBeCloseTo(10, 10);
   });
 
   it('the blend target is tracked live — a mock camera that moves mid-blend pulls the output with it', () => {
@@ -77,11 +78,11 @@ describe('Sequencer', () => {
     const sequencer = new Sequencer([a, b]);
     sequencer.tick(0);
     sequencer.tick(1); // start blend
-    expect(sequencer.tick(0.5).position.x).toBeCloseTo(5, 10);
+    expect(sequencer.tick(0.5).position[0]).toBeCloseTo(5, 10);
 
-    b.state.position.x = 50;
+    b.state.position[0] = 50;
 
-    expect(sequencer.tick(0.5).position.x).toBeCloseTo(50, 10);
+    expect(sequencer.tick(0.5).position[0]).toBeCloseTo(50, 10);
   });
 
   it('holds the last instruction forever when not looping', () => {
@@ -114,6 +115,6 @@ describe('Sequencer', () => {
     const out = sequencer.tick(0.001);
 
     expect(sequencer.currentCameraId).toBe('a');
-    expect(out.position.x).toBeCloseTo(0, 10);
+    expect(out.position[0]).toBeCloseTo(0, 10);
   });
 });

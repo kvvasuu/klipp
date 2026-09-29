@@ -1,5 +1,5 @@
 import type { Vector3 as Vector3Like } from '@react-three/fiber';
-import { clamp, degreesToRadians } from 'math';
+import { clamp, degreesToRadians, type Quat } from 'math';
 import { Matrix4, Quaternion, Vector3 } from 'three';
 import type { CameraState } from '../CameraState';
 import { Damper, type DampingConstant } from '../damping/Damper';
@@ -20,6 +20,10 @@ const scratchOutInverse = new Quaternion();
 const scratchLocalDir = new Vector3();
 const scratchRight = new Vector3();
 const scratchUp = new Vector3();
+const scratchPosition = new Vector3();
+const scratchReferenceUp = new Vector3();
+const scratchRotation = new Quaternion();
+const scratchLookAtTarget = new Vector3();
 /** Reused world-space target extents, converted to screen fractions at the point of use. */
 const scratchExtents: [number, number] = [0, 0];
 /** Matches `Damper.update`'s own `epsilon` - the gap at which it declares the distance arrived. */
@@ -132,12 +136,28 @@ export class RotationComposerAim {
     this.forceSizeRecalculation = true;
   }
 
-  primeFrom = (rotation: Quaternion): void => {
-    this.damper.update(rotation, rotation, this.damping, 0);
+  primeFrom = (rotation: Quat): void => {
+    scratchRotation.fromArray(rotation);
+    this.damper.update(scratchRotation, scratchRotation, this.damping, 0).toArray(rotation);
     this.primed = true;
   };
 
   update = (out: CameraState, dt: number, justActivated: boolean): void => {
+    scratchPosition.fromArray(out.position);
+    scratchReferenceUp.fromArray(out.referenceUp);
+    scratchRotation.fromArray(out.quaternion);
+    this.compose(out, scratchPosition, scratchReferenceUp, scratchRotation, dt, justActivated);
+    scratchRotation.toArray(out.quaternion);
+  };
+
+  private compose(
+    out: CameraState,
+    position: Vector3,
+    referenceUp: Vector3,
+    rotation: Quaternion,
+    dt: number,
+    justActivated: boolean,
+  ): void {
     const skipReset = justActivated && this.primed;
     if (justActivated) this.primed = false;
 
@@ -165,7 +185,7 @@ export class RotationComposerAim {
       this.lookAtDirectionDamper.reset();
       this.lookAtDistanceDamper.reset();
     }
-    scratchLookMatrix.lookAt(out.position, scratchTargetPosition, out.referenceUp);
+    scratchLookMatrix.lookAt(position, scratchTargetPosition, referenceUp);
     scratchTargetQuaternion.setFromRotationMatrix(scratchLookMatrix);
     this.lookAtDirectionDamper.update(
       this.publishedLookRotation,
@@ -174,7 +194,7 @@ export class RotationComposerAim {
       dt,
       this.maxSpeed,
     );
-    const targetDistance = out.position.distanceTo(scratchTargetPosition);
+    const targetDistance = position.distanceTo(scratchTargetPosition);
     this.publishedDistance = this.lookAtDistanceDamper.update(this.publishedDistance, targetDistance, this.damping, dt);
     // Publish the exact target only after both direction and distance have settled.
     if (
@@ -182,13 +202,14 @@ export class RotationComposerAim {
       Math.abs(this.publishedDistance - targetDistance) < DISTANCE_EPSILON
     ) {
       // Preserve the exact target when no damping remains.
-      out.lookAtTarget.copy(scratchTargetPosition);
+      scratchTargetPosition.toArray(out.lookAtTarget);
     } else {
-      out.lookAtTarget
+      scratchLookAtTarget
         .copy(forwardAxis)
         .applyQuaternion(this.publishedLookRotation)
         .multiplyScalar(this.publishedDistance)
-        .add(out.position);
+        .add(position)
+        .toArray(out.lookAtTarget);
     }
     out.hasLookAtTarget = true;
 
@@ -203,9 +224,9 @@ export class RotationComposerAim {
     // A fresh activation has no meaningful previous orientation for a dead-zone check.
     if (!justActivated && (this.deadZone[0] > 0 || this.deadZone[1] > 0)) {
       // Measure the target using the orientation from before this update.
-      scratchOutInverse.copy(out.quaternion).invert();
+      scratchOutInverse.copy(rotation).invert();
       const [screenX, screenY, depth] = computeScreenPoint(
-        out.position,
+        position,
         scratchOutInverse,
         scratchTargetPosition,
         tanHalfFovH,
@@ -215,8 +236,8 @@ export class RotationComposerAim {
       if (depth > 1e-6) {
         const halfWidth = this.deadZone[0];
         const halfHeight = this.deadZone[1];
-        scratchRight.set(1, 0, 0).applyQuaternion(out.quaternion);
-        scratchUp.set(0, 1, 0).applyQuaternion(out.quaternion);
+        scratchRight.set(1, 0, 0).applyQuaternion(rotation);
+        scratchUp.set(0, 1, 0).applyQuaternion(rotation);
         resolveTargetHalfExtents(
           scratchExtents,
           this.target,
@@ -249,9 +270,9 @@ export class RotationComposerAim {
     if (!insideDeadZone) {
       composeQuaternionForScreenPoint(
         scratchTargetQuaternion,
-        out.position,
+        position,
         scratchTargetPosition,
-        out.referenceUp,
+        referenceUp,
         desiredX,
         desiredY,
         tanHalfFovH,
@@ -263,17 +284,17 @@ export class RotationComposerAim {
       // Keep damping toward the last active target instead of the current camera rotation.
       scratchTargetQuaternion.copy(this.lastActiveDesiredRotation);
     } else {
-      scratchTargetQuaternion.copy(out.quaternion); // No previous target means no correction.
+      scratchTargetQuaternion.copy(rotation); // No previous target means no correction.
     }
 
     if (justActivated && !skipReset) this.damper.reset();
-    this.damper.update(out.quaternion, scratchTargetQuaternion, this.damping, dt, this.maxSpeed);
+    this.damper.update(rotation, scratchTargetQuaternion, this.damping, dt, this.maxSpeed);
 
     if (this.hardLimit[0] <= 0 && this.hardLimit[1] <= 0) return;
 
-    scratchOutInverse.copy(out.quaternion).invert();
+    scratchOutInverse.copy(rotation).invert();
     const [screenX, screenY, depth] = computeScreenPoint(
-      out.position,
+      position,
       scratchOutInverse,
       scratchTargetPosition,
       tanHalfFovH,
@@ -283,8 +304,8 @@ export class RotationComposerAim {
 
     const halfLimitWidth = this.hardLimit[0];
     const halfLimitHeight = this.hardLimit[1];
-    scratchRight.set(1, 0, 0).applyQuaternion(out.quaternion);
-    scratchUp.set(0, 1, 0).applyQuaternion(out.quaternion);
+    scratchRight.set(1, 0, 0).applyQuaternion(rotation);
+    scratchUp.set(0, 1, 0).applyQuaternion(rotation);
     resolveTargetHalfExtents(
       scratchExtents,
       this.target,
@@ -310,14 +331,14 @@ export class RotationComposerAim {
       this.screenPosition[1] + clamp(edgeErrorY, -halfLimitHeight, halfLimitHeight) - Math.sign(errorY) * limitExtentY;
     composeQuaternionForScreenPoint(
       scratchHardLimitQuaternion,
-      out.position,
+      position,
       scratchTargetPosition,
-      out.referenceUp,
+      referenceUp,
       clampedX,
       clampedY,
       tanHalfFovH,
       tanHalfFovV,
     );
-    out.quaternion.copy(scratchHardLimitQuaternion);
-  };
+    rotation.copy(scratchHardLimitQuaternion);
+  }
 }

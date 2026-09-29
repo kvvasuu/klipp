@@ -1,13 +1,15 @@
+import { vec3 } from 'math';
 import { Vector3 } from 'three';
 import { describe, expect, it, vi } from 'vitest';
 import { createCameraState } from '../src/CameraState';
 import { BlendCurves } from '../src/blend/BlendCurves';
 import { BlendHints } from '../src/blend/BlendHints';
 import { KlippCore } from '../src/KlippCore';
+import { toVector3 } from './tuples';
 
 function stateAt(x: number): ReturnType<typeof createCameraState> {
   const state = createCameraState();
-  state.position.set(x, 0, 0);
+  vec3.set(state.position, x, 0, 0);
   return state;
 }
 
@@ -45,8 +47,8 @@ describe('KlippCore — registry & priority arbitration', () => {
     core.registerCamera({ id: 'a', priority: 10, state });
 
     expect(core.activeState).toBe(state);
-    state.position.set(1, 2, 3);
-    expect(core.activeState?.position.equals(state.position)).toBe(true);
+    vec3.set(state.position, 1, 2, 3);
+    expect(vec3.exactEquals(core.activeState!.position, state.position)).toBe(true);
   });
 
   it('highest priority wins', () => {
@@ -386,14 +388,14 @@ describe('KlippCore — tick(dt): blend lifecycle', () => {
   it('the first-ever camera snaps live immediately, no blend', () => {
     const core = new KlippCore();
     const state = createCameraState();
-    state.position.set(1, 2, 3);
+    vec3.set(state.position, 1, 2, 3);
     core.registerCamera({ id: 'a', priority: 10, state });
 
     const out = core.tick(0);
 
     expect(core.liveCameraId).toBe('a');
     expect(core.isBlending).toBe(false);
-    expect(out.position.equals(state.position)).toBe(true);
+    expect(toVector3(out.position).equals(toVector3(state.position))).toBe(true);
   });
 
   it('a new, higher-priority camera blends in over the configured time, not an instant cut', () => {
@@ -405,15 +407,15 @@ describe('KlippCore — tick(dt): blend lifecycle', () => {
 
     core.registerCamera({ id: 'b', priority: 20, state: b });
 
-    expect(core.tick(0.25).position.x).toBeCloseTo(2.5, 10);
+    expect(core.tick(0.25).position[0]).toBeCloseTo(2.5, 10);
     expect(core.isBlending).toBe(true);
     expect(core.liveCameraId).toBe('a');
 
-    expect(core.tick(0.25).position.x).toBeCloseTo(5, 10);
-    expect(core.tick(0.25).position.x).toBeCloseTo(7.5, 10);
+    expect(core.tick(0.25).position[0]).toBeCloseTo(5, 10);
+    expect(core.tick(0.25).position[0]).toBeCloseTo(7.5, 10);
 
     const final = core.tick(0.25);
-    expect(final.position.x).toBeCloseTo(10, 10);
+    expect(final.position[0]).toBeCloseTo(10, 10);
     expect(core.isBlending).toBe(false);
     expect(core.liveCameraId).toBe('b');
   });
@@ -442,7 +444,7 @@ describe('KlippCore — tick(dt): blend lifecycle', () => {
 
     expect(core.isBlending).toBe(false);
     expect(core.liveCameraId).toBe('b');
-    expect(out.position.x).toBeCloseTo(5, 10);
+    expect(out.position[0]).toBeCloseTo(5, 10);
   });
 
   it('the blend target is tracked LIVE — a mock Body that moves mid-blend pulls the output with it (a static mock would not catch this)', () => {
@@ -453,12 +455,12 @@ describe('KlippCore — tick(dt): blend lifecycle', () => {
     core.tick(0);
     core.registerCamera({ id: 'b', priority: 20, state: b });
 
-    expect(core.tick(0.5).position.x).toBeCloseTo(5, 10);
+    expect(core.tick(0.5).position[0]).toBeCloseTo(5, 10);
 
     // simulate a moving Body: its own update loop shifts its live state between ticks
-    b.position.x = 50;
+    b.position[0] = 50;
 
-    expect(core.tick(0.5).position.x).toBeCloseTo(50, 10);
+    expect(core.tick(0.5).position[0]).toBeCloseTo(50, 10);
   });
 
   it('mid-blend interruption: a new winner blends from the CURRENT composited output, not from the original outgoing state', () => {
@@ -470,14 +472,14 @@ describe('KlippCore — tick(dt): blend lifecycle', () => {
     core.tick(0);
     core.registerCamera({ id: 'b', priority: 20, state: b });
 
-    expect(core.tick(0.25).position.x).toBeCloseTo(2.5, 10); // 25% of the way from a to b
+    expect(core.tick(0.25).position[0]).toBeCloseTo(2.5, 10); // 25% of the way from a to b
 
     core.registerCamera({ id: 'c', priority: 30, state: c });
     const interrupted = core.tick(0.5); // 50% of the way from the frozen 2.5 midpoint to c (x=100)
 
-    expect(interrupted.position.x).toBeCloseTo(2.5 + (100 - 2.5) * 0.5, 10);
-    expect(interrupted.position.x).not.toBeCloseTo(50, 1); // NOT a naive a(0)->c(100) blend
-    expect(interrupted.position.x).not.toBeCloseTo(100, 1); // NOT a snap straight to c
+    expect(interrupted.position[0]).toBeCloseTo(2.5 + (100 - 2.5) * 0.5, 10);
+    expect(interrupted.position[0]).not.toBeCloseTo(50, 1); // NOT a naive a(0)->c(100) blend
+    expect(interrupted.position[0]).not.toBeCloseTo(100, 1); // NOT a snap straight to c
   });
 
   it('mid-blend interruption resolves Custom Blends against the interrupted blend\'s TARGET as "from", not the original outgoing camera', () => {
@@ -498,7 +500,7 @@ describe('KlippCore — tick(dt): blend lifecycle', () => {
     // default linear/1s blend would apply instead and this wouldn't resolve within one tick.
     expect(core.isBlending).toBe(false);
     expect(core.liveCameraId).toBe('c');
-    expect(out.position.x).toBeCloseTo(7, 10);
+    expect(out.position[0]).toBeCloseTo(7, 10);
   });
 
   it("unregistering the steady (non-blending) live camera keeps the last composited output as the next blend's start", () => {
@@ -514,7 +516,7 @@ describe('KlippCore — tick(dt): blend lifecycle', () => {
     expect(core.liveCameraId).toBeNull();
     const out = core.tick(0.5);
     expect(core.isBlending).toBe(true);
-    expect(out.position.x).toBeCloseTo(6, 10); // blends from a's last known position (3), not from 0
+    expect(out.position[0]).toBeCloseTo(6, 10); // blends from a's last known position (3), not from 0
   });
 
   it('a Custom Blend keyed by `from` still matches after the outgoing camera unregisters first (the `active`-prop toggle pattern — real bug: unregistering nulled the id customBlends resolved "from" against, silently falling back to defaultBlend)', () => {
@@ -530,7 +532,7 @@ describe('KlippCore — tick(dt): blend lifecycle', () => {
 
     const out = core.tick(0.016);
     expect(core.isBlending).toBe(false);
-    expect(out.position.x).toBeCloseTo(10, 10); // cut, not a sliver of the 1s default linear blend
+    expect(out.position[0]).toBeCloseTo(10, 10); // cut, not a sliver of the 1s default linear blend
   });
 
   it('unregistering the blend TARGET mid-flight re-blends from the current composited position — even if the recomputed winner happens to equal the stale liveId (real bug: it snapped instead)', () => {
@@ -541,15 +543,15 @@ describe('KlippCore — tick(dt): blend lifecycle', () => {
     core.tick(0); // 'a' snaps live
 
     const unregisterB = core.registerCamera({ id: 'b', priority: 20, state: b });
-    expect(core.tick(0.5).position.x).toBeCloseTo(5, 10); // halfway through the a -> b blend
+    expect(core.tick(0.5).position[0]).toBeCloseTo(5, 10); // halfway through the a -> b blend
 
     unregisterB(); // 'b' vanishes mid-blend; 'a' — the OLD liveId — is the only candidate left
 
     const out = core.tick(0.5);
     // a naive fix would see activeId ('a') === the stale liveId ('a') and skip starting a new blend,
     // snapping straight to a's raw x=0 instead of continuing smoothly from the x=5 midpoint.
-    expect(out.position.x).toBeGreaterThan(0);
-    expect(out.position.x).toBeLessThan(5);
+    expect(out.position[0]).toBeGreaterThan(0);
+    expect(out.position[0]).toBeLessThan(5);
     expect(core.isBlending).toBe(true);
   });
 
@@ -562,15 +564,15 @@ describe('KlippCore — tick(dt): blend lifecycle', () => {
     core.tick(0); // 'main' snaps live (main1 not registered yet)
 
     const unregisterMain1 = core.registerCamera({ id: 'main1', priority: 12, state: main1 });
-    main.position.x = 1; // 'main' keeps moving in the background, unrelated to the blend
-    expect(core.tick(0.5).position.x).toBeCloseTo(5, 10); // halfway through the main -> main1 blend
+    main.position[0] = 1; // 'main' keeps moving in the background, unrelated to the blend
+    expect(core.tick(0.5).position[0]).toBeCloseTo(5, 10); // halfway through the main -> main1 blend
 
-    main.position.x = 2; // moves again before the toggle-off
+    main.position[0] = 2; // moves again before the toggle-off
     unregisterMain1(); // main1 vanishes mid-blend; 'main' — the OLD liveId — is the only candidate left
 
     const out = core.tick(0.5);
-    expect(out.position.x).toBeGreaterThan(2); // blending FROM the x=5 midpoint TOWARD main's x=2
-    expect(out.position.x).toBeLessThan(5);
+    expect(out.position[0]).toBeGreaterThan(2); // blending FROM the x=5 midpoint TOWARD main's x=2
+    expect(out.position[0]).toBeLessThan(5);
     expect(core.isBlending).toBe(true);
   });
 });
@@ -587,13 +589,13 @@ describe('KlippCore — setDefaultBlend/setCustomBlends', () => {
     core.setDefaultBlend({ curve: BlendCurves.cut, time: 0 });
     const midBlend = core.tick(0.1);
     expect(core.isBlending).toBe(true); // still using the ORIGINAL 10s blend, unaffected
-    expect(midBlend.position.x).toBeCloseTo(1.1, 10);
+    expect(midBlend.position[0]).toBeCloseTo(1.1, 10);
 
     core.registerCamera({ id: 'c', priority: 30, state: stateAt(100) });
     const out = core.tick(0); // a NEW transition — this one uses the updated (instant cut) default
     expect(core.isBlending).toBe(false);
     expect(core.liveCameraId).toBe('c');
-    expect(out.position.x).toBeCloseTo(100, 10);
+    expect(out.position[0]).toBeCloseTo(100, 10);
   });
 
   it('setDefaultBlend() with no argument resets to the built-in default (ease in/out, 2s)', () => {
@@ -605,7 +607,7 @@ describe('KlippCore — setDefaultBlend/setCustomBlends', () => {
 
     const out = core.tick(0); // 0s into the (now 2s) blend — should NOT have cut instantly
     expect(core.isBlending).toBe(true);
-    expect(out.position.x).toBeCloseTo(0, 10);
+    expect(out.position[0]).toBeCloseTo(0, 10);
   });
 
   it('setCustomBlends replaces the list — a from/to pair resolves against the NEW list on the next transition', () => {
@@ -618,7 +620,7 @@ describe('KlippCore — setDefaultBlend/setCustomBlends', () => {
     const out = core.tick(0); // custom blend applies: instant cut, not the 10s default
 
     expect(core.isBlending).toBe(false);
-    expect(out.position.x).toBeCloseTo(10, 10);
+    expect(out.position[0]).toBeCloseTo(10, 10);
   });
 
   it('setCustomBlends() with no argument clears the list, falling back to defaultBlend', () => {
@@ -634,15 +636,15 @@ describe('KlippCore — setDefaultBlend/setCustomBlends', () => {
     const out = core.tick(0); // no more custom blend — falls back to the 10s linear default
 
     expect(core.isBlending).toBe(true);
-    expect(out.position.x).toBeCloseTo(0, 10);
+    expect(out.position[0]).toBeCloseTo(0, 10);
   });
 });
 
 describe('KlippCore — BlendHints', () => {
   function orbitingStateAt(position: Vector3): ReturnType<typeof createCameraState> {
     const state = createCameraState();
-    state.position.copy(position);
-    state.target.set(0, 0, 0);
+    position.toArray(state.position);
+    vec3.set(state.target, 0, 0, 0);
     state.hasTarget = true;
     return state;
   }
@@ -657,9 +659,9 @@ describe('KlippCore — BlendHints', () => {
 
     const out = core.tick(0.5); // halfway through the 1s blend
 
-    const radiusA = a.position.length();
-    const radiusB = b.position.length();
-    expect(out.position.length()).toBeCloseTo((radiusA + radiusB) / 2, 5);
+    const radiusA = toVector3(a.position).length();
+    const radiusB = toVector3(b.position).length();
+    expect(toVector3(out.position).length()).toBeCloseTo((radiusA + radiusB) / 2, 5);
   });
 
   it('a hint on the OUTGOING camera alone also shapes the blend (hints combine via OR, not just the incoming side)', () => {
@@ -672,9 +674,9 @@ describe('KlippCore — BlendHints', () => {
 
     const out = core.tick(0.5);
 
-    const radiusA = a.position.length();
-    const radiusB = b.position.length();
-    expect(out.position.length()).toBeCloseTo((radiusA + radiusB) / 2, 5);
+    const radiusA = toVector3(a.position).length();
+    const radiusB = toVector3(b.position).length();
+    expect(toVector3(out.position).length()).toBeCloseTo((radiusA + radiusB) / 2, 5);
   });
 
   it("the OUTGOING camera's hint survives it unregistering before the incoming one registers (the `active`-prop toggle pattern - real bug: its candidate entry, and hints with it, was already gone by the time tick() read them)", () => {
@@ -689,9 +691,9 @@ describe('KlippCore — BlendHints', () => {
 
     const out = core.tick(0.5);
 
-    const radiusA = a.position.length();
-    const radiusB = b.position.length();
-    expect(out.position.length()).toBeCloseTo((radiusA + radiusB) / 2, 5);
+    const radiusA = toVector3(a.position).length();
+    const radiusB = toVector3(b.position).length();
+    expect(toVector3(out.position).length()).toBeCloseTo((radiusA + radiusB) / 2, 5);
   });
 
   it("updating the LIVE outgoing camera's hints takes effect on its NEXT transition - real bug: the captured customBlendFromHints stayed stale one transition behind, since it was only refreshed at transition time, not when a live camera's hints changed", () => {
@@ -706,9 +708,9 @@ describe('KlippCore — BlendHints', () => {
 
     const out = core.tick(0.5);
 
-    const radiusA = a.position.length();
-    const radiusB = b.position.length();
-    expect(out.position.length()).not.toBeCloseTo((radiusA + radiusB) / 2, 1);
+    const radiusA = toVector3(a.position).length();
+    const radiusB = toVector3(b.position).length();
+    expect(toVector3(out.position).length()).not.toBeCloseTo((radiusA + radiusB) / 2, 1);
   });
 
   it("updating the LIVE outgoing camera's hints ALSO takes effect when it unregisters before the incoming one registers (the `active`-prop toggle pattern combined with a hints toggle - real bug: the stale snapshot was the ONLY hints source left once the candidate itself was gone)", () => {
@@ -724,9 +726,9 @@ describe('KlippCore — BlendHints', () => {
 
     const out = core.tick(0.5);
 
-    const radiusA = a.position.length();
-    const radiusB = b.position.length();
-    expect(out.position.length()).not.toBeCloseTo((radiusA + radiusB) / 2, 1);
+    const radiusA = toVector3(a.position).length();
+    const radiusB = toVector3(b.position).length();
+    expect(toVector3(out.position).length()).not.toBeCloseTo((radiusA + radiusB) / 2, 1);
   });
 
   it('without any hint, the same two cameras blend along a straight cartesian line instead', () => {
@@ -739,8 +741,8 @@ describe('KlippCore — BlendHints', () => {
 
     const out = core.tick(0.5);
 
-    const radiusA = a.position.length();
-    const radiusB = b.position.length();
-    expect(out.position.length()).not.toBeCloseTo((radiusA + radiusB) / 2, 1);
+    const radiusA = toVector3(a.position).length();
+    const radiusB = toVector3(b.position).length();
+    expect(toVector3(out.position).length()).not.toBeCloseTo((radiusA + radiusB) / 2, 1);
   });
 });

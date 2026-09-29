@@ -1,4 +1,5 @@
 import CameraControls from 'camera-controls';
+import { vec3 } from 'math';
 import { Object3D, PerspectiveCamera, Vector3 } from 'three';
 import { describe, expect, it } from 'vitest';
 import { HardLookAtAim } from '../../src/aim/HardLookAtAim';
@@ -9,6 +10,7 @@ import { KlippCore } from '../../src/KlippCore';
 import { CameraControlsBody } from '../../src/body/CameraControlsBody';
 import { FollowBody } from '../../src/body/FollowBody';
 import { HardLockToTargetBody } from '../../src/body/HardLockToTargetBody';
+import { toQuaternion, toVector3 } from '../tuples';
 
 describe('CameraControlsBody', () => {
   it('constructs a real, ready-to-use CameraControls instance', () => {
@@ -30,7 +32,7 @@ describe('CameraControlsBody', () => {
     body.update(out, 0.05);
 
     expect(out.hasTarget).toBe(true);
-    expect(out.target.equals(target)).toBe(true);
+    expect(toVector3(out.target).equals(target)).toBe(true);
   });
 
   it('also writes hasLookAtTarget/lookAtTarget when locked - it always looks straight at target, so blends into/out of it can track that rotation smoothly instead of a plain slerp', () => {
@@ -40,7 +42,7 @@ describe('CameraControlsBody', () => {
     body.update(out, 0.05);
 
     expect(out.hasLookAtTarget).toBe(true);
-    expect(out.lookAtTarget.equals(target)).toBe(true);
+    expect(toVector3(out.lookAtTarget).equals(target)).toBe(true);
   });
 
   it('hasLookAtTarget is false in free mode (no target) - nothing meaningful to smoothly track', () => {
@@ -57,7 +59,7 @@ describe('CameraControlsBody', () => {
     const out = createCameraState();
     body.update(out, 0.05);
 
-    expect(out.position.distanceTo(target)).toBeCloseTo(0, 5);
+    expect(toVector3(out.position).distanceTo(target)).toBeCloseTo(0, 5);
   });
 
   it('dollying moves the camera to a real distance from a target at the origin', () => {
@@ -69,7 +71,7 @@ describe('CameraControlsBody', () => {
     body.controls.dollyTo(20, false);
     for (let i = 0; i < 5; i++) body.update(out, 0.05);
 
-    expect(out.position.distanceTo(target)).toBeCloseTo(20, 3);
+    expect(toVector3(out.position).distanceTo(target)).toBeCloseTo(20, 3);
   });
 
   it('initialPosition starts the camera at that EXACT world point, looking at the target', () => {
@@ -80,8 +82,8 @@ describe('CameraControlsBody', () => {
 
     body.update(out, 0.05);
 
-    expect(out.position.distanceTo(start)).toBeLessThan(1e-5);
-    const forward = new Vector3(0, 0, -1).applyQuaternion(out.quaternion);
+    expect(toVector3(out.position).distanceTo(start)).toBeLessThan(1e-5);
+    const forward = new Vector3(0, 0, -1).applyQuaternion(toQuaternion(out.quaternion));
     const towardTarget = target.clone().sub(start).normalize();
     expect(forward.dot(towardTarget)).toBeGreaterThan(0.999);
   });
@@ -96,7 +98,7 @@ describe('CameraControlsBody', () => {
     for (let i = 0; i < 60; i++) body.update(out, 0.05);
 
     // followed the moved target instead of snapping back to the initialPosition's own distance/angle
-    expect(out.position.distanceTo(new Vector3(0, 0, 10))).toBeGreaterThan(20);
+    expect(toVector3(out.position).distanceTo(new Vector3(0, 0, 10))).toBeGreaterThan(20);
   });
 
   it('initialPosition parks the camera there IMMEDIATELY, frozen, while target is still pending - not a no-op, and not snapped elsewhere once it resolves', () => {
@@ -106,16 +108,16 @@ describe('CameraControlsBody', () => {
     const out = createCameraState();
 
     for (let i = 0; i < 5; i++) body.update(out, 0.05); // ref still unmounted - frozen at `start`, not a no-op
-    expect(out.position.distanceTo(start)).toBeLessThan(1e-5);
+    expect(toVector3(out.position).distanceTo(start)).toBeLessThan(1e-5);
     expect(out.hasTarget).toBe(false);
 
     ref.current = new Object3D();
     ref.current.position.set(0, 0, -20);
     body.update(out, 0.05); // first frame it resolves - only the aim cuts, position stays exactly put
 
-    expect(out.position.distanceTo(start)).toBeLessThan(1e-5);
+    expect(toVector3(out.position).distanceTo(start)).toBeLessThan(1e-5);
     expect(out.hasTarget).toBe(true);
-    const forward = new Vector3(0, 0, -1).applyQuaternion(out.quaternion);
+    const forward = new Vector3(0, 0, -1).applyQuaternion(toQuaternion(out.quaternion));
     const towardTarget = ref.current.position.clone().sub(start).normalize();
     expect(forward.dot(towardTarget)).toBeGreaterThan(0.999);
   });
@@ -126,7 +128,7 @@ describe('CameraControlsBody', () => {
 
     body.update(out, 0.1);
 
-    expect(out.position.length()).toBeCloseTo(0, 5);
+    expect(toVector3(out.position).length()).toBeCloseTo(0, 5);
     expect(out.hasTarget).toBe(false);
   });
 
@@ -134,14 +136,14 @@ describe('CameraControlsBody', () => {
     const body = new CameraControlsBody(null);
     const out = createCameraState();
     body.update(out, 0.05);
-    const positionBefore = out.position.clone();
+    const positionBefore = toVector3(out.position);
 
     body.controls.rotate(Math.PI / 4, 0, false);
     body.controls.dollyTo(20, false);
     for (let i = 0; i < 5; i++) body.update(out, 0.05);
 
-    expect(out.position.equals(positionBefore)).toBe(false);
-    expect(out.position.length()).toBeCloseTo(20, 3);
+    expect(toVector3(out.position).equals(positionBefore)).toBe(false);
+    expect(toVector3(out.position).length()).toBeCloseTo(20, 3);
   });
 
   it('switching a live instance from a target to null mid-flight drops the lock and keeps publishing from wherever it was, instead of freezing', () => {
@@ -149,14 +151,14 @@ describe('CameraControlsBody', () => {
     const body = new CameraControlsBody(target, 1);
     const out = createCameraState();
     for (let i = 0; i < 5; i++) body.update(out, 0.05);
-    const positionWhileLocked = out.position.clone();
+    const positionWhileLocked = toVector3(out.position);
 
     body.target = null;
     body.controls.rotate(Math.PI / 2, 0, false);
     for (let i = 0; i < 10; i++) body.update(out, 0.05);
 
     expect(out.hasTarget).toBe(false);
-    expect(out.position.equals(positionWhileLocked)).toBe(false);
+    expect(toVector3(out.position).equals(positionWhileLocked)).toBe(false);
   });
 
   it('re-acquiring a target after a null gap (e.g. "free" mode) re-anchors from wherever the camera IS, instead of moveTo jumping by the stale delta the target drifted during the gap (real bug: "Free Control" then "Start Game" snapped)', () => {
@@ -168,17 +170,17 @@ describe('CameraControlsBody', () => {
     body.target = null; // "Free Control"
     body.controls.rotate(Math.PI / 3, 0, false);
     for (let i = 0; i < 10; i++) body.update(out, 0.05);
-    const positionInFreeMode = out.position.clone();
+    const positionInFreeMode = toVector3(out.position);
 
     target.set(50, 0, 50); // the target kept moving a long way during the gap
     body.target = target; // "Start Game" again
     body.update(out, 0.05); // the very next frame - position must not jump
 
-    expect(out.position.distanceTo(positionInFreeMode)).toBeLessThan(1e-4);
+    expect(toVector3(out.position).distanceTo(positionInFreeMode)).toBeLessThan(1e-4);
 
     for (let i = 0; i < 60; i++) body.update(out, 0.05); // settle
-    const forward = new Vector3(0, 0, -1).applyQuaternion(out.quaternion);
-    const towardTarget = target.clone().sub(out.position).normalize();
+    const forward = new Vector3(0, 0, -1).applyQuaternion(toQuaternion(out.quaternion));
+    const towardTarget = target.clone().sub(toVector3(out.position)).normalize();
     expect(forward.dot(towardTarget)).toBeGreaterThan(0.99); // and it DOES get there
   });
 
@@ -197,11 +199,11 @@ describe('CameraControlsBody', () => {
     // total angle actually swept by the RENDERED camera - a correct wrap jumps the raw azimuth number by
     // a full turn too, but that's invisible bookkeeping, not real motion
     let totalRotation = 0;
-    const previousQuaternion = out.quaternion.clone();
+    const previousQuaternion = toQuaternion(out.quaternion);
     for (let i = 0; i < 200; i++) {
       body.update(out, 0.05);
-      totalRotation += out.quaternion.angleTo(previousQuaternion);
-      previousQuaternion.copy(out.quaternion);
+      totalRotation += toQuaternion(out.quaternion).angleTo(previousQuaternion);
+      previousQuaternion.copy(toQuaternion(out.quaternion));
     }
 
     // a correct shortest-path ease only ever has to cover a bit more than half a turn, never three of them
@@ -213,7 +215,7 @@ describe('CameraControlsBody', () => {
     const body = new CameraControlsBody(target, 1);
     const out = createCameraState();
     for (let i = 0; i < 5; i++) body.update(out, 0.05, false); // locked, settled
-    const positionBeforeGap = out.position.clone();
+    const positionBeforeGap = toVector3(out.position);
 
     // simulates `active={false}`: update() simply isn't called at all for a while - unlike the
     // null-target "free mode" gap, which keeps calling update() (with a null target) the whole time
@@ -221,11 +223,11 @@ describe('CameraControlsBody', () => {
 
     // reactivation: justActivated=true on the very first call back, target already resolved (never null)
     body.update(out, 0.05, true);
-    expect(out.position.distanceTo(positionBeforeGap)).toBeLessThan(1e-4);
+    expect(toVector3(out.position).distanceTo(positionBeforeGap)).toBeLessThan(1e-4);
 
     for (let i = 0; i < 60; i++) body.update(out, 0.05, false); // settle
-    const forward = new Vector3(0, 0, -1).applyQuaternion(out.quaternion);
-    const towardTarget = target.clone().sub(out.position).normalize();
+    const forward = new Vector3(0, 0, -1).applyQuaternion(toQuaternion(out.quaternion));
+    const towardTarget = target.clone().sub(toVector3(out.position)).normalize();
     expect(forward.dot(towardTarget)).toBeGreaterThan(0.99); // and it DOES get there
   });
 
@@ -237,18 +239,18 @@ describe('CameraControlsBody', () => {
 
     body.target = null; // "Free Control"
     for (let i = 0; i < 10; i++) body.update(out, 0.05);
-    const positionInFreeMode = out.position.clone();
+    const positionInFreeMode = toVector3(out.position);
 
     target.set(3, 0, 3); // a SMALL move this time - enableTransition is documented as fine for this
     body.target = target; // "Start Game" again
     body.update(out, 0.05); // one frame in
 
     // eased, not instant: has moved SOME already, but not the whole way there yet
-    expect(out.position.equals(positionInFreeMode)).toBe(false);
+    expect(toVector3(out.position).equals(positionInFreeMode)).toBe(false);
 
     for (let i = 0; i < 120; i++) body.update(out, 0.05); // let it settle
-    const forward = new Vector3(0, 0, -1).applyQuaternion(out.quaternion);
-    const towardTarget = target.clone().sub(out.position).normalize();
+    const forward = new Vector3(0, 0, -1).applyQuaternion(toQuaternion(out.quaternion));
+    const towardTarget = target.clone().sub(toVector3(out.position)).normalize();
     expect(forward.dot(towardTarget)).toBeGreaterThan(0.99);
   });
 
@@ -256,18 +258,18 @@ describe('CameraControlsBody', () => {
     const ref: { current: Object3D | null } = { current: null };
     const body = new CameraControlsBody(ref);
     const out = createCameraState();
-    const positionBefore = out.position.clone();
+    const positionBefore = toVector3(out.position);
 
     for (let i = 0; i < 5; i++) body.update(out, 0.05); // ref still unmounted — must stay a no-op
-    expect(out.position.equals(positionBefore)).toBe(true);
+    expect(toVector3(out.position).equals(positionBefore)).toBe(true);
 
     ref.current = new Object3D();
     ref.current.position.set(0, 0, -20);
     for (let i = 0; i < 30; i++) body.update(out, 0.05); // now resolves — orbits normally, no leftover jump
 
-    expect(out.position.distanceTo(ref.current.position)).toBeGreaterThan(0);
-    const forward = new Vector3(0, 0, -1).applyQuaternion(out.quaternion);
-    const towardTarget = ref.current.position.clone().sub(out.position).normalize();
+    expect(toVector3(out.position).distanceTo(ref.current.position)).toBeGreaterThan(0);
+    const forward = new Vector3(0, 0, -1).applyQuaternion(toQuaternion(out.quaternion));
+    const towardTarget = ref.current.position.clone().sub(toVector3(out.position)).normalize();
     expect(forward.dot(towardTarget)).toBeGreaterThan(0.99);
   });
 
@@ -278,8 +280,8 @@ describe('CameraControlsBody', () => {
 
     for (let i = 0; i < 30; i++) body.update(out, 0.05);
 
-    const forward = new Vector3(0, 0, -1).applyQuaternion(out.quaternion);
-    const towardTarget = target.clone().sub(out.position).normalize();
+    const forward = new Vector3(0, 0, -1).applyQuaternion(toQuaternion(out.quaternion));
+    const towardTarget = target.clone().sub(toVector3(out.position)).normalize();
     expect(forward.dot(towardTarget)).toBeGreaterThan(0.99); // nearly parallel
   });
 
@@ -294,8 +296,8 @@ describe('CameraControlsBody', () => {
     const out = createCameraState();
     for (let i = 0; i < 30; i++) body.update(out, 0.05);
 
-    const forward = new Vector3(0, 0, -1).applyQuaternion(out.quaternion);
-    const towardTarget = new Vector3(50, 0, -10).sub(out.position).normalize();
+    const forward = new Vector3(0, 0, -1).applyQuaternion(toQuaternion(out.quaternion));
+    const towardTarget = new Vector3(50, 0, -10).sub(toVector3(out.position)).normalize();
     expect(forward.dot(towardTarget)).toBeGreaterThan(0.99);
   });
 
@@ -325,8 +327,8 @@ describe('CameraControlsBody', () => {
     body.target = targetB;
     for (let i = 0; i < 20; i++) body.update(out, 0.05);
 
-    const forward = new Vector3(0, 0, -1).applyQuaternion(out.quaternion);
-    const towardB = targetB.clone().sub(out.position).normalize();
+    const forward = new Vector3(0, 0, -1).applyQuaternion(toQuaternion(out.quaternion));
+    const towardB = targetB.clone().sub(toVector3(out.position)).normalize();
     expect(forward.dot(towardB)).toBeGreaterThan(0.99);
   });
 
@@ -348,7 +350,7 @@ describe('CameraControlsBody', () => {
       bodyB.update(outB, 0.05);
     }
 
-    expect(outA.position.equals(outB.position)).toBe(false);
+    expect(toVector3(outA.position).equals(toVector3(outB.position))).toBe(false);
   });
 
   it('a moving target drags the camera along with it, preserving the orbit offset (not frozen in world space)', () => {
@@ -361,15 +363,15 @@ describe('CameraControlsBody', () => {
     const out = createCameraState();
     for (let i = 0; i < 60; i++) body.update(out, 0.05); // let camera-controls' own smoothTime settle
 
-    const positionBeforeMove = out.position.clone();
-    const distanceBeforeMove = out.position.distanceTo(target);
+    const positionBeforeMove = toVector3(out.position);
+    const distanceBeforeMove = toVector3(out.position).distanceTo(target);
 
     target.set(30, 0, -20); // move the target by (30, 0, 0)
     for (let i = 0; i < 60; i++) body.update(out, 0.05); // settle again
 
-    const moved = out.position.clone().sub(positionBeforeMove);
+    const moved = toVector3(out.position).sub(positionBeforeMove);
     expect(moved.x).toBeGreaterThan(25); // camera moved by roughly the same delta as the target
-    expect(Math.abs(out.position.distanceTo(target) - distanceBeforeMove)).toBeLessThan(1); // offset preserved
+    expect(Math.abs(toVector3(out.position).distanceTo(target) - distanceBeforeMove)).toBeLessThan(1); // offset preserved
   });
 
   describe('BlendHints interop via KlippCore - real bug: blends into/out of CameraControls always went straight/plain-slerp, as if ignoreTarget were forced on', () => {
@@ -390,9 +392,9 @@ describe('CameraControlsBody', () => {
       core.registerCamera({ id: 'b', priority: 20, state: bState, hints: BlendHints.sphericalPosition });
 
       const mid = core.tick(0.5);
-      const linearMid = new Vector3().lerpVectors(aState.position, bState.position, 0.5);
+      const linearMid = new Vector3().lerpVectors(toVector3(aState.position), toVector3(bState.position), 0.5);
 
-      expect(mid.position.distanceTo(linearMid)).toBeGreaterThan(0.5);
+      expect(toVector3(mid.position).distanceTo(linearMid)).toBeGreaterThan(0.5);
     });
 
     it('locked CameraControls publishes hasLookAtTarget, so a blend into it tracks the interpolating look-at point (lerpLookAtRotation) instead of falling back to a plain slerp', () => {
@@ -415,8 +417,8 @@ describe('CameraControlsBody', () => {
 
       for (const dt of [0.25, 0.25, 0.25]) {
         const out = core.tick(dt);
-        const forward = new Vector3(0, 0, -1).applyQuaternion(out.quaternion);
-        const towardLookAtTarget = out.lookAtTarget.clone().sub(out.position).normalize();
+        const forward = new Vector3(0, 0, -1).applyQuaternion(toQuaternion(out.quaternion));
+        const towardLookAtTarget = toVector3(out.lookAtTarget).sub(toVector3(out.position)).normalize();
         expect(forward.dot(towardLookAtTarget)).toBeGreaterThan(0.99);
       }
     });
@@ -427,7 +429,7 @@ describe('CameraControlsBody', () => {
       const core = new KlippCore({ defaultBlend: { curve: BlendCurves.linear, time: 1 } });
 
       const introState = createCameraState();
-      introState.position.set(-2, 0, -1);
+      vec3.set(introState.position, -2, 0, -1);
       core.registerCamera({ id: 'intro', priority: 2, state: introState });
       core.tick(0); // 'intro' snaps live - the only registered candidate so far
 
@@ -448,7 +450,7 @@ describe('CameraControlsBody', () => {
       core.registerCamera({ id: 'follow', priority: 3, state: followState });
 
       const atStart = core.tick(0); // blend just started - must still read exactly as 'intro'
-      expect(atStart.position.distanceTo(introState.position)).toBeLessThan(1e-6);
+      expect(toVector3(atStart.position).distanceTo(toVector3(introState.position))).toBeLessThan(1e-6);
 
       let out = atStart;
       for (let i = 0; i < 80; i++) {
@@ -458,8 +460,8 @@ describe('CameraControlsBody', () => {
 
       // the blend settled on the orbital rig's ACTUAL live state (post rotate+dolly), not on whatever
       // position it would have had without those imperative calls
-      expect(out.position.distanceTo(followState.position)).toBeLessThan(1e-4);
-      expect(followState.position.distanceTo(new Vector3(-2, 0, -1))).toBeGreaterThan(1); // truly moved
+      expect(toVector3(out.position).distanceTo(toVector3(followState.position))).toBeLessThan(1e-4);
+      expect(toVector3(followState.position).distanceTo(new Vector3(-2, 0, -1))).toBeGreaterThan(1); // truly moved
     });
   });
 });

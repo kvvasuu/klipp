@@ -1,5 +1,6 @@
 import { bench, group } from '@pmndrs/labs';
-import { BoxGeometry, Matrix4, Mesh, MeshBasicMaterial, Object3D, Vector3 } from 'three';
+import { vec3 } from 'math';
+import { BoxGeometry, Matrix4, Mesh, MeshBasicMaterial, Object3D, Quaternion, Vector3 } from 'three';
 import { createCameraState } from '../src/CameraState';
 import { KlippCore } from '../src/KlippCore';
 import { BlendHints } from '../src/blend/BlendHints';
@@ -16,6 +17,7 @@ import { ImpulseField } from '../src/impulse/ImpulseField';
 import { ImpulseListenerNoise } from '../src/impulse/ImpulseListenerNoise';
 import { InputSystem, MouseButton, createConsumedInput, type ConsumedInput } from '../src/input/InputSystem';
 import { BasicMultiChannelPerlinNoise } from '../src/noise/BasicMultiChannelPerlinNoise';
+import { toQuaternion } from './tuples';
 
 const always = () => 1;
 
@@ -61,7 +63,7 @@ group('Body.update @body', () => {
     yield () => {
       step();
       body.update(out, 0.016, false);
-      return out.position.x; // ties the return to the measured work — see "Dead Code Elimination" in @pmndrs/labs' README
+      return out.position[0]; // ties the return to the measured work — see "Dead Code Elimination" in @pmndrs/labs' README
     };
   });
 
@@ -72,7 +74,7 @@ group('Body.update @body', () => {
     yield () => {
       step();
       body.update(out, 0.016, false);
-      return out.position.x;
+      return out.position[0];
     };
   });
 
@@ -83,7 +85,7 @@ group('Body.update @body', () => {
     yield () => {
       step();
       body.update(out, 0.016, false);
-      return out.position.x;
+      return out.position[0];
     };
   });
 
@@ -109,7 +111,7 @@ group('Body.update @body', () => {
     yield () => {
       step();
       body.update(out, 0.016, false);
-      return out.position.x;
+      return out.position[0];
     };
   });
 
@@ -123,7 +125,7 @@ group('Body.update @body', () => {
     yield () => {
       step();
       body.update(out, 0.016, false);
-      return out.position.x;
+      return out.position[0];
     };
   });
 
@@ -144,7 +146,7 @@ group('Body.update @body', () => {
     yield () => {
       step();
       body.update(out, 0.016, false);
-      return out.position.x;
+      return out.position[0];
     };
   });
 
@@ -155,7 +157,7 @@ group('Body.update @body', () => {
     yield () => {
       step();
       body.update(out, 0.016, false);
-      return out.position.x;
+      return out.position[0];
     };
   });
 });
@@ -165,11 +167,11 @@ group('Aim.update @aim', () => {
     const { object, step } = makeMovingTarget();
     const aim = new HardLookAtAim(object);
     const out = createCameraState();
-    out.position.set(0, 2, 15);
+    vec3.set(out.position, 0, 2, 15);
     yield () => {
       step();
       aim.update(out);
-      return out.quaternion.x;
+      return out.quaternion[0];
     };
   });
 
@@ -177,11 +179,11 @@ group('Aim.update @aim', () => {
     const { object, step } = makeMovingTarget();
     const aim = new RotationComposerAim(object, [0, 0], 16 / 9, [0.2, 0.2], 0.5, [0.4, 0.4]);
     const out = createCameraState();
-    out.position.set(0, 2, 15);
+    vec3.set(out.position, 0, 2, 15);
     yield () => {
       step();
       aim.update(out, 0.016, false);
-      return out.quaternion.x;
+      return out.quaternion[0];
     };
   });
 
@@ -203,11 +205,11 @@ group('Aim.update @aim', () => {
       1,
     );
     const out = createCameraState();
-    out.position.set(0, 2, 15);
+    vec3.set(out.position, 0, 2, 15);
     yield () => {
       step();
       aim.update(out, 0.016, false);
-      return out.quaternion.x;
+      return out.quaternion[0];
     };
   });
 
@@ -216,11 +218,11 @@ group('Aim.update @aim', () => {
   bench('RotationComposer (damped, converged on a still target)', function* () {
     const aim = new RotationComposerAim(new Vector3(0, 2, -20), [0, 0], 16 / 9, [0, 0], 0.5);
     const out = createCameraState();
-    out.position.set(0, 2, 15);
+    vec3.set(out.position, 0, 2, 15);
     aim.update(out, 0.016, true);
     yield () => {
       aim.update(out, 0.016, false);
-      return out.quaternion.x;
+      return out.quaternion[0];
     };
   });
 });
@@ -240,7 +242,7 @@ group('Noise/Extension.update @noise', () => {
     const out = createCameraState();
     yield () => {
       perlin.update(out, 0.016, false);
-      return out.position.x;
+      return out.position[0];
     };
   });
 
@@ -250,7 +252,7 @@ group('Noise/Extension.update @noise', () => {
     const out = createCameraState();
     yield () => {
       groupFraming.update(out, 0.016, false);
-      return out.position.z;
+      return out.position[2];
     };
   });
 });
@@ -311,7 +313,7 @@ group('ImpulseListenerNoise.update @impulse', () => {
     yield () => {
       now += 0.016;
       listener.update(out, 0.016, false, now);
-      return out.position.x;
+      return out.position[0];
     };
   });
 
@@ -326,7 +328,7 @@ group('ImpulseListenerNoise.update @impulse', () => {
     yield () => {
       now += 0.016;
       listener.update(out, 0.016, false, now);
-      return out.position.x;
+      return out.position[0];
     };
   });
 
@@ -340,7 +342,7 @@ group('ImpulseListenerNoise.update @impulse', () => {
     yield () => {
       now += 0.016;
       listener.update(out, 0.016, false, now);
-      return out.position.x;
+      return out.position[0];
     };
   });
 });
@@ -444,7 +446,7 @@ group('VirtualCameraController.update @controller', () => {
     yield () => {
       step();
       controller.update(out, 0.016, false);
-      return out.position.x;
+      return out.position[0];
     };
   });
 
@@ -471,7 +473,7 @@ group('VirtualCameraController.update @controller', () => {
     yield () => {
       step();
       controller.update(out, 0.016, false);
-      return out.position.x;
+      return out.position[0];
     };
   });
 });
@@ -484,7 +486,7 @@ group('KlippCore.tick @core', () => {
     const core = new KlippCore();
     for (let i = 0; i < count; i++) {
       const state = createCameraState();
-      state.position.set(i, 0, 0);
+      vec3.set(state.position, i, 0, 0);
       core.registerCamera({ id: `cam-${i}`, priority: i, state });
     }
     return core;
@@ -492,17 +494,17 @@ group('KlippCore.tick @core', () => {
 
   bench('1 registered camera', function* () {
     const core = makeCoreWithCameras(1);
-    yield () => core.tick(0.016).position.x;
+    yield () => core.tick(0.016).position[0];
   });
 
   bench('10 registered cameras', function* () {
     const core = makeCoreWithCameras(10);
-    yield () => core.tick(0.016).position.x;
+    yield () => core.tick(0.016).position[0];
   });
 
   bench('50 registered cameras', function* () {
     const core = makeCoreWithCameras(50);
-    yield () => core.tick(0.016).position.x;
+    yield () => core.tick(0.016).position[0];
   });
 });
 
@@ -511,37 +513,41 @@ group('KlippCore.tick @core', () => {
 group('lerpCameraState @blend', () => {
   function makeOrbitingState(position: Vector3, lookAtTarget: Vector3) {
     const state = createCameraState();
-    state.position.copy(position);
-    state.quaternion.setFromRotationMatrix(new Matrix4().lookAt(position, lookAtTarget, new Vector3(0, 1, 0)));
-    state.target.copy(lookAtTarget);
+    position.toArray(state.position);
+    new Quaternion()
+      .setFromRotationMatrix(new Matrix4().lookAt(position, lookAtTarget, new Vector3(0, 1, 0)))
+      .toArray(state.quaternion);
+    lookAtTarget.toArray(state.target);
     state.hasTarget = true;
-    state.lookAtTarget.copy(lookAtTarget);
+    lookAtTarget.toArray(state.lookAtTarget);
     state.hasLookAtTarget = true;
     return state;
   }
 
   bench('plain slerp (no lookAtTarget)', function* () {
     const a = createCameraState();
-    a.position.set(5, 5, 5);
+    vec3.set(a.position, 5, 5, 5);
     const b = createCameraState();
-    b.position.set(0, 0, 5);
-    b.quaternion.setFromAxisAngle(new Vector3(0, 1, 0), Math.PI / 2);
+    vec3.set(b.position, 0, 0, 5);
+    toQuaternion(b.quaternion)
+      .setFromAxisAngle(new Vector3(0, 1, 0), Math.PI / 2)
+      .toArray(b.quaternion);
     const out = createCameraState();
-    yield () => lerpCameraState(out, a, b, 0.5).position.x;
+    yield () => lerpCameraState(out, a, b, 0.5).position[0];
   });
 
   bench('lookAtTarget-driven rotation', function* () {
     const a = makeOrbitingState(new Vector3(5, 5, 5), new Vector3(0, 0, 0));
     const b = makeOrbitingState(new Vector3(0, 0, 5), new Vector3(0, 0, 0));
     const out = createCameraState();
-    yield () => lerpCameraState(out, a, b, 0.5).position.x;
+    yield () => lerpCameraState(out, a, b, 0.5).position[0];
   });
 
   bench('lookAtTarget-driven rotation + sphericalPosition hint', function* () {
     const a = makeOrbitingState(new Vector3(5, 5, 5), new Vector3(0, 0, 0));
     const b = makeOrbitingState(new Vector3(0, 0, 5), new Vector3(0, 0, 0));
     const out = createCameraState();
-    yield () => lerpCameraState(out, a, b, 0.5, BlendHints.sphericalPosition).position.x;
+    yield () => lerpCameraState(out, a, b, 0.5, BlendHints.sphericalPosition).position[0];
   });
 });
 

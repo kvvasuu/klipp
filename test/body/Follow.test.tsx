@@ -31,7 +31,7 @@ describe('Follow (React wrapper)', () => {
     const renderer = await create(scene);
     await renderer.advanceFrames(1, 0.1);
 
-    expect(core!.activeState!.position.x).toBeCloseTo(3, 10);
+    expect(core!.activeState!.position[0]).toBeCloseTo(3, 10);
   });
 
   it('an offset prop change is picked up on the next frame (field mutation, not re-registration)', async () => {
@@ -49,11 +49,11 @@ describe('Follow (React wrapper)', () => {
 
     const renderer = await create(scene(1));
     await renderer.advanceFrames(1, 0.1);
-    expect(core!.activeState!.position.x).toBeCloseTo(1, 5);
+    expect(core!.activeState!.position[0]).toBeCloseTo(1, 5);
 
     await renderer.update(scene(5));
     await renderer.advanceFrames(1, 0.1);
-    expect(core!.activeState!.position.x).toBeCloseTo(5, 5);
+    expect(core!.activeState!.position[0]).toBeCloseTo(5, 5);
   });
 
   it('unmounting stops the body from running', async () => {
@@ -88,12 +88,12 @@ describe('Follow (React wrapper)', () => {
 
     const renderer = await create(scene(BindingModes.lockToTarget));
     await renderer.advanceFrames(1, 0.1);
-    expect(core!.activeState!.position.x).toBeCloseTo(10, 5); // rotated into the target's 90° yaw
+    expect(core!.activeState!.position[0]).toBeCloseTo(10, 5); // rotated into the target's 90° yaw
 
     await renderer.update(scene(BindingModes.worldSpace));
     await renderer.advanceFrames(1, 0.1);
-    expect(core!.activeState!.position.x).toBeCloseTo(0, 5); // now raw, unrotated
-    expect(core!.activeState!.position.z).toBeCloseTo(10, 5);
+    expect(core!.activeState!.position[0]).toBeCloseTo(0, 5); // now raw, unrotated
+    expect(core!.activeState!.position[2]).toBeCloseTo(10, 5);
   });
 
   it("VirtualCamera's initialState.position seeds the damper - the first frame eases from there, not a snap", async () => {
@@ -113,7 +113,7 @@ describe('Follow (React wrapper)', () => {
     const renderer = await create(scene);
     await renderer.advanceFrames(1, 0.016);
 
-    expect(core!.activeState!.position.x).toBeGreaterThan(-100); // moved off initialState
-    expect(core!.activeState!.position.x).toBeLessThan(100); // but not snapped to the target
+    expect(core!.activeState!.position[0]).toBeGreaterThan(-100); // moved off initialState
+    expect(core!.activeState!.position[0]).toBeLessThan(100); // but not snapped to the target
   });
 });

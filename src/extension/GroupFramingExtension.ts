@@ -18,6 +18,8 @@ const scratchMemberQuaternion = new Quaternion();
 const scratchAxisX = new Vector3();
 const scratchAxisY = new Vector3();
 const scratchAxisZ = new Vector3();
+const scratchPosition = new Vector3();
+const scratchRotation = new Quaternion();
 const CORNER_SIGNS = [-1, 1] as const;
 
 /** Fit mode controlling whether the extension can dolly the camera closer. */
@@ -91,9 +93,10 @@ export class GroupFramingExtension {
     const aspect = this.viewportWidth / this.viewportHeight;
     const horizontalHalfFov = Math.atan(Math.tan(verticalHalfFov) * aspect);
 
-    scratchRight.set(1, 0, 0).applyQuaternion(out.quaternion);
-    scratchUp.set(0, 1, 0).applyQuaternion(out.quaternion);
-    scratchForward.set(0, 0, -1).applyQuaternion(out.quaternion);
+    scratchRotation.fromArray(out.quaternion);
+    scratchRight.set(1, 0, 0).applyQuaternion(scratchRotation);
+    scratchUp.set(0, 1, 0).applyQuaternion(scratchRotation);
+    scratchForward.set(0, 0, -1).applyQuaternion(scratchRotation);
 
     const includeVertical = this.framingMode !== 'horizontal';
     const includeHorizontal = this.framingMode !== 'vertical';
@@ -173,7 +176,7 @@ export class GroupFramingExtension {
     const distance =
       this.fitMode === 'rigid'
         ? clampedRequiredDistance
-        : Math.max(out.position.distanceTo(scratchGroupPosition), clampedRequiredDistance);
+        : Math.max(scratchPosition.fromArray(out.position).distanceTo(scratchGroupPosition), clampedRequiredDistance);
 
     const instant = typeof this.damping === 'number' && this.damping <= 0;
 
@@ -187,8 +190,11 @@ export class GroupFramingExtension {
       ? distance
       : this.distanceDamper.update(this.currentDistance, distance, this.damping, dt, this.maxSpeed);
 
-    scratchBackward.set(0, 0, 1).applyQuaternion(out.quaternion);
-    out.position.copy(scratchGroupPosition).addScaledVector(scratchBackward, this.currentDistance);
+    scratchBackward.set(0, 0, 1).applyQuaternion(scratchRotation);
+    scratchPosition
+      .copy(scratchGroupPosition)
+      .addScaledVector(scratchBackward, this.currentDistance)
+      .toArray(out.position);
 
     this.currentScreenPosition[0] = instant
       ? this.screenPosition[0]

@@ -2,6 +2,7 @@ import { Object3D, Quaternion, Vector3 } from 'three';
 import { describe, expect, it } from 'vitest';
 import { createCameraState } from '../../src/CameraState';
 import { RotateWithFollowTargetAim } from '../../src/aim/RotateWithFollowTargetAim';
+import { toQuaternion, toTuple } from '../tuples';
 
 function expectQuaternionsClose(actual: Quaternion, expected: Quaternion, precision = 9) {
   expect(actual.angleTo(expected)).toBeLessThan(10 ** -precision);
@@ -16,7 +17,7 @@ describe('RotateWithFollowTargetAim', () => {
     const out = createCameraState();
     aim.update(out, 0.1);
 
-    expectQuaternionsClose(out.quaternion, new Quaternion().setFromEuler(target.rotation));
+    expectQuaternionsClose(toQuaternion(out.quaternion), new Quaternion().setFromEuler(target.rotation));
   });
 
   it("copies the target's WORLD rotation, accounting for a parent transform", () => {
@@ -32,7 +33,7 @@ describe('RotateWithFollowTargetAim', () => {
     aim.update(out, 0.1);
 
     const expected = new Quaternion().setFromEuler(target.rotation).premultiply(parent.quaternion);
-    expectQuaternionsClose(out.quaternion, expected);
+    expectQuaternionsClose(toQuaternion(out.quaternion), expected);
   });
 
   it('a fixed-point target (no rotation to give) is a no-op', () => {
@@ -40,7 +41,7 @@ describe('RotateWithFollowTargetAim', () => {
     const out = createCameraState();
     aim.update(out, 0.1);
 
-    expectQuaternionsClose(out.quaternion, new Quaternion());
+    expectQuaternionsClose(toQuaternion(out.quaternion), new Quaternion());
   });
 
   it('a ref whose .current is null is a no-op, not a crash', () => {
@@ -48,7 +49,7 @@ describe('RotateWithFollowTargetAim', () => {
     const out = createCameraState();
 
     expect(() => aim.update(out, 0.1)).not.toThrow();
-    expectQuaternionsClose(out.quaternion, new Quaternion());
+    expectQuaternionsClose(toQuaternion(out.quaternion), new Quaternion());
   });
 
   it('a null target is a no-op, not a crash', () => {
@@ -56,7 +57,7 @@ describe('RotateWithFollowTargetAim', () => {
     const out = createCameraState();
 
     expect(() => aim.update(out, 0.1)).not.toThrow();
-    expectQuaternionsClose(out.quaternion, new Quaternion());
+    expectQuaternionsClose(toQuaternion(out.quaternion), new Quaternion());
   });
 
   it('target is a mutable field — reassigning it changes what gets copied', () => {
@@ -72,7 +73,7 @@ describe('RotateWithFollowTargetAim', () => {
     aim.target = b;
     aim.update(out, 0.1);
 
-    expectQuaternionsClose(out.quaternion, new Quaternion().setFromEuler(b.rotation));
+    expectQuaternionsClose(toQuaternion(out.quaternion), new Quaternion().setFromEuler(b.rotation));
   });
 
   describe('damping', () => {
@@ -86,8 +87,8 @@ describe('RotateWithFollowTargetAim', () => {
       aim.update(out, 0.016);
 
       const targetQuaternion = new Quaternion().setFromEuler(target.rotation);
-      expect(out.quaternion.angleTo(new Quaternion())).toBeGreaterThan(0); // moved off identity
-      expect(out.quaternion.angleTo(targetQuaternion)).toBeGreaterThan(0.01); // but not there yet
+      expect(toQuaternion(out.quaternion).angleTo(new Quaternion())).toBeGreaterThan(0); // moved off identity
+      expect(toQuaternion(out.quaternion).angleTo(targetQuaternion)).toBeGreaterThan(0.01); // but not there yet
     });
 
     it('converges to a static target over repeated ticks with damping enabled', () => {
@@ -100,7 +101,7 @@ describe('RotateWithFollowTargetAim', () => {
 
       for (let i = 0; i < 300; i++) aim.update(out, 0.016);
 
-      expectQuaternionsClose(out.quaternion, targetQuaternion, 3);
+      expectQuaternionsClose(toQuaternion(out.quaternion), targetQuaternion, 3);
     });
 
     it('never jumps suddenly while tracking a continuously-rotating target (steady angular speed, no reversal)', () => {
@@ -116,11 +117,11 @@ describe('RotateWithFollowTargetAim', () => {
       for (let i = 0; i < 300; i++) {
         elapsed += dt;
         target.rotation.set(0, angularSpeed * elapsed, 0);
-        const before = out.quaternion.clone();
+        const before = toQuaternion(out.quaternion);
 
         aim.update(out, dt);
 
-        const stepAngle = before.angleTo(out.quaternion);
+        const stepAngle = before.angleTo(toQuaternion(out.quaternion));
         if (stepAngle > maxStepAngle) maxStepAngle = stepAngle;
       }
 
@@ -144,7 +145,7 @@ describe('RotateWithFollowTargetAim', () => {
         elapsed += dt;
         target.rotation.set(0, angularSpeed * elapsed, 0);
         aim.update(out, dt);
-        if (i >= 500) lags.push(out.quaternion.angleTo(new Quaternion().setFromEuler(target.rotation)));
+        if (i >= 500) lags.push(toQuaternion(out.quaternion).angleTo(new Quaternion().setFromEuler(target.rotation)));
       }
 
       // once settled (last 100 of 600 ticks), the lag should be roughly constant, not still drifting
@@ -161,7 +162,7 @@ describe('RotateWithFollowTargetAim', () => {
       const out = createCameraState();
 
       expect(() => aim.update(out, 0.016)).not.toThrow();
-      expect(out.quaternion.angleTo(new Quaternion())).toBeGreaterThan(0);
+      expect(toQuaternion(out.quaternion).angleTo(new Quaternion())).toBeGreaterThan(0);
     });
 
     it('damping is a mutable field — toggling it back to 0 snaps instantly on the next frame', () => {
@@ -173,11 +174,11 @@ describe('RotateWithFollowTargetAim', () => {
       aim.update(createCameraState(), 0.05); // consume the first-ever-update hard snap on a throwaway state
       const out = createCameraState();
       aim.update(out, 0.05);
-      expect(out.quaternion.angleTo(targetQuaternion)).toBeGreaterThan(0);
+      expect(toQuaternion(out.quaternion).angleTo(targetQuaternion)).toBeGreaterThan(0);
 
       aim.damping = 0;
       aim.update(out, 0.05);
-      expectQuaternionsClose(out.quaternion, targetQuaternion);
+      expectQuaternionsClose(toQuaternion(out.quaternion), targetQuaternion);
     });
   });
 
@@ -197,8 +198,8 @@ describe('RotateWithFollowTargetAim', () => {
       clamped.update(outClamped, 0.05); // maxSpeed = 1 rad/sec
 
       const targetQuaternion = new Quaternion().setFromEuler(target.rotation);
-      expect(outClamped.quaternion.angleTo(targetQuaternion)).toBeGreaterThan(
-        outUnclamped.quaternion.angleTo(targetQuaternion),
+      expect(toQuaternion(outClamped.quaternion).angleTo(targetQuaternion)).toBeGreaterThan(
+        toQuaternion(outUnclamped.quaternion).angleTo(targetQuaternion),
       );
     });
   });
@@ -219,7 +220,7 @@ describe('RotateWithFollowTargetAim', () => {
       const newTargetQuaternion = new Quaternion().setFromEuler(target.rotation);
       aim.update(out, 0.016, true);
 
-      expectQuaternionsClose(out.quaternion, newTargetQuaternion);
+      expectQuaternionsClose(toQuaternion(out.quaternion), newTargetQuaternion);
     });
 
     it('without justActivated, the same stale-state scenario eases instead of snapping (the bug this fixes)', () => {
@@ -236,7 +237,7 @@ describe('RotateWithFollowTargetAim', () => {
       const newTargetQuaternion = new Quaternion().setFromEuler(target.rotation);
       aim.update(out, 0.016, false); // no reactivation signal — damps from the stale orientation instead
 
-      expect(out.quaternion.angleTo(newTargetQuaternion)).toBeGreaterThan(0.01);
+      expect(toQuaternion(out.quaternion).angleTo(newTargetQuaternion)).toBeGreaterThan(0.01);
     });
   });
 
@@ -247,14 +248,14 @@ describe('RotateWithFollowTargetAim', () => {
       const initial = new Quaternion(); // identity - far from the target
 
       const aim = new RotateWithFollowTargetAim(target, 0.5);
-      aim.primeFrom(initial);
+      aim.primeFrom(toTuple(initial));
       const out = createCameraState();
-      out.quaternion.copy(initial);
+      initial.toArray(out.quaternion);
       aim.update(out, 0.016, true);
 
       const targetQuaternion = new Quaternion().setFromEuler(target.rotation);
-      expect(out.quaternion.angleTo(initial)).toBeGreaterThan(0); // moved off the primed rotation
-      expect(out.quaternion.angleTo(targetQuaternion)).toBeGreaterThan(0.01); // but not there yet
+      expect(toQuaternion(out.quaternion).angleTo(initial)).toBeGreaterThan(0); // moved off the primed rotation
+      expect(toQuaternion(out.quaternion).angleTo(targetQuaternion)).toBeGreaterThan(0.01); // but not there yet
     });
 
     it('without priming, update() still snaps straight to the target on justActivated (unchanged default)', () => {
@@ -265,7 +266,7 @@ describe('RotateWithFollowTargetAim', () => {
       const out = createCameraState();
       aim.update(out, 0.016, true);
 
-      expectQuaternionsClose(out.quaternion, new Quaternion().setFromEuler(target.rotation));
+      expectQuaternionsClose(toQuaternion(out.quaternion), new Quaternion().setFromEuler(target.rotation));
     });
 
     it('is consumed by the first justActivated only - a later reactivation snaps normally', () => {
@@ -274,9 +275,9 @@ describe('RotateWithFollowTargetAim', () => {
       const initial = new Quaternion();
 
       const aim = new RotateWithFollowTargetAim(target, 0.5);
-      aim.primeFrom(initial);
+      aim.primeFrom(toTuple(initial));
       const out = createCameraState();
-      out.quaternion.copy(initial);
+      initial.toArray(out.quaternion);
       aim.update(out, 0.016, true); // consumes the prime, eases
       aim.update(out, 0.016, false);
 
@@ -284,18 +285,18 @@ describe('RotateWithFollowTargetAim', () => {
       const newTargetQuaternion = new Quaternion().setFromEuler(target.rotation);
       aim.update(out, 0.016, true); // a later reactivation - primeFrom was NOT called again
 
-      expectQuaternionsClose(out.quaternion, newTargetQuaternion);
+      expectQuaternionsClose(toQuaternion(out.quaternion), newTargetQuaternion);
     });
 
     it("is still consumed even when the target isn't resolved yet on the primed justActivated call", () => {
       const initial = new Quaternion();
       const aim = new RotateWithFollowTargetAim({ current: null }, 0.5);
-      aim.primeFrom(initial);
+      aim.primeFrom(toTuple(initial));
       const out = createCameraState();
-      out.quaternion.copy(initial);
+      initial.toArray(out.quaternion);
 
       aim.update(out, 0.016, true); // target still unresolved - early return, but primed must be consumed
-      expect(out.quaternion.equals(initial)).toBe(true); // no-op, nothing to update yet
+      expect(toQuaternion(out.quaternion).equals(initial)).toBe(true); // no-op, nothing to update yet
 
       const target = new Object3D();
       target.rotation.set(1.2, -0.5, 0.3);
@@ -303,7 +304,7 @@ describe('RotateWithFollowTargetAim', () => {
       const newTargetQuaternion = new Quaternion().setFromEuler(target.rotation);
       aim.update(out, 0.016, true); // an unrelated LATER reactivation - must snap, not ease
 
-      expectQuaternionsClose(out.quaternion, newTargetQuaternion);
+      expectQuaternionsClose(toQuaternion(out.quaternion), newTargetQuaternion);
     });
   });
 });

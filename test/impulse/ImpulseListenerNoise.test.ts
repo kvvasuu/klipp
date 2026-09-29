@@ -1,9 +1,11 @@
-import { Vector3 } from 'three';
+import { vec3 } from 'math';
+import { Quaternion, Vector3 } from 'three';
 import { describe, expect, it } from 'vitest';
 import { createCameraState } from '../../src/CameraState';
 import { ImpulseField } from '../../src/impulse/ImpulseField';
 import { ImpulseListenerNoise } from '../../src/impulse/ImpulseListenerNoise';
 import { BasicMultiChannelPerlinNoise } from '../../src/noise/BasicMultiChannelPerlinNoise';
+import { toQuaternion } from '../tuples';
 
 const always = () => 1;
 
@@ -14,11 +16,11 @@ describe('ImpulseListenerNoise', () => {
 
     const listener = new ImpulseListenerNoise(field);
     const out = createCameraState();
-    out.position.set(5, 0, 0);
+    vec3.set(out.position, 5, 0, 0);
 
     listener.update(out, 0.1, false, 0.5); // explicit now - within the event's duration
 
-    expect(out.position.x).toBeCloseTo(8, 4);
+    expect(out.position[0]).toBeCloseTo(8, 4);
   });
 
   it('with no shake configured, never touches rotation', () => {
@@ -27,12 +29,12 @@ describe('ImpulseListenerNoise', () => {
 
     const listener = new ImpulseListenerNoise(field);
     const out = createCameraState();
-    out.quaternion.set(0.1, 0.2, 0.3, 0.9).normalize();
-    const before = out.quaternion.clone();
+    new Quaternion(0.1, 0.2, 0.3, 0.9).normalize().toArray(out.quaternion);
+    const before = toQuaternion(out.quaternion);
 
     listener.update(out, 0.1, false, 0.5);
 
-    expect(out.quaternion.equals(before)).toBe(true);
+    expect(toQuaternion(out.quaternion).equals(before)).toBe(true);
   });
 
   it('gain scales the sampled offset', () => {
@@ -44,7 +46,7 @@ describe('ImpulseListenerNoise', () => {
 
     listener.update(out, 0.1, false, 0.5);
 
-    expect(out.position.x).toBeCloseTo(6, 4);
+    expect(out.position[0]).toBeCloseTo(6, 4);
   });
 
   it('channelMask filters which events are felt', () => {
@@ -56,7 +58,7 @@ describe('ImpulseListenerNoise', () => {
 
     listener.update(out, 0.1, false, 0.5);
 
-    expect(out.position.x).toBe(0);
+    expect(out.position[0]).toBe(0);
   });
 
   it('samples using out.position as the listener location, not the impulse origin', () => {
@@ -68,15 +70,15 @@ describe('ImpulseListenerNoise', () => {
 
     const listener = new ImpulseListenerNoise(field);
     const near = createCameraState();
-    near.position.set(0, 0, 0);
+    vec3.set(near.position, 0, 0, 0);
     const far = createCameraState();
-    far.position.set(90, 0, 0);
+    vec3.set(far.position, 90, 0, 0);
 
     listener.update(near, 0.1, false, 0.5);
     listener.update(far, 0.1, false, 0.5);
 
-    const nearOffset = near.position.x - 0;
-    const farOffset = far.position.x - 90;
+    const nearOffset = near.position[0] - 0;
+    const farOffset = far.position[0] - 90;
     expect(nearOffset).toBeGreaterThan(farOffset);
   });
 
@@ -88,7 +90,7 @@ describe('ImpulseListenerNoise', () => {
     const out = createCameraState();
     listener.update(out, 0.1, false); // no explicit now - falls back to the real clock, same domain as generate() above
 
-    expect(out.position.x).toBeCloseTo(7, 4);
+    expect(out.position[0]).toBeCloseTo(7, 4);
   });
 
   it('defaults to the shared impulseField singleton when none is passed', async () => {
@@ -99,7 +101,7 @@ describe('ImpulseListenerNoise', () => {
     const out = createCameraState();
     listener.update(out, 0.1, false);
 
-    expect(out.position.x).toBeCloseTo(7, 4);
+    expect(out.position[0]).toBeCloseTo(7, 4);
   });
 
   it('field/channelMask/gain are mutable fields', () => {
@@ -111,12 +113,12 @@ describe('ImpulseListenerNoise', () => {
     const listener = new ImpulseListenerNoise(fieldA);
     const out = createCameraState();
     listener.update(out, 0.1, false, 0.5);
-    expect(out.position.x).toBeCloseTo(3, 4);
+    expect(out.position[0]).toBeCloseTo(3, 4);
 
     listener.field = fieldB;
-    out.position.set(0, 0, 0);
+    vec3.set(out.position, 0, 0, 0);
     listener.update(out, 0.1, false, 0.5);
-    expect(out.position.x).toBeCloseTo(9, 4);
+    expect(out.position[0]).toBeCloseTo(9, 4);
   });
 
   it('update is a bound instance method - safe to pass by reference (e.g. slots.registerNoise(listener.update))', () => {
@@ -168,12 +170,12 @@ describe('ImpulseListenerNoise', () => {
       const shake = new BasicMultiChannelPerlinNoise(undefined, undefined, new Vector3(20, 0, 0), undefined, 1, 1, 1);
       const listener = new ImpulseListenerNoise(field, 1, 1, shake);
       const out = createCameraState();
-      const before = out.quaternion.clone();
+      const before = toQuaternion(out.quaternion);
 
       let sawRotation = false;
       for (let i = 0; i < 10; i++) {
         listener.update(out, 0.1, false, 0.5 + i * 0.1);
-        if (!out.quaternion.equals(before)) sawRotation = true;
+        if (!toQuaternion(out.quaternion).equals(before)) sawRotation = true;
       }
       expect(sawRotation).toBe(true);
     });
@@ -213,12 +215,14 @@ describe('ImpulseListenerNoise', () => {
 
       const listener = new ImpulseListenerNoise(field);
       const out = createCameraState();
-      out.quaternion.setFromAxisAngle(new Vector3(0, 1, 0), Math.PI / 2); // yawed 90°
+      toQuaternion(out.quaternion)
+        .setFromAxisAngle(new Vector3(0, 1, 0), Math.PI / 2)
+        .toArray(out.quaternion); // yawed 90°
 
       listener.update(out, 0.1, false, 0.5);
 
-      expect(out.position.x).toBeCloseTo(1, 5);
-      expect(out.position.z).toBeCloseTo(0, 5);
+      expect(out.position[0]).toBeCloseTo(1, 5);
+      expect(out.position[2]).toBeCloseTo(0, 5);
     });
 
     it("true: rotates the sampled offset by the listener's current orientation", () => {
@@ -227,13 +231,15 @@ describe('ImpulseListenerNoise', () => {
 
       const listener = new ImpulseListenerNoise(field, 1, 1, undefined, true);
       const out = createCameraState();
-      out.quaternion.setFromAxisAngle(new Vector3(0, 1, 0), Math.PI / 2); // yawed 90°
+      toQuaternion(out.quaternion)
+        .setFromAxisAngle(new Vector3(0, 1, 0), Math.PI / 2)
+        .toArray(out.quaternion); // yawed 90°
 
       listener.update(out, 0.1, false, 0.5);
 
       // the listener's local +X becomes world -Z once yawed 90° around Y
-      expect(out.position.x).toBeCloseTo(0, 5);
-      expect(out.position.z).toBeCloseTo(-1, 5);
+      expect(out.position[0]).toBeCloseTo(0, 5);
+      expect(out.position[2]).toBeCloseTo(-1, 5);
     });
 
     it('is a mutable field - can be toggled after construction', () => {
@@ -243,11 +249,13 @@ describe('ImpulseListenerNoise', () => {
       const listener = new ImpulseListenerNoise(field);
       listener.cameraSpace = true;
       const out = createCameraState();
-      out.quaternion.setFromAxisAngle(new Vector3(0, 1, 0), Math.PI / 2);
+      toQuaternion(out.quaternion)
+        .setFromAxisAngle(new Vector3(0, 1, 0), Math.PI / 2)
+        .toArray(out.quaternion);
 
       listener.update(out, 0.1, false, 0.5);
 
-      expect(out.position.z).toBeCloseTo(-1, 5);
+      expect(out.position[2]).toBeCloseTo(-1, 5);
     });
   });
 });

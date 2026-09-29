@@ -13,7 +13,8 @@
  * Budgets are for Node 22 (CI). Re-measure when the Node major version changes.
  */
 import { GCProfiler, getHeapStatistics } from 'node:v8';
-import { Matrix4, Object3D, PerspectiveCamera, Vector3 } from 'three';
+import { vec3 } from 'math';
+import { Matrix4, Object3D, PerspectiveCamera, Quaternion, Vector3 } from 'three';
 import { createCameraState } from '../src/CameraState';
 import { KlippCore } from '../src/KlippCore';
 import { VirtualCameraController } from '../src/VirtualCameraController';
@@ -72,16 +73,18 @@ function klippFrame(setup: (target: Object3D, controller: VirtualCameraControlle
     step();
     controller.update(state, 1 / 60, false);
     const result = core.tick(1 / 60);
-    camera.position.copy(result.position);
-    camera.quaternion.copy(result.quaternion);
+    camera.position.fromArray(result.position);
+    camera.quaternion.fromArray(result.quaternion);
   };
 }
 
 function lookingAtOrigin(position: Vector3) {
   const state = createCameraState();
-  state.position.copy(position);
-  state.quaternion.setFromRotationMatrix(new Matrix4().lookAt(position, new Vector3(), new Vector3(0, 1, 0)));
-  state.lookAtTarget.set(0, 0, 0);
+  position.toArray(state.position);
+  new Quaternion()
+    .setFromRotationMatrix(new Matrix4().lookAt(position, new Vector3(), new Vector3(0, 1, 0)))
+    .toArray(state.quaternion);
+  vec3.set(state.lookAtTarget, 0, 0, 0);
   state.hasLookAtTarget = true;
   return state;
 }
@@ -99,7 +102,7 @@ const scenarios: { name: string; budget: number; frame: () => void }[] = [
   },
   {
     name: 'frame: Follow + HardLookAt',
-    budget: 80,
+    budget: 96,
     frame: klippFrame((target, c) => {
       c.registerBody(new FollowBody(target, new Vector3(0, 3, 8), 0.5).update);
       c.registerAim(new HardLookAtAim(target).update);
@@ -107,7 +110,7 @@ const scenarios: { name: string; budget: number; frame: () => void }[] = [
   },
   {
     name: 'frame: Follow + RotationComposer',
-    budget: 494,
+    budget: 463,
     frame: klippFrame((target, c) => {
       c.registerBody(new FollowBody(target, new Vector3(0, 3, 12), 0.5).update);
       c.registerAim(new RotationComposerAim(target, [0, 0], 16 / 9, [0.15, 0.15], 0.5).update);
@@ -115,7 +118,7 @@ const scenarios: { name: string; budget: number; frame: () => void }[] = [
   },
   {
     name: 'frame: Follow + HardLookAt + GroupFraming',
-    budget: 176,
+    budget: 192,
     frame: klippFrame((target, c) => {
       c.registerBody(new FollowBody(target, new Vector3(0, 3, 12), 0.5).update);
       c.registerAim(new HardLookAtAim(target).update);
@@ -126,7 +129,7 @@ const scenarios: { name: string; budget: number; frame: () => void }[] = [
   },
   {
     name: 'frame: Follow + HardLookAt + Perlin',
-    budget: 319,
+    budget: 335,
     frame: klippFrame((target, c) => {
       c.registerBody(new FollowBody(target, new Vector3(0, 3, 12), 0.5).update);
       c.registerAim(new HardLookAtAim(target).update);
@@ -137,7 +140,7 @@ const scenarios: { name: string; budget: number; frame: () => void }[] = [
   },
   {
     name: 'lerpCameraState, lookAt blend in flight',
-    budget: 91,
+    budget: 95,
     frame: (() => {
       const a = lookingAtOrigin(new Vector3(5, 5, 5));
       const b = lookingAtOrigin(new Vector3(0, 0, 5));

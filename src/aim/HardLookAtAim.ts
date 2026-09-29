@@ -1,6 +1,10 @@
-import { Matrix4, Vector3 } from 'three';
+import { Matrix4, Quaternion, Vector3 } from 'three';
 import type { CameraState } from '../CameraState';
 import { resolveTargetPosition, type Target } from '../resolve/Target';
+
+const scratchPosition = new Vector3();
+const scratchUp = new Vector3();
+const scratchRotation = new Quaternion();
 
 /**
  * Rotates so the Look At Target is dead-center.
@@ -19,9 +23,11 @@ export class HardLookAtAim {
 
   update = (out: CameraState): void => {
     if (!resolveTargetPosition(this.scratchTargetPosition, this.target)) return;
-    this.scratchMatrix.lookAt(out.position, this.scratchTargetPosition, out.referenceUp);
-    out.quaternion.setFromRotationMatrix(this.scratchMatrix);
-    out.lookAtTarget.copy(this.scratchTargetPosition);
+    scratchPosition.fromArray(out.position);
+    scratchUp.fromArray(out.referenceUp);
+    this.scratchMatrix.lookAt(scratchPosition, this.scratchTargetPosition, scratchUp);
+    scratchRotation.setFromRotationMatrix(this.scratchMatrix).toArray(out.quaternion);
+    this.scratchTargetPosition.toArray(out.lookAtTarget);
     out.hasLookAtTarget = true;
   };
 }

@@ -1,3 +1,4 @@
+import { vec3 } from 'math';
 import { describe, expect, it } from 'vitest';
 import { createCameraState } from '../../src/CameraState';
 import { BlendCurves } from '../../src/blend/BlendCurves';
@@ -5,7 +6,7 @@ import { ClearShot, type ClearShotCandidate } from '../../src/groups/ClearShot';
 
 function candidateAt(cameraId: string, x: number, priority: number): ClearShotCandidate {
   const state = createCameraState();
-  state.position.set(x, 0, 0);
+  vec3.set(state.position, x, 0, 0);
   return { cameraId, state, priority };
 }
 
@@ -61,7 +62,7 @@ describe('ClearShot', () => {
 
     const out = clearShot.tick(0);
     expect(clearShot.liveCameraId).toBe('a');
-    expect(out.position.x).toBe(5);
+    expect(out.position[0]).toBe(5);
   });
 
   it('activateAfter debounces a new best: it must stay the best continuously before switching', () => {
