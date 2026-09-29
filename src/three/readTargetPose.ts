@@ -1,4 +1,5 @@
 import { Quaternion, Vector3 } from 'three';
+import type { Quat } from 'math';
 import { resolveTargetPosition, resolveTargetRotation, type Target } from './resolve/Target';
 import type { TargetSlot } from './resolve/TargetRegistry';
 import type { TargetPose } from '../core/TargetPose';
@@ -17,5 +18,12 @@ export function readTargetPose(
   scratchPosition.toArray(out.position);
   out.hasRotation = withRotation && resolveTargetRotation(scratchRotation, target, slot);
   if (out.hasRotation) scratchRotation.toArray(out.rotation);
+  return true;
+}
+
+/** Read only a target's world rotation into `out`. Returns false for fixed points and unresolved targets. */
+export function readTargetRotation(out: Quat, target: Target, slot: TargetSlot | null): boolean {
+  if (!resolveTargetRotation(scratchRotation, target, slot)) return false;
+  scratchRotation.toArray(out);
   return true;
 }
