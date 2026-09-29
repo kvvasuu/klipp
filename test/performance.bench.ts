@@ -1,5 +1,5 @@
 import { bench, group } from '@pmndrs/labs';
-import { vec3 } from 'math';
+import { vec3, type Vec3 } from 'math';
 import { BoxGeometry, Matrix4, Mesh, MeshBasicMaterial, Object3D, Quaternion, Vector3 } from 'three';
 import { createCameraState } from '../src/core/CameraState';
 import { KlippCore } from '../src/core/KlippCore';
@@ -13,10 +13,10 @@ import { HardLockToTargetBody } from '../src/three/body/HardLockToTargetBody';
 import { PositionComposerBody } from '../src/three/body/PositionComposerBody';
 import { GroupFramingExtension } from '../src/three/extension/GroupFramingExtension';
 import { TargetGroup } from '../src/three/extension/TargetGroup';
-import { ImpulseField } from '../src/three/impulse/ImpulseField';
-import { ImpulseListenerNoise } from '../src/three/impulse/ImpulseListenerNoise';
+import { ImpulseField } from '../src/core/impulse/ImpulseField';
+import { ImpulseListenerNoise } from '../src/core/impulse/ImpulseListenerNoise';
 import { InputSystem, MouseButton, createConsumedInput, type ConsumedInput } from '../src/dom/InputSystem';
-import { BasicMultiChannelPerlinNoise } from '../src/three/noise/BasicMultiChannelPerlinNoise';
+import { BasicMultiChannelPerlinNoise } from '../src/core/noise/BasicMultiChannelPerlinNoise';
 import { TargetRegistry } from '../src/three/resolve/TargetRegistry';
 import { toQuaternion, toTuple } from './tuples';
 
@@ -199,7 +199,7 @@ group('Aim.update @aim', () => {
       [0.2, 0.2],
       0.5,
       [0.4, 0.4],
-      new Vector3(),
+      [0, 0, 0],
       undefined,
       undefined,
       0.3,
@@ -230,16 +230,7 @@ group('Aim.update @aim', () => {
 
 group('Noise/Extension.update @noise', () => {
   bench('BasicMultiChannelPerlin', function* () {
-    const perlin = new BasicMultiChannelPerlinNoise(
-      new Vector3(0.4, 0.4, 0.4),
-      new Vector3(1, 1, 1),
-      new Vector3(4, 4, 4),
-      new Vector3(1, 1, 1),
-      1,
-      1,
-      42,
-      0.5,
-    );
+    const perlin = new BasicMultiChannelPerlinNoise([0.4, 0.4, 0.4], [1, 1, 1], [4, 4, 4], [1, 1, 1], 1, 1, 42, 0.5);
     const out = createCameraState();
     yield () => {
       perlin.update(out, 0.016, false);
@@ -269,8 +260,8 @@ group('ImpulseField.sampleAt @impulse', () => {
 
   bench('1 concurrent event', function* () {
     const field = makeFieldWithEvents(1);
-    const out = new Vector3();
-    const samplePosition = new Vector3();
+    const out: Vec3 = [0, 0, 0];
+    const samplePosition: Vec3 = [0, 0, 0];
     let now = 0;
     yield () => {
       now += 0.016;
@@ -281,8 +272,8 @@ group('ImpulseField.sampleAt @impulse', () => {
 
   bench('10 concurrent events', function* () {
     const field = makeFieldWithEvents(10);
-    const out = new Vector3();
-    const samplePosition = new Vector3();
+    const out: Vec3 = [0, 0, 0];
+    const samplePosition: Vec3 = [0, 0, 0];
     let now = 0;
     yield () => {
       now += 0.016;
@@ -293,8 +284,8 @@ group('ImpulseField.sampleAt @impulse', () => {
 
   bench('50 concurrent events', function* () {
     const field = makeFieldWithEvents(50);
-    const out = new Vector3();
-    const samplePosition = new Vector3();
+    const out: Vec3 = [0, 0, 0];
+    const samplePosition: Vec3 = [0, 0, 0];
     let now = 0;
     yield () => {
       now += 0.016;
@@ -322,7 +313,7 @@ group('ImpulseListenerNoise.update @impulse', () => {
   bench('kick + shake', function* () {
     const field = new ImpulseField();
     field.generate({ position: [0, 0, 0], direction: [1, 0, 0], shape: always, duration: 1000 }, 0);
-    const shake = new BasicMultiChannelPerlinNoise(new Vector3(0.1, 0.1, 0.1), undefined, new Vector3(3, 3, 3));
+    const shake = new BasicMultiChannelPerlinNoise([0.1, 0.1, 0.1], undefined, [3, 3, 3]);
     const listener = new ImpulseListenerNoise(field, 1, 1, shake);
     const out = createCameraState();
     let now = 0;
@@ -459,16 +450,7 @@ group('VirtualCameraController.update @controller', () => {
     controller.registerAim(new RotationComposerAim(object, [0, 0], 16 / 9, [0.15, 0.15], 0.5).update);
     controller.registerExtension(new GroupFramingExtension(targetGroup, 40, 1920, 1080, 0.5).update);
     controller.registerNoise(
-      new BasicMultiChannelPerlinNoise(
-        new Vector3(0.1, 0.1, 0.1),
-        new Vector3(1, 1, 1),
-        new Vector3(2, 2, 2),
-        new Vector3(1, 1, 1),
-        1,
-        1,
-        7,
-        0.5,
-      ).update,
+      new BasicMultiChannelPerlinNoise([0.1, 0.1, 0.1], [1, 1, 1], [2, 2, 2], [1, 1, 1], 1, 1, 7, 0.5).update,
     );
     const out = createCameraState();
     yield () => {

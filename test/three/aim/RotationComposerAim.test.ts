@@ -366,7 +366,7 @@ describe('RotationComposerAim', () => {
   describe('dead zone with target extent (radius/size)', () => {
     it("a radius makes the dead zone react to the target's EDGE, catching drift a point target would still ignore", () => {
       const target = new Vector3(0, 0, -10);
-      const aim = new RotationComposerAim(target, [0, 0], 1, [0.2, 0.2], 0, [0, 0], new Vector3(), 1); // radius = 1
+      const aim = new RotationComposerAim(target, [0, 0], 1, [0.2, 0.2], 0, [0, 0], [0, 0, 0], 1); // radius = 1
       const out = createCameraState();
       out.fov = 90; // tan(45°) = 1, so depth-normalized math is clean
       aim.update(out, 0.1); // baseline, dead-center
@@ -396,17 +396,7 @@ describe('RotationComposerAim', () => {
 
     it('an axis-aligned size reproduces the same edge as an equivalent radius', () => {
       const target = new Vector3(0, 0, -10);
-      const aim = new RotationComposerAim(
-        target,
-        [0, 0],
-        1,
-        [0.2, 0.2],
-        0,
-        [0, 0],
-        new Vector3(),
-        undefined,
-        [2, 2, 2],
-      );
+      const aim = new RotationComposerAim(target, [0, 0], 1, [0.2, 0.2], 0, [0, 0], [0, 0, 0], undefined, [2, 2, 2]);
       const out = createCameraState();
       out.fov = 90;
       aim.update(out, 0.1);
@@ -430,7 +420,7 @@ describe('RotationComposerAim', () => {
         [0.2, 0.2],
         0,
         [0, 0],
-        new Vector3(),
+        [0, 0, 0],
         undefined,
         [2, 2, 2],
       );
@@ -516,7 +506,7 @@ describe('RotationComposerAim', () => {
   describe('extent bigger than the reaction zone (real bug in PositionComposer, fixed here from the start)', () => {
     it('a radius larger than the dead zone settles at dead center instead of alternating forever', () => {
       const target = new Vector3(0, 0, -10);
-      const aim = new RotationComposerAim(target, [0, 0], 1, [0.2, 0.2], 0, [0, 0], new Vector3(), 3); // radius 3 > deadZone's own half-width in world units at this depth
+      const aim = new RotationComposerAim(target, [0, 0], 1, [0.2, 0.2], 0, [0, 0], [0, 0, 0], 3); // radius 3 > deadZone's own half-width in world units at this depth
       const out = createCameraState();
       out.fov = 90;
       aim.update(out, 0.1); // baseline, dead-center
@@ -537,7 +527,7 @@ describe('RotationComposerAim', () => {
     it('a radius larger than hardLimit settles at dead center there too, not alternating', () => {
       const target = new Vector3(0, 0, -10);
       // huge deadZone never triggers, isolating hardLimit; radius 3 > hardLimit's own half-width here
-      const aim = new RotationComposerAim(target, [0, 0], 1, [10, 10], 0, [0.1, 0.1], new Vector3(), 3);
+      const aim = new RotationComposerAim(target, [0, 0], 1, [10, 10], 0, [0.1, 0.1], [0, 0, 0], 3);
       const out = createCameraState();
       out.fov = 90;
       aim.update(out, 0.1); // baseline, dead-center
@@ -563,7 +553,7 @@ describe('RotationComposerAim', () => {
       target.rotation.set(0, Math.PI / 2, 0);
 
       const offset = new Vector3(1, 0, 0);
-      const aim = new RotationComposerAim(target, [0, 0], 1, [0, 0], 0, [0, 0], offset);
+      const aim = new RotationComposerAim(target, [0, 0], 1, [0, 0], 0, [0, 0], toTuple(offset));
       const out = createCameraState();
       aim.update(out, 0.1);
 
@@ -575,7 +565,7 @@ describe('RotationComposerAim', () => {
 
     it('degrades to a plain world-space addition for a fixed-point target (no rotation to apply)', () => {
       const target = new Vector3(0, 0, -20);
-      const aim = new RotationComposerAim(target, [0, 0], 1, [0, 0], 0, [0, 0], new Vector3(2, 3, 0));
+      const aim = new RotationComposerAim(target, [0, 0], 1, [0, 0], 0, [0, 0], [2, 3, 0]);
       const out = createCameraState();
       aim.update(out, 0.1);
 
@@ -591,7 +581,7 @@ describe('RotationComposerAim', () => {
       aim.update(out, 0.1);
       expect(projectToScreen(out, 1, target).x).toBeCloseTo(0, 5);
 
-      aim.targetOffset = new Vector3(5, 0, 0);
+      aim.targetOffset = [5, 0, 0];
       aim.update(out, 0.1);
       expect(projectToScreen(out, 1, new Vector3(5, 0, -20)).x).toBeCloseTo(0, 5);
     });

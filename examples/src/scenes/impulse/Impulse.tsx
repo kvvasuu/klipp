@@ -1,4 +1,4 @@
-import { impulseField, ImpulseShapes, type ImpulseShape } from '@kvvasuu/klipp/three';
+import { impulseField, ImpulseShapes, type ImpulseShape } from '@kvvasuu/klipp';
 import { ImpulseListener, Klipp, VirtualCamera } from '@kvvasuu/klipp/react';
 import { CameraControls } from '@kvvasuu/klipp/react/camera-controls';
 import { bezier } from '@leva-ui/plugin-bezier';

@@ -6,7 +6,6 @@
  * deliberate and documented.
  */
 import { vec3, type Vec3 } from 'math';
-import { Vector3 } from 'three';
 import { createCameraState, type CameraState } from '../../src/core/CameraState';
 import { KlippCore } from '../../src/core/KlippCore';
 import { VirtualCameraController } from '../../src/core/VirtualCameraController';
@@ -28,9 +27,9 @@ import { ClearShot } from '../../src/core/groups/ClearShot';
 import { MixingCamera } from '../../src/core/groups/MixingCamera';
 import { Sequencer } from '../../src/core/groups/Sequencer';
 import { StateDrivenCamera } from '../../src/core/groups/StateDrivenCamera';
-import { ImpulseField } from '../../src/three/impulse/ImpulseField';
-import { ImpulseListenerNoise } from '../../src/three/impulse/ImpulseListenerNoise';
-import { BasicMultiChannelPerlinNoise } from '../../src/three/noise/BasicMultiChannelPerlinNoise';
+import { ImpulseField } from '../../src/core/impulse/ImpulseField';
+import { ImpulseListenerNoise } from '../../src/core/impulse/ImpulseListenerNoise';
+import { BasicMultiChannelPerlinNoise } from '../../src/core/noise/BasicMultiChannelPerlinNoise';
 import { orbitCamera, simulate, type World } from './world';
 
 export type Scenario = { name: string; run: () => number[][] };
@@ -156,9 +155,7 @@ export const scenarios: Scenario[] = [
   aim('aim.rotateWithFollowTarget', (w) => new RotateWithFollowTargetAim(w.target, 0.3).update),
   aim(
     'aim.rotationComposer',
-    (w) =>
-      new RotationComposerAim(w.target, [0.1, -0.1], 16 / 9, [0.1, 0.1], 0.3, [0.4, 0.4], new Vector3(0, 0.5, 0), 1)
-        .update,
+    (w) => new RotationComposerAim(w.target, [0.1, -0.1], 16 / 9, [0.1, 0.1], 0.3, [0.4, 0.4], [0, 0.5, 0], 1).update,
   ),
   aim(
     'aim.rotationComposer.lookahead',
@@ -170,7 +167,7 @@ export const scenarios: Scenario[] = [
         [0.05, 0.05],
         0.2,
         [0.3, 0.3],
-        new Vector3(),
+        [0, 0, 0],
         1,
         undefined,
         0.8,
@@ -231,16 +228,8 @@ export const scenarios: Scenario[] = [
   // noise
   controllerScenario('noise.perlin', (c) => {
     c.registerNoise(
-      new BasicMultiChannelPerlinNoise(
-        new Vector3(0.2, 0.1, 0.2),
-        new Vector3(1, 1.3, 0.7),
-        new Vector3(2, 1, 0.5),
-        new Vector3(0.8, 1.1, 1.6),
-        1,
-        1,
-        1234,
-        0.2,
-      ).update,
+      new BasicMultiChannelPerlinNoise([0.2, 0.1, 0.2], [1, 1.3, 0.7], [2, 1, 0.5], [0.8, 1.1, 1.6], 1, 1, 1234, 0.2)
+        .update,
     );
   }),
   {

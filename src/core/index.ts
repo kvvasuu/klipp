@@ -71,6 +71,50 @@ export {
   type RotateWithFollowTargetState,
 } from './aim/rotateWithFollowTarget';
 export { updatePanTilt, seedPanTilt, createPanTiltState, type PanTiltState } from './aim/panTilt';
+export {
+  updateRotationComposer,
+  primeRotationComposer,
+  createRotationComposerState,
+  rotationComposerNeedsExtent,
+  type RotationComposerParams,
+  type RotationComposerState,
+} from './aim/rotationComposer';
 
 export { LensExtension } from './extension/LensExtension';
+export { updateLens, createLensState, type LensParams, type LensState } from './extension/lens';
+export {
+  updateGroupFraming,
+  computeGroupBounds,
+  createGroupFramingState,
+  createGroupMember,
+  type GroupMember,
+  type GroupPositionMode,
+  type GroupFramingParams,
+  type GroupFramingState,
+  type GroupFramingFitMode,
+  type GroupFramingMode,
+} from './extension/groupFraming';
 export { InputAxis, type InputAxisRecentering } from './input/InputAxis';
+
+export { BasicMultiChannelPerlinNoise } from './noise/BasicMultiChannelPerlinNoise';
+export {
+  updatePerlinNoise,
+  createPerlinNoiseState,
+  type PerlinNoiseParams,
+  type PerlinNoiseState,
+} from './noise/perlinNoise';
+export { ImpulseField, impulseField } from './impulse/ImpulseField';
+export { ImpulseListenerNoise } from './impulse/ImpulseListenerNoise';
+export {
+  ImpulseShapes,
+  generateImpulse,
+  sampleImpulses,
+  pruneImpulses,
+  createImpulseFieldState,
+  impulseNow,
+  type GenerateImpulseOptions,
+  type ImpulseShape,
+  type ImpulseEvent,
+  type ImpulseFieldState,
+  type ImpulseClockSeconds,
+} from './impulse/impulses';

@@ -3,9 +3,9 @@ import { describe, expect, it } from 'vitest';
 import { Klipp } from '../../../src/react/Klipp';
 import { useKlipp } from '../../../src/react/KlippContext';
 import type { KlippCore } from '../../../src/core/KlippCore';
-import { ImpulseField } from '../../../src/three/impulse/ImpulseField';
+import { ImpulseField } from '../../../src/core/impulse/ImpulseField';
 import { ImpulseListener } from '../../../src/react/impulse/ImpulseListener';
-import type { ImpulseListenerNoise } from '../../../src/three/impulse/ImpulseListenerNoise';
+import type { ImpulseListenerNoise } from '../../../src/core/impulse/ImpulseListenerNoise';
 import { VirtualCamera } from '../../../src/react/VirtualCamera';
 import { toVector3 } from '../../tuples';
 

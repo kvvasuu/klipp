@@ -24,16 +24,6 @@ export { RotateWithFollowTargetAim } from './aim/RotateWithFollowTargetAim';
 export { RotationComposerAim } from './aim/RotationComposerAim';
 export { PanTiltAim } from './aim/PanTiltAim';
 
-export { BasicMultiChannelPerlinNoise } from './noise/BasicMultiChannelPerlinNoise';
-export {
-  ImpulseField,
-  impulseField,
-  ImpulseShapes,
-  type GenerateImpulseOptions,
-  type ImpulseShape,
-} from './impulse/ImpulseField';
-export { ImpulseListenerNoise } from './impulse/ImpulseListenerNoise';
-
 export { TargetGroup, type TargetGroupMember, type TargetGroupPositionMode } from './extension/TargetGroup';
 export {
   GroupFramingExtension,

@@ -1,6 +1,5 @@
-import type { Vec3 } from 'math';
 import { Quaternion, Vector3 } from 'three';
-import { createTargetExtent, projectTargetExtent, type TargetExtent } from '../core/TargetExtent';
+import type { TargetExtent } from '../core/TargetExtent';
 import { resolveTargetRotation, resolveTargetSize, type Target } from './resolve/Target';
 import type { TargetSlot } from './resolve/TargetRegistry';
 import type { Vector3Like } from './resolve/resolveVector3';
@@ -33,23 +32,4 @@ export function readTargetExtent(
   if (resolveTargetRotation(scratchRotation, target, slot)) scratchRotation.toArray(out.rotation);
   else scratchRotation.identity().toArray(out.rotation);
   return out;
-}
-
-const scratchExtent = createTargetExtent();
-const scratchAxisA: Vec3 = [0, 0, 0];
-const scratchAxisB: Vec3 = [0, 0, 0];
-
-/** Resolve target half-extents along two world axes. */
-export function resolveTargetHalfExtents(
-  outExtents: [number, number],
-  target: Target,
-  size: Vector3Like | undefined,
-  radius: number | undefined,
-  axisA: Vector3,
-  axisB: Vector3,
-  dynamicSize = false,
-  slot?: TargetSlot | null,
-): void {
-  readTargetExtent(scratchExtent, target, size, radius, dynamicSize, slot ?? null);
-  projectTargetExtent(outExtents, scratchExtent, axisA.toArray(scratchAxisA), axisB.toArray(scratchAxisB));
 }
