@@ -1,4 +1,12 @@
+import type { Vec3 } from 'math';
 import { Vector3 } from 'three';
+import {
+  computeGroupBounds,
+  createGroupMember,
+  type GroupMember,
+  type GroupPositionMode,
+} from '../../core/extension/groupFraming';
+import { readTargetExtent } from '../readTargetExtent';
 import { resolveTargetPosition, resolveTargetSize, type Target } from '../resolve/Target';
 import type { TargetSlot } from '../resolve/TargetRegistry';
 import type { Vector3Like } from '../resolve/resolveVector3';
@@ -14,13 +22,10 @@ export type TargetGroupMember = {
 };
 
 /** Strategy used to compute the group's position. */
-export type TargetGroupPositionMode = 'groupCenter' | 'groupAverage';
+export type TargetGroupPositionMode = GroupPositionMode;
 
-const scratchMemberPosition = new Vector3();
-const scratchMin = new Vector3();
-const scratchMax = new Vector3();
-const scratchAccumulator = new Vector3();
-const scratchSize = new Vector3();
+const scratchPosition = new Vector3();
+const scratchCenter: Vec3 = [0, 0, 0];
 const noSlots: ReadonlyMap<Target, TargetSlot> = new Map();
 
 /** Combines multiple targets into one position and bound. */
@@ -29,6 +34,8 @@ export class TargetGroup {
   positionMode: TargetGroupPositionMode;
   /** Registry slots by member target; members without one are resolved directly. */
   memberSlots: ReadonlyMap<Target, TargetSlot> = noSlots;
+
+  private readonly resolved: GroupMember[] = [];
 
   constructor(members: TargetGroupMember[] = [], positionMode: TargetGroupPositionMode = 'groupCenter') {
     this.members = members;
@@ -41,63 +48,29 @@ export class TargetGroup {
   resolveMemberSize = (outSize: Vector3, member: TargetGroupMember, dynamicSize = false): boolean =>
     resolveTargetSize(outSize, member.target, member.size, member.radius, dynamicSize, this.slotOf(member));
 
+  /** Resolve every member's position and extent for this frame, as plain data for the core. */
+  resolveMembers = (dynamicSize = false): readonly GroupMember[] => {
+    const count = this.members.length;
+    while (this.resolved.length < count) this.resolved.push(createGroupMember());
+    this.resolved.length = count;
+    for (let i = 0; i < count; i++) {
+      const member = this.members[i];
+      const out = this.resolved[i];
+      const slot = this.slotOf(member);
+      out.weight = member.weight ?? 1;
+      out.resolved = resolveTargetPosition(scratchPosition, member.target, slot);
+      if (!out.resolved) continue;
+      scratchPosition.toArray(out.position);
+      readTargetExtent(out.extent, member.target, member.size, member.radius, dynamicSize, slot);
+    }
+    return this.resolved;
+  };
+
   /** Write the group position and return a conservative enclosing radius. */
   computeBounds = (outPosition: Vector3, dynamicSize = false): number => {
-    const resolved =
-      this.positionMode === 'groupAverage'
-        ? this.computeAveragePosition(outPosition)
-        : this.computeCenterPosition(outPosition, dynamicSize);
-    if (!resolved) return 0;
-
-    let radius = 0;
-    for (const member of this.members) {
-      if (!resolveTargetPosition(scratchMemberPosition, member.target, this.slotOf(member))) continue;
-      const reach = scratchMemberPosition.distanceTo(outPosition) + this.resolveFallbackRadius(member, dynamicSize);
-      if (reach > radius) radius = reach;
-    }
+    const radius = computeGroupBounds(scratchCenter, this.resolveMembers(dynamicSize), this.positionMode);
+    if (radius < 0) return 0;
+    outPosition.fromArray(scratchCenter);
     return radius;
-  };
-
-  private resolveFallbackRadius = (member: TargetGroupMember, dynamicSize = false): number => {
-    if (this.resolveMemberSize(scratchSize, member, dynamicSize)) return scratchSize.length() / 2; // box's own half-diagonal
-    return member.radius ?? 0;
-  };
-
-  private computeCenterPosition = (outPosition: Vector3, dynamicSize = false): boolean => {
-    let any = false;
-    for (const member of this.members) {
-      if (!resolveTargetPosition(scratchMemberPosition, member.target, this.slotOf(member))) continue;
-      const radius = this.resolveFallbackRadius(member, dynamicSize);
-      if (!any) {
-        scratchMin.copy(scratchMemberPosition).subScalar(radius);
-        scratchMax.copy(scratchMemberPosition).addScalar(radius);
-        any = true;
-        continue;
-      }
-      scratchMin.x = Math.min(scratchMin.x, scratchMemberPosition.x - radius);
-      scratchMin.y = Math.min(scratchMin.y, scratchMemberPosition.y - radius);
-      scratchMin.z = Math.min(scratchMin.z, scratchMemberPosition.z - radius);
-      scratchMax.x = Math.max(scratchMax.x, scratchMemberPosition.x + radius);
-      scratchMax.y = Math.max(scratchMax.y, scratchMemberPosition.y + radius);
-      scratchMax.z = Math.max(scratchMax.z, scratchMemberPosition.z + radius);
-    }
-    if (!any) return false;
-    outPosition.addVectors(scratchMin, scratchMax).multiplyScalar(0.5);
-    return true;
-  };
-
-  private computeAveragePosition = (outPosition: Vector3): boolean => {
-    let totalWeight = 0;
-    scratchAccumulator.set(0, 0, 0);
-    for (const member of this.members) {
-      const weight = member.weight ?? 1;
-      if (weight <= 0) continue;
-      if (!resolveTargetPosition(scratchMemberPosition, member.target, this.slotOf(member))) continue;
-      scratchAccumulator.addScaledVector(scratchMemberPosition, weight);
-      totalWeight += weight;
-    }
-    if (totalWeight <= 0) return false;
-    outPosition.copy(scratchAccumulator).multiplyScalar(1 / totalWeight);
-    return true;
   };
 }
