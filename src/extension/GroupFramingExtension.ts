@@ -111,14 +111,15 @@ export class GroupFramingExtension {
     let requiredDistance = 0;
 
     for (const member of this.group.members) {
-      if (!resolveTargetPosition(scratchMemberPosition, member.target)) continue;
+      const slot = this.group.slotOf(member);
+      if (!resolveTargetPosition(scratchMemberPosition, member.target, slot)) continue;
       scratchOffset.subVectors(scratchMemberPosition, scratchGroupPosition);
       const offsetUp = scratchOffset.dot(scratchUp);
       const offsetRight = scratchOffset.dot(scratchRight);
       const offsetForward = scratchOffset.dot(scratchForward);
 
       if (this.group.resolveMemberSize(scratchSize, member, dynamicSize)) {
-        if (!resolveTargetRotation(scratchMemberQuaternion, member.target)) scratchMemberQuaternion.identity();
+        if (!resolveTargetRotation(scratchMemberQuaternion, member.target, slot)) scratchMemberQuaternion.identity();
         scratchHalfSize.copy(scratchSize).multiplyScalar(0.5);
         scratchAxisX.set(scratchHalfSize.x, 0, 0).applyQuaternion(scratchMemberQuaternion);
         scratchAxisY.set(0, scratchHalfSize.y, 0).applyQuaternion(scratchMemberQuaternion);

@@ -1,12 +1,11 @@
 /**
- * Acceptance test for the target registry (KLIPP-TASK-TARGET-REGISTRY.md): every target is resolved
+ * Acceptance test for the target registry: every target is resolved
  * once per frame per <Klipp>, however many stages and cameras read it.
  *
  * Counts Object3D.updateWorldMatrix calls (klipp's only path to world transforms; the renderer uses
  * updateMatrixWorld). A target nested 2 levels deep costs 3 calls per resolve (itself + 2 parents).
  *
- * Today stages resolve on their own, so these counts are 9 / 21 / 18 calls per frame and the tests are
- * marked `it.fails`. Flip them to `it` once the registry lands.
+ * Without the registry every stage resolved on its own: 9 / 21 / 18 calls per frame.
  */
 import { create } from '@react-three/test-renderer';
 import type { ReactNode } from 'react';
@@ -56,17 +55,17 @@ async function worldMatrixCallsPerFrame(scene: (target: Object3D) => ReactNode):
 }
 
 describe('target reads per frame', () => {
-  it.fails('Follow + HardLookAt resolve a shared target once', async () => {
+  it('Follow + HardLookAt resolve a shared target once', async () => {
     const calls = await worldMatrixCallsPerFrame((target) => (
       <VirtualCamera name="a" priority={1}>
         <Follow target={target} offset={[0, 3, 8]} />
         <HardLookAt target={target} />
       </VirtualCamera>
     ));
-    expect(calls).toBe(CALLS_PER_RESOLVE); // today: 9
+    expect(calls).toBe(CALLS_PER_RESOLVE); // without the registry: 9
   });
 
-  it.fails('Follow + RotationComposer + GroupFraming resolve a shared target once', async () => {
+  it('Follow + RotationComposer + GroupFraming resolve a shared target once', async () => {
     const calls = await worldMatrixCallsPerFrame((target) => (
       <VirtualCamera name="a" priority={1}>
         <Follow target={target} offset={[0, 3, 8]} />
@@ -74,10 +73,10 @@ describe('target reads per frame', () => {
         <GroupFraming members={[{ target, radius: 1 }]} />
       </VirtualCamera>
     ));
-    expect(calls).toBe(CALLS_PER_RESOLVE); // today: 21
+    expect(calls).toBe(CALLS_PER_RESOLVE); // without the registry: 21
   });
 
-  it.fails('two cameras following the same target resolve it once', async () => {
+  it('two cameras following the same target resolve it once', async () => {
     const calls = await worldMatrixCallsPerFrame((target) => (
       <>
         <VirtualCamera name="a" priority={2}>
@@ -90,6 +89,6 @@ describe('target reads per frame', () => {
         </VirtualCamera>
       </>
     ));
-    expect(calls).toBe(CALLS_PER_RESOLVE); // today: 18
+    expect(calls).toBe(CALLS_PER_RESOLVE); // without the registry: 18
   });
 });

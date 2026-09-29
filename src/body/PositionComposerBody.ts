@@ -6,6 +6,7 @@ import { Damper, type DampingConstant } from '../damping/Damper';
 import { Predictor } from '../damping/Predictor';
 import { Vector3Damper } from '../damping/Vector3Damper';
 import { resolveTargetHalfExtents, resolveTargetPosition, type Target } from '../resolve/Target';
+import type { TargetSlot } from '../resolve/TargetRegistry';
 
 const scratchForward = new Vector3();
 const scratchRight = new Vector3();
@@ -22,6 +23,7 @@ const scratchExtents: [number, number] = [0, 0];
 /** Positions the camera using depth and screen-space composition. */
 export class PositionComposerBody {
   target: Target;
+  targetSlot: TargetSlot | null = null;
   cameraDistance: number;
   screenPosition: [number, number];
   aspect: number;
@@ -102,7 +104,7 @@ export class PositionComposerBody {
     const skipReset = justActivated && this.primed;
     if (justActivated) this.primed = false;
 
-    if (!resolveTargetPosition(scratchTargetPosition, this.target)) return;
+    if (!resolveTargetPosition(scratchTargetPosition, this.target, this.targetSlot)) return;
 
     if (justActivated || this.target !== this.lastLookaheadTarget) {
       this.lastLookaheadTarget = this.target;
@@ -160,6 +162,7 @@ export class PositionComposerBody {
       scratchRight,
       scratchUp,
       this.forceSizeRecalculation,
+      this.targetSlot,
     );
     this.forceSizeRecalculation = false;
     const extentX = scratchExtents[0] / halfWidth;

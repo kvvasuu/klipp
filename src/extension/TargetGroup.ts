@@ -1,6 +1,7 @@
 import type { Vector3 as Vector3Like } from '@react-three/fiber';
 import { Vector3 } from 'three';
 import { resolveTargetPosition, resolveTargetSize, type Target } from '../resolve/Target';
+import type { TargetSlot } from '../resolve/TargetRegistry';
 
 export type TargetGroupMember = {
   target: Target;
@@ -20,20 +21,25 @@ const scratchMin = new Vector3();
 const scratchMax = new Vector3();
 const scratchAccumulator = new Vector3();
 const scratchSize = new Vector3();
+const noSlots: ReadonlyMap<Target, TargetSlot> = new Map();
 
 /** Combines multiple targets into one position and bound. */
 export class TargetGroup {
   members: TargetGroupMember[];
   positionMode: TargetGroupPositionMode;
+  /** Registry slots by member target; members without one are resolved directly. */
+  memberSlots: ReadonlyMap<Target, TargetSlot> = noSlots;
 
   constructor(members: TargetGroupMember[] = [], positionMode: TargetGroupPositionMode = 'groupCenter') {
     this.members = members;
     this.positionMode = positionMode;
   }
 
+  slotOf = (member: TargetGroupMember): TargetSlot | null => this.memberSlots.get(member.target) ?? null;
+
   /** Resolve a member's dimensions. */
   resolveMemberSize = (outSize: Vector3, member: TargetGroupMember, dynamicSize = false): boolean =>
-    resolveTargetSize(outSize, member.target, member.size, member.radius, dynamicSize);
+    resolveTargetSize(outSize, member.target, member.size, member.radius, dynamicSize, this.slotOf(member));
 
   /** Write the group position and return a conservative enclosing radius. */
   computeBounds = (outPosition: Vector3, dynamicSize = false): number => {
@@ -45,7 +51,7 @@ export class TargetGroup {
 
     let radius = 0;
     for (const member of this.members) {
-      if (!resolveTargetPosition(scratchMemberPosition, member.target)) continue;
+      if (!resolveTargetPosition(scratchMemberPosition, member.target, this.slotOf(member))) continue;
       const reach = scratchMemberPosition.distanceTo(outPosition) + this.resolveFallbackRadius(member, dynamicSize);
       if (reach > radius) radius = reach;
     }
@@ -60,7 +66,7 @@ export class TargetGroup {
   private computeCenterPosition = (outPosition: Vector3, dynamicSize = false): boolean => {
     let any = false;
     for (const member of this.members) {
-      if (!resolveTargetPosition(scratchMemberPosition, member.target)) continue;
+      if (!resolveTargetPosition(scratchMemberPosition, member.target, this.slotOf(member))) continue;
       const radius = this.resolveFallbackRadius(member, dynamicSize);
       if (!any) {
         scratchMin.copy(scratchMemberPosition).subScalar(radius);
@@ -86,7 +92,7 @@ export class TargetGroup {
     for (const member of this.members) {
       const weight = member.weight ?? 1;
       if (weight <= 0) continue;
-      if (!resolveTargetPosition(scratchMemberPosition, member.target)) continue;
+      if (!resolveTargetPosition(scratchMemberPosition, member.target, this.slotOf(member))) continue;
       scratchAccumulator.addScaledVector(scratchMemberPosition, weight);
       totalWeight += weight;
     }

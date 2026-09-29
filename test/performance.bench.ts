@@ -17,6 +17,7 @@ import { ImpulseField } from '../src/impulse/ImpulseField';
 import { ImpulseListenerNoise } from '../src/impulse/ImpulseListenerNoise';
 import { InputSystem, MouseButton, createConsumedInput, type ConsumedInput } from '../src/input/InputSystem';
 import { BasicMultiChannelPerlinNoise } from '../src/noise/BasicMultiChannelPerlinNoise';
+import { TargetRegistry } from '../src/resolve/TargetRegistry';
 import { toQuaternion } from './tuples';
 
 const always = () => 1;
@@ -549,6 +550,55 @@ group('lerpCameraState @blend', () => {
     const out = createCameraState();
     yield () => lerpCameraState(out, a, b, 0.5, BlendHints.sphericalPosition).position[0];
   });
+});
+
+/** A target `depth` levels below a moving root. Matrices are left stale, as in a real frame before render. */
+function makeNestedTarget(depth: number): { object: Object3D; step: () => void } {
+  const root = new Object3D();
+  let leaf = root;
+  for (let d = 0; d < depth; d++) {
+    const child = new Object3D();
+    child.position.set(0.1, 0.2, 0);
+    child.rotation.set(0, 0.1, 0);
+    leaf.add(child);
+    leaf = child;
+  }
+  let t = 0;
+  return {
+    object: leaf,
+    step: () => {
+      t += 0.016;
+      root.position.set(Math.sin(t) * 10, 2, Math.cos(t) * 10);
+    },
+  };
+}
+
+/** Two cameras, each Follow + HardLookAt on the same target, with or without registry slots. */
+function* twoCamerasOnSharedTarget(depth: number, withRegistry: boolean) {
+  const { object, step } = makeNestedTarget(depth);
+  const registry = new TargetRegistry();
+  const cameras = [new Vector3(0, 3, 8), new Vector3(5, 2, 0)].map((offset) => {
+    const follow = new FollowBody(object, offset, 0.5);
+    const look = new HardLookAtAim(object);
+    if (withRegistry) follow.targetSlot = look.targetSlot = registry.acquire(object);
+    return { follow, look, out: createCameraState() };
+  });
+  yield () => {
+    step();
+    if (withRegistry) registry.refresh();
+    for (const { follow, look, out } of cameras) {
+      follow.update(out, 0.016, false);
+      look.update(out);
+    }
+    return cameras[0].out.position[0];
+  };
+}
+
+group('Target reads, two cameras on one target @targets', () => {
+  bench('depth 2, each stage resolves', () => twoCamerasOnSharedTarget(2, false));
+  bench('depth 2, registry slots', () => twoCamerasOnSharedTarget(2, true));
+  bench('depth 10, each stage resolves', () => twoCamerasOnSharedTarget(10, false));
+  bench('depth 10, registry slots', () => twoCamerasOnSharedTarget(10, true));
 });
 
 // How to read the output: `avg (min…max) p75/p99` is time per call — compare that to a frame's budget

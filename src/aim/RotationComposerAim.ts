@@ -6,6 +6,7 @@ import { Damper, type DampingConstant } from '../damping/Damper';
 import { Predictor } from '../damping/Predictor';
 import { QuaternionDamper } from '../damping/QuaternionDamper';
 import { resolveTargetHalfExtents, resolveTargetPosition, resolveTargetRotation, type Target } from '../resolve/Target';
+import type { TargetSlot } from '../resolve/TargetRegistry';
 
 const forwardAxis = new Vector3(0, 0, -1);
 const scratchTargetPosition = new Vector3();
@@ -73,6 +74,7 @@ function composeQuaternionForScreenPoint(
 /** Rotates the camera to place a target at `screenPosition`. */
 export class RotationComposerAim {
   target: Target;
+  targetSlot: TargetSlot | null = null;
   screenPosition: [number, number];
   aspect: number;
   deadZone: [number, number];
@@ -161,7 +163,7 @@ export class RotationComposerAim {
     const skipReset = justActivated && this.primed;
     if (justActivated) this.primed = false;
 
-    if (!resolveTargetPosition(scratchTargetPosition, this.target)) return;
+    if (!resolveTargetPosition(scratchTargetPosition, this.target, this.targetSlot)) return;
     // Capture this before any early return so it applies to one update only.
     const recalculateSizeThisFrame = this.forceSizeRecalculation;
     this.forceSizeRecalculation = false;
@@ -177,7 +179,7 @@ export class RotationComposerAim {
       scratchTargetPosition.add(scratchLookaheadDelta);
     }
 
-    if (!resolveTargetRotation(scratchTargetRotation, this.target)) scratchTargetRotation.identity();
+    if (!resolveTargetRotation(scratchTargetRotation, this.target, this.targetSlot)) scratchTargetRotation.identity();
     scratchTargetPosition.add(scratchOffset.copy(this.targetOffset).applyQuaternion(scratchTargetRotation));
 
     // Publish the damped look-at point so blends do not jump to the raw target position.
@@ -246,6 +248,7 @@ export class RotationComposerAim {
           scratchRight,
           scratchUp,
           recalculateSizeThisFrame,
+          this.targetSlot,
         );
         // Cap the extent to prevent an oversized target from overshooting the zone.
         const extentX = Math.min(scratchExtents[0] / depth / tanHalfFovH, halfWidth);
@@ -314,6 +317,7 @@ export class RotationComposerAim {
       scratchRight,
       scratchUp,
       recalculateSizeThisFrame,
+      this.targetSlot,
     );
     // Cap the extent to prevent an oversized target from overshooting the limit.
     const limitExtentX = Math.min(scratchExtents[0] / depth / tanHalfFovH, halfLimitWidth);

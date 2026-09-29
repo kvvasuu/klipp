@@ -25,7 +25,7 @@ import { lerpCameraState } from '../src/blend/lerpCameraState';
 import { GroupFramingExtension } from '../src/extension/GroupFramingExtension';
 import { TargetGroup } from '../src/extension/TargetGroup';
 import { BasicMultiChannelPerlinNoise } from '../src/noise/BasicMultiChannelPerlinNoise';
-import { TargetRegistry } from '../src/resolve/TargetRegistry';
+import { TargetRegistry, type TargetSlot } from '../src/resolve/TargetRegistry';
 
 const FRAMES = 300_000;
 const WARMUP = 50_000;
@@ -61,22 +61,41 @@ function movingTarget() {
   return { object, step };
 }
 
-/** One <Klipp> frame: every registered camera updates, the core ticks, the result lands on a real camera. */
-function klippFrame(setup: (target: Object3D, controller: VirtualCameraController) => void) {
+/** One <Klipp> frame: targets refresh, every camera updates, the core ticks, the result lands on a real camera. */
+function klippFrame(
+  setup: (target: Object3D, controller: VirtualCameraController, slot: TargetSlot) => void,
+  cameraCount = 1,
+) {
   const { object, step } = movingTarget();
-  const controller = new VirtualCameraController('cam');
-  setup(object, controller);
-  const state = createCameraState();
+  const registry = new TargetRegistry();
   const core = new KlippCore();
-  core.registerCamera({ id: 'cam', priority: 1, state });
+  const cameras = Array.from({ length: cameraCount }, (_, i) => {
+    const controller = new VirtualCameraController(`cam${i}`);
+    setup(object, controller, registry.acquire(object));
+    const state = createCameraState();
+    core.registerCamera({ id: `cam${i}`, priority: cameraCount - i, state });
+    return { controller, state };
+  });
   const camera = new PerspectiveCamera();
   return () => {
     step();
-    controller.update(state, 1 / 60, false);
+    registry.refresh();
+    for (const { controller, state } of cameras) controller.update(state, 1 / 60, false);
     const result = core.tick(1 / 60);
     camera.position.fromArray(result.position);
     camera.quaternion.fromArray(result.quaternion);
   };
+}
+
+/** Hands a stage its registry slot, as the React components do. */
+function withSlot<T extends { targetSlot: TargetSlot | null }>(stage: T, slot: TargetSlot): T {
+  stage.targetSlot = slot;
+  return stage;
+}
+
+function groupWithSlot(group: TargetGroup, target: Object3D, slot: TargetSlot): TargetGroup {
+  group.memberSlots = new Map([[target, slot]]);
+  return group;
 }
 
 function lookingAtOrigin(position: Vector3) {
@@ -103,41 +122,55 @@ const scenarios: { name: string; budget: number; frame: () => void }[] = [
   },
   {
     name: 'frame: Follow + HardLookAt',
-    budget: 80,
-    frame: klippFrame((target, c) => {
-      c.registerBody(new FollowBody(target, new Vector3(0, 3, 8), 0.5).update);
-      c.registerAim(new HardLookAtAim(target).update);
+    budget: 96,
+    frame: klippFrame((target, c, slot) => {
+      c.registerBody(withSlot(new FollowBody(target, new Vector3(0, 3, 8), 0.5), slot).update);
+      c.registerAim(withSlot(new HardLookAtAim(target), slot).update);
     }),
   },
   {
     name: 'frame: Follow + RotationComposer',
     budget: 447,
-    frame: klippFrame((target, c) => {
-      c.registerBody(new FollowBody(target, new Vector3(0, 3, 12), 0.5).update);
-      c.registerAim(new RotationComposerAim(target, [0, 0], 16 / 9, [0.15, 0.15], 0.5).update);
+    frame: klippFrame((target, c, slot) => {
+      c.registerBody(withSlot(new FollowBody(target, new Vector3(0, 3, 12), 0.5), slot).update);
+      c.registerAim(withSlot(new RotationComposerAim(target, [0, 0], 16 / 9, [0.15, 0.15], 0.5), slot).update);
     }),
   },
   {
     name: 'frame: Follow + HardLookAt + GroupFraming',
     budget: 192,
-    frame: klippFrame((target, c) => {
-      c.registerBody(new FollowBody(target, new Vector3(0, 3, 12), 0.5).update);
-      c.registerAim(new HardLookAtAim(target).update);
+    frame: klippFrame((target, c, slot) => {
+      c.registerBody(withSlot(new FollowBody(target, new Vector3(0, 3, 12), 0.5), slot).update);
+      c.registerAim(withSlot(new HardLookAtAim(target), slot).update);
       c.registerExtension(
-        new GroupFramingExtension(new TargetGroup([{ target, radius: 1.5 }]), 40, 1920, 1080, 0.5).update,
+        new GroupFramingExtension(
+          groupWithSlot(new TargetGroup([{ target, radius: 1.5 }]), target, slot),
+          40,
+          1920,
+          1080,
+          0.5,
+        ).update,
       );
     }),
   },
   {
     name: 'frame: Follow + HardLookAt + Perlin',
     budget: 335,
-    frame: klippFrame((target, c) => {
-      c.registerBody(new FollowBody(target, new Vector3(0, 3, 12), 0.5).update);
-      c.registerAim(new HardLookAtAim(target).update);
+    frame: klippFrame((target, c, slot) => {
+      c.registerBody(withSlot(new FollowBody(target, new Vector3(0, 3, 12), 0.5), slot).update);
+      c.registerAim(withSlot(new HardLookAtAim(target), slot).update);
       c.registerNoise(
         new BasicMultiChannelPerlinNoise(new Vector3(0.1, 0.1, 0.1), undefined, new Vector3(2, 2, 2)).update,
       );
     }),
+  },
+  {
+    name: 'frame: two cameras, Follow + HardLookAt, shared target',
+    budget: 192,
+    frame: klippFrame((target, c, slot) => {
+      c.registerBody(withSlot(new FollowBody(target, new Vector3(0, 3, 8), 0.5), slot).update);
+      c.registerAim(withSlot(new HardLookAtAim(target), slot).update);
+    }, 2),
   },
   {
     name: 'TargetRegistry.refresh, two targets',

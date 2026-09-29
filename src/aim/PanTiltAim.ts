@@ -3,6 +3,7 @@ import { Euler, Quaternion, Vector3 } from 'three';
 import type { CameraState } from '../CameraState';
 import { InputAxis } from '../input/InputAxis';
 import { resolveTargetRotation, type Target } from '../resolve/Target';
+import type { TargetSlot } from '../resolve/TargetRegistry';
 
 const worldUp = new Vector3(0, 1, 0);
 const forwardAxis = new Vector3(0, 0, -1);
@@ -32,6 +33,7 @@ export class PanTiltAim {
   readonly inputAxes = { pan: this.pan, tilt: this.tilt };
 
   target: Target;
+  targetSlot: TargetSlot | null = null;
 
   update = (out: CameraState, dt: number): void => {
     this.pan.update(dt);
@@ -73,7 +75,7 @@ export class PanTiltAim {
   };
 
   private resolveReferenceFrame(out: Quaternion, referenceUp: Vector3): void {
-    if (!resolveTargetRotation(out, this.target)) {
+    if (!resolveTargetRotation(out, this.target, this.targetSlot)) {
       out.setFromUnitVectors(worldUp, referenceUp);
     }
   }

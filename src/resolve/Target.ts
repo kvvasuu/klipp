@@ -2,6 +2,7 @@ import type { Vector3 as Vector3Like } from '@react-three/fiber';
 import type { RefObject } from 'react';
 import { Quaternion, Vector3, type Line, type Mesh, type Object3D, type Points } from 'three';
 import { isVector3Like, resolveVector3 } from './resolveVector3';
+import type { TargetSlot } from './TargetRegistry';
 
 /** A fixed point, live object, or ref to a target object. */
 export type Target = Object3D | RefObject<Object3D | null> | Vector3Like | null | undefined;
@@ -27,6 +28,7 @@ export function resolveTargetSize(
   size?: Vector3Like,
   radius?: number,
   dynamicSize = false,
+  slot?: TargetSlot | null,
 ): boolean {
   if (size) {
     resolveVector3(outSize, size);
@@ -39,7 +41,8 @@ export function resolveTargetSize(
   if (dynamicSize || !object.geometry.boundingBox) object.geometry.computeBoundingBox();
   if (!object.geometry.boundingBox) return false;
   object.geometry.boundingBox.getSize(outSize);
-  object.getWorldScale(scratchWorldScale);
+  if (slot?.valid) scratchWorldScale.fromArray(slot.scale);
+  else object.getWorldScale(scratchWorldScale);
   outSize.multiply(scratchWorldScale);
   return true;
 }
@@ -60,19 +63,20 @@ export function resolveTargetHalfExtents(
   axisA: Vector3,
   axisB: Vector3,
   dynamicSize = false,
+  slot?: TargetSlot | null,
 ): void {
   if (radius !== undefined && !size) {
     outExtents[0] = radius;
     outExtents[1] = radius;
     return;
   }
-  if (!resolveTargetSize(scratchTargetSize, target, size, radius, dynamicSize)) {
+  if (!resolveTargetSize(scratchTargetSize, target, size, radius, dynamicSize, slot)) {
     outExtents[0] = 0;
     outExtents[1] = 0;
     return;
   }
 
-  if (!resolveTargetRotation(scratchTargetRotation, target)) scratchTargetRotation.identity();
+  if (!resolveTargetRotation(scratchTargetRotation, target, slot)) scratchTargetRotation.identity();
   scratchHalfSize.copy(scratchTargetSize).multiplyScalar(0.5);
   scratchAxisX.set(scratchHalfSize.x, 0, 0).applyQuaternion(scratchTargetRotation);
   scratchAxisY.set(0, scratchHalfSize.y, 0).applyQuaternion(scratchTargetRotation);
@@ -83,8 +87,12 @@ export function resolveTargetHalfExtents(
     Math.abs(scratchAxisX.dot(axisB)) + Math.abs(scratchAxisY.dot(axisB)) + Math.abs(scratchAxisZ.dot(axisB));
 }
 
-/** Resolve a target to a world position. */
-export function resolveTargetPosition(out: Vector3, target: Target): boolean {
+/** Resolve a target to a world position, from `slot` when it holds this frame's value. */
+export function resolveTargetPosition(out: Vector3, target: Target, slot?: TargetSlot | null): boolean {
+  if (slot?.valid) {
+    out.fromArray(slot.position);
+    return true;
+  }
   if (target == null) return false;
 
   if (isVector3Like(target)) {
@@ -100,7 +108,11 @@ export function resolveTargetPosition(out: Vector3, target: Target): boolean {
 }
 
 /** Resolve a target to a world rotation. Fixed points return `false`. */
-export function resolveTargetRotation(out: Quaternion, target: Target): boolean {
+export function resolveTargetRotation(out: Quaternion, target: Target, slot?: TargetSlot | null): boolean {
+  if (slot?.valid) {
+    out.fromArray(slot.rotation);
+    return true;
+  }
   if (target == null) return false;
   if (isVector3Like(target)) return false;
 

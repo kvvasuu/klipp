@@ -1,5 +1,6 @@
 import { useEffect, useImperativeHandle, useState, type Ref } from 'react';
 import type { Target } from '../resolve/Target';
+import { useTargetSlot } from '../useTargetSlot';
 import { useVirtualCamera } from '../VirtualCameraContext';
 import { HardLookAtAim } from './HardLookAtAim';
 
@@ -14,6 +15,7 @@ export function HardLookAt({ target, ref }: HardLookAtProps) {
   const { controller } = useVirtualCamera();
   const [aim] = useState(() => new HardLookAtAim(target));
   aim.target = target;
+  aim.targetSlot = useTargetSlot(target);
 
   useImperativeHandle(ref, () => aim, [aim]);
   useEffect(() => controller.registerAim(aim.update), [controller, aim]);

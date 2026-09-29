@@ -3,6 +3,7 @@ import type { DampingConstant } from '../damping/Damper';
 import type { InputAxisRecentering } from '../input/InputAxis';
 import { InputAxisOwnerContext } from '../input/InputAxisOwnerContext';
 import type { Target } from '../resolve/Target';
+import { useTargetSlot } from '../useTargetSlot';
 import { useVirtualCamera } from '../VirtualCameraContext';
 import { PanTiltAim } from './PanTiltAim';
 
@@ -61,6 +62,7 @@ export function PanTilt({
     return instance;
   });
   aim.target = target;
+  aim.targetSlot = useTargetSlot(target);
   aim.pan.damping = damping;
   aim.pan.maxSpeed = maxSpeed;
   aim.pan.autoNormalize = autoNormalize;

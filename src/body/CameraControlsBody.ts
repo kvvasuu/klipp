@@ -2,6 +2,7 @@ import CameraControls from 'camera-controls';
 import * as THREE from 'three';
 import type { CameraState } from '../CameraState';
 import { resolveTargetPosition, type Target } from '../resolve/Target';
+import type { TargetSlot } from '../resolve/TargetRegistry';
 
 CameraControls.install({ THREE });
 
@@ -10,6 +11,7 @@ const scratchTargetPosition = new THREE.Vector3();
 /** Adapts `camera-controls` orbit and dolly input to the virtual camera pipeline. */
 export class CameraControlsBody {
   target: Target;
+  targetSlot: TargetSlot | null = null;
   aspect: number;
   enableTransition: boolean;
   readonly controls: CameraControls;
@@ -45,7 +47,7 @@ export class CameraControlsBody {
     this.camera.aspect = this.aspect;
     this.camera.updateProjectionMatrix();
 
-    const resolved = resolveTargetPosition(scratchTargetPosition, this.target);
+    const resolved = resolveTargetPosition(scratchTargetPosition, this.target, this.targetSlot);
 
     // Reactivation re-anchors the orbit because the previous frame may be stale.
     if (resolved && (!this.wasResolvedLastFrame || justActivated)) {

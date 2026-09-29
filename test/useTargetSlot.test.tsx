@@ -7,7 +7,7 @@ import { Klipp } from '../src/Klipp';
 import { KlippContext, useKlipp, type KlippContextValue } from '../src/KlippContext';
 import type { Target } from '../src/resolve/Target';
 import { TargetRegistry, type TargetSlot } from '../src/resolve/TargetRegistry';
-import { useTargetSlot } from '../src/useTargetSlot';
+import { useTargetSlot, useTargetSlots } from '../src/useTargetSlot';
 
 function Probe({
   target,
@@ -83,5 +83,48 @@ describe('useTargetSlot', () => {
     await renderer.advanceFrames(1, 1 / 60);
 
     expect(slot).toBeNull();
+  });
+
+  it('switches to the new target slot and releases the old one when the target changes', () => {
+    const targets = new TargetRegistry();
+    const context = { targets } as unknown as KlippContextValue;
+    const a = new Object3D();
+    const b = new Object3D();
+
+    const { result, rerender } = renderHook(({ target }) => useTargetSlot(target), {
+      initialProps: { target: a as Target },
+      wrapper: ({ children }) => <KlippContext value={context}>{children}</KlippContext>,
+    });
+    const slotA = result.current;
+    rerender({ target: b });
+
+    expect(result.current).not.toBe(slotA);
+    expect(result.current).toBe(targets.acquire(b));
+    targets.refresh();
+    expect(targets.has(a)).toBe(false);
+  });
+});
+
+describe('useTargetSlots', () => {
+  it('keeps registrations for a new array with the same targets and skips fixed points', () => {
+    const targets = new TargetRegistry();
+    let acquires = 0;
+    const acquire = targets.acquire.bind(targets);
+    targets.acquire = (t) => (acquires++, acquire(t));
+    const context = { targets } as unknown as KlippContextValue;
+    const a = new Object3D();
+    const b = new Object3D();
+
+    const { result, rerender } = renderHook(({ list }) => useTargetSlots(list), {
+      initialProps: { list: [a, b, [1, 2, 3]] as Target[] },
+      wrapper: ({ children }) => <KlippContext value={context}>{children}</KlippContext>,
+    });
+    const first = result.current;
+    rerender({ list: [a, b, [1, 2, 3]] });
+
+    expect(acquires).toBe(2);
+    expect(result.current).toBe(first);
+    expect(first.get(a)).toBe(acquire(a));
+    expect(first.size).toBe(2);
   });
 });

@@ -1,6 +1,7 @@
 import { useEffect, useImperativeHandle, useState, type Ref } from 'react';
 import type { DampingConstant } from '../damping/Damper';
 import type { Target } from '../resolve/Target';
+import { useTargetSlot } from '../useTargetSlot';
 import { useVirtualCamera } from '../VirtualCameraContext';
 import { HardLockToTargetBody } from './HardLockToTargetBody';
 
@@ -19,6 +20,7 @@ export function HardLockToTarget({ target, damping = 0, maxSpeed = Infinity, ref
   const { controller } = useVirtualCamera();
   const [body] = useState(() => new HardLockToTargetBody(target, damping));
   body.target = target;
+  body.targetSlot = useTargetSlot(target);
   body.damping = damping;
   body.maxSpeed = maxSpeed;
 

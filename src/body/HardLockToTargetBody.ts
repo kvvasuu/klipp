@@ -3,12 +3,14 @@ import type { CameraState } from '../CameraState';
 import type { DampingConstant } from '../damping/Damper';
 import { Vector3Damper } from '../damping/Vector3Damper';
 import { resolveTargetPosition, type Target } from '../resolve/Target';
+import type { TargetSlot } from '../resolve/TargetRegistry';
 
 const scratchPosition = new Vector3();
 
 /** Locks the camera position to a target, optionally with damping. */
 export class HardLockToTargetBody {
   target: Target;
+  targetSlot: TargetSlot | null = null;
   damping: DampingConstant;
   maxSpeed: number;
 
@@ -22,7 +24,7 @@ export class HardLockToTargetBody {
   }
 
   update = (out: CameraState, dt: number, justActivated: boolean): void => {
-    if (!resolveTargetPosition(this.resolvedTarget, this.target)) return;
+    if (!resolveTargetPosition(this.resolvedTarget, this.target, this.targetSlot)) return;
     if (justActivated) this.damper.reset();
     scratchPosition.fromArray(out.position);
     this.damper.update(scratchPosition, this.resolvedTarget, this.damping, dt, this.maxSpeed).toArray(out.position);

@@ -4,6 +4,7 @@ import { useEffect, useImperativeHandle, useState, type Ref } from 'react';
 import { Vector3 } from 'three';
 import type { DampingConstant } from '../damping/Damper';
 import { DebugZoneOverlay, type DebugZone } from '../DebugZoneOverlay';
+import { useTargetSlots } from '../useTargetSlot';
 import { useVirtualCamera } from '../VirtualCameraContext';
 import { GroupFramingExtension, type GroupFramingFitMode, type GroupFramingMode } from './GroupFramingExtension';
 import { TargetGroup, type TargetGroupMember, type TargetGroupPositionMode } from './TargetGroup';
@@ -76,6 +77,7 @@ export function GroupFraming({
   );
 
   group.members = members;
+  group.memberSlots = useTargetSlots(members.map((member) => member.target));
   group.positionMode = positionMode;
   extension.padding = padding;
   extension.viewportWidth = size.width;

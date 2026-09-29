@@ -5,6 +5,7 @@ import { useEffect, useEffectEvent, useImperativeHandle, useState, type Ref } fr
 import { EventDispatcher as ThreeEventDispatcher, Vector3 } from 'three';
 import { resolveVector3 } from '../resolve/resolveVector3';
 import type { Target } from '../resolve/Target';
+import { useTargetSlot } from '../useTargetSlot';
 import { useIsActiveVirtualCamera, useIsLiveVirtualCamera, useVirtualCamera } from '../VirtualCameraContext';
 import { CameraControlsBody } from './CameraControlsBody';
 
@@ -83,6 +84,7 @@ export function CameraControls({
       ),
   );
   body.target = target;
+  body.targetSlot = useTargetSlot(target);
   body.aspect = aspect;
   body.enableTransition = enableTransition;
 
