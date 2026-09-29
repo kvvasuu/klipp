@@ -1,4 +1,11 @@
-import { BindingModes, BlendCurves, BlendHints as Hints, createCameraState, lerpCameraState } from '@kvvasuu/klipp';
+import {
+  BindingModes,
+  BlendCurves,
+  BlendHints as Hints,
+  createCameraState,
+  lerpCameraState,
+  type CameraState,
+} from '@kvvasuu/klipp';
 import { Aim, Body, Klipp, VirtualCamera } from '@kvvasuu/klipp/react';
 import { Line } from '@react-three/drei';
 import { button, useControls } from 'leva';
@@ -21,15 +28,19 @@ const lowOffset: [number, number, number] = [-10, 2.7, -7];
 const lowPosition = addOffset(subjectPosition, lowOffset);
 const lowQuaternion = lookAtQuaternion(lowPosition, subjectPosition);
 
-const pathA = createCameraState();
-pathA.position.set(...highPosition);
-pathA.target.set(...secondSubjectPosition);
-pathA.hasTarget = true;
+const pathA: CameraState = {
+  ...createCameraState(),
+  position: [...highPosition],
+  target: [...secondSubjectPosition],
+  hasTarget: true,
+};
 
-const pathB = createCameraState();
-pathB.position.set(...lowPosition);
-pathB.target.set(...subjectPosition);
-pathB.hasTarget = true;
+const pathB: CameraState = {
+  ...createCameraState(),
+  position: [...lowPosition],
+  target: [...subjectPosition],
+  hasTarget: true,
+};
 
 const PATH_SAMPLES = 40;
 const scratchPathState = createCameraState();
@@ -40,7 +51,7 @@ function samplePath(hints: number): [number, number, number][] {
   const points: [number, number, number][] = [];
   for (let i = 0; i <= PATH_SAMPLES; i++) {
     lerpCameraState(scratchPathState, pathA, pathB, i / PATH_SAMPLES, hints);
-    points.push([scratchPathState.position.x, scratchPathState.position.y, scratchPathState.position.z]);
+    points.push([...scratchPathState.position]);
   }
   return points;
 }
