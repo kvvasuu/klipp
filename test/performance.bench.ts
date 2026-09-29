@@ -199,7 +199,7 @@ group('Aim.update @aim', () => {
       [0.2, 0.2],
       0.5,
       [0.4, 0.4],
-      new Vector3(),
+      [0, 0, 0],
       undefined,
       undefined,
       0.3,

@@ -1,10 +1,9 @@
 import type { Vector3 as Vector3Like } from '@react-three/fiber';
 import { useThree } from '@react-three/fiber';
 import { useEffect, useImperativeHandle, useState, type Ref } from 'react';
-import { Vector3 } from 'three';
 import type { DampingConstant } from '../../core/damping/Damper';
 import { DebugZoneOverlay, type DebugZone } from '../DebugZoneOverlay';
-import { resolveVector3 } from '../../three/resolve/resolveVector3';
+import { resolveVec3 } from '../../three/resolve/resolveVector3';
 import type { Target } from '../../three/resolve/Target';
 import { useTargetSlot } from '../useTargetSlot';
 import { useVirtualCamera } from '../VirtualCameraContext';
@@ -72,7 +71,7 @@ export function RotationComposer({
       deadZone,
       damping,
       hardLimit,
-      new Vector3(),
+      [0, 0, 0],
       radius,
       size,
       lookaheadTime,
@@ -96,7 +95,7 @@ export function RotationComposer({
   aim.lookaheadTime = lookaheadTime;
   aim.lookaheadSmoothing = lookaheadSmoothing;
   aim.lookaheadIgnoreY = lookaheadIgnoreY;
-  resolveVector3(aim.targetOffset, targetOffset);
+  resolveVec3(aim.targetOffset, targetOffset);
 
   useImperativeHandle(ref, () => aim, [aim]);
   useEffect(() => controller.registerAim(aim.update), [controller, aim]);
