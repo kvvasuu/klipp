@@ -1,5 +1,5 @@
-import { EventDispatcher } from 'three';
 import type { CameraState } from './CameraState';
+import { EventDispatcher } from './EventDispatcher';
 import type { CameraTransitionEventMap, KlippCore } from './KlippCore';
 
 /** A writer mutates `out` or adds to it. Return `true` when more work remains for a later frame. */
