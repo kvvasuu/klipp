@@ -1,4 +1,5 @@
-import type { InputAxisController, PanTiltAim } from '@kvvasuu/klipp';
+import type { PanTiltAim } from '@kvvasuu/klipp/three';
+import type { InputAxisController } from '@kvvasuu/klipp/dom';
 import { Aim, InputController, Klipp, VirtualCamera } from '@kvvasuu/klipp/react';
 import { useFrame } from '@react-three/fiber';
 import { useControls } from 'leva';

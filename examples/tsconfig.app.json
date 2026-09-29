@@ -16,9 +16,12 @@
     "noEmit": true,
     "jsx": "react-jsx",
     "paths": {
-      "@kvvasuu/klipp": ["../src/index.ts"],
-      "@kvvasuu/klipp/react": ["../src/react.ts"],
-      "@kvvasuu/klipp/react/camera-controls": ["../src/body/CameraControls.tsx"]
+      "@kvvasuu/klipp": ["../src/core/index.ts"],
+      "@kvvasuu/klipp/three": ["../src/three/index.ts"],
+      "@kvvasuu/klipp/three/camera-controls": ["../src/three/body/CameraControlsBody.ts"],
+      "@kvvasuu/klipp/react": ["../src/react/index.ts"],
+      "@kvvasuu/klipp/react/camera-controls": ["../src/react/body/camera-controls.ts"],
+      "@kvvasuu/klipp/dom": ["../src/dom/index.ts"]
     },
 
     /* Linting */

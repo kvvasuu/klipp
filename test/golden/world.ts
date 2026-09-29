@@ -5,7 +5,7 @@
  */
 import { vec3 } from 'math';
 import { Object3D } from 'three';
-import type { CameraState } from '../../src/CameraState';
+import type { CameraState } from '../../src/core/CameraState';
 
 export const FRAMES = 240;
 export const SAMPLE_EVERY = 4;

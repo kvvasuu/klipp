@@ -1,0 +1,318 @@
+import { create } from '@react-three/test-renderer';
+import { useThree } from '@react-three/fiber';
+import { Object3D, PerspectiveCamera, Quaternion, Vector3 } from 'three';
+import { describe, expect, it } from 'vitest';
+import { RotationComposer } from '../../../src/react/aim/RotationComposer';
+import { Klipp } from '../../../src/react/Klipp';
+import { useKlipp } from '../../../src/react/KlippContext';
+import type { KlippCore } from '../../../src/core/KlippCore';
+import { VirtualCamera } from '../../../src/react/VirtualCamera';
+import { toQuaternion, toVector3 } from '../../tuples';
+
+function CoreReader({ onRead }: { onRead: (core: KlippCore) => void }) {
+  onRead(useKlipp().core);
+  return null;
+}
+
+// the test renderer's default viewport aspect isn't necessarily 1 — read the SAME aspect the
+// component sees instead of assuming one, so verification matches what RotationComposer actually used
+function AspectReader({ onRead }: { onRead: (aspect: number) => void }) {
+  onRead(useThree((state) => state.viewport.aspect));
+  return null;
+}
+
+function projectToScreen(position: Vector3, quaternion: Quaternion, fov: number, aspect: number, target: Vector3) {
+  const camera = new PerspectiveCamera(fov, aspect, 0.1, 1000);
+  camera.position.copy(position);
+  camera.quaternion.copy(quaternion);
+  camera.updateMatrixWorld(true);
+  camera.updateProjectionMatrix();
+  return target.clone().project(camera);
+}
+
+describe('RotationComposer (React wrapper)', () => {
+  it('registers a RotationComposerAim that actually runs every frame', async () => {
+    let core: KlippCore | undefined;
+    let aspect = 1;
+    const target = new Object3D();
+    target.position.set(5, 2, -30);
+
+    const scene = (
+      <Klipp>
+        <CoreReader onRead={(c) => (core = c)} />
+        <AspectReader onRead={(a) => (aspect = a)} />
+        <VirtualCamera name="a" priority={10}>
+          <RotationComposer target={target} />
+        </VirtualCamera>
+      </Klipp>
+    );
+
+    const renderer = await create(scene);
+    await renderer.advanceFrames(1, 0.1);
+
+    const state = core!.activeState!;
+    const projected = projectToScreen(
+      toVector3(state.position),
+      toQuaternion(state.quaternion),
+      state.fov,
+      aspect,
+      target.position,
+    );
+    expect(projected.x).toBeCloseTo(0, 4);
+    expect(projected.y).toBeCloseTo(0, 4);
+  });
+
+  it('a target prop change is picked up on the next frame (field mutation, not re-registration)', async () => {
+    let core: KlippCore | undefined;
+    let aspect = 1;
+    const targetA = new Object3D();
+    targetA.position.set(0, 0, -10);
+    const targetB = new Object3D();
+    targetB.position.set(10, 5, -20);
+
+    const scene = (target: Object3D) => (
+      <Klipp>
+        <CoreReader onRead={(c) => (core = c)} />
+        <AspectReader onRead={(a) => (aspect = a)} />
+        <VirtualCamera name="a" priority={10}>
+          <RotationComposer target={target} />
+        </VirtualCamera>
+      </Klipp>
+    );
+
+    const renderer = await create(scene(targetA));
+    await renderer.advanceFrames(1, 0.1);
+
+    await renderer.update(scene(targetB));
+    await renderer.advanceFrames(1, 0.1);
+
+    const state = core!.activeState!;
+    const projected = projectToScreen(
+      toVector3(state.position),
+      toQuaternion(state.quaternion),
+      state.fov,
+      aspect,
+      targetB.position,
+    );
+    expect(projected.x).toBeCloseTo(0, 4);
+    expect(projected.y).toBeCloseTo(0, 4);
+  });
+
+  it('unmounting stops the aim from running', async () => {
+    const scene = (mounted: boolean) => (
+      <Klipp>
+        <VirtualCamera name="a" priority={10}>
+          {mounted && <RotationComposer target={new Object3D()} />}
+        </VirtualCamera>
+      </Klipp>
+    );
+
+    const renderer = await create(scene(true));
+    await renderer.advanceFrames(1, 0.1);
+
+    await renderer.update(scene(false));
+    await expect(renderer.advanceFrames(1, 0.1)).resolves.not.toThrow();
+  });
+
+  it('a screenPosition prop change is picked up on the next frame', async () => {
+    let core: KlippCore | undefined;
+    let aspect = 1;
+    const target = new Object3D();
+    target.position.set(0, 0, -20);
+
+    const scene = (screenPosition: [number, number]) => (
+      <Klipp>
+        <CoreReader onRead={(c) => (core = c)} />
+        <AspectReader onRead={(a) => (aspect = a)} />
+        <VirtualCamera name="a" priority={10}>
+          <RotationComposer target={target} screenPosition={screenPosition} />
+        </VirtualCamera>
+      </Klipp>
+    );
+
+    const renderer = await create(scene([0, 0]));
+    await renderer.advanceFrames(1, 0.1);
+    let state = core!.activeState!;
+    let projected = projectToScreen(
+      toVector3(state.position),
+      toQuaternion(state.quaternion),
+      state.fov,
+      aspect,
+      target.position,
+    );
+    expect(projected.x).toBeCloseTo(0, 4);
+
+    await renderer.update(scene([0.3, 0]));
+    await renderer.advanceFrames(1, 0.1);
+    state = core!.activeState!;
+    projected = projectToScreen(
+      toVector3(state.position),
+      toQuaternion(state.quaternion),
+      state.fov,
+      aspect,
+      target.position,
+    );
+    expect(projected.x).toBeCloseTo(0.3, 4);
+  });
+
+  it('a target inside deadZone gets no reaction; damping eases the catch-up once outside it', async () => {
+    let core: KlippCore | undefined;
+    const target = new Object3D();
+    target.position.set(0, 0, -20);
+
+    const scene = (
+      <Klipp>
+        <CoreReader onRead={(c) => (core = c)} />
+        <VirtualCamera name="a" priority={10}>
+          <RotationComposer target={target} deadZone={[0.2, 0.2]} damping={0.5} />
+        </VirtualCamera>
+      </Klipp>
+    );
+
+    const renderer = await create(scene);
+    await renderer.advanceFrames(1, 0.1); // target dead-ahead: within deadZone, no reaction
+    const beforeReaction = toQuaternion(core!.activeState!.quaternion);
+
+    target.position.set(20, 0, -20); // now far outside deadZone
+    await renderer.advanceFrames(1, 0.05);
+    expect(toQuaternion(core!.activeState!.quaternion).angleTo(beforeReaction)).toBeGreaterThan(0);
+  });
+
+  it('a targetOffset prop shifts the look-at point (degrades to world space for a non-rotated target)', async () => {
+    let core: KlippCore | undefined;
+    let aspect = 1;
+    const target = new Object3D();
+    target.position.set(0, 0, -20);
+
+    const scene = (
+      <Klipp>
+        <CoreReader onRead={(c) => (core = c)} />
+        <AspectReader onRead={(a) => (aspect = a)} />
+        <VirtualCamera name="a" priority={10}>
+          <RotationComposer target={target} targetOffset={[5, 0, 0]} />
+        </VirtualCamera>
+      </Klipp>
+    );
+
+    const renderer = await create(scene);
+    await renderer.advanceFrames(1, 0.1);
+
+    const state = core!.activeState!;
+    const projected = projectToScreen(
+      toVector3(state.position),
+      toQuaternion(state.quaternion),
+      state.fov,
+      aspect,
+      new Vector3(5, 0, -20),
+    );
+    expect(projected.x).toBeCloseTo(0, 4);
+    expect(projected.y).toBeCloseTo(0, 4);
+  });
+
+  it('a hardLimit prop forces the target back inside bounds even under heavy damping', async () => {
+    let core: KlippCore | undefined;
+    let aspect = 1;
+    const target = new Object3D();
+    target.position.set(20, 0, -20);
+
+    const scene = (
+      <Klipp>
+        <CoreReader onRead={(c) => (core = c)} />
+        <AspectReader onRead={(a) => (aspect = a)} />
+        <VirtualCamera name="a" priority={10}>
+          <RotationComposer target={target} deadZone={[0.1, 0.1]} damping={5} hardLimit={[0.15, 0.15]} />
+        </VirtualCamera>
+      </Klipp>
+    );
+
+    const renderer = await create(scene);
+    await renderer.advanceFrames(1, 0.1); // consume the first-ever dead-zone-reaction hard snap
+    target.position.set(100, 0, -20); // move much further away — a genuine gap heavy damping can't close in one step
+    await renderer.advanceFrames(1, 0.1);
+
+    const state = core!.activeState!;
+    const projected = projectToScreen(
+      toVector3(state.position),
+      toQuaternion(state.quaternion),
+      state.fov,
+      aspect,
+      target.position,
+    );
+    expect(projected.x).toBeCloseTo(0.15, 3);
+  });
+
+  it("VirtualCamera's initialState.quaternion seeds the damper - the first frame eases from there, not a snap", async () => {
+    let core: KlippCore | undefined;
+    let aspect = 1;
+    const target = new Object3D();
+    target.position.set(10, 0, -10);
+    const initialQuaternion = new Quaternion(); // identity - far from looking at the target
+
+    const scene = (
+      <Klipp>
+        <CoreReader onRead={(c) => (core = c)} />
+        <AspectReader onRead={(a) => (aspect = a)} />
+        <VirtualCamera name="a" priority={10} initialState={{ quaternion: initialQuaternion }}>
+          <RotationComposer target={target} damping={0.5} />
+        </VirtualCamera>
+      </Klipp>
+    );
+
+    const renderer = await create(scene);
+    await renderer.advanceFrames(1, 0.016);
+
+    const state = core!.activeState!;
+    const projected = projectToScreen(
+      toVector3(state.position),
+      toQuaternion(state.quaternion),
+      state.fov,
+      aspect,
+      target.position,
+    );
+    expect(toQuaternion(state.quaternion).angleTo(initialQuaternion)).toBeGreaterThan(0); // moved off initialState
+    expect(Math.abs(projected.x) + Math.abs(projected.y)).toBeGreaterThan(0.01); // but not centered yet
+  });
+
+  describe('debug', () => {
+    function readBoxClasses(): string[] {
+      const canvas = document.querySelector('canvas');
+      const root = canvas?.parentElement?.querySelector('div');
+      // excludes the crosshair lines (a different class - see DebugZoneOverlay.test.tsx for those)
+      return root
+        ? Array.from(root.children)
+            .map((el) => (el as HTMLDivElement).className)
+            .filter((className) => className !== 'klipp-debug-crosshair')
+        : [];
+    }
+
+    it('draws nothing (default false)', async () => {
+      const renderer = await create(
+        <Klipp>
+          <VirtualCamera name="a" priority={10}>
+            <RotationComposer target={new Object3D()} deadZone={[0.4, 0.4]} />
+          </VirtualCamera>
+        </Klipp>,
+        { beforeReturn: (canvas: HTMLCanvasElement) => document.body.appendChild(canvas) },
+      );
+      await renderer.advanceFrames(1, 0.1);
+
+      expect(readBoxClasses()).toHaveLength(0);
+      document.body.replaceChildren();
+    });
+
+    it('draws deadZone/hardLimit boxes when true', async () => {
+      const renderer = await create(
+        <Klipp>
+          <VirtualCamera name="a" priority={10}>
+            <RotationComposer target={new Object3D()} deadZone={[0.4, 0.4]} hardLimit={[0.7, 0.7]} debug />
+          </VirtualCamera>
+        </Klipp>,
+        { beforeReturn: (canvas: HTMLCanvasElement) => document.body.appendChild(canvas) },
+      );
+      await renderer.advanceFrames(1, 0.1);
+
+      expect(readBoxClasses()).toEqual(['klipp-debug-hardlimit', 'klipp-debug-deadzone']);
+      document.body.replaceChildren();
+    });
+  });
+});

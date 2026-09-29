@@ -1,0 +1,54 @@
+export { createCameraState, copyCameraState, mergeCameraState, type CameraState } from './CameraState';
+export { createTargetPose, type TargetPose } from './TargetPose';
+export { EventDispatcher, type DispatchedEvent, type EventListener } from './EventDispatcher';
+export { VirtualCameraController, type VirtualCameraSlots, type CameraStateWriter } from './VirtualCameraController';
+export { KlippCore, type VirtualCameraConfig, type KlippCoreOptions, type CameraTransitionEventMap } from './KlippCore';
+
+export { Damper, damp, createDamperState, resetDamper, type DamperState, type DampingConstant } from './damping/Damper';
+export {
+  dampVector3,
+  createVector3DamperState,
+  resetVector3Damper,
+  type Vector3DamperState,
+} from './damping/dampVector3';
+export { dampQuaternion } from './damping/dampQuaternion';
+export {
+  addPredictorPosition,
+  predictPositionDelta,
+  createPredictorState,
+  resetPredictor,
+  type PredictorState,
+} from './damping/predictor';
+
+export { lerpCameraState } from './blend/lerpCameraState';
+export { resolveBlendDefinition, type BlendDefinition, type CustomBlend } from './blend/BlendDefinition';
+export { BlendHints, hasBlendHint } from './blend/BlendHints';
+export { BlendCurves, type Ease } from './blend/BlendCurves';
+
+export { Sequencer, type SequencerInstruction, type SequencerOptions } from './groups/Sequencer';
+export { MixingCamera, type MixingCameraSlot } from './groups/MixingCamera';
+export {
+  StateDrivenCamera,
+  type StateDrivenCandidate,
+  type StateDrivenCameraOptions,
+} from './groups/StateDrivenCamera';
+export {
+  ClearShot,
+  type ClearShotCandidate,
+  type ShotQualityEvaluator,
+  type ClearShotOptions,
+} from './groups/ClearShot';
+
+export { BindingModes, type BindingMode } from './body/BindingModes';
+export {
+  updateFollow,
+  primeFollow,
+  createFollowState,
+  followNeedsTargetRotation,
+  type FollowParams,
+  type FollowState,
+} from './body/follow';
+export { updateHardLookAt } from './aim/hardLookAt';
+
+export { LensExtension } from './extension/LensExtension';
+export { InputAxis, type InputAxisRecentering } from './input/InputAxis';

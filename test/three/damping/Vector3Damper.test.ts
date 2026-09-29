@@ -1,0 +1,128 @@
+import { Vector3 } from 'three';
+import { describe, expect, it } from 'vitest';
+import type { Vec3 } from 'math';
+import { createVector3DamperState, dampVector3 } from '../../../src/core/damping/dampVector3';
+import { Vector3Damper } from '../../../src/three/damping/Vector3Damper';
+
+describe('Vector3Damper', () => {
+  it('damping <= 0 (default) is an exact, instant lock — no smoothing at all', () => {
+    const damper = new Vector3Damper();
+    const out = new Vector3();
+
+    damper.update(out, new Vector3(10, -5, 2), 0, 0.016);
+    expect(out.equals(new Vector3(10, -5, 2))).toBe(true);
+  });
+
+  it('the very first update() call ever snaps directly to target, even with damping > 0', () => {
+    const damper = new Vector3Damper();
+    const out = new Vector3();
+
+    damper.update(out, new Vector3(10, -5, 2), 0.5, 0.016);
+    expect(out.equals(new Vector3(10, -5, 2))).toBe(true);
+  });
+
+  it('damping > 0 catches up gradually instead of snapping in one frame', () => {
+    const damper = new Vector3Damper();
+    const out = new Vector3();
+
+    damper.update(out, new Vector3(10, 0, 0), 0.5, 0.016); // consume the first-call snap
+    out.set(0, 0, 0); // move back away from target to genuinely exercise gradual convergence below
+    damper.update(out, new Vector3(10, 0, 0), 0.5, 0.016);
+    expect(out.x).toBeGreaterThan(0);
+    expect(out.x).toBeLessThan(10);
+  });
+
+  it('damps each axis independently — a moved target still catches up per axis, not radially', () => {
+    const damper = new Vector3Damper();
+    const out = new Vector3();
+    const target = new Vector3(10, 0, 0);
+
+    damper.update(out, target, 0.5, 0.1);
+    expect(out.y).toBe(0); // untouched — no cross-axis coupling
+
+    target.set(10, 10, 0);
+    damper.update(out, target, 0.5, 0.1);
+    expect(out.y).toBeGreaterThan(0);
+  });
+
+  it('converges to the target over repeated ticks', () => {
+    const damper = new Vector3Damper();
+    const out = new Vector3();
+    const target = new Vector3(10, 5, -3);
+
+    for (let i = 0; i < 300; i++) {
+      damper.update(out, target, 0.3, 0.016);
+    }
+
+    expect(out.x).toBeCloseTo(10, 2);
+    expect(out.y).toBeCloseTo(5, 2);
+    expect(out.z).toBeCloseTo(-3, 2);
+  });
+
+  it('accepts an asymmetric {into, from} DampingConstant, same as Damper itself', () => {
+    const damper = new Vector3Damper();
+    const out = new Vector3();
+
+    damper.update(out, new Vector3(10, 0, 0), { into: 0.05, from: 2 }, 0.016); // consume the first-call snap
+    out.set(0, 0, 0);
+    expect(() => damper.update(out, new Vector3(10, 0, 0), { into: 0.05, from: 2 }, 0.016)).not.toThrow();
+    expect(out.x).toBeGreaterThan(0);
+    expect(out.x).toBeLessThan(10);
+  });
+
+  it('maxSpeed clamps how far a single step can move, for the same gap and dt', () => {
+    const target = new Vector3(100, 0, 0);
+
+    const unclampedDamper = new Vector3Damper();
+    const unclamped = new Vector3();
+    unclampedDamper.update(unclamped, target, 1, 0.05); // consume the first-call snap
+    unclamped.set(0, 0, 0); // move back away from target to genuinely exercise a real step below
+    unclampedDamper.update(unclamped, target, 1, 0.05);
+
+    const clampedDamper = new Vector3Damper();
+    const clamped = new Vector3();
+    clampedDamper.update(clamped, target, 1, 0.05, 2); // consume the first-call snap
+    clamped.set(0, 0, 0);
+    clampedDamper.update(clamped, target, 1, 0.05, 2); // maxSpeed = 2 units/sec
+
+    expect(clamped.x).toBeLessThan(unclamped.x);
+  });
+
+  it('writes into "out" and returns it (no allocation)', () => {
+    const damper = new Vector3Damper();
+    const out = new Vector3();
+
+    const returned = damper.update(out, new Vector3(1, 2, 3), 0, 0.016);
+    expect(returned).toBe(out);
+  });
+
+  it('reset() re-arms the first-call snap on all three axes', () => {
+    const damper = new Vector3Damper();
+    const out = new Vector3();
+
+    damper.update(out, new Vector3(10, 0, 0), 0.5, 0.016); // consume the first-call snap
+    damper.update(out, new Vector3(10, 0, 0), 0.5, 0.016); // build up real velocity/history
+    damper.reset();
+
+    out.set(999, -999, 999); // a stale value unrelated to the next target
+    damper.update(out, new Vector3(1, 2, 3), 0.5, 0.016);
+
+    expect(out.equals(new Vector3(1, 2, 3))).toBe(true);
+  });
+});
+
+describe('dampVector3', () => {
+  it('matches the Vector3Damper wrapper exactly on tuples', () => {
+    const wrapper = new Vector3Damper();
+    const state = createVector3DamperState();
+    const vector = new Vector3();
+    const tuple: Vec3 = [0, 0, 0];
+
+    for (let i = 0; i < 60; i++) {
+      const target = new Vector3(Math.sin(i * 0.1) * 10, i * 0.2, -i);
+      wrapper.update(vector, target, { into: 0.2, from: 0.5 }, 1 / 60, 30);
+      dampVector3(state, tuple, [target.x, target.y, target.z], { into: 0.2, from: 0.5 }, 1 / 60, 30);
+      expect(tuple).toEqual(vector.toArray());
+    }
+  });
+});

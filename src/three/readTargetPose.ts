@@ -1,7 +1,7 @@
 import { Quaternion, Vector3 } from 'three';
-import { resolveTargetPosition, resolveTargetRotation, type Target } from '../resolve/Target';
-import type { TargetSlot } from '../resolve/TargetRegistry';
-import type { TargetPose } from '../TargetPose';
+import { resolveTargetPosition, resolveTargetRotation, type Target } from './resolve/Target';
+import type { TargetSlot } from './resolve/TargetRegistry';
+import type { TargetPose } from '../core/TargetPose';
 
 const scratchPosition = new Vector3();
 const scratchRotation = new Quaternion();

@@ -15,17 +15,17 @@
 import { GCProfiler, getHeapStatistics } from 'node:v8';
 import { vec3 } from 'math';
 import { Matrix4, Object3D, PerspectiveCamera, Quaternion, Vector3 } from 'three';
-import { createCameraState } from '../src/CameraState';
-import { KlippCore } from '../src/KlippCore';
-import { VirtualCameraController } from '../src/VirtualCameraController';
-import { HardLookAtAim } from '../src/aim/HardLookAtAim';
-import { RotationComposerAim } from '../src/aim/RotationComposerAim';
-import { FollowBody } from '../src/body/FollowBody';
-import { lerpCameraState } from '../src/blend/lerpCameraState';
-import { GroupFramingExtension } from '../src/extension/GroupFramingExtension';
-import { TargetGroup } from '../src/extension/TargetGroup';
-import { BasicMultiChannelPerlinNoise } from '../src/noise/BasicMultiChannelPerlinNoise';
-import { TargetRegistry, type TargetSlot } from '../src/resolve/TargetRegistry';
+import { createCameraState } from '../src/core/CameraState';
+import { KlippCore } from '../src/core/KlippCore';
+import { VirtualCameraController } from '../src/core/VirtualCameraController';
+import { HardLookAtAim } from '../src/three/aim/HardLookAtAim';
+import { RotationComposerAim } from '../src/three/aim/RotationComposerAim';
+import { FollowBody } from '../src/three/body/FollowBody';
+import { lerpCameraState } from '../src/core/blend/lerpCameraState';
+import { GroupFramingExtension } from '../src/three/extension/GroupFramingExtension';
+import { TargetGroup } from '../src/three/extension/TargetGroup';
+import { BasicMultiChannelPerlinNoise } from '../src/three/noise/BasicMultiChannelPerlinNoise';
+import { TargetRegistry, type TargetSlot } from '../src/three/resolve/TargetRegistry';
 
 const FRAMES = 300_000;
 const WARMUP = 50_000;
