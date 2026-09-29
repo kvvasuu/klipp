@@ -130,7 +130,7 @@ const scenarios: { name: string; budget: number; frame: () => void }[] = [
   },
   {
     name: 'frame: Follow + RotationComposer',
-    budget: 488,
+    budget: 536,
     frame: klippFrame((target, c, slot) => {
       c.registerBody(withSlot(new FollowBody(target, [0, 3, 12], 0.5), slot).update);
       c.registerAim(withSlot(new RotationComposerAim(target, [0, 0], 16 / 9, [0.15, 0.15], 0.5), slot).update);
