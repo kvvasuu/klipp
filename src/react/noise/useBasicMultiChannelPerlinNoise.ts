@@ -1,9 +1,8 @@
 import type { Vector3 as Vector3Like } from '@react-three/fiber';
 import { useState } from 'react';
-import { Vector3 } from 'three';
-import { resolveVector3 } from '../../three/resolve/resolveVector3';
+import { resolveVec3 } from '../../three/resolve/resolveVector3';
 import type { BasicMultiChannelPerlinProps } from './BasicMultiChannelPerlin';
-import { BasicMultiChannelPerlinNoise } from '../../three/noise/BasicMultiChannelPerlinNoise';
+import { BasicMultiChannelPerlinNoise } from '../../core/noise/BasicMultiChannelPerlinNoise';
 
 const defaultAmplitude: Vector3Like = [0, 0, 0];
 const defaultFrequency: Vector3Like = [1, 1, 1];
@@ -22,20 +21,20 @@ export function useBasicMultiChannelPerlinNoise({
   const [noise] = useState(
     () =>
       new BasicMultiChannelPerlinNoise(
-        new Vector3(),
-        new Vector3(),
-        new Vector3(),
-        new Vector3(),
+        [0, 0, 0],
+        [1, 1, 1],
+        [0, 0, 0],
+        [1, 1, 1],
         amplitudeGain,
         frequencyGain,
         seed,
         amplitudeDamping,
       ),
   );
-  resolveVector3(noise.positionAmplitude, positionAmplitude);
-  resolveVector3(noise.positionFrequency, positionFrequency);
-  resolveVector3(noise.rotationAmplitude, rotationAmplitude);
-  resolveVector3(noise.rotationFrequency, rotationFrequency);
+  resolveVec3(noise.positionAmplitude, positionAmplitude);
+  resolveVec3(noise.positionFrequency, positionFrequency);
+  resolveVec3(noise.rotationAmplitude, rotationAmplitude);
+  resolveVec3(noise.rotationFrequency, rotationFrequency);
   noise.amplitudeGain = amplitudeGain;
   noise.frequencyGain = frequencyGain;
   noise.amplitudeDamping = amplitudeDamping;

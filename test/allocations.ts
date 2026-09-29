@@ -24,7 +24,7 @@ import { FollowBody } from '../src/three/body/FollowBody';
 import { lerpCameraState } from '../src/core/blend/lerpCameraState';
 import { GroupFramingExtension } from '../src/three/extension/GroupFramingExtension';
 import { TargetGroup } from '../src/three/extension/TargetGroup';
-import { BasicMultiChannelPerlinNoise } from '../src/three/noise/BasicMultiChannelPerlinNoise';
+import { BasicMultiChannelPerlinNoise } from '../src/core/noise/BasicMultiChannelPerlinNoise';
 import { TargetRegistry, type TargetSlot } from '../src/three/resolve/TargetRegistry';
 
 const FRAMES = 300_000;
@@ -159,9 +159,7 @@ const scenarios: { name: string; budget: number; frame: () => void }[] = [
     frame: klippFrame((target, c, slot) => {
       c.registerBody(withSlot(new FollowBody(target, [0, 3, 12], 0.5), slot).update);
       c.registerAim(withSlot(new HardLookAtAim(target), slot).update);
-      c.registerNoise(
-        new BasicMultiChannelPerlinNoise(new Vector3(0.1, 0.1, 0.1), undefined, new Vector3(2, 2, 2)).update,
-      );
+      c.registerNoise(new BasicMultiChannelPerlinNoise([0.1, 0.1, 0.1], undefined, [2, 2, 2]).update);
     }),
   },
   {

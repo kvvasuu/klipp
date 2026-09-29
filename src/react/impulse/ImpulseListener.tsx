@@ -2,8 +2,8 @@ import { useEffect, useImperativeHandle, useState, type Ref } from 'react';
 import type { BasicMultiChannelPerlinProps } from '../noise/BasicMultiChannelPerlin';
 import { useBasicMultiChannelPerlinNoise } from '../noise/useBasicMultiChannelPerlinNoise';
 import { useVirtualCamera } from '../VirtualCameraContext';
-import { impulseField, type ImpulseField } from '../../three/impulse/ImpulseField';
-import { ImpulseListenerNoise } from '../../three/impulse/ImpulseListenerNoise';
+import { impulseField, type ImpulseField } from '../../core/impulse/ImpulseField';
+import { ImpulseListenerNoise } from '../../core/impulse/ImpulseListenerNoise';
 
 /** Perlin shake options driven by the current impulse strength. */
 export type ImpulseShakeProps = Omit<BasicMultiChannelPerlinProps, 'amplitudeGain' | 'ref'>;
