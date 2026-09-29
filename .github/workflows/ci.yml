@@ -4,7 +4,7 @@ on:
   push:
     branches: [main]
   pull_request:
-    branches: [main]
+    branches: [main, refactor/math-dod]
 
 jobs:
   check:
@@ -26,5 +26,7 @@ jobs:
       - run: pnpm exec tsc --noEmit
 
       - run: pnpm test
+
+      - run: pnpm run bench:alloc
 
       - run: pnpm run build
