@@ -1,5 +1,5 @@
-import type { InputAxisController } from '@kvvasuu/klipp';
-import { MouseButton } from '@kvvasuu/klipp';
+import type { InputAxisController } from '@kvvasuu/klipp/dom';
+import { MouseButton } from '@kvvasuu/klipp/dom';
 import { useThree } from '@react-three/fiber';
 import { useEffect, useEffectEvent, useState, type RefObject } from 'react';
 

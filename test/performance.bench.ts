@@ -1,21 +1,24 @@
 import { bench, group } from '@pmndrs/labs';
-import { BoxGeometry, Matrix4, Mesh, MeshBasicMaterial, Object3D, Vector3 } from 'three';
-import { createCameraState } from '../src/CameraState';
-import { KlippCore } from '../src/KlippCore';
-import { BlendHints } from '../src/blend/BlendHints';
-import { lerpCameraState } from '../src/blend/lerpCameraState';
-import { VirtualCameraController } from '../src/VirtualCameraController';
-import { HardLookAtAim } from '../src/aim/HardLookAtAim';
-import { RotationComposerAim } from '../src/aim/RotationComposerAim';
-import { FollowBody } from '../src/body/FollowBody';
-import { HardLockToTargetBody } from '../src/body/HardLockToTargetBody';
-import { PositionComposerBody } from '../src/body/PositionComposerBody';
-import { GroupFramingExtension } from '../src/extension/GroupFramingExtension';
-import { TargetGroup } from '../src/extension/TargetGroup';
-import { ImpulseField } from '../src/impulse/ImpulseField';
-import { ImpulseListenerNoise } from '../src/impulse/ImpulseListenerNoise';
-import { InputSystem, MouseButton, createConsumedInput, type ConsumedInput } from '../src/input/InputSystem';
-import { BasicMultiChannelPerlinNoise } from '../src/noise/BasicMultiChannelPerlinNoise';
+import { vec3 } from 'math';
+import { BoxGeometry, Matrix4, Mesh, MeshBasicMaterial, Object3D, Quaternion, Vector3 } from 'three';
+import { createCameraState } from '../src/core/CameraState';
+import { KlippCore } from '../src/core/KlippCore';
+import { BlendHints } from '../src/core/blend/BlendHints';
+import { lerpCameraState } from '../src/core/blend/lerpCameraState';
+import { VirtualCameraController } from '../src/core/VirtualCameraController';
+import { HardLookAtAim } from '../src/three/aim/HardLookAtAim';
+import { RotationComposerAim } from '../src/three/aim/RotationComposerAim';
+import { FollowBody } from '../src/three/body/FollowBody';
+import { HardLockToTargetBody } from '../src/three/body/HardLockToTargetBody';
+import { PositionComposerBody } from '../src/three/body/PositionComposerBody';
+import { GroupFramingExtension } from '../src/three/extension/GroupFramingExtension';
+import { TargetGroup } from '../src/three/extension/TargetGroup';
+import { ImpulseField } from '../src/three/impulse/ImpulseField';
+import { ImpulseListenerNoise } from '../src/three/impulse/ImpulseListenerNoise';
+import { InputSystem, MouseButton, createConsumedInput, type ConsumedInput } from '../src/dom/InputSystem';
+import { BasicMultiChannelPerlinNoise } from '../src/three/noise/BasicMultiChannelPerlinNoise';
+import { TargetRegistry } from '../src/three/resolve/TargetRegistry';
+import { toQuaternion, toTuple } from './tuples';
 
 const always = () => 1;
 
@@ -61,18 +64,18 @@ group('Body.update @body', () => {
     yield () => {
       step();
       body.update(out, 0.016, false);
-      return out.position.x; // ties the return to the measured work — see "Dead Code Elimination" in @pmndrs/labs' README
+      return out.position[0]; // ties the return to the measured work — see "Dead Code Elimination" in @pmndrs/labs' README
     };
   });
 
   bench('Follow (lockToTarget binding)', function* () {
     const { object, step } = makeMovingTarget();
-    const body = new FollowBody(object, new Vector3(0, 3, 8), 0.5);
+    const body = new FollowBody(object, [0, 3, 8], 0.5);
     const out = createCameraState();
     yield () => {
       step();
       body.update(out, 0.016, false);
-      return out.position.x;
+      return out.position[0];
     };
   });
 
@@ -83,7 +86,7 @@ group('Body.update @body', () => {
     yield () => {
       step();
       body.update(out, 0.016, false);
-      return out.position.x;
+      return out.position[0];
     };
   });
 
@@ -109,7 +112,7 @@ group('Body.update @body', () => {
     yield () => {
       step();
       body.update(out, 0.016, false);
-      return out.position.x;
+      return out.position[0];
     };
   });
 
@@ -123,7 +126,7 @@ group('Body.update @body', () => {
     yield () => {
       step();
       body.update(out, 0.016, false);
-      return out.position.x;
+      return out.position[0];
     };
   });
 
@@ -144,7 +147,7 @@ group('Body.update @body', () => {
     yield () => {
       step();
       body.update(out, 0.016, false);
-      return out.position.x;
+      return out.position[0];
     };
   });
 
@@ -155,7 +158,7 @@ group('Body.update @body', () => {
     yield () => {
       step();
       body.update(out, 0.016, false);
-      return out.position.x;
+      return out.position[0];
     };
   });
 });
@@ -165,11 +168,11 @@ group('Aim.update @aim', () => {
     const { object, step } = makeMovingTarget();
     const aim = new HardLookAtAim(object);
     const out = createCameraState();
-    out.position.set(0, 2, 15);
+    vec3.set(out.position, 0, 2, 15);
     yield () => {
       step();
       aim.update(out);
-      return out.quaternion.x;
+      return out.quaternion[0];
     };
   });
 
@@ -177,11 +180,11 @@ group('Aim.update @aim', () => {
     const { object, step } = makeMovingTarget();
     const aim = new RotationComposerAim(object, [0, 0], 16 / 9, [0.2, 0.2], 0.5, [0.4, 0.4]);
     const out = createCameraState();
-    out.position.set(0, 2, 15);
+    vec3.set(out.position, 0, 2, 15);
     yield () => {
       step();
       aim.update(out, 0.016, false);
-      return out.quaternion.x;
+      return out.quaternion[0];
     };
   });
 
@@ -203,11 +206,11 @@ group('Aim.update @aim', () => {
       1,
     );
     const out = createCameraState();
-    out.position.set(0, 2, 15);
+    vec3.set(out.position, 0, 2, 15);
     yield () => {
       step();
       aim.update(out, 0.016, false);
-      return out.quaternion.x;
+      return out.quaternion[0];
     };
   });
 
@@ -216,11 +219,11 @@ group('Aim.update @aim', () => {
   bench('RotationComposer (damped, converged on a still target)', function* () {
     const aim = new RotationComposerAim(new Vector3(0, 2, -20), [0, 0], 16 / 9, [0, 0], 0.5);
     const out = createCameraState();
-    out.position.set(0, 2, 15);
+    vec3.set(out.position, 0, 2, 15);
     aim.update(out, 0.016, true);
     yield () => {
       aim.update(out, 0.016, false);
-      return out.quaternion.x;
+      return out.quaternion[0];
     };
   });
 });
@@ -240,7 +243,7 @@ group('Noise/Extension.update @noise', () => {
     const out = createCameraState();
     yield () => {
       perlin.update(out, 0.016, false);
-      return out.position.x;
+      return out.position[0];
     };
   });
 
@@ -250,7 +253,7 @@ group('Noise/Extension.update @noise', () => {
     const out = createCameraState();
     yield () => {
       groupFraming.update(out, 0.016, false);
-      return out.position.z;
+      return out.position[2];
     };
   });
 });
@@ -311,7 +314,7 @@ group('ImpulseListenerNoise.update @impulse', () => {
     yield () => {
       now += 0.016;
       listener.update(out, 0.016, false, now);
-      return out.position.x;
+      return out.position[0];
     };
   });
 
@@ -326,7 +329,7 @@ group('ImpulseListenerNoise.update @impulse', () => {
     yield () => {
       now += 0.016;
       listener.update(out, 0.016, false, now);
-      return out.position.x;
+      return out.position[0];
     };
   });
 
@@ -340,7 +343,7 @@ group('ImpulseListenerNoise.update @impulse', () => {
     yield () => {
       now += 0.016;
       listener.update(out, 0.016, false, now);
-      return out.position.x;
+      return out.position[0];
     };
   });
 });
@@ -444,7 +447,7 @@ group('VirtualCameraController.update @controller', () => {
     yield () => {
       step();
       controller.update(out, 0.016, false);
-      return out.position.x;
+      return out.position[0];
     };
   });
 
@@ -452,7 +455,7 @@ group('VirtualCameraController.update @controller', () => {
     const { object, step } = makeMovingTarget();
     const controller = new VirtualCameraController('full');
     const targetGroup = new TargetGroup([{ target: object, radius: 1.5 }]);
-    controller.registerBody(new FollowBody(object, new Vector3(0, 3, 12), 0.5).update);
+    controller.registerBody(new FollowBody(object, [0, 3, 12], 0.5).update);
     controller.registerAim(new RotationComposerAim(object, [0, 0], 16 / 9, [0.15, 0.15], 0.5).update);
     controller.registerExtension(new GroupFramingExtension(targetGroup, 40, 1920, 1080, 0.5).update);
     controller.registerNoise(
@@ -471,7 +474,7 @@ group('VirtualCameraController.update @controller', () => {
     yield () => {
       step();
       controller.update(out, 0.016, false);
-      return out.position.x;
+      return out.position[0];
     };
   });
 });
@@ -484,7 +487,7 @@ group('KlippCore.tick @core', () => {
     const core = new KlippCore();
     for (let i = 0; i < count; i++) {
       const state = createCameraState();
-      state.position.set(i, 0, 0);
+      vec3.set(state.position, i, 0, 0);
       core.registerCamera({ id: `cam-${i}`, priority: i, state });
     }
     return core;
@@ -492,17 +495,17 @@ group('KlippCore.tick @core', () => {
 
   bench('1 registered camera', function* () {
     const core = makeCoreWithCameras(1);
-    yield () => core.tick(0.016).position.x;
+    yield () => core.tick(0.016).position[0];
   });
 
   bench('10 registered cameras', function* () {
     const core = makeCoreWithCameras(10);
-    yield () => core.tick(0.016).position.x;
+    yield () => core.tick(0.016).position[0];
   });
 
   bench('50 registered cameras', function* () {
     const core = makeCoreWithCameras(50);
-    yield () => core.tick(0.016).position.x;
+    yield () => core.tick(0.016).position[0];
   });
 });
 
@@ -511,44 +514,96 @@ group('KlippCore.tick @core', () => {
 group('lerpCameraState @blend', () => {
   function makeOrbitingState(position: Vector3, lookAtTarget: Vector3) {
     const state = createCameraState();
-    state.position.copy(position);
-    state.quaternion.setFromRotationMatrix(new Matrix4().lookAt(position, lookAtTarget, new Vector3(0, 1, 0)));
-    state.target.copy(lookAtTarget);
+    position.toArray(state.position);
+    new Quaternion()
+      .setFromRotationMatrix(new Matrix4().lookAt(position, lookAtTarget, new Vector3(0, 1, 0)))
+      .toArray(state.quaternion);
+    lookAtTarget.toArray(state.target);
     state.hasTarget = true;
-    state.lookAtTarget.copy(lookAtTarget);
+    lookAtTarget.toArray(state.lookAtTarget);
     state.hasLookAtTarget = true;
     return state;
   }
 
   bench('plain slerp (no lookAtTarget)', function* () {
     const a = createCameraState();
-    a.position.set(5, 5, 5);
+    vec3.set(a.position, 5, 5, 5);
     const b = createCameraState();
-    b.position.set(0, 0, 5);
-    b.quaternion.setFromAxisAngle(new Vector3(0, 1, 0), Math.PI / 2);
+    vec3.set(b.position, 0, 0, 5);
+    toQuaternion(b.quaternion)
+      .setFromAxisAngle(new Vector3(0, 1, 0), Math.PI / 2)
+      .toArray(b.quaternion);
     const out = createCameraState();
-    yield () => lerpCameraState(out, a, b, 0.5).position.x;
+    yield () => lerpCameraState(out, a, b, 0.5).position[0];
   });
 
   bench('lookAtTarget-driven rotation', function* () {
     const a = makeOrbitingState(new Vector3(5, 5, 5), new Vector3(0, 0, 0));
     const b = makeOrbitingState(new Vector3(0, 0, 5), new Vector3(0, 0, 0));
     const out = createCameraState();
-    yield () => lerpCameraState(out, a, b, 0.5).position.x;
+    yield () => lerpCameraState(out, a, b, 0.5).position[0];
   });
 
   bench('lookAtTarget-driven rotation + sphericalPosition hint', function* () {
     const a = makeOrbitingState(new Vector3(5, 5, 5), new Vector3(0, 0, 0));
     const b = makeOrbitingState(new Vector3(0, 0, 5), new Vector3(0, 0, 0));
     const out = createCameraState();
-    yield () => lerpCameraState(out, a, b, 0.5, BlendHints.sphericalPosition).position.x;
+    yield () => lerpCameraState(out, a, b, 0.5, BlendHints.sphericalPosition).position[0];
   });
 });
 
+/** A target `depth` levels below a moving root. Matrices are left stale, as in a real frame before render. */
+function makeNestedTarget(depth: number): { object: Object3D; step: () => void } {
+  const root = new Object3D();
+  let leaf = root;
+  for (let d = 0; d < depth; d++) {
+    const child = new Object3D();
+    child.position.set(0.1, 0.2, 0);
+    child.rotation.set(0, 0.1, 0);
+    leaf.add(child);
+    leaf = child;
+  }
+  let t = 0;
+  return {
+    object: leaf,
+    step: () => {
+      t += 0.016;
+      root.position.set(Math.sin(t) * 10, 2, Math.cos(t) * 10);
+    },
+  };
+}
+
+/** Two cameras, each Follow + HardLookAt on the same target, with or without registry slots. */
+function* twoCamerasOnSharedTarget(depth: number, withRegistry: boolean) {
+  const { object, step } = makeNestedTarget(depth);
+  const registry = new TargetRegistry();
+  const cameras = [new Vector3(0, 3, 8), new Vector3(5, 2, 0)].map((offset) => {
+    const follow = new FollowBody(object, toTuple(offset), 0.5);
+    const look = new HardLookAtAim(object);
+    if (withRegistry) follow.targetSlot = look.targetSlot = registry.acquire(object);
+    return { follow, look, out: createCameraState() };
+  });
+  yield () => {
+    step();
+    if (withRegistry) registry.refresh();
+    for (const { follow, look, out } of cameras) {
+      follow.update(out, 0.016, false);
+      look.update(out);
+    }
+    return cameras[0].out.position[0];
+  };
+}
+
+group('Target reads, two cameras on one target @targets', () => {
+  bench('depth 2, each stage resolves', () => twoCamerasOnSharedTarget(2, false));
+  bench('depth 2, registry slots', () => twoCamerasOnSharedTarget(2, true));
+  bench('depth 10, each stage resolves', () => twoCamerasOnSharedTarget(10, false));
+  bench('depth 10, registry slots', () => twoCamerasOnSharedTarget(10, true));
+});
+
 // How to read the output: `avg (min…max) p75/p99` is time per call — compare that to a frame's budget
-// (16.67ms at 60fps, 8.33ms at 120fps) to see how many of these fit in one frame. The `heap` row matters
-// most for klipp specifically: zero-allocation rule means every one of these should show
-// ~0 bytes/iter at steady state — a nonzero, growing heap number on a Body/Aim/Noise/Extension bench
-// means something in that hot path is allocating despite the rule, worth chasing down even if the timing
-// itself still looks fast. Run `pnpm bench --baseline` once to save a reference point, then `pnpm bench
+// (16.67ms at 60fps, 8.33ms at 120fps) to see how many of these fit in one frame. Don't read allocations
+// off the `heap` row: it overstates per-call bytes by orders of magnitude for sub-microsecond calls. The
+// zero-allocation rule is enforced by `pnpm bench:alloc` (test/allocations.ts), which counts bytes per
+// frame via v8.GCProfiler. Run `pnpm bench --baseline` once to save a reference point, then `pnpm bench
 // --compare` after a change to see if it moved outside noise (statistically, not just eyeballed).

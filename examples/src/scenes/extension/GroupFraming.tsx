@@ -1,4 +1,4 @@
-import type { GroupFramingFitMode, GroupFramingMode } from '@kvvasuu/klipp';
+import type { GroupFramingFitMode, GroupFramingMode } from '@kvvasuu/klipp/three';
 import { Aim, Body, Extension, Klipp, VirtualCamera } from '@kvvasuu/klipp/react';
 import { useFrame } from '@react-three/fiber';
 import { useControls } from 'leva';

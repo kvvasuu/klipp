@@ -1,4 +1,6 @@
-import { BindingModes, type InputAxisController, type PanTiltAim } from '@kvvasuu/klipp';
+import { BindingModes } from '@kvvasuu/klipp';
+import { type PanTiltAim } from '@kvvasuu/klipp/three';
+import { type InputAxisController } from '@kvvasuu/klipp/dom';
 import { Aim, Body, InputController, Klipp, VirtualCamera } from '@kvvasuu/klipp/react';
 import { useControls } from 'leva';
 import { useRef } from 'react';

@@ -18,7 +18,12 @@ Almost everything you need comes from `@kvvasuu/klipp/react`:
 import { Klipp, VirtualCamera, Body, Aim } from '@kvvasuu/klipp/react';
 ```
 
-Constants, types and plain classes (`BlendCurves`, `BindingModes`, `impulseField`, `FollowBody`, ...) come from the main entry:
+The package has one entry per layer:
+
+- `@kvvasuu/klipp`: the core. Plain data and functions on `math`, no three.js or React (`BlendCurves`, `BindingModes`, `KlippCore`, `updateFollow`, ...).
+- `@kvvasuu/klipp/three`: the three.js layer. Classes that resolve `Object3D` targets and write cameras (`FollowBody`, `HardLookAtAim`, `impulseField`, ...).
+- `@kvvasuu/klipp/react`: React Three Fiber components.
+- `@kvvasuu/klipp/dom`: pointer and keyboard input (`InputSystem`, `InputAxisController`).
 
 ```tsx
 import { BlendCurves, BindingModes } from '@kvvasuu/klipp';
@@ -26,17 +31,17 @@ import { BlendCurves, BindingModes } from '@kvvasuu/klipp';
 
 ## Vanilla three.js
 
-The main entry `@kvvasuu/klipp` only needs `three`. The React components are thin wrappers around classes you can use directly:
+Use the core with the three.js layer. The React components are thin wrappers around these classes:
 
 ```ts
-import { Vector3 } from 'three';
-import { KlippCore, VirtualCameraController, FollowBody, HardLookAtAim, createCameraState, applyCameraState } from '@kvvasuu/klipp';
+import { KlippCore, VirtualCameraController, createCameraState } from '@kvvasuu/klipp';
+import { FollowBody, HardLookAtAim, applyCameraState } from '@kvvasuu/klipp/three';
 
 const core = new KlippCore();
 
 const state = createCameraState();
 const follow = new VirtualCameraController('follow');
-follow.registerBody(new FollowBody(player, new Vector3(0, 3, 8), 0.5).update);
+follow.registerBody(new FollowBody(player, [0, 3, 8], 0.5).update);
 follow.registerAim(new HardLookAtAim(player).update);
 core.registerCamera({ id: 'follow', priority: 10, state });
 

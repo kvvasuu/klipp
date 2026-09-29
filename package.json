@@ -22,24 +22,32 @@
     "url": "https://github.com/kvvasuu/klipp/issues"
   },
   "type": "module",
-  "main": "dist/index.js",
-  "types": "dist/index.d.ts",
+  "main": "dist/core/index.js",
+  "types": "dist/core/index.d.ts",
   "exports": {
     ".": {
-      "types": "./dist/index.d.ts",
-      "default": "./dist/index.js"
+      "types": "./dist/core/index.d.ts",
+      "default": "./dist/core/index.js"
+    },
+    "./three": {
+      "types": "./dist/three/index.d.ts",
+      "default": "./dist/three/index.js"
+    },
+    "./three/camera-controls": {
+      "types": "./dist/three/body/CameraControlsBody.d.ts",
+      "default": "./dist/three/body/CameraControlsBody.js"
     },
     "./react": {
-      "types": "./dist/react.d.ts",
-      "default": "./dist/react.js"
+      "types": "./dist/react/index.d.ts",
+      "default": "./dist/react/index.js"
     },
     "./react/camera-controls": {
-      "types": "./dist/body/camera-controls.d.ts",
-      "default": "./dist/body/camera-controls.js"
+      "types": "./dist/react/body/camera-controls.d.ts",
+      "default": "./dist/react/body/camera-controls.js"
     },
-    "./camera-controls": {
-      "types": "./dist/body/CameraControlsBody.d.ts",
-      "default": "./dist/body/CameraControlsBody.js"
+    "./dom": {
+      "types": "./dist/dom/index.d.ts",
+      "default": "./dist/dom/index.js"
     }
   },
   "files": [
@@ -58,6 +66,7 @@
     "format:check": "prettier --check .",
     "test": "vitest run",
     "bench": "labs",
+    "bench:alloc": "tsx --single-threaded test/allocations.ts",
     "prepare": "husky"
   },
   "peerDependencies": {
@@ -74,6 +83,9 @@
       "optional": true
     },
     "camera-controls": {
+      "optional": true
+    },
+    "three": {
       "optional": true
     }
   },
@@ -95,6 +107,7 @@
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "three": "^0.185.1",
+    "tsx": "^4.23.12",
     "typescript": "~6.0.2",
     "vitest": "^4.1.10"
   },

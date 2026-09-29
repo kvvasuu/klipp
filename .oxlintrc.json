@@ -3,6 +3,81 @@
   "plugins": ["react", "typescript", "oxc"],
   "rules": {
     "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
+    "react/only-export-components": [
+      "warn",
+      {
+        "allowConstantExport": true
+      }
+    ]
+  },
+  "overrides": [
+    {
+      "files": ["src/core/**"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              {
+                "group": [
+                  "three",
+                  "three/*",
+                  "react",
+                  "react/*",
+                  "react-dom",
+                  "@react-three/*",
+                  "camera-controls",
+                  "**/three/**",
+                  "**/react/**",
+                  "**/dom/**"
+                ],
+                "message": "core imports only math."
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "files": ["src/three/**"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              {
+                "group": ["react", "react/*", "react-dom", "@react-three/*", "**/react/**", "**/dom/**"],
+                "message": "three must not depend on React or the DOM layer."
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "files": ["src/dom/**"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              {
+                "group": [
+                  "three",
+                  "three/*",
+                  "react",
+                  "react/*",
+                  "react-dom",
+                  "@react-three/*",
+                  "**/three/**",
+                  "**/react/**"
+                ],
+                "message": "dom must not depend on three or React."
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
 }
