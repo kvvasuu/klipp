@@ -6,6 +6,7 @@ import type { DampingConstant } from '../damping/Damper';
 import { DebugZoneOverlay, type DebugZone } from '../DebugZoneOverlay';
 import { resolveVector3 } from '../resolve/resolveVector3';
 import type { Target } from '../resolve/Target';
+import { useTargetSlot } from '../useTargetSlot';
 import { useVirtualCamera } from '../VirtualCameraContext';
 import { RotationComposerAim } from './RotationComposerAim';
 
@@ -83,6 +84,7 @@ export function RotationComposer({
     return instance;
   });
   aim.target = target;
+  aim.targetSlot = useTargetSlot(target);
   aim.screenPosition = screenPosition;
   aim.aspect = aspect;
   aim.deadZone = deadZone;

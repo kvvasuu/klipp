@@ -1,6 +1,7 @@
 import { useEffect, useImperativeHandle, useState, type Ref } from 'react';
 import type { DampingConstant } from '../damping/Damper';
 import type { Target } from '../resolve/Target';
+import { useTargetSlot } from '../useTargetSlot';
 import { useVirtualCamera } from '../VirtualCameraContext';
 import { RotateWithFollowTargetAim } from './RotateWithFollowTargetAim';
 
@@ -23,6 +24,7 @@ export function RotateWithFollowTarget({ target, damping = 0, maxSpeed = Infinit
     return instance;
   });
   aim.target = target;
+  aim.targetSlot = useTargetSlot(target);
   aim.damping = damping;
   aim.maxSpeed = maxSpeed;
 

@@ -4,6 +4,7 @@ import type { CameraState } from '../CameraState';
 import type { DampingConstant } from '../damping/Damper';
 import { QuaternionDamper } from '../damping/QuaternionDamper';
 import { resolveTargetRotation, type Target } from '../resolve/Target';
+import type { TargetSlot } from '../resolve/TargetRegistry';
 
 const scratchTargetRotation = new Quaternion();
 const scratchRotation = new Quaternion();
@@ -11,6 +12,7 @@ const scratchRotation = new Quaternion();
 /** Follows the target's rotation. */
 export class RotateWithFollowTargetAim {
   target: Target;
+  targetSlot: TargetSlot | null = null;
   damping: DampingConstant;
   maxSpeed: number;
 
@@ -28,7 +30,7 @@ export class RotateWithFollowTargetAim {
       if (this.primed) this.primed = false;
       else this.damper.reset();
     }
-    if (!resolveTargetRotation(scratchTargetRotation, this.target)) return;
+    if (!resolveTargetRotation(scratchTargetRotation, this.target, this.targetSlot)) return;
     scratchRotation.fromArray(out.quaternion);
     this.damper.update(scratchRotation, scratchTargetRotation, this.damping, dt, this.maxSpeed).toArray(out.quaternion);
   };

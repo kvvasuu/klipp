@@ -4,6 +4,7 @@ import { useEffect, useImperativeHandle, useState, type Ref } from 'react';
 import type { DampingConstant } from '../damping/Damper';
 import { DebugZoneOverlay, type DebugZone } from '../DebugZoneOverlay';
 import type { Target } from '../resolve/Target';
+import { useTargetSlot } from '../useTargetSlot';
 import { useVirtualCamera } from '../VirtualCameraContext';
 import { PositionComposerBody } from './PositionComposerBody';
 
@@ -84,6 +85,7 @@ export function PositionComposer({
     return instance;
   });
   body.target = target;
+  body.targetSlot = useTargetSlot(target);
   body.cameraDistance = cameraDistance;
   body.screenPosition = screenPosition;
   body.aspect = aspect;

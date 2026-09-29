@@ -4,6 +4,7 @@ import type { CameraState } from '../CameraState';
 import type { DampingConstant } from '../damping/Damper';
 import { Vector3Damper } from '../damping/Vector3Damper';
 import { resolveTargetPosition, resolveTargetRotation, type Target } from '../resolve/Target';
+import type { TargetSlot } from '../resolve/TargetRegistry';
 import { BindingModes, type BindingMode } from './BindingModes';
 
 const worldUp = new Vector3(0, 1, 0);
@@ -18,6 +19,7 @@ const scratchVector = new Vector3();
 /** Follows a target with an offset rotated according to `bindingMode`. */
 export class FollowBody {
   target: Target;
+  targetSlot: TargetSlot | null = null;
   offset: Vector3;
   damping: DampingConstant;
   bindingMode: BindingMode;
@@ -50,7 +52,7 @@ export class FollowBody {
       if (this.primed) this.primed = false;
       else this.damper.reset();
     }
-    if (!resolveTargetPosition(this.targetPosition, this.target)) return;
+    if (!resolveTargetPosition(this.targetPosition, this.target, this.targetSlot)) return;
 
     this.resolveOffsetRotation(scratchRotation);
     scratchRotatedOffset.copy(this.offset).applyQuaternion(scratchRotation);
@@ -78,13 +80,14 @@ export class FollowBody {
     if (this.bindingMode === BindingModes.lockToTargetOnAssign) {
       if (this.target !== this.lastAssignedTarget) {
         this.lastAssignedTarget = this.target;
-        if (!resolveTargetRotation(this.onAssignRotation, this.target)) this.onAssignRotation.identity();
+        if (!resolveTargetRotation(this.onAssignRotation, this.target, this.targetSlot))
+          this.onAssignRotation.identity();
       }
       out.copy(this.onAssignRotation);
       return;
     }
 
-    if (!resolveTargetRotation(out, this.target)) {
+    if (!resolveTargetRotation(out, this.target, this.targetSlot)) {
       out.identity();
       return;
     }

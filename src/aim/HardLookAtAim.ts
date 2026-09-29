@@ -1,6 +1,7 @@
 import { Matrix4, Quaternion, Vector3 } from 'three';
 import type { CameraState } from '../CameraState';
 import { resolveTargetPosition, type Target } from '../resolve/Target';
+import type { TargetSlot } from '../resolve/TargetRegistry';
 
 const scratchPosition = new Vector3();
 const scratchUp = new Vector3();
@@ -14,6 +15,7 @@ const scratchRotation = new Quaternion();
  */
 export class HardLookAtAim {
   target: Target;
+  targetSlot: TargetSlot | null = null;
   private readonly scratchMatrix = new Matrix4();
   private readonly scratchTargetPosition = new Vector3();
 
@@ -22,7 +24,7 @@ export class HardLookAtAim {
   }
 
   update = (out: CameraState): void => {
-    if (!resolveTargetPosition(this.scratchTargetPosition, this.target)) return;
+    if (!resolveTargetPosition(this.scratchTargetPosition, this.target, this.targetSlot)) return;
     scratchPosition.fromArray(out.position);
     scratchUp.fromArray(out.referenceUp);
     this.scratchMatrix.lookAt(scratchPosition, this.scratchTargetPosition, scratchUp);

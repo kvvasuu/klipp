@@ -4,6 +4,7 @@ import { Vector3 } from 'three';
 import type { DampingConstant } from '../damping/Damper';
 import { resolveVector3 } from '../resolve/resolveVector3';
 import type { Target } from '../resolve/Target';
+import { useTargetSlot } from '../useTargetSlot';
 import { useVirtualCamera } from '../VirtualCameraContext';
 import { BindingModes, type BindingMode } from './BindingModes';
 import { FollowBody } from './FollowBody';
@@ -40,6 +41,7 @@ export function Follow({
     return instance;
   });
   body.target = target;
+  body.targetSlot = useTargetSlot(target);
   resolveVector3(body.offset, offset);
   body.damping = damping;
   body.bindingMode = bindingMode;
