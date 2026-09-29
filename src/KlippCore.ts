@@ -1,5 +1,5 @@
-import { EventDispatcher } from 'three';
 import type { CameraState } from './CameraState';
+import { EventDispatcher } from './EventDispatcher';
 import { BlendCurves } from './blend/BlendCurves';
 import { resolveBlendDefinition, type BlendDefinition, type CustomBlend } from './blend/BlendDefinition';
 import { BlendDriver } from './blend/BlendDriver';
