@@ -1,6 +1,8 @@
 import { Quaternion, Vector3 } from 'three';
 import { describe, expect, it } from 'vitest';
-import { QuaternionDamper } from '../../src/damping/QuaternionDamper';
+import type { Quat } from 'math';
+import { createDamperState } from '../../src/damping/Damper';
+import { dampQuaternion, QuaternionDamper } from '../../src/damping/QuaternionDamper';
 
 describe('QuaternionDamper', () => {
   it('damping <= 0 (default) is an exact, instant match — no smoothing at all', () => {
@@ -137,5 +139,22 @@ describe('QuaternionDamper', () => {
 
     expect(out.angleTo(settled)).toBeLessThan(0.1); // barely left where it was
     expect(out.angleTo(moved)).toBeGreaterThan(0.5); // nowhere near the new target yet
+  });
+});
+
+describe('dampQuaternion', () => {
+  it('matches the QuaternionDamper wrapper exactly on tuples', () => {
+    const wrapper = new QuaternionDamper();
+    const state = createDamperState();
+    const rotation = new Quaternion();
+    const tuple: Quat = [0, 0, 0, 1];
+    const axis = new Vector3(0.3, 1, 0.2).normalize();
+
+    for (let i = 0; i < 60; i++) {
+      const target = new Quaternion().setFromAxisAngle(axis, i * 0.05);
+      wrapper.update(rotation, target, 0.3, 1 / 60);
+      dampQuaternion(state, tuple, [target.x, target.y, target.z, target.w], 0.3, 1 / 60);
+      expect(tuple).toEqual(rotation.toArray());
+    }
   });
 });

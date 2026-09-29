@@ -102,7 +102,7 @@ const scenarios: { name: string; budget: number; frame: () => void }[] = [
   },
   {
     name: 'frame: Follow + HardLookAt',
-    budget: 96,
+    budget: 80,
     frame: klippFrame((target, c) => {
       c.registerBody(new FollowBody(target, new Vector3(0, 3, 8), 0.5).update);
       c.registerAim(new HardLookAtAim(target).update);
@@ -110,7 +110,7 @@ const scenarios: { name: string; budget: number; frame: () => void }[] = [
   },
   {
     name: 'frame: Follow + RotationComposer',
-    budget: 463,
+    budget: 447,
     frame: klippFrame((target, c) => {
       c.registerBody(new FollowBody(target, new Vector3(0, 3, 12), 0.5).update);
       c.registerAim(new RotationComposerAim(target, [0, 0], 16 / 9, [0.15, 0.15], 0.5).update);

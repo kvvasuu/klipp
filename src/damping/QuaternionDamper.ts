@@ -1,45 +1,64 @@
-import { clamp } from 'math';
-import { Quaternion } from 'three';
-import { Damper, type DampingConstant } from './Damper';
+import { clamp, quat, vec4, type Quat } from 'math';
+import type { Quaternion } from 'three';
+import { createDamperState, damp, resetDamper, type DamperState, type DampingConstant } from './Damper';
 
-const scratchOutInverse = new Quaternion();
-const scratchDelta = new Quaternion();
-const scratchStep = new Quaternion();
+const scratchOutInverse: Quat = [0, 0, 0, 1];
+const scratchDelta: Quat = [0, 0, 0, 1];
+const scratchStep: Quat = [0, 0, 0, 1];
 
-/** Damps a quaternion along its shortest angular delta. */
+/** Damps `out` toward `target` along the shortest angular delta. Mutates and returns `out`. */
+export function dampQuaternion(
+  state: DamperState,
+  out: Quat,
+  target: Quat,
+  damping: DampingConstant,
+  dt: number,
+  maxSpeed = Infinity,
+): Quat {
+  if (typeof damping === 'number' && damping <= 0) return vec4.copy(out, target);
+
+  // Compute the shortest rotation from out to target.
+  quat.conjugate(scratchOutInverse, out);
+  quat.multiply(scratchDelta, target, scratchOutInverse);
+  if (scratchDelta[3] < 0) vec4.negate(scratchDelta, scratchDelta);
+
+  const angle = 2 * Math.acos(clamp(scratchDelta[3], -1, 1));
+  if (angle < 1e-5) {
+    // Keep the spring state ready for a later reset.
+    state.value = 0;
+    damp(state, 0, damping, dt);
+    state.velocity = 0;
+    return vec4.copy(out, target);
+  }
+
+  state.value = 0;
+  const dampedAngle = damp(state, angle, damping, dt, maxSpeed).value;
+  const halfSin = Math.sin(angle / 2);
+  const dampedHalfSin = Math.sin(dampedAngle / 2);
+  vec4.set(
+    scratchStep,
+    (scratchDelta[0] / halfSin) * dampedHalfSin,
+    (scratchDelta[1] / halfSin) * dampedHalfSin,
+    (scratchDelta[2] / halfSin) * dampedHalfSin,
+    Math.cos(dampedAngle / 2),
+  );
+  return quat.multiply(out, scratchStep, out);
+}
+
+const scratchOut: Quat = [0, 0, 0, 1];
+const scratchTarget: Quat = [0, 0, 0, 1];
+
+/** Stateful wrapper over `dampQuaternion` for three.js quaternions. */
 export class QuaternionDamper {
-  private readonly damper = new Damper();
+  readonly state = createDamperState();
 
   update(out: Quaternion, target: Quaternion, damping: DampingConstant, dt: number, maxSpeed = Infinity): Quaternion {
-    if (typeof damping === 'number' && damping <= 0) return out.copy(target);
-
-    // Compute the shortest rotation from out to target.
-    scratchOutInverse.copy(out).invert();
-    scratchDelta.copy(target).multiply(scratchOutInverse);
-    if (scratchDelta.w < 0) scratchDelta.set(-scratchDelta.x, -scratchDelta.y, -scratchDelta.z, -scratchDelta.w);
-
-    const angle = 2 * Math.acos(clamp(scratchDelta.w, -1, 1));
-    if (angle < 1e-5) {
-      // Keep the spring state ready for a later reset.
-      this.damper.update(0, 0, damping, dt);
-      this.damper.velocity = 0;
-      return out.copy(target);
-    }
-
-    const dampedAngle = this.damper.update(0, angle, damping, dt, maxSpeed);
-    const halfSin = Math.sin(angle / 2);
-    const dampedHalfSin = Math.sin(dampedAngle / 2);
-    scratchStep.set(
-      (scratchDelta.x / halfSin) * dampedHalfSin,
-      (scratchDelta.y / halfSin) * dampedHalfSin,
-      (scratchDelta.z / halfSin) * dampedHalfSin,
-      Math.cos(dampedAngle / 2),
-    );
-    return out.premultiply(scratchStep);
+    dampQuaternion(this.state, out.toArray(scratchOut), target.toArray(scratchTarget), damping, dt, maxSpeed);
+    return out.fromArray(scratchOut);
   }
 
   /** Reset the underlying angle spring. */
   reset(): void {
-    this.damper.reset();
+    resetDamper(this.state);
   }
 }

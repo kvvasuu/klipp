@@ -1,6 +1,12 @@
+import { vec3 } from 'math';
 import { Vector3 } from 'three';
 import { describe, expect, it } from 'vitest';
-import { Predictor } from '../../src/damping/Predictor';
+import {
+  addPredictorPosition,
+  createPredictorState,
+  predictPositionDelta,
+  Predictor,
+} from '../../src/damping/Predictor';
 
 const DT = 1 / 60;
 
@@ -17,15 +23,15 @@ describe('Predictor', () => {
   it('the first addPosition() call only records position - no velocity to derive yet', () => {
     const predictor = new Predictor();
     predictor.addPosition(new Vector3(5, 0, 0), DT, 10);
-    expect(predictor.velocity.equals(new Vector3())).toBe(true);
+    expect(vec3.exactEquals(predictor.state.velocity, [0, 0, 0])).toBe(true);
   });
 
   it('converges to the velocity of a point moving at a constant speed', () => {
     const predictor = new Predictor();
     feedConstantVelocity(predictor, new Vector3(10, 0, 0), 2, 10);
 
-    expect(predictor.velocity.x).toBeCloseTo(10, 1);
-    expect(predictor.velocity.y).toBeCloseTo(0, 5);
+    expect(predictor.state.velocity[0]).toBeCloseTo(10, 1);
+    expect(predictor.state.velocity[1]).toBeCloseTo(0, 5);
   });
 
   it('predictPositionDelta scales the tracked velocity by the lookahead time, writes into out', () => {
@@ -49,8 +55,8 @@ describe('Predictor', () => {
     feedConstantVelocity(speedingUp, new Vector3(5, 0, 0), 2, smoothing);
     feedConstantVelocity(speedingUp, new Vector3(20, 0, 0), 5 * DT, smoothing);
 
-    const slowingRemaining = Math.abs(slowing.velocity.x - 5);
-    const speedingUpRemaining = Math.abs(speedingUp.velocity.x - 20);
+    const slowingRemaining = Math.abs(slowing.state.velocity[0] - 5);
+    const speedingUpRemaining = Math.abs(speedingUp.state.velocity[0] - 20);
     expect(slowingRemaining).toBeLessThan(speedingUpRemaining);
   });
 
@@ -58,18 +64,28 @@ describe('Predictor', () => {
     const predictor = new Predictor();
     predictor.addPosition(new Vector3(1, 0, 0), DT, 10);
     expect(() => predictor.addPosition(new Vector3(2, 0, 0), 0, 10)).not.toThrow();
-    expect(Number.isFinite(predictor.velocity.x)).toBe(true);
+    expect(Number.isFinite(predictor.state.velocity[0])).toBe(true);
   });
 
   it('reset() clears tracked velocity and re-arms the first-call skip', () => {
     const predictor = new Predictor();
     feedConstantVelocity(predictor, new Vector3(10, 0, 0), 2, 10);
-    expect(predictor.velocity.x).not.toBe(0);
+    expect(predictor.state.velocity[0]).not.toBe(0);
 
     predictor.reset();
-    expect(predictor.velocity.equals(new Vector3())).toBe(true);
+    expect(vec3.exactEquals(predictor.state.velocity, [0, 0, 0])).toBe(true);
 
     predictor.addPosition(new Vector3(100, 0, 0), DT, 10);
-    expect(predictor.velocity.equals(new Vector3())).toBe(true);
+    expect(vec3.exactEquals(predictor.state.velocity, [0, 0, 0])).toBe(true);
+  });
+});
+
+describe('predictor functions', () => {
+  it('track velocity on tuples and predict the offset', () => {
+    const state = createPredictorState();
+    for (let i = 0; i <= 120; i++) addPredictorPosition(state, [i * 0.1, 0, 0], 1 / 60, 0.1);
+
+    expect(state.velocity[0]).toBeCloseTo(6, 1);
+    expect(predictPositionDelta([0, 0, 0], state, 0.5)[0]).toBeCloseTo(3, 1);
   });
 });
