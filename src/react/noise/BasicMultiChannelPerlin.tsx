@@ -2,7 +2,7 @@ import type { Vector3 as Vector3Like } from '@react-three/fiber';
 import { useEffect, useImperativeHandle, type Ref } from 'react';
 import type { DampingConstant } from '../../core/damping/Damper';
 import { useVirtualCamera } from '../VirtualCameraContext';
-import type { BasicMultiChannelPerlinNoise } from '../../three/noise/BasicMultiChannelPerlinNoise';
+import type { BasicMultiChannelPerlinNoise } from '../../core/noise/BasicMultiChannelPerlinNoise';
 import { useBasicMultiChannelPerlinNoise } from './useBasicMultiChannelPerlinNoise';
 
 export type BasicMultiChannelPerlinProps = {

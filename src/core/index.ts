@@ -95,3 +95,26 @@ export {
   type GroupFramingMode,
 } from './extension/groupFraming';
 export { InputAxis, type InputAxisRecentering } from './input/InputAxis';
+
+export { BasicMultiChannelPerlinNoise } from './noise/BasicMultiChannelPerlinNoise';
+export {
+  updatePerlinNoise,
+  createPerlinNoiseState,
+  type PerlinNoiseParams,
+  type PerlinNoiseState,
+} from './noise/perlinNoise';
+export { ImpulseField, impulseField } from './impulse/ImpulseField';
+export { ImpulseListenerNoise } from './impulse/ImpulseListenerNoise';
+export {
+  ImpulseShapes,
+  generateImpulse,
+  sampleImpulses,
+  pruneImpulses,
+  createImpulseFieldState,
+  impulseNow,
+  type GenerateImpulseOptions,
+  type ImpulseShape,
+  type ImpulseEvent,
+  type ImpulseFieldState,
+  type ImpulseClockSeconds,
+} from './impulse/impulses';

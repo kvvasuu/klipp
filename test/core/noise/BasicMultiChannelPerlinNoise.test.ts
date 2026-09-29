@@ -2,8 +2,8 @@ import { vec3, vec4 } from 'math';
 import { Quaternion, Vector3 } from 'three';
 import { describe, expect, it } from 'vitest';
 import { createCameraState } from '../../../src/core/CameraState';
-import { BasicMultiChannelPerlinNoise } from '../../../src/three/noise/BasicMultiChannelPerlinNoise';
-import { toQuaternion, toVector3 } from '../../tuples';
+import { BasicMultiChannelPerlinNoise } from '../../../src/core/noise/BasicMultiChannelPerlinNoise';
+import { toQuaternion, toTuple, toVector3 } from '../../tuples';
 
 describe('BasicMultiChannelPerlinNoise', () => {
   it('all amplitudes default to 0: a complete no-op on position and rotation', () => {
@@ -22,7 +22,7 @@ describe('BasicMultiChannelPerlinNoise', () => {
     // NOT a hard mathematical bound: Perlin gradient noise can rarely spike close to magnitude 1 (verified
     // empirically across many seeds — most samples stay well under that). 1.5x is a generous safety
     // margin that still catches real bugs (amplitude ignored, wrong axis, order-of-magnitude scale bugs).
-    const noise = new BasicMultiChannelPerlinNoise(new Vector3(2, 3, 4));
+    const noise = new BasicMultiChannelPerlinNoise([2, 3, 4]);
     const out = createCameraState();
 
     for (let i = 0; i < 200; i++) {
@@ -35,7 +35,7 @@ describe('BasicMultiChannelPerlinNoise', () => {
   });
 
   it('positionAmplitude actually produces nonzero motion over time (not stuck at 0)', () => {
-    const noise = new BasicMultiChannelPerlinNoise(new Vector3(5, 5, 5));
+    const noise = new BasicMultiChannelPerlinNoise([5, 5, 5]);
     const out = createCameraState();
 
     let sawNonZero = false;
@@ -49,10 +49,10 @@ describe('BasicMultiChannelPerlinNoise', () => {
 
   it('position noise is sampled in camera-LOCAL space, then rotated into world by the current orientation', () => {
     const seed = 7;
-    const local = new BasicMultiChannelPerlinNoise(new Vector3(1, 0, 0), undefined, undefined, undefined, 1, 1, seed);
+    const local = new BasicMultiChannelPerlinNoise([1, 0, 0], undefined, undefined, undefined, 1, 1, seed);
     const outIdentity = createCameraState();
 
-    const rotated = new BasicMultiChannelPerlinNoise(new Vector3(1, 0, 0), undefined, undefined, undefined, 1, 1, seed);
+    const rotated = new BasicMultiChannelPerlinNoise([1, 0, 0], undefined, undefined, undefined, 1, 1, seed);
     const outRotated = createCameraState();
     toQuaternion(outRotated.quaternion)
       .setFromAxisAngle(new Vector3(0, 1, 0), Math.PI / 2)
@@ -74,7 +74,7 @@ describe('BasicMultiChannelPerlinNoise', () => {
   });
 
   it('rotationAmplitude perturbs the quaternion away from identity, bounded by the amplitude', () => {
-    const noise = new BasicMultiChannelPerlinNoise(undefined, undefined, new Vector3(10, 10, 10));
+    const noise = new BasicMultiChannelPerlinNoise(undefined, undefined, [10, 10, 10]);
     const out = createCameraState();
 
     let sawNonIdentity = false;
@@ -90,7 +90,7 @@ describe('BasicMultiChannelPerlinNoise', () => {
   });
 
   it('amplitudeGain=0 silences both position and rotation noise even with nonzero base amplitudes', () => {
-    const noise = new BasicMultiChannelPerlinNoise(new Vector3(5, 5, 5), undefined, new Vector3(20, 20, 20));
+    const noise = new BasicMultiChannelPerlinNoise([5, 5, 5], undefined, [20, 20, 20]);
     noise.amplitudeGain = 0;
     const out = createCameraState();
     const positionBefore = toVector3(out.position);
@@ -106,9 +106,9 @@ describe('BasicMultiChannelPerlinNoise', () => {
     const outA = createCameraState();
     const outB = createCameraState();
     const outC = createCameraState();
-    const a = new BasicMultiChannelPerlinNoise(new Vector3(3, 3, 3), undefined, undefined, undefined, 1, 1, 42);
-    const b = new BasicMultiChannelPerlinNoise(new Vector3(3, 3, 3), undefined, undefined, undefined, 1, 1, 42);
-    const c = new BasicMultiChannelPerlinNoise(new Vector3(3, 3, 3), undefined, undefined, undefined, 1, 1, 999);
+    const a = new BasicMultiChannelPerlinNoise([3, 3, 3], undefined, undefined, undefined, 1, 1, 42);
+    const b = new BasicMultiChannelPerlinNoise([3, 3, 3], undefined, undefined, undefined, 1, 1, 42);
+    const c = new BasicMultiChannelPerlinNoise([3, 3, 3], undefined, undefined, undefined, 1, 1, 999);
 
     a.update(outA, 0.1);
     b.update(outB, 0.1);
@@ -121,8 +121,8 @@ describe('BasicMultiChannelPerlinNoise', () => {
   it('frequencyGain scales how fast the internal clock advances', () => {
     const outFast = createCameraState();
     const outSlow = createCameraState();
-    const fast = new BasicMultiChannelPerlinNoise(new Vector3(3, 3, 3), undefined, undefined, undefined, 1, 2, 5);
-    const slow = new BasicMultiChannelPerlinNoise(new Vector3(3, 3, 3), undefined, undefined, undefined, 1, 1, 5);
+    const fast = new BasicMultiChannelPerlinNoise([3, 3, 3], undefined, undefined, undefined, 1, 2, 5);
+    const slow = new BasicMultiChannelPerlinNoise([3, 3, 3], undefined, undefined, undefined, 1, 1, 5);
 
     fast.update(outFast, 0.1); // internal time: 0.1 * 2 = 0.2
     slow.update(outSlow, 0.2); // internal time: 0.2 * 1 = 0.2 — same clock position
@@ -131,7 +131,7 @@ describe('BasicMultiChannelPerlinNoise', () => {
   });
 
   it('update is a bound instance method — safe to pass by reference (e.g. slots.registerNoise(noise.update))', () => {
-    const noise = new BasicMultiChannelPerlinNoise(new Vector3(1, 1, 1));
+    const noise = new BasicMultiChannelPerlinNoise([1, 1, 1]);
     const { update } = noise;
     const out = createCameraState();
 
@@ -152,7 +152,7 @@ describe('BasicMultiChannelPerlinNoise', () => {
 
   describe('amplitudeDamping', () => {
     it('defaults to 0 (instant) — an amplitudeGain change is a hard cut on the very next frame', () => {
-      const noise = new BasicMultiChannelPerlinNoise(new Vector3(5, 5, 5));
+      const noise = new BasicMultiChannelPerlinNoise([5, 5, 5]);
       const out = createCameraState();
       noise.update(out, 0.1);
       expect(toVector3(out.position).length()).toBeGreaterThan(0);
@@ -164,16 +164,7 @@ describe('BasicMultiChannelPerlinNoise', () => {
     });
 
     it('> 0: the effective gain eases toward amplitudeGain instead of jumping straight to it', () => {
-      const noise = new BasicMultiChannelPerlinNoise(
-        new Vector3(5, 5, 5),
-        undefined,
-        undefined,
-        undefined,
-        1,
-        1,
-        3,
-        0.5,
-      );
+      const noise = new BasicMultiChannelPerlinNoise([5, 5, 5], undefined, undefined, undefined, 1, 1, 3, 0.5);
       const out = createCameraState();
       noise.update(out, 0.05); // effectiveAmplitudeGain settles at amplitudeGain (1) — nothing to ease yet
 
@@ -184,16 +175,7 @@ describe('BasicMultiChannelPerlinNoise', () => {
     });
 
     it('> 0: converges to the new amplitudeGain over repeated ticks', () => {
-      const noise = new BasicMultiChannelPerlinNoise(
-        new Vector3(5, 5, 5),
-        undefined,
-        undefined,
-        undefined,
-        1,
-        1,
-        3,
-        0.2,
-      );
+      const noise = new BasicMultiChannelPerlinNoise([5, 5, 5], undefined, undefined, undefined, 1, 1, 3, 0.2);
       const out = createCameraState();
       noise.update(out, 0.05);
 
@@ -206,7 +188,7 @@ describe('BasicMultiChannelPerlinNoise', () => {
     });
 
     it('is a mutable field', () => {
-      const noise = new BasicMultiChannelPerlinNoise(new Vector3(5, 5, 5));
+      const noise = new BasicMultiChannelPerlinNoise([5, 5, 5]);
       expect(noise.amplitudeDamping).toBe(0);
 
       noise.amplitudeDamping = 1;
@@ -222,8 +204,26 @@ describe('BasicMultiChannelPerlinNoise', () => {
     const amplitude = new Vector3(5, 5, 5);
 
     it('snaps effectiveAmplitudeGain straight to amplitudeGain even with a warmed-up damper', () => {
-      const reference = new BasicMultiChannelPerlinNoise(amplitude, undefined, undefined, undefined, 1, 1, seed, 0);
-      const damped = new BasicMultiChannelPerlinNoise(amplitude, undefined, undefined, undefined, 1, 1, seed, 0.5);
+      const reference = new BasicMultiChannelPerlinNoise(
+        toTuple(amplitude),
+        undefined,
+        undefined,
+        undefined,
+        1,
+        1,
+        seed,
+        0,
+      );
+      const damped = new BasicMultiChannelPerlinNoise(
+        toTuple(amplitude),
+        undefined,
+        undefined,
+        undefined,
+        1,
+        1,
+        seed,
+        0.5,
+      );
       const refOut = createCameraState();
       const dampedOut = createCameraState();
 
@@ -250,8 +250,26 @@ describe('BasicMultiChannelPerlinNoise', () => {
     });
 
     it('without justActivated, the same scenario eases instead of snapping (the bug this fixes)', () => {
-      const reference = new BasicMultiChannelPerlinNoise(amplitude, undefined, undefined, undefined, 1, 1, seed, 0);
-      const damped = new BasicMultiChannelPerlinNoise(amplitude, undefined, undefined, undefined, 1, 1, seed, 0.5);
+      const reference = new BasicMultiChannelPerlinNoise(
+        toTuple(amplitude),
+        undefined,
+        undefined,
+        undefined,
+        1,
+        1,
+        seed,
+        0,
+      );
+      const damped = new BasicMultiChannelPerlinNoise(
+        toTuple(amplitude),
+        undefined,
+        undefined,
+        undefined,
+        1,
+        1,
+        seed,
+        0.5,
+      );
       const refOut = createCameraState();
       const dampedOut = createCameraState();
 

@@ -2,9 +2,9 @@ import { vec3 } from 'math';
 import { Quaternion, Vector3 } from 'three';
 import { describe, expect, it } from 'vitest';
 import { createCameraState } from '../../../src/core/CameraState';
-import { ImpulseField } from '../../../src/three/impulse/ImpulseField';
-import { ImpulseListenerNoise } from '../../../src/three/impulse/ImpulseListenerNoise';
-import { BasicMultiChannelPerlinNoise } from '../../../src/three/noise/BasicMultiChannelPerlinNoise';
+import { ImpulseField } from '../../../src/core/impulse/ImpulseField';
+import { ImpulseListenerNoise } from '../../../src/core/impulse/ImpulseListenerNoise';
+import { BasicMultiChannelPerlinNoise } from '../../../src/core/noise/BasicMultiChannelPerlinNoise';
 import { toQuaternion } from '../../tuples';
 
 const always = () => 1;
@@ -94,7 +94,7 @@ describe('ImpulseListenerNoise', () => {
   });
 
   it('defaults to the shared impulseField singleton when none is passed', async () => {
-    const { impulseField } = await import('../../../src/three/impulse/ImpulseField');
+    const { impulseField } = await import('../../../src/core/impulse/ImpulseField');
     impulseField.generate({ position: [0, 0, 0], direction: [7, 0, 0], shape: always, duration: 60 });
 
     const listener = new ImpulseListenerNoise();
@@ -154,7 +154,7 @@ describe('ImpulseListenerNoise', () => {
       const field = new ImpulseField();
       field.generate({ position: [0, 0, 0], shape: () => 0.6, duration: 10 }, 0); // no direction: kick itself is zero
 
-      const shake = new BasicMultiChannelPerlinNoise(new Vector3(1, 0, 0));
+      const shake = new BasicMultiChannelPerlinNoise([1, 0, 0]);
       const listener = new ImpulseListenerNoise(field, 1, 1, shake);
       const out = createCameraState();
 
@@ -167,7 +167,7 @@ describe('ImpulseListenerNoise', () => {
       const field = new ImpulseField();
       field.generate({ position: [0, 0, 0], shape: always, duration: 10 }, 0);
 
-      const shake = new BasicMultiChannelPerlinNoise(undefined, undefined, new Vector3(20, 0, 0), undefined, 1, 1, 1);
+      const shake = new BasicMultiChannelPerlinNoise(undefined, undefined, [20, 0, 0], undefined, 1, 1, 1);
       const listener = new ImpulseListenerNoise(field, 1, 1, shake);
       const out = createCameraState();
       const before = toQuaternion(out.quaternion);
@@ -184,7 +184,7 @@ describe('ImpulseListenerNoise', () => {
       const field = new ImpulseField();
       field.generate({ position: [0, 0, 0], shape: always, duration: 0.3 }, 0);
 
-      const shake = new BasicMultiChannelPerlinNoise(new Vector3(1, 0, 0));
+      const shake = new BasicMultiChannelPerlinNoise([1, 0, 0]);
       const listener = new ImpulseListenerNoise(field, 1, 1, shake);
       const out = createCameraState();
 
@@ -198,7 +198,7 @@ describe('ImpulseListenerNoise', () => {
       field.generate({ position: [0, 0, 0], shape: () => 0.4, duration: 10 }, 0);
 
       const listener = new ImpulseListenerNoise(field);
-      const shake = new BasicMultiChannelPerlinNoise(new Vector3(1, 0, 0));
+      const shake = new BasicMultiChannelPerlinNoise([1, 0, 0]);
       listener.shake = shake;
       const out = createCameraState();
 

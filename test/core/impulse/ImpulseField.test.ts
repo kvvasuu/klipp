@@ -1,15 +1,18 @@
+import { vec3, type Vec3 } from 'math';
 import { Vector3 } from 'three';
 import { describe, expect, it } from 'vitest';
-import { ImpulseField, ImpulseShapes } from '../../../src/three/impulse/ImpulseField';
+import { ImpulseField } from '../../../src/core/impulse/ImpulseField';
+import { ImpulseShapes } from '../../../src/core/impulse/impulses';
+import { toTuple } from '../../tuples';
 
 const always = () => 1;
 
 describe('ImpulseField', () => {
   it('with no events, sampleAt writes zero position and returns zero strength', () => {
     const field = new ImpulseField();
-    const outPosition = new Vector3(9, 9, 9);
-    const strength = field.sampleAt(outPosition, new Vector3(), 1, 1, 0);
-    expect(outPosition.equals(new Vector3())).toBe(true);
+    const outPosition: Vec3 = [9, 9, 9];
+    const strength = field.sampleAt(outPosition, [0, 0, 0], 1, 1, 0);
+    expect(vec3.exactEquals(outPosition, [0, 0, 0])).toBe(true);
     expect(strength).toBe(0);
   });
 
@@ -17,53 +20,53 @@ describe('ImpulseField', () => {
     const field = new ImpulseField();
     field.generate({ position: [0, 0, 0], direction: [10, 0, 0], shape: (t) => t, duration: 2 }, 0);
 
-    const out = new Vector3();
-    field.sampleAt(out, new Vector3(), 1, 1, 1); // t = 1/2 = 0.5
-    expect(out.x).toBeCloseTo(5, 5);
+    const out: Vec3 = [0, 0, 0];
+    field.sampleAt(out, [0, 0, 0], 1, 1, 1); // t = 1/2 = 0.5
+    expect(out[0]).toBeCloseTo(5, 5);
   });
 
   it('a custom shape function works exactly like a named one - just a (t) => number', () => {
     const field = new ImpulseField();
     field.generate({ position: [0, 0, 0], direction: [10, 0, 0], shape: (t) => (t < 0.5 ? 0 : 1), duration: 1 }, 0);
 
-    const early = new Vector3();
-    field.sampleAt(early, new Vector3(), 1, 1, 0.2);
-    expect(early.equals(new Vector3())).toBe(true);
+    const early: Vec3 = [0, 0, 0];
+    field.sampleAt(early, [0, 0, 0], 1, 1, 0.2);
+    expect(vec3.exactEquals(early, [0, 0, 0])).toBe(true);
 
-    const late = new Vector3();
-    field.sampleAt(late, new Vector3(), 1, 1, 0.8);
-    expect(late.x).toBeCloseTo(10, 5);
+    const late: Vec3 = [0, 0, 0];
+    field.sampleAt(late, [0, 0, 0], 1, 1, 0.8);
+    expect(late[0]).toBeCloseTo(10, 5);
   });
 
   it('is exactly 0 before the event starts and after duration ends, regardless of shape', () => {
     const field = new ImpulseField();
     field.generate({ position: [0, 0, 0], direction: [10, 0, 0], shape: always, duration: 0.3 }, 5); // starts at t=5
 
-    const before = new Vector3();
-    field.sampleAt(before, new Vector3(), 1, 1, 4.9);
-    expect(before.equals(new Vector3())).toBe(true);
+    const before: Vec3 = [0, 0, 0];
+    field.sampleAt(before, [0, 0, 0], 1, 1, 4.9);
+    expect(vec3.exactEquals(before, [0, 0, 0])).toBe(true);
 
-    const after = new Vector3();
-    field.sampleAt(after, new Vector3(), 1, 1, 5.31); // 5 + 0.3 + a hair more
-    expect(after.equals(new Vector3())).toBe(true);
+    const after: Vec3 = [0, 0, 0];
+    field.sampleAt(after, [0, 0, 0], 1, 1, 5.31); // 5 + 0.3 + a hair more
+    expect(vec3.exactEquals(after, [0, 0, 0])).toBe(true);
   });
 
   it('direction defaults to [0, 0, 0] when omitted - no accidental kick from an event with no direction', () => {
     const field = new ImpulseField();
     field.generate({ position: [0, 0, 0], shape: always, duration: 1 }, 0);
 
-    const out = new Vector3();
-    field.sampleAt(out, new Vector3(), 1, 1, 0.5);
-    expect(out.equals(new Vector3())).toBe(true);
+    const out: Vec3 = [0, 0, 0];
+    field.sampleAt(out, [0, 0, 0], 1, 1, 0.5);
+    expect(vec3.exactEquals(out, [0, 0, 0])).toBe(true);
   });
 
   it('dissipationDistance=0 (default): full strength at ANY distance - no falloff', () => {
     const field = new ImpulseField();
     field.generate({ position: [0, 0, 0], direction: [10, 0, 0], shape: always, duration: 1 }, 0);
 
-    const far = new Vector3();
-    field.sampleAt(far, new Vector3(1000, 0, 0), 1, 1, 0.5);
-    expect(far.x).toBeCloseTo(10, 5);
+    const far: Vec3 = [0, 0, 0];
+    field.sampleAt(far, [1000, 0, 0], 1, 1, 0.5);
+    expect(far[0]).toBeCloseTo(10, 5);
   });
 
   it('radius: full strength anywhere inside it, regardless of dissipationDistance', () => {
@@ -73,9 +76,9 @@ describe('ImpulseField', () => {
       0,
     );
 
-    const out = new Vector3();
-    field.sampleAt(out, new Vector3(4, 0, 0), 1, 1, 0.5); // inside radius
-    expect(out.x).toBeCloseTo(10, 5);
+    const out: Vec3 = [0, 0, 0];
+    field.sampleAt(out, [4, 0, 0], 1, 1, 0.5); // inside radius
+    expect(out[0]).toBeCloseTo(10, 5);
   });
 
   it('dissipationDistance: falls off linearly beyond radius, reaching 0 at radius + dissipationDistance', () => {
@@ -85,13 +88,13 @@ describe('ImpulseField', () => {
       0,
     );
 
-    const halfway = new Vector3();
-    field.sampleAt(halfway, new Vector3(5, 0, 0), 1, 1, 0.5);
-    expect(halfway.x).toBeCloseTo(5, 5); // halfway through the falloff band
+    const halfway: Vec3 = [0, 0, 0];
+    field.sampleAt(halfway, [5, 0, 0], 1, 1, 0.5);
+    expect(halfway[0]).toBeCloseTo(5, 5); // halfway through the falloff band
 
-    const beyond = new Vector3();
-    field.sampleAt(beyond, new Vector3(20, 0, 0), 1, 1, 0.5);
-    expect(beyond.equals(new Vector3())).toBe(true); // past radius + dissipationDistance
+    const beyond: Vec3 = [0, 0, 0];
+    field.sampleAt(beyond, [20, 0, 0], 1, 1, 0.5);
+    expect(vec3.exactEquals(beyond, [0, 0, 0])).toBe(true); // past radius + dissipationDistance
   });
 
   it('propagationSpeed: a distant listener feels the event later, delayed by distance / speed', () => {
@@ -103,22 +106,22 @@ describe('ImpulseField', () => {
 
     const listenerPosition = new Vector3(50, 0, 0); // 5s away at this speed
 
-    const tooEarly = new Vector3();
-    field.sampleAt(tooEarly, listenerPosition, 1, 1, 4); // hasn't arrived yet
-    expect(tooEarly.equals(new Vector3())).toBe(true);
+    const tooEarly: Vec3 = [0, 0, 0];
+    field.sampleAt(tooEarly, toTuple(listenerPosition), 1, 1, 4); // hasn't arrived yet
+    expect(vec3.exactEquals(tooEarly, [0, 0, 0])).toBe(true);
 
-    const arrived = new Vector3();
-    field.sampleAt(arrived, listenerPosition, 1, 1, 6); // arrived 1s ago
-    expect(arrived.x).toBeCloseTo(10, 5);
+    const arrived: Vec3 = [0, 0, 0];
+    field.sampleAt(arrived, toTuple(listenerPosition), 1, 1, 6); // arrived 1s ago
+    expect(arrived[0]).toBeCloseTo(10, 5);
   });
 
   it('propagationSpeed=Infinity (default): felt everywhere instantly, no arrival delay', () => {
     const field = new ImpulseField();
     field.generate({ position: [0, 0, 0], direction: [10, 0, 0], shape: always, duration: 1 }, 0);
 
-    const out = new Vector3();
-    field.sampleAt(out, new Vector3(100000, 0, 0), 1, 1, 0.001);
-    expect(out.x).toBeCloseTo(10, 5);
+    const out: Vec3 = [0, 0, 0];
+    field.sampleAt(out, [100000, 0, 0], 1, 1, 0.001);
+    expect(out[0]).toBeCloseTo(10, 5);
   });
 
   it('propagationSpeed=0 degrades to "no delay" instead of Infinity/NaN', () => {
@@ -127,8 +130,8 @@ describe('ImpulseField', () => {
       { position: [0, 0, 0], direction: [10, 0, 0], duration: 0.1, radius: 5, propagationSpeed: 0 },
       0,
     );
-    const out = new Vector3();
-    leakProne.sampleAt(out, new Vector3(), 1, 1, 1000); // long past the envelope
+    const out: Vec3 = [0, 0, 0];
+    leakProne.sampleAt(out, [0, 0, 0], 1, 1, 1000); // long past the envelope
     expect(leakProne.hasEvents).toBe(false);
 
     const dropProne = new ImpulseField(); // radius/dissipationDistance both 0 (default): old code divided 0/0 -> NaN -> pruned instantly
@@ -136,21 +139,21 @@ describe('ImpulseField', () => {
       { position: [0, 0, 0], direction: [10, 0, 0], shape: always, duration: 1, propagationSpeed: 0 },
       0,
     );
-    dropProne.sampleAt(out, new Vector3(), 1, 1, 0.5); // well within the envelope, at the exact source position
-    expect(out.x).toBeCloseTo(10, 5);
+    dropProne.sampleAt(out, [0, 0, 0], 1, 1, 0.5); // well within the envelope, at the exact source position
+    expect(out[0]).toBeCloseTo(10, 5);
   });
 
   it('channel: a listener whose mask does not overlap the event channel feels nothing', () => {
     const field = new ImpulseField();
     field.generate({ position: [0, 0, 0], direction: [10, 0, 0], shape: always, duration: 1, channel: 0b10 }, 0);
 
-    const wrongChannel = new Vector3();
-    field.sampleAt(wrongChannel, new Vector3(), 0b01, 1, 0.5);
-    expect(wrongChannel.equals(new Vector3())).toBe(true);
+    const wrongChannel: Vec3 = [0, 0, 0];
+    field.sampleAt(wrongChannel, [0, 0, 0], 0b01, 1, 0.5);
+    expect(vec3.exactEquals(wrongChannel, [0, 0, 0])).toBe(true);
 
-    const rightChannel = new Vector3();
-    field.sampleAt(rightChannel, new Vector3(), 0b10, 1, 0.5);
-    expect(rightChannel.x).toBeCloseTo(10, 5);
+    const rightChannel: Vec3 = [0, 0, 0];
+    field.sampleAt(rightChannel, [0, 0, 0], 0b10, 1, 0.5);
+    expect(rightChannel[0]).toBeCloseTo(10, 5);
   });
 
   it('multiple overlapping events combine additively', () => {
@@ -158,10 +161,10 @@ describe('ImpulseField', () => {
     field.generate({ position: [0, 0, 0], direction: [10, 0, 0], shape: always, duration: 1 }, 0);
     field.generate({ position: [0, 0, 0], direction: [0, 5, 0], shape: always, duration: 1 }, 0);
 
-    const out = new Vector3();
-    field.sampleAt(out, new Vector3(), 1, 1, 0.5);
-    expect(out.x).toBeCloseTo(10, 5);
-    expect(out.y).toBeCloseTo(5, 5);
+    const out: Vec3 = [0, 0, 0];
+    field.sampleAt(out, [0, 0, 0], 1, 1, 0.5);
+    expect(out[0]).toBeCloseTo(10, 5);
+    expect(out[1]).toBeCloseTo(5, 5);
   });
 
   it('pruning an expired event in place does not corrupt a still-live event sitting after it in the list', () => {
@@ -171,23 +174,23 @@ describe('ImpulseField', () => {
     // long-lived, registered SECOND - exercises the write-index shift when the first slot is pruned
     field.generate({ position: [0, 0, 0], direction: [0, 20, 0], shape: always, duration: 5 }, 0);
 
-    const out = new Vector3();
-    field.sampleAt(out, new Vector3(), 1, 1, 1); // short one is gone, long one still active
-    expect(out.x).toBe(0);
-    expect(out.y).toBeCloseTo(20, 5);
+    const out: Vec3 = [0, 0, 0];
+    field.sampleAt(out, [0, 0, 0], 1, 1, 1); // short one is gone, long one still active
+    expect(out[0]).toBe(0);
+    expect(out[1]).toBeCloseTo(20, 5);
   });
 
   it('generate() prunes expired events even when nothing samples the field', () => {
     const field = new ImpulseField();
     for (let i = 0; i < 10_000; i++) field.generate({ position: [0, 0, 0], duration: 0.4 }, i);
-    expect(field['events']).toHaveLength(1);
+    expect(field.state.events).toHaveLength(1);
   });
 
   it('generate() keeps events that are still live', () => {
     const field = new ImpulseField();
     field.generate({ position: [0, 0, 0], direction: [1, 0, 0], shape: always, duration: 1 }, 0);
     field.generate({ position: [0, 0, 0], direction: [1, 0, 0], shape: always, duration: 1 }, 0.5);
-    expect(field.sampleAt(new Vector3(), new Vector3(), 1, 1, 0.75)).toBe(2);
+    expect(field.sampleAt([0, 0, 0], [0, 0, 0], 1, 1, 0.75)).toBe(2);
   });
 
   it("a Vector3Like position/direction (r3f's [x,y,z] shorthand) works, not just real Vector3 instances", () => {
@@ -196,27 +199,27 @@ describe('ImpulseField', () => {
       field.generate({ position: [1, 2, 3], direction: [4, 5, 6], shape: always, duration: 1 }, 0),
     ).not.toThrow();
 
-    const out = new Vector3();
-    field.sampleAt(out, new Vector3(1, 2, 3), 1, 1, 0.5);
-    expect(out.x).toBeCloseTo(4, 5);
+    const out: Vec3 = [0, 0, 0];
+    field.sampleAt(out, [1, 2, 3], 1, 1, 0.5);
+    expect(out[0]).toBeCloseTo(4, 5);
   });
 
   it('gain scales the direction kick, and is returned as (part of) strength', () => {
     const field = new ImpulseField();
     field.generate({ position: [0, 0, 0], direction: [10, 0, 0], shape: always, duration: 1 }, 0);
 
-    const out = new Vector3();
-    const strength = field.sampleAt(out, new Vector3(), 1, 2, 0.5); // gain = 2
-    expect(out.x).toBeCloseTo(20, 5);
+    const out: Vec3 = [0, 0, 0];
+    const strength = field.sampleAt(out, [0, 0, 0], 1, 2, 0.5); // gain = 2
+    expect(out[0]).toBeCloseTo(20, 5);
     expect(strength).toBeCloseTo(2, 5);
   });
 
   it('sampleAt defaults to `gain`/`now`/channelMask that make the common single-channel case just work', () => {
     const field = new ImpulseField();
     field.generate({ position: [0, 0, 0], direction: [1, 0, 0], shape: always, duration: 10 }); // default now/channel=1
-    const out = new Vector3();
-    field.sampleAt(out, new Vector3()); // default channelMask=1, gain=1, now
-    expect(out.x).toBeGreaterThan(0);
+    const out: Vec3 = [0, 0, 0];
+    field.sampleAt(out, [0, 0, 0]); // default channelMask=1, gain=1, now
+    expect(out[0]).toBeGreaterThan(0);
   });
 
   describe('shape defaults and presets', () => {
@@ -224,19 +227,19 @@ describe('ImpulseField', () => {
       const field = new ImpulseField();
       field.generate({ position: [0, 0, 0], direction: [10, 0, 0] }, 0);
 
-      const out = new Vector3();
+      const out: Vec3 = [0, 0, 0];
       const t = 0.2;
-      field.sampleAt(out, new Vector3(), 1, 1, t * 0.4); // default duration 0.4
-      expect(out.x).toBeCloseTo(10 * ImpulseShapes.bump(t), 5);
+      field.sampleAt(out, [0, 0, 0], 1, 1, t * 0.4); // default duration 0.4
+      expect(out[0]).toBeCloseTo(10 * ImpulseShapes.bump(t), 5);
     });
 
     it('an explicit shape always overrides the default', () => {
       const field = new ImpulseField();
       field.generate({ position: [0, 0, 0], direction: [10, 0, 0], shape: () => 0.5 }, 0);
 
-      const out = new Vector3();
-      field.sampleAt(out, new Vector3(), 1, 1, 0.1); // within the default duration
-      expect(out.x).toBeCloseTo(5, 5);
+      const out: Vec3 = [0, 0, 0];
+      field.sampleAt(out, [0, 0, 0], 1, 1, 0.1); // within the default duration
+      expect(out[0]).toBeCloseTo(5, 5);
     });
 
     it('recoil starts at full strength and eases down to ~0 by the end', () => {
@@ -254,7 +257,7 @@ describe('ImpulseField', () => {
       const field = new ImpulseField();
       field.generate({ position: [0, 0, 0], direction: [10, 0, 0], shape: () => 0.7, duration: 1 }, 0);
 
-      const strength = field.sampleAt(new Vector3(), new Vector3(), 1, 1, 0.5);
+      const strength = field.sampleAt([0, 0, 0], [0, 0, 0], 1, 1, 0.5);
       expect(strength).toBeCloseTo(0.7, 5);
     });
 
@@ -263,7 +266,7 @@ describe('ImpulseField', () => {
       field.generate({ position: [0, 0, 0], direction: [10, 0, 0], shape: always, duration: 1 }, 0);
       field.generate({ position: [0, 0, 0], direction: [0, 5, 0], shape: always, duration: 1 }, 0);
 
-      const strength = field.sampleAt(new Vector3(), new Vector3(), 1, 1, 0.5);
+      const strength = field.sampleAt([0, 0, 0], [0, 0, 0], 1, 1, 0.5);
       expect(strength).toBeCloseTo(2, 5);
     });
 
@@ -271,7 +274,7 @@ describe('ImpulseField', () => {
       const field = new ImpulseField();
       field.generate({ position: [0, 0, 0], direction: [10, 0, 0], shape: always, duration: 1, channel: 0b10 }, 0);
 
-      expect(field.sampleAt(new Vector3(), new Vector3(), 0b01, 1, 0.5)).toBe(0);
+      expect(field.sampleAt([0, 0, 0], [0, 0, 0], 0b01, 1, 0.5)).toBe(0);
     });
   });
 
@@ -290,12 +293,12 @@ describe('ImpulseField', () => {
     it('stays true while active, false once sampleAt prunes it past its lifetime', () => {
       const field = new ImpulseField();
       field.generate({ position: [0, 0, 0], direction: [10, 0, 0], shape: always, duration: 0.3 }, 0);
-      const out = new Vector3();
+      const out: Vec3 = [0, 0, 0];
 
-      field.sampleAt(out, new Vector3(), 1, 1, 0.15); // mid-duration
+      field.sampleAt(out, [0, 0, 0], 1, 1, 0.15); // mid-duration
       expect(field.hasEvents).toBe(true);
 
-      field.sampleAt(out, new Vector3(), 1, 1, 1); // well past duration
+      field.sampleAt(out, [0, 0, 0], 1, 1, 1); // well past duration
       expect(field.hasEvents).toBe(false);
     });
 

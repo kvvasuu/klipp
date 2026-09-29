@@ -210,10 +210,7 @@ export function updateRotationComposer(
   // A fresh activation has no meaningful previous orientation for a dead-zone check.
   if (!justActivated && (deadZone[0] > 0 || deadZone[1] > 0)) {
     // Measure the target using the orientation from before this update.
-    const screenPoint = computeScreenPoint(position, rotation, target, tanHalfFovH, tanHalfFovV);
-    const screenX = screenPoint[0];
-    const screenY = screenPoint[1];
-    const depth = screenPoint[2];
+    const [screenX, screenY, depth] = computeScreenPoint(position, rotation, target, tanHalfFovH, tanHalfFovV);
 
     if (depth > 1e-6) {
       const halfWidth = deadZone[0];
@@ -266,10 +263,7 @@ export function updateRotationComposer(
 
   if (hardLimit[0] <= 0 && hardLimit[1] <= 0) return;
 
-  const screenPoint = computeScreenPoint(position, rotation, target, tanHalfFovH, tanHalfFovV);
-  const screenX = screenPoint[0];
-  const screenY = screenPoint[1];
-  const depth = screenPoint[2];
+  const [screenX, screenY, depth] = computeScreenPoint(position, rotation, target, tanHalfFovH, tanHalfFovV);
   if (depth <= 1e-6) return;
 
   const halfLimitWidth = hardLimit[0];
