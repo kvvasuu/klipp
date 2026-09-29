@@ -5,7 +5,7 @@
  * API. Never re-record fixtures to make a failing scenario pass, unless the behavior change is
  * deliberate and documented.
  */
-import { vec3 } from 'math';
+import { vec3, type Vec3 } from 'math';
 import { Vector3 } from 'three';
 import { createCameraState, type CameraState } from '../../src/CameraState';
 import { KlippCore } from '../../src/KlippCore';
@@ -71,7 +71,7 @@ const aim = (name: string, make: (w: World) => Update, perFrame?: (w: World, dt:
 });
 
 /** A full controller: Follow + HardLookAt, plus whatever `extra` registers. */
-function rig(w: World, extra?: (c: VirtualCameraController) => void, offset = new Vector3(0, 3, 8)) {
+function rig(w: World, extra?: (c: VirtualCameraController) => void, offset: Vec3 = [0, 3, 8]) {
   const controller = new VirtualCameraController('rig');
   controller.registerBody(new FollowBody(w.target, offset, 0.4).update);
   controller.registerAim(new HardLookAtAim(w.target).update);
@@ -97,7 +97,7 @@ function coreScenario(name: string, defaultBlend: BlendDefinition, hints: BlendH
       simulate((w) => {
         const a = rig(w);
         const b = new VirtualCameraController('b');
-        b.registerBody(new FollowBody(w.target, new Vector3(6, 2, -4), 0.3, BindingModes.worldSpace).update);
+        b.registerBody(new FollowBody(w.target, [6, 2, -4], 0.3, BindingModes.worldSpace).update);
         b.registerAim(new RotationComposerAim(w.target, [0.1, 0], 16 / 9, [0.1, 0.1], 0.3).update);
         const bState = initialState();
         const core = new KlippCore({ defaultBlend });
@@ -121,12 +121,11 @@ export const scenarios: Scenario[] = [
   body('body.hardLockToTarget', (w) => new HardLockToTargetBody(w.target, 0.3).update),
   body('body.hardLockToTarget.maxSpeed', (w) => new HardLockToTargetBody(w.target, 0.3, 15).update),
   ...bindingModes.map((mode) =>
-    body(`body.follow.${mode}`, (w) => new FollowBody(w.target, new Vector3(0, 3, 8), 0.4, mode).update),
+    body(`body.follow.${mode}`, (w) => new FollowBody(w.target, [0, 3, 8], 0.4, mode).update),
   ),
   body(
     'body.follow.asymmetricDamping.maxSpeed',
-    (w) =>
-      new FollowBody(w.target, new Vector3(1, 3, 8), { into: 0.2, from: 0.6 }, BindingModes.lockToTarget, 20).update,
+    (w) => new FollowBody(w.target, [1, 3, 8], { into: 0.2, from: 0.6 }, BindingModes.lockToTarget, 20).update,
   ),
   body(
     'body.positionComposer',
@@ -276,7 +275,7 @@ export const scenarios: Scenario[] = [
     run: () =>
       simulate((w) => {
         const a = rig(w);
-        const b = rig(w, undefined, new Vector3(-5, 6, 2));
+        const b = rig(w, undefined, [-5, 6, 2]);
         const slots = [
           { cameraId: 'a', state: a.state, weight: 1 },
           { cameraId: 'b', state: b.state, weight: 0 },
@@ -295,7 +294,7 @@ export const scenarios: Scenario[] = [
     run: () =>
       simulate((w) => {
         const a = rig(w);
-        const b = rig(w, undefined, new Vector3(-5, 6, 2));
+        const b = rig(w, undefined, [-5, 6, 2]);
         const sequencer = new Sequencer(
           [
             { cameraId: 'a', state: a.state, hold: 0.8 },
@@ -315,8 +314,8 @@ export const scenarios: Scenario[] = [
     run: () =>
       simulate((w) => {
         const a = rig(w);
-        const b = rig(w, undefined, new Vector3(-5, 6, 2));
-        const c = rig(w, undefined, new Vector3(4, 1, -6));
+        const b = rig(w, undefined, [-5, 6, 2]);
+        const c = rig(w, undefined, [4, 1, -6]);
         // quality per 0.6 s phase: plain pick, random tie (b/c, committed once a pick holds),
         // priority tie-break (a over b), per-frame flicker (debounced by activateAfter), c wins,
         // then the switch back to a waits out minDuration
@@ -362,8 +361,8 @@ export const scenarios: Scenario[] = [
     run: () =>
       simulate((w) => {
         const a = rig(w);
-        const b = rig(w, undefined, new Vector3(-5, 6, 2));
-        const c = rig(w, undefined, new Vector3(4, 1, -6));
+        const b = rig(w, undefined, [-5, 6, 2]);
+        const c = rig(w, undefined, [4, 1, -6]);
         const stateDriven = new StateDrivenCamera(
           [
             { cameraId: 'a', state: a.state, priority: 1, forState: 'idle' },

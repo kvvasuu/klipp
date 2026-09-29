@@ -1,12 +1,7 @@
 export { VirtualCameraController, type VirtualCameraSlots, type CameraStateWriter } from './VirtualCameraController';
 export { KlippCore, type VirtualCameraConfig, type KlippCoreOptions, type CameraTransitionEventMap } from './KlippCore';
-export {
-  createCameraState,
-  copyCameraState,
-  copyCameraStateFromCamera,
-  applyCameraState,
-  type CameraState,
-} from './CameraState';
+export { createCameraState, copyCameraState, type CameraState } from './CameraState';
+export { copyCameraStateFromCamera, applyCameraState, writeCameraTransform, writeCameraLens } from './three/camera';
 export { resolveTargetPosition, resolveTargetRotation, type Target } from './resolve/Target';
 export { resolveVector3, isVector3Like } from './resolve/resolveVector3';
 export { Damper, damp, createDamperState, resetDamper, type DamperState, type DampingConstant } from './damping/Damper';

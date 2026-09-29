@@ -381,7 +381,7 @@ describe('CameraControlsBody', () => {
       const aState = createCameraState();
       // Follow's offset is a real, persistent, non-zero orbit radius - unlike HardLockToTargetBody's,
       // which is always zero by definition (out.target mirrors out.position exactly, damping or not)
-      const aBody = new FollowBody(new Vector3(0, 0, 0), new Vector3(10, 0, 0));
+      const aBody = new FollowBody(new Vector3(0, 0, 0), [10, 0, 0]);
       aBody.update(aState, 0.016);
       new HardLookAtAim(new Vector3(0, 0, 0)).update(aState, 0.016);
       core.registerCamera({ id: 'a', priority: 10, state: aState, hints: BlendHints.sphericalPosition });

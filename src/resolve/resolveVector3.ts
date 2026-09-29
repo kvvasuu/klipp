@@ -1,4 +1,5 @@
 import type { Vector3 as Vector3Like } from '@react-three/fiber';
+import { vec3, type Vec3 } from 'math';
 import { Vector3 } from 'three';
 
 /** Whether a value matches r3f's `Vector3` prop shorthand. */
@@ -11,4 +12,11 @@ export function resolveVector3(out: Vector3, value: Vector3Like): Vector3 {
   if (typeof value === 'number') return out.setScalar(value);
   if (value instanceof Vector3) return out.copy(value);
   return out.set(value[0], value[1], value[2] ?? 0);
+}
+
+/** Resolve a r3f vector shorthand into the tuple `out`. */
+export function resolveVec3(out: Vec3, value: Vector3Like): Vec3 {
+  if (typeof value === 'number') return vec3.set(out, value, value, value);
+  if (value instanceof Vector3) return vec3.set(out, value.x, value.y, value.z);
+  return vec3.set(out, value[0], value[1], value[2] ?? 0);
 }

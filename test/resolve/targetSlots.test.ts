@@ -1,5 +1,5 @@
 import { vec3 } from 'math';
-import { BoxGeometry, Mesh, Vector3, type Object3D } from 'three';
+import { BoxGeometry, Mesh, type Object3D } from 'three';
 import { describe, expect, it } from 'vitest';
 import { createCameraState, type CameraState } from '../../src/CameraState';
 import { HardLookAtAim } from '../../src/aim/HardLookAtAim';
@@ -61,7 +61,7 @@ describe('stages read the same values from registry slots as from the scene grap
   for (const mode of Object.values(BindingModes)) {
     it(`Follow (${mode}) + HardLookAt`, () => {
       const [direct, slotted] = runBothWays((w) => [
-        single(new FollowBody(w.target, new Vector3(0, 3, 8), 0.4, mode)),
+        single(new FollowBody(w.target, [0, 3, 8], 0.4, mode)),
         single(new HardLookAtAim(w.target)),
       ]);
       expect(slotted).toEqual(direct);

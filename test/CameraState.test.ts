@@ -1,14 +1,8 @@
 import { vec3, vec4 } from 'math';
 import { PerspectiveCamera, Quaternion, Vector3 } from 'three';
 import { describe, expect, it } from 'vitest';
-import {
-  applyCameraState,
-  copyCameraState,
-  copyCameraStateFromCamera,
-  createCameraState,
-  mergeCameraState,
-  type CameraState,
-} from '../src/CameraState';
+import { copyCameraState, createCameraState, mergeCameraState, type CameraState } from '../src/CameraState';
+import { applyCameraState, copyCameraStateFromCamera } from '../src/three/camera';
 import { toQuaternion, toTuple, toVector3 } from './tuples';
 
 describe('copyCameraState', () => {

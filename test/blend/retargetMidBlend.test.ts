@@ -22,7 +22,7 @@ function runFocusPull(retargetAtTick: number | null, reactivateOntoSameTargetFir
   const defaultState = createCameraState();
   const focusedState = createCameraState();
 
-  const defaultBody = new FollowBody(productCenter, new Vector3(0, 4, 16), 0);
+  const defaultBody = new FollowBody(productCenter, [0, 4, 16], 0);
   const defaultAim = new HardLookAtAim(productCenter);
 
   const firstFocus = { position: new Vector3(-6, 3, 7), lookAt: new Vector3(-6, 1, 0) };

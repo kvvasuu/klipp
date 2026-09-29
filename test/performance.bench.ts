@@ -18,7 +18,7 @@ import { ImpulseListenerNoise } from '../src/impulse/ImpulseListenerNoise';
 import { InputSystem, MouseButton, createConsumedInput, type ConsumedInput } from '../src/input/InputSystem';
 import { BasicMultiChannelPerlinNoise } from '../src/noise/BasicMultiChannelPerlinNoise';
 import { TargetRegistry } from '../src/resolve/TargetRegistry';
-import { toQuaternion } from './tuples';
+import { toQuaternion, toTuple } from './tuples';
 
 const always = () => 1;
 
@@ -70,7 +70,7 @@ group('Body.update @body', () => {
 
   bench('Follow (lockToTarget binding)', function* () {
     const { object, step } = makeMovingTarget();
-    const body = new FollowBody(object, new Vector3(0, 3, 8), 0.5);
+    const body = new FollowBody(object, [0, 3, 8], 0.5);
     const out = createCameraState();
     yield () => {
       step();
@@ -455,7 +455,7 @@ group('VirtualCameraController.update @controller', () => {
     const { object, step } = makeMovingTarget();
     const controller = new VirtualCameraController('full');
     const targetGroup = new TargetGroup([{ target: object, radius: 1.5 }]);
-    controller.registerBody(new FollowBody(object, new Vector3(0, 3, 12), 0.5).update);
+    controller.registerBody(new FollowBody(object, [0, 3, 12], 0.5).update);
     controller.registerAim(new RotationComposerAim(object, [0, 0], 16 / 9, [0.15, 0.15], 0.5).update);
     controller.registerExtension(new GroupFramingExtension(targetGroup, 40, 1920, 1080, 0.5).update);
     controller.registerNoise(
@@ -578,7 +578,7 @@ function* twoCamerasOnSharedTarget(depth: number, withRegistry: boolean) {
   const { object, step } = makeNestedTarget(depth);
   const registry = new TargetRegistry();
   const cameras = [new Vector3(0, 3, 8), new Vector3(5, 2, 0)].map((offset) => {
-    const follow = new FollowBody(object, offset, 0.5);
+    const follow = new FollowBody(object, toTuple(offset), 0.5);
     const look = new HardLookAtAim(object);
     if (withRegistry) follow.targetSlot = look.targetSlot = registry.acquire(object);
     return { follow, look, out: createCameraState() };

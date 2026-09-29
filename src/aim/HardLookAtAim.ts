@@ -1,35 +1,33 @@
-import { Matrix4, Quaternion, Vector3 } from 'three';
+import { mat3, mat4, quat, vec3, type Mat3, type Mat4, type Vec3 } from 'math';
 import type { CameraState } from '../CameraState';
-import { resolveTargetPosition, type Target } from '../resolve/Target';
+import type { Target } from '../resolve/Target';
 import type { TargetSlot } from '../resolve/TargetRegistry';
+import { createTargetPose } from '../TargetPose';
+import { readTargetPose } from '../three/readTargetPose';
 
-const scratchPosition = new Vector3();
-const scratchUp = new Vector3();
-const scratchRotation = new Quaternion();
+const scratchLookMatrix: Mat4 = mat4.create();
+const scratchRotationMatrix: Mat3 = mat3.create();
 
-/**
- * Rotates so the Look At Target is dead-center.
- *
- * Builds the look-at matrix directly because a plain `Object3D` swaps eye and target in `.lookAt()`,
- * which reverses the camera orientation.
- */
+/** Rotates `out` so `targetPosition` is dead-center. */
+export function updateHardLookAt(out: CameraState, targetPosition: Vec3): void {
+  mat4.targetTo(scratchLookMatrix, out.position, targetPosition, out.referenceUp);
+  // Not quat.fromMat4: it allocates a Mat3 per call.
+  quat.fromMat3(out.quaternion, mat3.fromMat4(scratchRotationMatrix, scratchLookMatrix));
+  vec3.copy(out.lookAtTarget, targetPosition);
+  out.hasLookAtTarget = true;
+}
+
+/** Rotates so the Look At Target is dead-center. */
 export class HardLookAtAim {
   target: Target;
   targetSlot: TargetSlot | null = null;
-  private readonly scratchMatrix = new Matrix4();
-  private readonly scratchTargetPosition = new Vector3();
+  private readonly pose = createTargetPose();
 
   constructor(target: Target) {
     this.target = target;
   }
 
   update = (out: CameraState): void => {
-    if (!resolveTargetPosition(this.scratchTargetPosition, this.target, this.targetSlot)) return;
-    scratchPosition.fromArray(out.position);
-    scratchUp.fromArray(out.referenceUp);
-    this.scratchMatrix.lookAt(scratchPosition, this.scratchTargetPosition, scratchUp);
-    scratchRotation.setFromRotationMatrix(this.scratchMatrix).toArray(out.quaternion);
-    this.scratchTargetPosition.toArray(out.lookAtTarget);
-    out.hasLookAtTarget = true;
+    if (readTargetPose(this.pose, this.target, this.targetSlot, false)) updateHardLookAt(out, this.pose.position);
   };
 }

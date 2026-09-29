@@ -122,25 +122,25 @@ const scenarios: { name: string; budget: number; frame: () => void }[] = [
   },
   {
     name: 'frame: Follow + HardLookAt',
-    budget: 96,
+    budget: 80,
     frame: klippFrame((target, c, slot) => {
-      c.registerBody(withSlot(new FollowBody(target, new Vector3(0, 3, 8), 0.5), slot).update);
+      c.registerBody(withSlot(new FollowBody(target, [0, 3, 8], 0.5), slot).update);
       c.registerAim(withSlot(new HardLookAtAim(target), slot).update);
     }),
   },
   {
     name: 'frame: Follow + RotationComposer',
-    budget: 447,
+    budget: 431,
     frame: klippFrame((target, c, slot) => {
-      c.registerBody(withSlot(new FollowBody(target, new Vector3(0, 3, 12), 0.5), slot).update);
+      c.registerBody(withSlot(new FollowBody(target, [0, 3, 12], 0.5), slot).update);
       c.registerAim(withSlot(new RotationComposerAim(target, [0, 0], 16 / 9, [0.15, 0.15], 0.5), slot).update);
     }),
   },
   {
     name: 'frame: Follow + HardLookAt + GroupFraming',
-    budget: 192,
+    budget: 176,
     frame: klippFrame((target, c, slot) => {
-      c.registerBody(withSlot(new FollowBody(target, new Vector3(0, 3, 12), 0.5), slot).update);
+      c.registerBody(withSlot(new FollowBody(target, [0, 3, 12], 0.5), slot).update);
       c.registerAim(withSlot(new HardLookAtAim(target), slot).update);
       c.registerExtension(
         new GroupFramingExtension(
@@ -155,9 +155,9 @@ const scenarios: { name: string; budget: number; frame: () => void }[] = [
   },
   {
     name: 'frame: Follow + HardLookAt + Perlin',
-    budget: 335,
+    budget: 319,
     frame: klippFrame((target, c, slot) => {
-      c.registerBody(withSlot(new FollowBody(target, new Vector3(0, 3, 12), 0.5), slot).update);
+      c.registerBody(withSlot(new FollowBody(target, [0, 3, 12], 0.5), slot).update);
       c.registerAim(withSlot(new HardLookAtAim(target), slot).update);
       c.registerNoise(
         new BasicMultiChannelPerlinNoise(new Vector3(0.1, 0.1, 0.1), undefined, new Vector3(2, 2, 2)).update,
@@ -166,9 +166,9 @@ const scenarios: { name: string; budget: number; frame: () => void }[] = [
   },
   {
     name: 'frame: two cameras, Follow + HardLookAt, shared target',
-    budget: 192,
+    budget: 160,
     frame: klippFrame((target, c, slot) => {
-      c.registerBody(withSlot(new FollowBody(target, new Vector3(0, 3, 8), 0.5), slot).update);
+      c.registerBody(withSlot(new FollowBody(target, [0, 3, 8], 0.5), slot).update);
       c.registerAim(withSlot(new HardLookAtAim(target), slot).update);
     }, 2),
   },

@@ -2,10 +2,11 @@ import { useFrame, useThree } from '@react-three/fiber';
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { vec3, vec4 } from 'math';
 import type { Camera, PerspectiveCamera } from 'three';
-import { copyCameraState, copyCameraStateFromCamera, createCameraState, type CameraState } from './CameraState';
+import { copyCameraState, createCameraState, type CameraState } from './CameraState';
 import { KlippContext, useKlipp, type FrameUpdate, type KlippContextValue } from './KlippContext';
 import { KlippCore, type KlippCoreOptions } from './KlippCore';
 import { TargetRegistry } from './resolve/TargetRegistry';
+import { copyCameraStateFromCamera, writeCameraLens, writeCameraTransform } from './three/camera';
 import { useCameraTransitionEvent, type CameraTransitionEventProps } from './useCameraTransitionEvent';
 
 /** `three` can load twice in monorepos; `instanceof` then fails. Use the camera's own flag instead. */
@@ -112,28 +113,8 @@ export function Klipp({ children, defaultBlend, customBlends, camera: cameraProp
       copyCameraState(previousResult, result);
       settledRef.current = true;
 
-      if (!transformUnchanged) {
-        camera.position.fromArray(result.position);
-        camera.quaternion.fromArray(result.quaternion);
-      }
-      if (!lensUnchanged && isPerspectiveCamera(camera)) {
-        camera.fov = result.fov;
-        camera.near = result.near;
-        camera.far = result.far;
-        if (result.viewOffset[0] !== 0 || result.viewOffset[1] !== 0) {
-          // three.js uses the opposite horizontal offset convention.
-          camera.setViewOffset(
-            size.width,
-            size.height,
-            -result.viewOffset[0] * (size.width / 2),
-            result.viewOffset[1] * (size.height / 2),
-            size.width,
-            size.height,
-          );
-        } else {
-          camera.clearViewOffset();
-        }
-      }
+      if (!transformUnchanged) writeCameraTransform(camera, result);
+      if (!lensUnchanged && isPerspectiveCamera(camera)) writeCameraLens(camera, result, size.width, size.height);
     }
 
     if (!transformUnchanged || !lensUnchanged || stillInFlight) {

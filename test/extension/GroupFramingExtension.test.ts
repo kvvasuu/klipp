@@ -1,7 +1,8 @@
 import { vec3, vec4 } from 'math';
 import { BoxGeometry, Mesh, PerspectiveCamera, Vector3 } from 'three';
 import { describe, expect, it } from 'vitest';
-import { applyCameraState, createCameraState } from '../../src/CameraState';
+import { createCameraState } from '../../src/CameraState';
+import { applyCameraState } from '../../src/three/camera';
 import { GroupFramingExtension } from '../../src/extension/GroupFramingExtension';
 import { TargetGroup } from '../../src/extension/TargetGroup';
 import { toQuaternion, toVector3 } from '../tuples';

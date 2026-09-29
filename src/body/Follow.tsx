@@ -1,8 +1,7 @@
 import type { Vector3 as Vector3Like } from '@react-three/fiber';
 import { useEffect, useImperativeHandle, useState, type Ref } from 'react';
-import { Vector3 } from 'three';
 import type { DampingConstant } from '../damping/Damper';
-import { resolveVector3 } from '../resolve/resolveVector3';
+import { resolveVec3 } from '../resolve/resolveVector3';
 import type { Target } from '../resolve/Target';
 import { useTargetSlot } from '../useTargetSlot';
 import { useVirtualCamera } from '../VirtualCameraContext';
@@ -36,13 +35,13 @@ export function Follow({
 }: FollowProps) {
   const { controller, state, initialState } = useVirtualCamera();
   const [body] = useState(() => {
-    const instance = new FollowBody(target, new Vector3(), damping);
+    const instance = new FollowBody(target, [0, 0, 0], damping);
     if (initialState?.position) instance.primeFrom(state.position);
     return instance;
   });
   body.target = target;
   body.targetSlot = useTargetSlot(target);
-  resolveVector3(body.offset, offset);
+  resolveVec3(body.offset, offset);
   body.damping = damping;
   body.bindingMode = bindingMode;
   body.maxSpeed = maxSpeed;

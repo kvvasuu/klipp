@@ -8,7 +8,7 @@ import { toTuple, toVector3 } from '../tuples';
 
 describe('FollowBody', () => {
   it('with a Vector3 target (no rotation), the offset is applied as plain world space', () => {
-    const body = new FollowBody(new Vector3(0, 0, 0), new Vector3(1, 2, 3));
+    const body = new FollowBody(new Vector3(0, 0, 0), [1, 2, 3]);
     const out = createCameraState();
 
     body.update(out, 0.1);
@@ -16,7 +16,7 @@ describe('FollowBody', () => {
   });
 
   it("writes the target's world position and hasTarget onto out, for BlendHints' sphericalPosition", () => {
-    const body = new FollowBody(new Vector3(2, 3, 4), new Vector3(1, 0, 0));
+    const body = new FollowBody(new Vector3(2, 3, 4), [1, 0, 0]);
     const out = createCameraState();
 
     body.update(out, 0.1);
@@ -32,7 +32,7 @@ describe('FollowBody', () => {
     target.position.set(2, 0, 0);
     parent.add(target);
 
-    const body = new FollowBody(target, new Vector3(0, 0, 0));
+    const body = new FollowBody(target, [0, 0, 0]);
     const out = createCameraState();
     body.update(out, 0.1);
 
@@ -43,7 +43,7 @@ describe('FollowBody', () => {
     const target = new Object3D();
     target.rotation.set(0, Math.PI / 2, 0); // turned 90° around Y
 
-    const body = new FollowBody(target, new Vector3(0, 0, 10));
+    const body = new FollowBody(target, [0, 0, 10]);
     const out = createCameraState();
     body.update(out, 0.1);
 
@@ -64,13 +64,13 @@ describe('FollowBody', () => {
 
   it('offset is a mutable field — reassigning it changes the followed offset live', () => {
     const target = new Vector3(0, 0, 0);
-    const body = new FollowBody(target, new Vector3(1, 0, 0));
+    const body = new FollowBody(target, [1, 0, 0]);
     const out = createCameraState();
 
     body.update(out, 0.1);
     expect(out.position[0]).toBeCloseTo(1, 10);
 
-    body.offset = new Vector3(5, 0, 0);
+    body.offset = [5, 0, 0];
     body.update(out, 0.1);
     expect(out.position[0]).toBeCloseTo(5, 10);
   });
@@ -92,7 +92,7 @@ describe('FollowBody', () => {
   });
 
   it('update is a bound instance method — safe to pass by reference (e.g. slots.registerBody(body.update))', () => {
-    const body = new FollowBody(new Vector3(0, 0, 0), new Vector3(1, 2, 3));
+    const body = new FollowBody(new Vector3(0, 0, 0), [1, 2, 3]);
     const { update } = body;
 
     const out = createCameraState();
@@ -103,7 +103,7 @@ describe('FollowBody', () => {
 
   describe('damping', () => {
     it('damping <= 0 (default) is an exact, instant lock — no smoothing at all', () => {
-      const body = new FollowBody(new Vector3(0, 0, 0), new Vector3(10, 0, 0));
+      const body = new FollowBody(new Vector3(0, 0, 0), [10, 0, 0]);
       const out = createCameraState();
 
       body.update(out, 0.016);
@@ -111,7 +111,7 @@ describe('FollowBody', () => {
     });
 
     it('the very first update() ever snaps directly to the desired position, even with damping > 0', () => {
-      const body = new FollowBody(new Vector3(0, 0, 0), new Vector3(10, 0, 0), 0.5);
+      const body = new FollowBody(new Vector3(0, 0, 0), [10, 0, 0], 0.5);
       const out = createCameraState();
 
       body.update(out, 0.016);
@@ -119,7 +119,7 @@ describe('FollowBody', () => {
     });
 
     it('damping > 0 catches up gradually instead of snapping in one frame, once warmed up', () => {
-      const body = new FollowBody(new Vector3(0, 0, 0), new Vector3(10, 0, 0), 0.5);
+      const body = new FollowBody(new Vector3(0, 0, 0), [10, 0, 0], 0.5);
       const out = createCameraState();
 
       body.update(out, 0.016); // consume the first-ever-update hard snap
@@ -130,7 +130,7 @@ describe('FollowBody', () => {
     });
 
     it('converges to the desired position over repeated ticks with damping enabled', () => {
-      const body = new FollowBody(new Vector3(0, 0, 0), new Vector3(10, 5, -3), 0.3);
+      const body = new FollowBody(new Vector3(0, 0, 0), [10, 5, -3], 0.3);
       const out = createCameraState();
 
       for (let i = 0; i < 300; i++) {
@@ -143,7 +143,7 @@ describe('FollowBody', () => {
     });
 
     it('accepts an asymmetric {into, from} DampingConstant, same as Damper itself', () => {
-      const body = new FollowBody(new Vector3(0, 0, 0), new Vector3(10, 0, 0), { into: 0.05, from: 2 });
+      const body = new FollowBody(new Vector3(0, 0, 0), [10, 0, 0], { into: 0.05, from: 2 });
       const out = createCameraState();
 
       body.update(out, 0.016); // consume the first-ever-update hard snap
@@ -155,7 +155,7 @@ describe('FollowBody', () => {
 
     it("with damping mid-catch-up, out.target derives from the DAMPED out.position (position minus the configured offset), not the raw target - a retarget must not distort the offset BlendHints.cylindricalPosition/sphericalPosition read (same class of bug already fixed for HardLockToTargetBody and RotationComposerAim's lookAtTarget)", () => {
       const target = new Vector3(0, 0, 0);
-      const body = new FollowBody(target, new Vector3(0, 0, 10), 0.5);
+      const body = new FollowBody(target, [0, 0, 10], 0.5);
       const out = createCameraState();
 
       body.update(out, 0.016); // consume the first-ever-update hard snap - out.position = (0, 0, 10)
@@ -174,13 +174,13 @@ describe('FollowBody', () => {
 
   describe('maxSpeed', () => {
     it('clamps how fast damping can close the gap, in world units/sec', () => {
-      const unclamped = new FollowBody(new Vector3(0, 0, 0), new Vector3(100, 0, 0), 1, BindingModes.lockToTarget);
+      const unclamped = new FollowBody(new Vector3(0, 0, 0), [100, 0, 0], 1, BindingModes.lockToTarget);
       const outUnclamped = createCameraState();
       unclamped.update(outUnclamped, 0.05); // consume the first-ever-update hard snap
       vec3.set(outUnclamped.position, 0, 0, 0); // move back away from target to genuinely exercise damping below
       unclamped.update(outUnclamped, 0.05);
 
-      const clamped = new FollowBody(new Vector3(0, 0, 0), new Vector3(100, 0, 0), 1, BindingModes.lockToTarget, 2);
+      const clamped = new FollowBody(new Vector3(0, 0, 0), [100, 0, 0], 1, BindingModes.lockToTarget, 2);
       const outClamped = createCameraState();
       clamped.update(outClamped, 0.05);
       vec3.set(outClamped.position, 0, 0, 0);
@@ -193,7 +193,7 @@ describe('FollowBody', () => {
   describe('justActivated', () => {
     it('snaps straight to the desired position even with a warmed-up damper and a stale out.position', () => {
       // offset (0,0,0): desired position === target, keeping the expected values simple below
-      const body = new FollowBody(new Vector3(10, 0, 0), new Vector3(0, 0, 0), 0.5);
+      const body = new FollowBody(new Vector3(10, 0, 0), [0, 0, 0], 0.5);
       const out = createCameraState();
 
       body.update(out, 0.016, true); // first-ever session: snaps, warms up the damper
@@ -207,7 +207,7 @@ describe('FollowBody', () => {
     });
 
     it('without justActivated, the same stale-state scenario eases instead of snapping (the bug this fixes)', () => {
-      const body = new FollowBody(new Vector3(10, 0, 0), new Vector3(0, 0, 0), 0.5);
+      const body = new FollowBody(new Vector3(10, 0, 0), [0, 0, 0], 0.5);
       const out = createCameraState();
 
       body.update(out, 0.016, true);
@@ -222,7 +222,7 @@ describe('FollowBody', () => {
 
   describe('primeFrom', () => {
     it('the next update() eases from the primed position toward the desired one instead of snapping', () => {
-      const body = new FollowBody(new Vector3(0, 0, 0), new Vector3(10, 0, 0), 0.5);
+      const body = new FollowBody(new Vector3(0, 0, 0), [10, 0, 0], 0.5);
       const initial = new Vector3(-50, 0, 0);
 
       body.primeFrom(toTuple(initial));
@@ -235,7 +235,7 @@ describe('FollowBody', () => {
     });
 
     it('without priming, update() still snaps straight to the desired position on justActivated (unchanged default)', () => {
-      const body = new FollowBody(new Vector3(0, 0, 0), new Vector3(10, 0, 0), 0.5);
+      const body = new FollowBody(new Vector3(0, 0, 0), [10, 0, 0], 0.5);
       const out = createCameraState();
 
       body.update(out, 0.016, true);
@@ -244,7 +244,7 @@ describe('FollowBody', () => {
 
     it('is consumed by the first justActivated only - a later reactivation snaps normally', () => {
       // offset (0,0,0): desired position === target, keeping the expected values simple below
-      const body = new FollowBody(new Vector3(0, 0, 0), new Vector3(0, 0, 0), 0.5);
+      const body = new FollowBody(new Vector3(0, 0, 0), [0, 0, 0], 0.5);
       const initial = new Vector3(-50, 0, 0);
 
       body.primeFrom(toTuple(initial));
@@ -264,7 +264,7 @@ describe('FollowBody', () => {
     it('defaults to lockToTarget (unchanged behavior from before bindingMode existed)', () => {
       const target = new Object3D();
       target.rotation.set(0, Math.PI / 2, 0);
-      const body = new FollowBody(target, new Vector3(0, 0, 10));
+      const body = new FollowBody(target, [0, 0, 10]);
       const out = createCameraState();
 
       body.update(out, 0.1);
@@ -275,7 +275,7 @@ describe('FollowBody', () => {
     it('worldSpace: offset is added raw, ignoring the target rotation entirely', () => {
       const target = new Object3D();
       target.rotation.set(0, Math.PI / 2, 0);
-      const body = new FollowBody(target, new Vector3(0, 0, 10), 0, BindingModes.worldSpace);
+      const body = new FollowBody(target, [0, 0, 10], 0, BindingModes.worldSpace);
       const out = createCameraState();
 
       body.update(out, 0.1);
@@ -288,7 +288,7 @@ describe('FollowBody', () => {
       target.rotateY(yaw);
       target.rotateX(0.6); // pitch, applied AFTER yaw in the target's own local frame
 
-      const body = new FollowBody(target, new Vector3(0, 0, 10), 0, BindingModes.lockToTargetWithWorldUp);
+      const body = new FollowBody(target, [0, 0, 10], 0, BindingModes.lockToTargetWithWorldUp);
       const out = createCameraState();
       body.update(out, 0.1);
 
@@ -304,7 +304,7 @@ describe('FollowBody', () => {
       target.rotateY(0.4);
       target.rotateX(0.5);
 
-      const body = new FollowBody(target, new Vector3(0, 1, 8), 0, BindingModes.lockToTargetNoRoll);
+      const body = new FollowBody(target, [0, 1, 8], 0, BindingModes.lockToTargetNoRoll);
       const out = createCameraState();
       body.update(out, 0.1);
       const beforeRoll = toVector3(out.position);
@@ -322,7 +322,7 @@ describe('FollowBody', () => {
       target.rotateY(0.4);
       target.rotateX(0.5);
 
-      const body = new FollowBody(target, new Vector3(0, 1, 8)); // default: lockToTarget
+      const body = new FollowBody(target, [0, 1, 8]); // default: lockToTarget
       const out = createCameraState();
       body.update(out, 0.1);
       const beforeRoll = toVector3(out.position);
@@ -338,7 +338,7 @@ describe('FollowBody', () => {
         const target = new Object3D();
         target.rotation.set(0, Math.PI / 2, 0);
 
-        const body = new FollowBody(target, new Vector3(0, 0, 10), 0, BindingModes.lockToTargetOnAssign);
+        const body = new FollowBody(target, [0, 0, 10], 0, BindingModes.lockToTargetOnAssign);
         const out = createCameraState();
         body.update(out, 0.1);
         const afterAssign = toVector3(out.position);
@@ -355,7 +355,7 @@ describe('FollowBody', () => {
         const targetB = new Object3D();
         targetB.position.set(5, 0, 0); // identity rotation
 
-        const body = new FollowBody(targetA, new Vector3(0, 0, 10), 0, BindingModes.lockToTargetOnAssign);
+        const body = new FollowBody(targetA, [0, 0, 10], 0, BindingModes.lockToTargetOnAssign);
         const out = createCameraState();
         body.update(out, 0.1);
 
@@ -375,7 +375,7 @@ describe('FollowBody', () => {
         target.rotateX(0.3);
         target.rotateZ(1.1); // roll
 
-        const body = new FollowBody(target, new Vector3(0, 1, 8)); // default: lockToTarget
+        const body = new FollowBody(target, [0, 1, 8]); // default: lockToTarget
         const out = createCameraState();
         body.update(out, 0.1);
 
@@ -391,7 +391,7 @@ describe('FollowBody', () => {
         target.rotateX(0.3);
         target.rotateZ(1.1);
 
-        const body = new FollowBody(target, new Vector3(0, 1, 8), 0, BindingModes.worldSpace);
+        const body = new FollowBody(target, [0, 1, 8], 0, BindingModes.worldSpace);
         const out = createCameraState();
         body.update(out, 0.1);
 
@@ -403,7 +403,7 @@ describe('FollowBody', () => {
         target.rotateY(0.4);
         target.rotateX(0.5);
 
-        const body = new FollowBody(target, new Vector3(0, 1, 8), 0, BindingModes.lockToTargetNoRoll);
+        const body = new FollowBody(target, [0, 1, 8], 0, BindingModes.lockToTargetNoRoll);
         const out = createCameraState();
         body.update(out, 0.1);
         const beforeRoll = toVector3(out.referenceUp);
@@ -420,7 +420,7 @@ describe('FollowBody', () => {
         const target = new Object3D();
         target.rotateY(1.7);
 
-        const body = new FollowBody(target, new Vector3(0, 1, 8), 0, BindingModes.lockToTargetWithWorldUp);
+        const body = new FollowBody(target, [0, 1, 8], 0, BindingModes.lockToTargetWithWorldUp);
         const out = createCameraState();
         body.update(out, 0.1);
 
@@ -432,7 +432,7 @@ describe('FollowBody', () => {
         target.rotateY(0.4);
         target.rotateZ(0.8);
 
-        const body = new FollowBody(target, new Vector3(0, 1, 8), 0, BindingModes.lockToTargetOnAssign);
+        const body = new FollowBody(target, [0, 1, 8], 0, BindingModes.lockToTargetOnAssign);
         const out = createCameraState();
         body.update(out, 0.1);
         const afterAssign = toVector3(out.referenceUp);
@@ -449,7 +449,7 @@ describe('FollowBody', () => {
     it('bindingMode is a mutable field', () => {
       const target = new Object3D();
       target.rotation.set(0, Math.PI / 2, 0);
-      const body = new FollowBody(target, new Vector3(0, 0, 10));
+      const body = new FollowBody(target, [0, 0, 10]);
       const out = createCameraState();
 
       body.update(out, 0.1);
