@@ -77,7 +77,7 @@ Every Body, Aim, Extension and Noise gives you the class that does the actual wo
 const body = useRef<FollowBody>(null);
 
 useFrame(() => {
-  body.current.offset.z = zoom;
+  body.current.offset[2] = zoom;
 });
 
 <Body.Follow ref={body} target={playerRef} />;

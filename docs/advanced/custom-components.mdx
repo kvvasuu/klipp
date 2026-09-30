@@ -33,12 +33,12 @@ An Extension that turns the shot slightly toward the mouse, on top of any Body a
 ```tsx
 import { useEffect, useState } from 'react';
 import { useThree } from '@react-three/fiber';
-import { Euler, Quaternion } from 'three';
+import { quat, type Euler, type Quat } from 'math';
 import { Damper } from '@kvvasuu/klipp';
 import { useVirtualCamera } from '@kvvasuu/klipp/react';
 
-const euler = new Euler();
-const rotation = new Quaternion();
+const euler: Euler = [0, 0, 0, 'xyz'];
+const rotation: Quat = [0, 0, 0, 1];
 
 export function PointerDrift({ strength = 0.1, damping = 0.4 }) {
   const { controller } = useVirtualCamera();
@@ -61,7 +61,9 @@ export function PointerDrift({ strength = 0.1, damping = 0.4 }) {
       yaw = yawDamper.update(yaw, targetYaw, damping, dt);
       pitch = pitchDamper.update(pitch, targetPitch, damping, dt);
 
-      out.quaternion.multiply(rotation.setFromEuler(euler.set(pitch, yaw, 0)));
+      euler[0] = pitch;
+      euler[1] = yaw;
+      quat.multiply(out.quaternion, out.quaternion, quat.fromEuler(rotation, euler));
       return yaw !== targetYaw || pitch !== targetPitch;
     });
   }, [controller, pointer, strength, damping, yawDamper, pitchDamper]);
@@ -85,23 +87,30 @@ export function PointerDrift({ strength = 0.1, damping = 0.4 }) {
 
 | Field | Type | Description |
 | ----- | ---- | ----------- |
-| `position` | `Vector3` | Camera position. |
-| `quaternion` | `Quaternion` | Camera rotation. |
+| `position` | `Vec3` | Camera position. |
+| `quaternion` | `Quat` | Camera rotation. |
 | `fov`, `near`, `far` | `number` | Lens settings. |
 | `viewOffset` | `[number, number]` | Shifts the view without moving the camera. `[0, 0]` is centered. |
-| `target`, `hasTarget` | `Vector3`, `boolean` | The point the Body follows, if any. Used by [blend hints](/blending/introduction#blend-hints). |
-| `lookAtTarget`, `hasLookAtTarget` | `Vector3`, `boolean` | The point the Aim looks at, if any. |
-| `referenceUp` | `Vector3` | Which way is up for Aims. Defaults to `[0, 1, 0]`. |
+| `target`, `hasTarget` | `Vec3`, `boolean` | The point the Body follows, if any. Used by [blend hints](/blending/introduction#blend-hints). |
+| `lookAtTarget`, `hasLookAtTarget` | `Vec3`, `boolean` | The point the Aim looks at, if any. |
+| `referenceUp` | `Vec3` | Which way is up for Aims. Defaults to `[0, 1, 0]`. |
+
+Vectors are plain arrays (`[x, y, z]`, quaternions `[x, y, z, w]`) from [`math`](https://github.com/pmndrs/math), which klipp depends on. Use its `vec3` and `quat` functions to work with them, or copy to three.js with `vector.fromArray(out.position)`.
 
 ## Helpers
 
-These are exported from `@kvvasuu/klipp` so your components can behave like the built-in ones:
+These let your components behave like the built-in ones. From `@kvvasuu/klipp`:
 
 | Helper | What it does |
 | ------ | ------------ |
 | `Damper` | Smooths a number with a `damping` value. Call `reset()` to snap on the next update. |
-| `Vector3Damper` | The same for a `Vector3`. |
-| `QuaternionDamper` | The same for a rotation. |
-| `resolveTargetPosition(out, target)` | Reads the world position of any [target](/getting-started/core-concepts#targets). Returns `false` if there isn't one. |
-| `resolveTargetRotation(out, target)` | Reads the world rotation of a target. Returns `false` if there isn't one. |
+| `damp`, `dampVector3`, `dampQuaternion` | The same as functions over state you keep yourself (`createDamperState()`, ...). |
+
+From `@kvvasuu/klipp/three`:
+
+| Helper | What it does |
+| ------ | ------------ |
+| `Vector3Damper`, `QuaternionDamper` | `Damper` for a three.js `Vector3` or `Quaternion`. |
+| `readTargetPose(out, target, null, withRotation)` | Reads the world position, and optionally rotation, of any [target](/getting-started/core-concepts#targets) into a `TargetPose`. Returns `false` if there isn't one. |
+| `resolveTargetPosition(out, target)`, `resolveTargetRotation(out, target)` | The same into a three.js `Vector3` or `Quaternion`. |
 | `resolveVector3(out, value)` | Turns `[x, y, z]`, a number or a `Vector3` into a `Vector3`. |
