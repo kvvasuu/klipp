@@ -2,13 +2,11 @@ import {
   clamp,
   deltaAngle,
   lerp,
-  mat3,
   mat4,
   quat,
   spherical,
   vec3,
   vec4,
-  type Mat3,
   type Mat4,
   type Quat,
   type Spherical,
@@ -26,7 +24,6 @@ const scratchSphericalA: Spherical = [0, 0, 0];
 const scratchSphericalB: Spherical = [0, 0, 0];
 const scratchSphericalOut: Spherical = [0, 0, 0];
 const scratchLookMatrix: Mat4 = mat4.create();
-const scratchRotationMatrix: Mat3 = mat3.create();
 const scratchLookAtCurrent: Quat = [0, 0, 0, 1];
 const scratchDeltaA: Quat = [0, 0, 0, 1];
 const scratchDeltaB: Quat = [0, 0, 0, 1];
@@ -42,8 +39,7 @@ function lerpLookAtRotation(out: Quat, a: CameraState, b: CameraState, t: number
 /** The rotation looking from `state.position` at `state.lookAtTarget`. */
 function lookAtRotation(out: Quat, state: CameraState): Quat {
   mat4.targetTo(scratchLookMatrix, state.position, state.lookAtTarget, state.referenceUp);
-  // Not quat.fromMat4: it allocates a Mat3 per call.
-  return quat.fromMat3(out, mat3.fromMat4(scratchRotationMatrix, scratchLookMatrix));
+  return quat.fromMat4(out, scratchLookMatrix);
 }
 
 /** Below this radius, angular values are not meaningful. */

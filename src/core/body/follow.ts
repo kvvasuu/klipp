@@ -1,4 +1,4 @@
-import { mat3, mat4, quat, vec3, type Mat3, type Mat4, type Quat, type Vec3 } from 'math';
+import { mat4, quat, vec3, type Mat4, type Quat, type Vec3 } from 'math';
 import type { CameraState } from '../CameraState';
 import type { DampingConstant } from '../damping/Damper';
 import {
@@ -45,7 +45,6 @@ const scratchRotatedOffset: Vec3 = [0, 0, 0];
 const scratchDesired: Vec3 = [0, 0, 0];
 const scratchForward: Vec3 = [0, 0, 0];
 const scratchLookMatrix: Mat4 = mat4.create();
-const scratchRotationMatrix: Mat3 = mat3.create();
 
 function resolveOffsetRotation(out: Quat, state: FollowState, params: FollowParams, target: TargetPose): void {
   if (params.bindingMode === BindingModes.worldSpace) {
@@ -76,8 +75,7 @@ function resolveOffsetRotation(out: Quat, state: FollowState, params: FollowPara
   if (vec3.squaredLength(scratchForward) < 1e-10) return; // degenerate (straight up/down): keep the full rotation
   vec3.normalize(scratchForward, scratchForward);
   mat4.targetTo(scratchLookMatrix, origin, scratchForward, worldUp);
-  // Not quat.fromMat4: it allocates a Mat3 per call.
-  quat.fromMat3(out, mat3.fromMat4(scratchRotationMatrix, scratchLookMatrix));
+  quat.fromMat4(out, scratchLookMatrix);
 }
 
 /** Moves `out` to the target position plus `offset`, rotated according to `bindingMode`. A `null` target leaves `out` as is. */
