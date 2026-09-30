@@ -1,4 +1,4 @@
-import { vec3, type Vec3 } from 'math';
+import { smoothstep, vec3, type Vec3 } from 'math';
 
 /** Shared clock value used by impulse generation and sampling. */
 export type ImpulseClockSeconds = number;
@@ -8,7 +8,7 @@ export type ImpulseShape = (t: number) => number;
 
 /** Built-in impulse envelope shapes. */
 export const ImpulseShapes = {
-  recoil: (t) => (1 - t) ** 2 * (1 + 2 * t),
+  recoil: (t) => 1 - smoothstep(0, 1, t),
   bump: (t) => Math.min(1, t / 0.3) * Math.min(1, (1 - t) / 0.6),
   explosion: (t) => Math.min(1, t / 0.1) * Math.min(1, (1 - t) / 0.5),
   rumble: (t) => Math.min(1, t / 0.05) * Math.min(1, (1 - t) / 0.15),
