@@ -1,17 +1,14 @@
-import { vec3 } from 'math';
-import { Quaternion, Vector3 } from 'three';
+import { vec3, vec4 } from 'math';
 import { describe, expect, it } from 'vitest';
 import { createCameraState } from '../../../src/core/CameraState';
 import { MixingCamera, type MixingCameraSlot } from '../../../src/core/groups/MixingCamera';
-import { toQuaternion } from '../../tuples';
+import { yaw } from '../mathHelpers';
 
 function slot(cameraId: string, x: number, fov: number, weight: number, angleDegrees = 0): MixingCameraSlot {
   const state = createCameraState();
   vec3.set(state.position, x, 0, 0);
   state.fov = fov;
-  toQuaternion(state.quaternion)
-    .setFromAxisAngle(new Vector3(0, 1, 0), (angleDegrees * Math.PI) / 180)
-    .toArray(state.quaternion);
+  vec4.copy(state.quaternion, yaw(angleDegrees));
   return { cameraId, state, weight };
 }
 
@@ -39,11 +36,11 @@ describe('MixingCamera', () => {
     expect(out.position[0]).toBeCloseTo(5, 10);
     expect(out.fov).toBeCloseTo(50, 10);
 
-    const expectedQuat = new Quaternion().setFromAxisAngle(new Vector3(0, 1, 0), Math.PI / 4); // 45°
-    expect(out.quaternion[0]).toBeCloseTo(expectedQuat.x, 10);
-    expect(out.quaternion[1]).toBeCloseTo(expectedQuat.y, 10);
-    expect(out.quaternion[2]).toBeCloseTo(expectedQuat.z, 10);
-    expect(out.quaternion[3]).toBeCloseTo(expectedQuat.w, 10);
+    const expectedQuat = yaw(45);
+    expect(out.quaternion[0]).toBeCloseTo(expectedQuat[0], 10);
+    expect(out.quaternion[1]).toBeCloseTo(expectedQuat[1], 10);
+    expect(out.quaternion[2]).toBeCloseTo(expectedQuat[2], 10);
+    expect(out.quaternion[3]).toBeCloseTo(expectedQuat[3], 10);
   });
 
   it('unequal weights bias both the linear average and the quaternion slerp toward the heavier slot', () => {
@@ -52,9 +49,9 @@ describe('MixingCamera', () => {
 
     expect(out.position[0]).toBeCloseTo(25, 10); // 3/4 * 0 + 1/4 * 100
 
-    const expectedQuat = new Quaternion().setFromAxisAngle(new Vector3(0, 1, 0), Math.PI / 8); // 22.5°
-    expect(out.quaternion[1]).toBeCloseTo(expectedQuat.y, 10);
-    expect(out.quaternion[3]).toBeCloseTo(expectedQuat.w, 10);
+    const expectedQuat = yaw(22.5);
+    expect(out.quaternion[1]).toBeCloseTo(expectedQuat[1], 10);
+    expect(out.quaternion[3]).toBeCloseTo(expectedQuat[3], 10);
   });
 
   it('a zero-weight slot contributes nothing', () => {

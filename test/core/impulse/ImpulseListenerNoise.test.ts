@@ -1,11 +1,9 @@
-import { vec3 } from 'math';
-import { Quaternion, Vector3 } from 'three';
+import { quat, vec3, vec4 } from 'math';
 import { describe, expect, it } from 'vitest';
 import { createCameraState } from '../../../src/core/CameraState';
 import { ImpulseField } from '../../../src/core/impulse/ImpulseField';
 import { ImpulseListenerNoise } from '../../../src/core/impulse/ImpulseListenerNoise';
 import { BasicMultiChannelPerlinNoise } from '../../../src/core/noise/BasicMultiChannelPerlinNoise';
-import { toQuaternion } from '../../tuples';
 
 const always = () => 1;
 
@@ -29,12 +27,12 @@ describe('ImpulseListenerNoise', () => {
 
     const listener = new ImpulseListenerNoise(field);
     const out = createCameraState();
-    new Quaternion(0.1, 0.2, 0.3, 0.9).normalize().toArray(out.quaternion);
-    const before = toQuaternion(out.quaternion);
+    quat.normalize(out.quaternion, [0.1, 0.2, 0.3, 0.9]);
+    const before = quat.clone(out.quaternion);
 
     listener.update(out, 0.1, false, 0.5);
 
-    expect(toQuaternion(out.quaternion).equals(before)).toBe(true);
+    expect(vec4.exactEquals(out.quaternion, before)).toBe(true);
   });
 
   it('gain scales the sampled offset', () => {
@@ -170,12 +168,12 @@ describe('ImpulseListenerNoise', () => {
       const shake = new BasicMultiChannelPerlinNoise(undefined, undefined, [20, 0, 0], undefined, 1, 1, 1);
       const listener = new ImpulseListenerNoise(field, 1, 1, shake);
       const out = createCameraState();
-      const before = toQuaternion(out.quaternion);
+      const before = quat.clone(out.quaternion);
 
       let sawRotation = false;
       for (let i = 0; i < 10; i++) {
         listener.update(out, 0.1, false, 0.5 + i * 0.1);
-        if (!toQuaternion(out.quaternion).equals(before)) sawRotation = true;
+        if (!vec4.exactEquals(out.quaternion, before)) sawRotation = true;
       }
       expect(sawRotation).toBe(true);
     });
@@ -215,9 +213,7 @@ describe('ImpulseListenerNoise', () => {
 
       const listener = new ImpulseListenerNoise(field);
       const out = createCameraState();
-      toQuaternion(out.quaternion)
-        .setFromAxisAngle(new Vector3(0, 1, 0), Math.PI / 2)
-        .toArray(out.quaternion); // yawed 90°
+      quat.setAxisAngle(out.quaternion, [0, 1, 0], Math.PI / 2); // yawed 90°
 
       listener.update(out, 0.1, false, 0.5);
 
@@ -231,9 +227,7 @@ describe('ImpulseListenerNoise', () => {
 
       const listener = new ImpulseListenerNoise(field, 1, 1, undefined, true);
       const out = createCameraState();
-      toQuaternion(out.quaternion)
-        .setFromAxisAngle(new Vector3(0, 1, 0), Math.PI / 2)
-        .toArray(out.quaternion); // yawed 90°
+      quat.setAxisAngle(out.quaternion, [0, 1, 0], Math.PI / 2); // yawed 90°
 
       listener.update(out, 0.1, false, 0.5);
 
@@ -249,9 +243,7 @@ describe('ImpulseListenerNoise', () => {
       const listener = new ImpulseListenerNoise(field);
       listener.cameraSpace = true;
       const out = createCameraState();
-      toQuaternion(out.quaternion)
-        .setFromAxisAngle(new Vector3(0, 1, 0), Math.PI / 2)
-        .toArray(out.quaternion);
+      quat.setAxisAngle(out.quaternion, [0, 1, 0], Math.PI / 2);
 
       listener.update(out, 0.1, false, 0.5);
 

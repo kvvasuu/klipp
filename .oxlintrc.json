@@ -16,7 +16,7 @@
   },
   "overrides": [
     {
-      "files": ["src/core/**"],
+      "files": ["src/core/**", "test/core/**"],
       "rules": {
         "no-restricted-imports": [
           "error",

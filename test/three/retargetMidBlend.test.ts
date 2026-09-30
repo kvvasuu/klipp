@@ -1,13 +1,13 @@
 import { vec4 } from 'math';
 import { Vector3 } from 'three';
 import { describe, expect, it } from 'vitest';
-import { createCameraState, type CameraState } from '../../../src/core/CameraState';
-import { HardLookAtAim } from '../../../src/three/aim/HardLookAtAim';
-import { RotationComposerAim } from '../../../src/three/aim/RotationComposerAim';
-import { BlendDriver } from '../../../src/core/blend/BlendDriver';
-import { FollowBody } from '../../../src/three/body/FollowBody';
-import { HardLockToTargetBody } from '../../../src/three/body/HardLockToTargetBody';
-import { toQuaternion } from '../../tuples';
+import { createCameraState, type CameraState } from '../../src/core/CameraState';
+import { HardLookAtAim } from '../../src/three/aim/HardLookAtAim';
+import { RotationComposerAim } from '../../src/three/aim/RotationComposerAim';
+import { BlendDriver } from '../../src/core/blend/BlendDriver';
+import { FollowBody } from '../../src/three/body/FollowBody';
+import { HardLockToTargetBody } from '../../src/three/body/HardLockToTargetBody';
+import { toQuaternion } from '../tuples';
 
 const dt = 1 / 60;
 
