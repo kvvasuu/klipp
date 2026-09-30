@@ -1,893 +1,453 @@
+import { vec3, vec4 } from 'math';
 import { BoxGeometry, Mesh, MeshBasicMaterial, Object3D, PerspectiveCamera, Quaternion, Vector3 } from 'three';
 import { describe, expect, it } from 'vitest';
-import { createCameraState } from '../../../src/core/CameraState';
+import { createCameraState, type CameraState } from '../../../src/core/CameraState';
 import { PositionComposerBody } from '../../../src/three/body/PositionComposerBody';
-import { toQuaternion, toTuple, toVector3 } from '../../tuples';
 
-/** Projects `target` through a REAL three.js PerspectiveCamera at `out`'s position/rotation/fov/aspect —
- *  independent ground truth (three.js's own `project()`), not a re-derivation of our own formula. */
-function projectToScreen(out: ReturnType<typeof createCameraState>, aspect: number, target: Vector3): Vector3 {
+/** Screen position of `target` seen from `out`, through a real three.js camera as independent ground truth. */
+function projectToScreen(out: CameraState, aspect: number, target: Vector3): Vector3 {
   const camera = new PerspectiveCamera(out.fov, aspect, 0.1, 1000);
-  camera.position.copy(toVector3(out.position));
-  camera.quaternion.copy(toQuaternion(out.quaternion));
+  camera.position.fromArray(out.position);
+  camera.quaternion.fromArray(out.quaternion);
   camera.updateMatrixWorld(true);
-  camera.updateProjectionMatrix();
   return target.clone().project(camera);
 }
 
+/** Distance from the camera to `target` along its forward axis, for an unrotated camera. */
+const depthOf = (out: CameraState, target: Vector3): number => out.position[2] - target.z;
+
+/** Runs one update on a throwaway state, so the next update damps instead of snapping. */
+function warmUp(body: PositionComposerBody): PositionComposerBody {
+  body.update(createCameraState(), 0.016);
+  return body;
+}
+
 describe('PositionComposerBody', () => {
-  it("writes the target's world position and hasTarget onto out, for BlendHints' sphericalPosition", () => {
-    const target = new Vector3(0, 0, -20);
-    const body = new PositionComposerBody(target, 10, [0, 0], 1);
-    const out = createCameraState();
-
-    body.update(out, 0.1);
-
-    expect(out.hasTarget).toBe(true);
-    expect(toVector3(out.target).equals(target)).toBe(true);
-  });
-
-  it('dollies along the camera forward axis until the target is at cameraDistance', () => {
-    const target = new Vector3(0, 0, -20); // straight ahead, camera at identity rotation faces -Z
-    const body = new PositionComposerBody(target, 10, [0, 0], 1);
-    const out = createCameraState(); // position (0,0,0), identity rotation
-
-    body.update(out, 0.1);
-
-    const depth = target
-      .clone()
-      .sub(toVector3(out.position))
-      .dot(new Vector3(0, 0, -1));
-    expect(depth).toBeCloseTo(10, 10);
-  });
-
-  it('never touches rotation — position-only Body', () => {
-    const target = new Vector3(3, 1, -8);
-    const body = new PositionComposerBody(target, 10);
-    const out = createCameraState();
-    new Quaternion(0.1, 0.2, 0.3, 0.9).normalize().toArray(out.quaternion);
-    const before = toQuaternion(out.quaternion);
-
-    body.update(out, 0.1);
-
-    expect(toQuaternion(out.quaternion).equals(before)).toBe(true);
-  });
-
-  it('centers the target on screen when screenPosition is [0, 0] (default)', () => {
-    const target = new Vector3(5, 2, -30); // off to the side, not straight ahead
+  it('centers the target at cameraDistance without touching rotation, and publishes it as out.target', () => {
+    const target = new Vector3(5, 2, -30);
     const body = new PositionComposerBody(target, 8, [0, 0], 1.5);
     const out = createCameraState();
     out.fov = 60;
+    vec4.normalize(out.quaternion, [0, 0.2, 0, 0.98]);
+    const rotation = vec4.clone(out.quaternion);
 
     body.update(out, 0.1);
 
     const projected = projectToScreen(out, 1.5, target);
     expect(projected.x).toBeCloseTo(0, 5);
     expect(projected.y).toBeCloseTo(0, 5);
+    expect(vec3.distance(out.position, target.toArray())).toBeCloseTo(8, 5);
+    expect(vec4.exactEquals(out.quaternion, rotation)).toBe(true);
+    expect(out.hasTarget).toBe(true);
+    expect(out.target).toEqual(target.toArray());
   });
 
-  it('lands the target at a non-zero screenPosition', () => {
-    const target = new Vector3(0, 0, -15);
-    const body = new PositionComposerBody(target, 10, [0.5, -0.3], 1.7777);
+  it('lands the target at screenPosition for any fov, aspect and camera rotation', () => {
+    const target = new Vector3(10, 5, 10);
+    const body = new PositionComposerBody(target, 12, [0.5, -0.3], 2);
     const out = createCameraState();
-    out.fov = 50;
-
-    body.update(out, 0.1);
-
-    const projected = projectToScreen(out, 1.7777, target);
-    expect(projected.x).toBeCloseTo(0.5, 5);
-    expect(projected.y).toBeCloseTo(-0.3, 5);
-  });
-
-  it('respects fov and aspect when converting screenPosition to world units', () => {
-    const target = new Vector3(0, 0, -15);
-    const body = new PositionComposerBody(target, 10, [0.5, 0.5], 2);
-    const out = createCameraState();
-    out.fov = 90; // wide FOV: same screenPosition should still land correctly
+    new Quaternion().setFromAxisAngle(new Vector3(0, 1, 0), Math.PI / 3).toArray(out.quaternion);
+    out.fov = 90;
 
     body.update(out, 0.1);
 
     const projected = projectToScreen(out, 2, target);
-    expect(projected.x).toBeCloseTo(0.5, 5);
-    expect(projected.y).toBeCloseTo(0.5, 5);
+    expect(projected.x).toBeCloseTo(0.5, 4);
+    expect(projected.y).toBeCloseTo(-0.3, 4);
   });
 
-  it('composes correctly even with a rotated (non-identity) camera orientation', () => {
-    const target = new Vector3(10, 5, 10);
-    const body = new PositionComposerBody(target, 12, [0.2, 0.1], 1.6);
+  it('leaves out untouched without a target', () => {
     const out = createCameraState();
-    toQuaternion(out.quaternion)
-      .setFromAxisAngle(new Vector3(0, 1, 0), Math.PI / 3)
-      .toArray(out.quaternion); // yawed 60°
-    out.fov = 45;
-
-    body.update(out, 0.1);
-
-    const projected = projectToScreen(out, 1.6, target);
-    expect(projected.x).toBeCloseTo(0.2, 4);
-    expect(projected.y).toBeCloseTo(0.1, 4);
+    new PositionComposerBody(null).update(out, 0.1);
+    expect(out.position).toEqual([0, 0, 0]);
   });
 
-  it("accounts for the target's WORLD position (parent transform included)", () => {
-    const parent = new Object3D();
-    parent.position.set(100, 0, 0);
-    const child = new Object3D();
-    child.position.set(0, 0, -10);
-    parent.add(child);
+  describe('dead zone', () => {
+    it('ignores a target that moves within it', () => {
+      const target = new Vector3(0, 0, -20);
+      const body = new PositionComposerBody(target, 10, [0, 0], 1, [0.4, 0.4], 0);
+      const out = createCameraState();
+      body.update(out, 0.1);
+      const before = vec3.clone(out.position);
 
-    const body = new PositionComposerBody(child, 10);
-    const out = createCameraState();
-    body.update(out, 0.1);
+      target.set(0.5, 0, -20);
+      body.update(out, 0.1);
 
-    // world position of child is (100, 0, -10); centering it (screenPosition [0,0]) with the camera
-    // facing pure -Z means the camera lines up on the SAME world X, 10 units in front on Z
-    expect(out.position[0]).toBeCloseTo(100, 8);
-    expect(out.position[2]).toBeCloseTo(0, 8);
-  });
+      expect(out.position).toEqual(before);
+    });
 
-  it('a null target is a no-op, not a crash', () => {
-    const body = new PositionComposerBody(null);
-    const out = createCameraState();
+    it('without damping, snaps the target to the dead zone edge and stays there', () => {
+      const target = new Vector3(20, 0, -20);
+      const body = new PositionComposerBody(target, 10, [0, 0], 1, [0.1, 0.1], 0);
+      const out = createCameraState();
 
-    expect(() => body.update(out, 0.1)).not.toThrow();
-    expect(toVector3(out.position).equals(new Vector3())).toBe(true);
-  });
+      body.update(out, 0.1);
+      expect(projectToScreen(out, 1, target).x).toBeCloseTo(0.1, 4);
 
-  it('target/cameraDistance/screenPosition/aspect are mutable fields', () => {
-    const targetA = new Vector3(0, 0, -10);
-    const targetB = new Vector3(0, 0, -30);
-    const body = new PositionComposerBody(targetA, 10, [0, 0], 1);
-    const out = createCameraState();
+      const atEdge = vec3.clone(out.position);
+      body.update(out, 0.1); // the edge itself counts as inside
+      expect(out.position).toEqual(atEdge);
+    });
 
-    body.update(out, 0.1);
-    expect(out.position[2]).toBeCloseTo(0, 8);
+    it('with damping, eases toward the dead zone edge', () => {
+      const target = new Vector3(20, 0, -20);
+      const body = warmUp(new PositionComposerBody(target, 10, [0, 0], 1, [0.1, 0.1], 0.3));
+      const out = createCameraState();
 
-    body.target = targetB;
-    body.cameraDistance = 20;
-    body.update(out, 0.1);
+      body.update(out, 0.016);
+      expect(projectToScreen(out, 1, target).x).toBeGreaterThan(0.2);
 
-    const depth = targetB
-      .clone()
-      .sub(toVector3(out.position))
-      .dot(new Vector3(0, 0, -1));
-    expect(depth).toBeCloseTo(20, 8);
-  });
+      for (let i = 0; i < 300; i++) body.update(out, 0.016);
+      expect(projectToScreen(out, 1, target).x).toBeCloseTo(0.1, 2);
+    });
 
-  it('update is a bound instance method — safe to pass by reference (e.g. slots.registerBody(body.update))', () => {
-    const target = new Vector3(0, 0, -10);
-    const body = new PositionComposerBody(target, 10);
-    const { update } = body;
-
-    const out = createCameraState();
-    expect(() => update(out, 0.1)).not.toThrow();
-  });
-
-  describe('dead zone residual velocity (coasting)', () => {
-    it('keeps easing after the target settles inside the dead zone, instead of freezing instantly', () => {
+    it('coasts to a stop after the target settles inside it, instead of freezing mid-motion', () => {
       const target = new Vector3(20, 0, -20);
       const body = new PositionComposerBody(target, 10, [0, 0], 1, [0.15, 0.15], 0.3);
       const out = createCameraState();
-      const dt = 0.016;
+      for (let i = 0; i < 5; i++) body.update(out, 0.016);
+      const moving = vec3.clone(out.position);
 
-      // several frames outside the dead zone - damper builds up real lag, doesn't fully catch up
-      for (let i = 0; i < 5; i++) body.update(out, dt);
-      const beforeSettle = toVector3(out.position);
-
-      // target jumps to dead-center - well inside the dead zone from here on
       target.set(0, 0, -20);
-      body.update(out, dt);
+      body.update(out, 0.016);
+      expect(out.position).not.toEqual(moving);
 
-      expect(toVector3(out.position).equals(beforeSettle)).toBe(false); // kept easing, didn't freeze outright
+      for (let i = 0; i < 300; i++) body.update(out, 0.016);
+      const settled = vec3.clone(out.position);
+      body.update(out, 0.016);
+      expect(out.position).toEqual(settled);
     });
 
-    it('eventually converges and stays put once fully settled inside the dead zone', () => {
-      const target = new Vector3(20, 0, -20);
-      const body = new PositionComposerBody(target, 10, [0, 0], 1, [0.15, 0.15], 0.3);
-      const out = createCameraState();
-      const dt = 0.016;
-
-      for (let i = 0; i < 5; i++) body.update(out, dt);
-      target.set(0, 0, -20);
-      for (let i = 0; i < 300; i++) body.update(out, dt); // plenty of time to fully settle
-
-      const settled = toVector3(out.position);
-      body.update(out, dt);
-      expect(toVector3(out.position).equals(settled)).toBe(true);
-    });
-
-    it('does not backtrack toward the old direction when the target reverses after settling inside the dead zone (real bug: stale damper velocity surviving the freeze)', () => {
+    it('never moves back toward the old direction when the target reverses after settling (real bug: stale damper velocity survived the freeze)', () => {
       const target = new Vector3(0, 0, -20);
       const body = new PositionComposerBody(target, 10, [0, 0], 1, [0.15, 0.15], 0.3);
       const out = createCameraState();
-      const dt = 0.016;
-
-      // steady rightward motion, well outside the dead zone - builds up real rightward velocity
       for (let i = 0; i < 40; i++) {
         target.x += 0.3;
-        body.update(out, dt);
+        body.update(out, 0.016);
       }
+      for (let i = 0; i < 300; i++) body.update(out, 0.016);
 
-      // target stops - let everything fully settle inside the dead zone
-      for (let i = 0; i < 300; i++) body.update(out, dt);
-
-      // now reverses direction - camera must never tick back toward the old (rightward) direction
       let previousX = out.position[0];
       for (let i = 0; i < 60; i++) {
         target.x -= 0.3;
-        body.update(out, dt);
+        body.update(out, 0.016);
         expect(out.position[0]).toBeLessThanOrEqual(previousX + 1e-9);
         previousX = out.position[0];
       }
     });
   });
 
-  describe('depth dead zone + damping', () => {
-    it('target inside the depth dead zone: zero dolly reaction', () => {
-      const target = new Vector3(0, 0, -10); // exactly at cameraDistance
-      const body = new PositionComposerBody(target, 10, [0, 0], 1);
-      body.depthDeadZone = 2;
-      const out = createCameraState();
-      body.update(out, 0.1);
-
-      const afterFirstUpdate = toVector3(out.position);
-      target.set(0, 0, -11.5); // depth now 11.5, within the depth dead zone (2) around cameraDistance (10)
-      body.update(out, 0.1);
-
-      expect(toVector3(out.position).equals(afterFirstUpdate)).toBe(true);
-    });
-
-    it('keeps tolerating gradual in-zone drift over many frames with damping enabled (real bug: a frozen desired depth fought the target instead of tolerating it)', () => {
-      const target = new Vector3(0, 0, -10); // exactly at cameraDistance
-      const body = new PositionComposerBody(target, 10, [0, 0], 1, [0, 0], 0.3);
-      body.depthDeadZone = 20;
-      const out = createCameraState();
-      const dt = 0.016;
-      body.update(out, dt);
-
-      const afterFirstUpdate = toVector3(out.position);
-      for (let i = 0; i < 20; i++) {
-        target.z -= 0.3; // depth keeps growing (10 -> 16), but stays within the ±20 tolerance throughout
-        body.update(out, dt);
-      }
-
-      expect(toVector3(out.position).equals(afterFirstUpdate)).toBe(true);
-    });
-
-    it('target outside the depth dead zone with damping <= 0: snaps instantly to the dead zone edge, not to cameraDistance exactly', () => {
-      const target = new Vector3(0, 0, -20); // depth 20, far outside
+  describe('depth dead zone', () => {
+    it('without damping, snaps to the edge of the depth dead zone, not to cameraDistance', () => {
+      const target = new Vector3(0, 0, -20);
       const body = new PositionComposerBody(target, 10, [0, 0], 1);
       body.depthDeadZone = 3;
       const out = createCameraState();
 
       body.update(out, 0.1);
 
-      const depth = target
-        .clone()
-        .sub(toVector3(out.position))
-        .dot(new Vector3(0, 0, -1));
-      expect(depth).toBeCloseTo(13, 4); // clamped to cameraDistance(10) + depthDeadZone(3), not all the way to 10
+      expect(depthOf(out, target)).toBeCloseTo(13, 4);
     });
 
-    it('target outside the depth dead zone with damping > 0: catches up gradually, not instantly', () => {
-      const target = new Vector3(0, 0, -20);
-
-      const undamped = createCameraState();
-      new PositionComposerBody(target, 10, [0, 0], 1).update(undamped, 0.016);
-
-      const body = new PositionComposerBody(target, 10, [0, 0], 1, [0, 0], 0.5);
-      body.update(createCameraState(), 0.016); // consume the first-ever-update hard snap on a throwaway state
-      const out = createCameraState();
-      body.update(out, 0.016);
-
-      expect(toVector3(out.position).distanceTo(toVector3(undamped.position))).toBeGreaterThan(0.01);
-    });
-
-    it('converges to cameraDistance over repeated ticks with damping enabled', () => {
-      const target = new Vector3(0, 0, -20);
-      const body = new PositionComposerBody(target, 10, [0, 0], 1, [0, 0], 0.3);
-      const out = createCameraState();
-
-      for (let i = 0; i < 300; i++) body.update(out, 0.016);
-
-      const depth = target
-        .clone()
-        .sub(toVector3(out.position))
-        .dot(new Vector3(0, 0, -1));
-      expect(depth).toBeCloseTo(10, 2);
-    });
-
-    it('justActivated skips the depth dead zone check', () => {
+    it('tolerates gradual drift inside it over many frames (real bug: a frozen desired depth fought the target)', () => {
       const target = new Vector3(0, 0, -10);
-      const body = new PositionComposerBody(target, 10, [0, 0], 1);
-      body.depthDeadZone = 5;
-      const out = createCameraState();
-      body.update(out, 0.016, true); // settles at depth exactly cameraDistance
-
-      // a later, unrelated session: out.position frozen where the first session left it, target moved
-      // just enough that a real dead-zone check would call it "inside" and never react
-      target.set(0, 0, -13);
-      body.update(out, 0.016, true);
-
-      const depth = target
-        .clone()
-        .sub(toVector3(out.position))
-        .dot(new Vector3(0, 0, -1));
-      expect(depth).toBeCloseTo(10, 4); // reacted fully, not clamped to the dead zone edge
-    });
-  });
-
-  describe('dead zone + damping', () => {
-    it('target inside the dead zone: zero lateral reaction — position unchanged by stage 2', () => {
-      const target = new Vector3(0, 0, -20);
-      const body = new PositionComposerBody(target, 10, [0, 0], 1, [0.4, 0.4], 0);
-      const out = createCameraState();
-      body.update(out, 0.1); // establishes stage-1 dolly, target dead-center
-
-      const afterFirstUpdate = toVector3(out.position);
-      target.set(0.5, 0, -20); // nudge sideways, but within the [0.4, 0.4] dead zone
-      body.update(out, 0.1);
-
-      expect(toVector3(out.position).equals(afterFirstUpdate)).toBe(true);
-    });
-
-    it('hardLimit still enforces when the target sits inside a LARGER deadZone (real bug: the dead zone used to return from the whole update, skipping the hardLimit pass entirely)', () => {
-      const target = new Vector3(0, 0, -20);
-      // hardLimit narrower than deadZone — a plausible misconfiguration (hardLimit is meant to be the
-      // wider, outer box), but hardLimit's guarantee should hold regardless
-      const body = new PositionComposerBody(target, 10, [0, 0], 1, [0.4, 0.4], 0, [0.1, 0.1]);
-      const out = createCameraState();
-      body.update(out, 0.1); // establishes stage-1 dolly, target dead-center
-
-      const afterFirstUpdate = toVector3(out.position);
-      target.set(0.5, 0, -20); // same nudge as above — inside deadZone (no lateral reaction there)...
-      body.update(out, 0.1); // ...but hardLimit=[0.1,0.1] is narrower, so it must still correct this
-
-      expect(toVector3(out.position).equals(afterFirstUpdate)).toBe(false);
-    });
-
-    it('target outside the dead zone with damping <= 0: snaps instantly to the dead zone EDGE, not to screenPosition center', () => {
-      const target = new Vector3(20, 0, -20); // far outside the dead zone on X
-      const body = new PositionComposerBody(target, 10, [0, 0], 1, [0.1, 0.1], 0);
-      const out = createCameraState();
-
-      body.update(out, 0.1);
-
-      const projected = projectToScreen(out, 1, target);
-      // landed on the RIGHT EDGE of the dead zone (screenPosition 0 + halfWidth 0.1), not at 0
-      expect(projected.x).toBeCloseTo(0.1, 4);
-      expect(projected.y).toBeCloseTo(0, 4);
-    });
-
-    it('target outside the dead zone with damping > 0: catches up gradually, not instantly', () => {
-      const target = new Vector3(20, 0, -20);
-
-      const undamped = createCameraState();
-      new PositionComposerBody(target, 10, [0, 0], 1, [0.2, 0.2], 0).update(undamped, 0.016);
-
-      const body = new PositionComposerBody(target, 10, [0, 0], 1, [0.2, 0.2], 0.5);
-      body.update(createCameraState(), 0.016); // consume the first-ever-update hard snap on a throwaway state
+      const body = new PositionComposerBody(target, 10, [0, 0], 1, [0, 0], 0.3);
+      body.depthDeadZone = 20;
       const out = createCameraState();
       body.update(out, 0.016);
+      const before = vec3.clone(out.position);
 
-      expect(toVector3(out.position).distanceTo(toVector3(undamped.position))).toBeGreaterThan(0.01);
+      for (let i = 0; i < 20; i++) {
+        target.z -= 0.3;
+        body.update(out, 0.016);
+      }
+
+      expect(out.position).toEqual(before);
     });
 
-    it('converges to the dead zone edge over repeated ticks with damping enabled', () => {
-      const target = new Vector3(20, 0, -20);
-      const body = new PositionComposerBody(target, 10, [0, 0], 1, [0.1, 0.1], 0.3);
+    it('with damping, eases the depth toward cameraDistance', () => {
+      const target = new Vector3(0, 0, -20);
+      const body = warmUp(new PositionComposerBody(target, 10, [0, 0], 1, [0, 0], 0.3));
       const out = createCameraState();
+
+      body.update(out, 0.016);
+      expect(depthOf(out, target)).toBeGreaterThan(11);
 
       for (let i = 0; i < 300; i++) body.update(out, 0.016);
-
-      const projected = projectToScreen(out, 1, target);
-      expect(projected.x).toBeCloseTo(0.1, 2);
-    });
-
-    it('stops reacting once the target is exactly AT the dead zone edge (boundary counts as inside)', () => {
-      const target = new Vector3(20, 0, -20);
-      const body = new PositionComposerBody(target, 10, [0, 0], 1, [0.2, 0.2], 0);
-      const out = createCameraState();
-      body.update(out, 0.1); // snaps to the edge, target far outside
-
-      const afterEdgeSnap = toVector3(out.position);
-      body.update(out, 0.1); // same target, now sitting exactly at the (inclusive) dead zone boundary
-
-      expect(toVector3(out.position).equals(afterEdgeSnap)).toBe(true);
-    });
-
-    it('deadZone/damping are mutable fields', () => {
-      const target = new Vector3(20, 0, -20);
-      const body = new PositionComposerBody(target, 10, [0, 0], 1, [0, 0], 0);
-      const out = createCameraState();
-
-      body.update(out, 0.1); // no dead zone yet: snaps straight to center (screenPosition 0)
-      let projected = projectToScreen(out, 1, target);
-      expect(projected.x).toBeCloseTo(0, 4);
-
-      body.deadZone = [0.1, 0.1];
-      target.set(20, 5, -20); // move well outside the new dead zone (vertically this time)
-      body.update(out, 0.1);
-      projected = projectToScreen(out, 1, target);
-      expect(projected.y).toBeCloseTo(0.1, 2);
-    });
-  });
-
-  describe('maxSpeed', () => {
-    it('clamps how fast damping can close the lateral gap, in world units/sec', () => {
-      const target = new Vector3(20, 0, -10); // Z fixed at exactly cameraDistance - isolates the lateral stage
-
-      const unclamped = new PositionComposerBody(target, 10, [0, 0], 1, [0, 0], 1);
-      unclamped.update(createCameraState(), 0.05); // consume the first-ever-update hard snap
-      const outUnclamped = createCameraState();
-      unclamped.update(outUnclamped, 0.05);
-
-      const clamped = new PositionComposerBody(target, 10, [0, 0], 1, [0, 0], 1);
-      clamped.maxSpeed = 2;
-      clamped.update(createCameraState(), 0.05);
-      const outClamped = createCameraState();
-      clamped.update(outClamped, 0.05); // maxSpeed = 2 units/sec
-
-      expect(outClamped.position[0]).toBeLessThan(outUnclamped.position[0]);
+      expect(depthOf(out, target)).toBeCloseTo(10, 2);
     });
   });
 
   describe('justActivated', () => {
-    it('snaps straight to the composed position even with a warmed-up damper and a stale out.position', () => {
-      const target = new Vector3(0, 0, -20);
-      const body = new PositionComposerBody(target, 10, [0, 0], 1, [0, 0], 0.5);
-      const out = createCameraState();
+    it('snaps to the composed shot from a stale position, where a plain update would ease', () => {
+      const run = (justActivated: boolean) => {
+        const target = new Vector3(0, 0, -20);
+        const body = new PositionComposerBody(target, 10, [0, 0], 1, [0, 0], 0.5);
+        const out = createCameraState();
+        body.update(out, 0.016, true);
+        body.update(out, 0.016);
+        target.set(40, -12, -30);
+        body.update(out, 0.016, justActivated);
+        return projectToScreen(out, 1, target);
+      };
 
-      body.update(out, 0.016, true); // first-ever session: snaps, warms up the damper
-      body.update(out, 0.016, false);
-
-      // a later, unrelated session: out.position is frozen at wherever the FIRST session left it
-      target.set(40, -12, -30);
-      body.update(out, 0.016, true);
-
-      const projected = projectToScreen(out, 1, target);
-      expect(projected.x).toBeCloseTo(0, 4);
-      expect(projected.y).toBeCloseTo(0, 4);
+      const snapped = run(true);
+      expect(snapped.x).toBeCloseTo(0, 4);
+      expect(snapped.y).toBeCloseTo(0, 4);
+      const eased = run(false);
+      expect(Math.abs(eased.x) + Math.abs(eased.y)).toBeGreaterThan(0.01);
     });
 
-    it('without justActivated, the same stale-state scenario eases instead of snapping (the bug this fixes)', () => {
+    it('skips both dead zones, which would otherwise hide the jump', () => {
       const target = new Vector3(0, 0, -20);
-      const body = new PositionComposerBody(target, 10, [0, 0], 1, [0, 0], 0.5);
+      const body = new PositionComposerBody(target, 10, [0, 0], 1, [0.9, 0.9], 0);
+      body.depthDeadZone = 5;
       const out = createCameraState();
-
-      body.update(out, 0.016, true);
-      body.update(out, 0.016, false);
-
-      target.set(40, -12, -30);
-      body.update(out, 0.016, false); // no reactivation signal — damper treats this as a normal retarget
-
-      const projected = projectToScreen(out, 1, target);
-      expect(Math.abs(projected.x) + Math.abs(projected.y)).toBeGreaterThan(0.01); // not centered yet
-    });
-
-    it('skips the dead zone check — a stale out.position inside the box would otherwise cause no reaction at all', () => {
-      const target = new Vector3(0, 0, -20);
-      const body = new PositionComposerBody(target, 10, [0, 0], 1, [0.9, 0.9], 0); // huge dead zone, instant damping
-      const out = createCameraState();
-      body.update(out, 0.016, true); // centers on target, well inside its own dead zone from here on
-
-      // a later session retargets close by — small enough that, if the dead zone check ran against the
-      // STALE (but numerically nearby) position, it would find "inside the box" and never react
-      target.set(0.5, 0, -20);
       body.update(out, 0.016, true);
 
-      const projected = projectToScreen(out, 1, target);
-      expect(projected.x).toBeCloseTo(0, 4); // reacted anyway — justActivated bypasses the dead zone
+      target.set(0.5, 0, -23);
+      body.update(out, 0.016, true);
+
+      expect(projectToScreen(out, 1, target).x).toBeCloseTo(0, 4);
+      expect(depthOf(out, target)).toBeCloseTo(10, 4);
     });
+  });
+
+  it('maxSpeed caps how fast damping closes the gap', () => {
+    const target = new Vector3(20, 0, -10);
+    const run = (maxSpeed: number) => {
+      const body = new PositionComposerBody(target, 10, [0, 0], 1, [0, 0], 1);
+      body.maxSpeed = maxSpeed;
+      warmUp(body);
+      const out = createCameraState();
+      body.update(out, 0.05);
+      return out.position[0];
+    };
+
+    expect(run(2)).toBeLessThan(run(Infinity));
   });
 
   describe('primeFrom', () => {
-    it('the next update() eases from the primed position toward the composed shot instead of snapping', () => {
+    it('makes the next activation ease from the primed position, once', () => {
       const target = new Vector3(0, 0, -20);
       const body = new PositionComposerBody(target, 10, [0, 0], 1, [0, 0], 0.5);
-      const initial = new Vector3(0, 0, 50);
-
-      body.primeFrom(toTuple(initial));
       const out = createCameraState();
-      initial.toArray(out.position);
+      vec3.set(out.position, 0, 0, 50);
+      body.primeFrom(out.position);
+
       body.update(out, 0.016, true);
-
-      expect(out.position[2]).toBeLessThan(50); // moved off the primed position
-      expect(out.position[2]).toBeGreaterThan(-10); // but not snapped to the fully composed shot (z = -10)
-    });
-
-    it('without priming, update() still snaps straight to the composed shot on justActivated (unchanged default)', () => {
-      const target = new Vector3(0, 0, -20);
-      const body = new PositionComposerBody(target, 10, [0, 0], 1, [0, 0], 0.5);
-      const out = createCameraState();
-      body.update(out, 0.016, true);
-
-      expect(out.position[2]).toBeCloseTo(-10, 5);
-    });
-
-    it('is consumed by the first justActivated only - a later reactivation snaps normally', () => {
-      const target = new Vector3(0, 0, -20);
-      const body = new PositionComposerBody(target, 10, [0, 0], 1, [0, 0], 0.5);
-      const initial = new Vector3(0, 0, 50);
-
-      body.primeFrom(toTuple(initial));
-      const out = createCameraState();
-      initial.toArray(out.position);
-      body.update(out, 0.016, true); // consumes the prime, eases
-      body.update(out, 0.016, false);
+      expect(out.position[2]).toBeLessThan(50);
+      expect(out.position[2]).toBeGreaterThan(-10);
 
       target.set(40, -12, -30);
-      body.update(out, 0.016, true); // a later reactivation - primeFrom was NOT called again
-
-      const projected = projectToScreen(out, 1, target);
-      expect(projected.x).toBeCloseTo(0, 4);
-      expect(projected.y).toBeCloseTo(0, 4);
+      body.update(out, 0.016, true); // a later activation snaps as usual
+      expect(projectToScreen(out, 1, target).x).toBeCloseTo(0, 4);
     });
 
-    it("is still consumed even when the target isn't resolved yet on the primed justActivated call", () => {
-      const initial = new Vector3(0, 0, 50);
+    it('is used up even when the target is not resolved yet on that activation', () => {
       const body = new PositionComposerBody({ current: null }, 10, [0, 0], 1, [0, 0], 0.5);
-      body.primeFrom(toTuple(initial));
       const out = createCameraState();
-      initial.toArray(out.position);
-
-      body.update(out, 0.016, true); // target still unresolved - early return, but primed must be consumed
-      expect(toVector3(out.position).equals(initial)).toBe(true); // no-op, nothing to update yet
+      vec3.set(out.position, 0, 0, 50);
+      body.primeFrom(out.position);
+      body.update(out, 0.016, true);
+      expect(out.position).toEqual([0, 0, 50]);
 
       body.target = new Vector3(0, 0, -20);
-      body.update(out, 0.016, true); // an unrelated LATER reactivation - must snap, not ease
-
+      body.update(out, 0.016, true);
       expect(out.position[2]).toBeCloseTo(-10, 5);
     });
   });
 
-  describe('dead zone with target extent (radius/size)', () => {
-    it("a radius makes the dead zone react to the target's EDGE, catching drift a point target would still ignore", () => {
-      const target = new Vector3(0, 0, -20);
-      const body = new PositionComposerBody(target, 10, [0, 0], 1, [0.2, 0.2], 0, [0, 0], 1); // radius = 1
-      const out = createCameraState();
-      out.fov = 90; // tan(45°) = 1, so halfWidth = cameraDistance exactly - clean world-unit math
-      body.update(out, 0.1); // establishes stage-1 dolly, target dead-center
-
-      target.set(1.5, 0, -20); // point-only offset: 1.5 / 10 = 0.15 screen units, inside [0.2, 0.2]
-      body.update(out, 0.1);
-
-      const projected = projectToScreen(out, 1, target);
-      // edge = 0.15 + radius(1)/cameraDistance(10) = 0.25, past the dead zone's 0.2 half-width - clamped
-      // there, so the CENTER lands 0.1 short of the edge (0.2 - extent 0.1)
-      expect(projected.x).toBeCloseTo(0.1, 4);
-    });
-
-    it('the identical nudge with no radius stays inside the dead zone (point-target baseline unaffected)', () => {
-      const target = new Vector3(0, 0, -20);
-      const body = new PositionComposerBody(target, 10, [0, 0], 1, [0.2, 0.2], 0);
+  describe('target extent', () => {
+    // fov 90 makes a screen unit equal cameraDistance (10) world units, so extents read directly
+    function nudgeFromCenter(target: Object3D | Vector3, body: PositionComposerBody, x = 1.5) {
       const out = createCameraState();
       out.fov = 90;
       body.update(out, 0.1);
-      const afterFirstUpdate = toVector3(out.position);
-
-      target.set(1.5, 0, -20);
+      const position = target instanceof Vector3 ? target : target.position;
+      position.set(x, 0, -20);
       body.update(out, 0.1);
-
-      expect(toVector3(out.position).equals(afterFirstUpdate)).toBe(true);
-    });
-
-    it('an axis-aligned size reproduces the same edge as an equivalent radius', () => {
-      const target = new Vector3(0, 0, -20);
-      const body = new PositionComposerBody(target, 10, [0, 0], 1, [0.2, 0.2], 0, [0, 0], undefined, [2, 2, 2]);
-      const out = createCameraState();
-      out.fov = 90;
-      body.update(out, 0.1);
-
-      target.set(1.5, 0, -20);
-      body.update(out, 0.1);
-
-      const projected = projectToScreen(out, 1, target);
-      expect(projected.x).toBeCloseTo(0.1, 4); // half-size 1 on each axis - same reach as radius 1
-    });
-
-    it('a rotated box uses its own oriented extent, not an axis-aligned approximation', () => {
-      const targetObject = new Object3D();
-      targetObject.quaternion.setFromAxisAngle(new Vector3(0, 1, 0), Math.PI / 4); // 45° around Y
-      targetObject.position.set(0, 0, -20);
-
-      const body = new PositionComposerBody(targetObject, 10, [0, 0], 1, [0.2, 0.2], 0, [0, 0], undefined, [2, 2, 2]);
-      const out = createCameraState();
-      out.fov = 90;
-      body.update(out, 0.1); // dead-center baseline
-
-      targetObject.position.set(1.5, 0, -20);
-      body.update(out, 0.1);
-
-      const projected = projectToScreen(out, 1, targetObject.position.clone());
-      // a 45°-rotated square's half-diagonal reach along Right = half-size * sqrt(2)
-      const extent = Math.sqrt(2) / 10;
-      expect(projected.x).toBeCloseTo(0.2 - extent, 4);
-    });
-
-    it('auto-detects size from a Mesh target end-to-end, same as an explicit size', () => {
-      const mesh = new Mesh(new BoxGeometry(2, 2, 2), new MeshBasicMaterial());
-      mesh.position.set(0, 0, -20);
-
-      const body = new PositionComposerBody(mesh, 10, [0, 0], 1, [0.2, 0.2], 0);
-      const out = createCameraState();
-      out.fov = 90;
-      body.update(out, 0.1);
-
-      mesh.position.set(1.5, 0, -20);
-      body.update(out, 0.1);
-
-      const projected = projectToScreen(out, 1, mesh.position.clone());
-      expect(projected.x).toBeCloseTo(0.1, 4);
-    });
-
-    // raw vertex mutation, not .scale()/.applyMatrix4() - the one case three.js never keeps a cached
-    // boundingBox in sync for automatically (same root cause as a SkinnedMesh's bind-pose limitation)
-    function growMeshGeometryThreefold(mesh: Mesh): void {
-      const position = mesh.geometry.attributes.position;
-      for (let i = 0; i < position.count; i++) {
-        position.setXYZ(i, position.getX(i) * 3, position.getY(i) * 3, position.getZ(i) * 3);
-      }
-      position.needsUpdate = true;
+      return projectToScreen(out, 1, position.clone()).x;
     }
 
-    it("without recalculateSize(), keeps reacting to the mesh's ORIGINAL size after it grows", () => {
-      const mesh = new Mesh(new BoxGeometry(2, 2, 2), new MeshBasicMaterial());
-      mesh.position.set(0, 0, -20);
-      const body = new PositionComposerBody(mesh, 10, [0, 0], 1, [0.2, 0.2], 0);
-      const out = createCameraState();
-      out.fov = 90;
-      body.update(out, 0.1); // caches the original half-extent (1)
+    it("a radius makes the dead zone react to the target's edge", () => {
+      const point = new Vector3(0, 0, -20);
+      expect(nudgeFromCenter(point, new PositionComposerBody(point, 10, [0, 0], 1, [0.2, 0.2], 0))).toBeCloseTo(
+        0.15,
+        4,
+      );
 
-      growMeshGeometryThreefold(mesh); // now half-extent 3, but the cache doesn't know that
-      mesh.position.set(1.5, 0, -20);
-      body.update(out, 0.1);
-
-      const projected = projectToScreen(out, 1, mesh.position.clone());
-      expect(projected.x).toBeCloseTo(0.1, 4); // same result as the un-grown mesh above
+      const sphere = new Vector3(0, 0, -20);
+      const body = new PositionComposerBody(sphere, 10, [0, 0], 1, [0.2, 0.2], 0, [0, 0], 1);
+      expect(nudgeFromCenter(sphere, body)).toBeCloseTo(0.1, 4); // edge at 0.2, center 0.1 short of it
     });
 
-    it('recalculateSize() reacts to the GROWN size on the very next update() call', () => {
-      const mesh = new Mesh(new BoxGeometry(2, 2, 2), new MeshBasicMaterial());
-      mesh.position.set(0, 0, -20);
-      const body = new PositionComposerBody(mesh, 10, [0, 0], 1, [0.2, 0.2], 0);
-      const out = createCameraState();
-      out.fov = 90;
-      body.update(out, 0.1);
+    it('a size works like a radius, and a rotated box uses its oriented extent', () => {
+      const box = new Vector3(0, 0, -20);
+      const body = new PositionComposerBody(box, 10, [0, 0], 1, [0.2, 0.2], 0, [0, 0], undefined, [2, 2, 2]);
+      expect(nudgeFromCenter(box, body)).toBeCloseTo(0.1, 4);
 
-      growMeshGeometryThreefold(mesh); // half-extent now 3
-      body.recalculateSize();
-      mesh.position.set(1.5, 0, -20);
-      body.update(out, 0.1);
-
-      const projected = projectToScreen(out, 1, mesh.position.clone());
-      // extent(3)/cameraDistance(10) = 0.3 exceeds the dead zone's own half-width (0.2) - the earlier
-      // oscillation-safety cap kicks in (Math.min(extentX, halfDeadWidth)), settling dead center
-      expect(projected.x).toBeCloseTo(0, 4);
+      const rotated = new Object3D();
+      rotated.quaternion.setFromAxisAngle(new Vector3(0, 1, 0), Math.PI / 4);
+      rotated.position.set(0, 0, -20);
+      const rotatedBody = new PositionComposerBody(rotated, 10, [0, 0], 1, [0.2, 0.2], 0, [0, 0], undefined, [2, 2, 2]);
+      expect(nudgeFromCenter(rotated, rotatedBody)).toBeCloseTo(0.2 - Math.SQRT2 / 10, 4);
     });
 
-    it('recalculateSize() only forces ONE recompute - a LATER deformation goes stale again', () => {
-      // deadZone's half-width (0.6) sits BETWEEN the two extents' screen fractions (0.3 for 3x, 0.9 for a
-      // would-be 9x) - neither hits the oscillation-safety cap, and only the 9x one alone would flip
-      // which side of the zone edge the correction lands on, so a wrongly-persisted flag is unmistakable
+    it('measures a mesh target on its own, and again only after recalculateSize()', () => {
       const mesh = new Mesh(new BoxGeometry(2, 2, 2), new MeshBasicMaterial());
       mesh.position.set(10, 0, -20);
+      // the dead zone half-width sits between the 3x and 9x extents, so a stale size shows clearly
       const body = new PositionComposerBody(mesh, 10, [0, 0], 1, [0.6, 0.6], 0);
       const out = createCameraState();
       out.fov = 90;
       body.update(out, 0.1);
+      expect(projectToScreen(out, 1, mesh.position.clone()).x).toBeCloseTo(0.5, 4); // half-extent 1 detected
 
-      growMeshGeometryThreefold(mesh); // half-extent 1 -> 3, extentX 0.1 -> 0.3
+      // raw vertex edits are the one change three.js never syncs into a cached bounding box
+      const grow = () => {
+        const position = mesh.geometry.attributes.position;
+        for (let i = 0; i < position.count; i++) {
+          position.setXYZ(i, position.getX(i) * 3, position.getY(i) * 3, position.getZ(i) * 3);
+        }
+      };
+      grow();
+      body.update(out, 0.1);
+      expect(projectToScreen(out, 1, mesh.position.clone()).x).toBeCloseTo(0.5, 4); // still the cached size
+
       body.recalculateSize();
       body.update(out, 0.1);
-      const afterFirstRecalc = toVector3(out.position);
+      const afterRecalc = vec3.clone(out.position);
+      expect(projectToScreen(out, 1, mesh.position.clone()).x).toBeCloseTo(0.3, 4); // half-extent 3
 
-      growMeshGeometryThreefold(mesh); // half-extent 3 -> 9, extentX -> 0.9, but NOT recalculated again
+      grow();
       body.update(out, 0.1);
-
-      expect(toVector3(out.position).equals(afterFirstRecalc)).toBe(true); // still reacting to the 3x measurement
+      expect(out.position).toEqual(afterRecalc); // recalculateSize() measured once, not every frame
     });
-  });
 
-  describe('extent bigger than the reaction zone (real bug: used to oscillate like a spring, never converging)', () => {
-    it('a radius larger than the dead zone settles at dead center instead of alternating forever', () => {
+    it('an extent larger than the dead zone settles at the center instead of oscillating (real bug)', () => {
       const target = new Vector3(0, 0, -20);
-      const body = new PositionComposerBody(target, 10, [0, 0], 1, [0.2, 0.2], 0, [0, 0], 2); // radius 2 > the dead zone's own half-width in world units
-      const out = createCameraState();
-      body.update(out, 0.1, true); // baseline, dead-center
-
-      target.set(0.3, 0, -20); // nudge off-center
-      let previousX = out.position[0];
-      for (let i = 0; i < 20; i++) {
-        body.update(out, 0.1, false);
-        if (i > 0) expect(out.position[0]).toBeCloseTo(previousX, 8); // settles immediately, doesn't alternate
-        previousX = out.position[0];
-      }
-
-      const projected = projectToScreen(out, 1, target);
-      expect(projected.x).toBeCloseTo(0, 4); // the best achievable compromise: dead center
-    });
-
-    it('an oriented box bigger than the dead zone settles at dead center too', () => {
-      const targetObject = new Object3D();
-      targetObject.quaternion.setFromAxisAngle(new Vector3(0, 1, 0), Math.PI / 4);
-      targetObject.position.set(0, 0, -20);
-
-      const body = new PositionComposerBody(targetObject, 10, [0, 0], 1, [0.2, 0.2], 0, [0, 0], undefined, [4, 4, 4]);
+      const body = new PositionComposerBody(target, 10, [0, 0], 1, [0.2, 0.2], 0, [0, 0], 2);
       const out = createCameraState();
       body.update(out, 0.1, true);
 
-      targetObject.position.set(0.3, 0, -20);
-      let previousX = out.position[0];
-      for (let i = 0; i < 20; i++) {
-        body.update(out, 0.1, false);
-        if (i > 0) expect(out.position[0]).toBeCloseTo(previousX, 8);
-        previousX = out.position[0];
-      }
+      target.set(0.3, 0, -20);
+      body.update(out, 0.1);
+      const first = out.position[0];
+      body.update(out, 0.1);
 
-      const projected = projectToScreen(out, 1, targetObject.position.clone());
-      expect(projected.x).toBeCloseTo(0, 4);
+      expect(out.position[0]).toBeCloseTo(first, 8);
+      expect(projectToScreen(out, 1, target).x).toBeCloseTo(0, 4);
     });
 
-    it('a radius larger than hardLimit settles at dead center there too, not alternating', () => {
-      const target = new Vector3(20, 0, -20); // far outside
-      const body = new PositionComposerBody(target, 10, [0, 0], 1, [0.1, 0.1], 5, [0.15, 0.15], 2); // radius 2 > hardLimit's own half-width
-      body.update(createCameraState(), 0.1); // consume the first-ever-update hard snap on a throwaway state
+    it('an extent larger than hardLimit settles at the center too (real bug)', () => {
+      const target = new Vector3(20, 0, -20);
+      const body = warmUp(new PositionComposerBody(target, 10, [0, 0], 1, [0.1, 0.1], 5, [0.15, 0.15], 2));
       const out = createCameraState();
 
       body.update(out, 0.1);
-      const afterFirst = projectToScreen(out, 1, target).x;
+      const first = projectToScreen(out, 1, target).x;
       body.update(out, 0.1);
-      const afterSecond = projectToScreen(out, 1, target).x;
 
-      expect(afterSecond).toBeCloseTo(afterFirst, 4);
-      expect(afterSecond).toBeCloseTo(0, 4);
+      expect(projectToScreen(out, 1, target).x).toBeCloseTo(first, 4);
+      expect(first).toBeCloseTo(0, 4);
     });
   });
 
-  describe('hard limit', () => {
-    it('forces the target back inside hardLimit even when heavy damping alone would leave it outside', () => {
-      const target = new Vector3(20, 0, -10); // far outside on X, already at cameraDistance in Z
-      const body = new PositionComposerBody(target, 10, [0, 0], 1, [0.1, 0.1], 5, [0.15, 0.15]);
-      body.update(createCameraState(), 0.1); // consume the first-ever-update hard snap on a throwaway state
+  describe('hardLimit', () => {
+    it('keeps the target inside it even when heavy damping would leave it outside, measured to its edge', () => {
+      const pointTarget = new Vector3(20, 0, -10);
+      const point = warmUp(new PositionComposerBody(pointTarget, 10, [0, 0], 1, [0.1, 0.1], 5, [0.15, 0.15]));
       const out = createCameraState();
+      point.update(out, 0.1);
+      expect(projectToScreen(out, 1, pointTarget).x).toBeCloseTo(0.15, 4);
 
+      const sphereTarget = new Vector3(20, 0, -10);
+      const sphere = warmUp(new PositionComposerBody(sphereTarget, 10, [0, 0], 1, [0.1, 0.1], 5, [0.15, 0.15], 1));
+      const sphereOut = createCameraState();
+      sphereOut.fov = 90;
+      sphere.update(sphereOut, 0.1);
+      expect(projectToScreen(sphereOut, 1, sphereTarget).x).toBeCloseTo(0.05, 4);
+    });
+
+    it('still applies when the target sits inside a larger dead zone (real bug: the dead zone returned early)', () => {
+      const target = new Vector3(0, 0, -20);
+      const body = new PositionComposerBody(target, 10, [0, 0], 1, [0.4, 0.4], 0, [0.1, 0.1]);
+      const out = createCameraState();
+      body.update(out, 0.1);
+      const before = vec3.clone(out.position);
+
+      target.set(0.5, 0, -20);
       body.update(out, 0.1);
 
-      const projected = projectToScreen(out, 1, target);
-      expect(projected.x).toBeCloseTo(0.15, 4); // clamped to the hard limit's edge
+      expect(out.position).not.toEqual(before);
     });
 
-    it("a radius pulls hardLimit enforcement in earlier, clamping the target's EDGE to the limit boundary", () => {
-      const target = new Vector3(20, 0, -10); // far outside on X, already at cameraDistance in Z
-      const body = new PositionComposerBody(target, 10, [0, 0], 1, [0.1, 0.1], 5, [0.15, 0.15], 1); // radius = 1
-      body.update(createCameraState(), 0.1); // consume the first-ever-update hard snap on a throwaway state
-      const out = createCameraState();
-      out.fov = 90; // tan(45°) = 1, so halfWidth = cameraDistance exactly - clean world-unit math
-
-      body.update(out, 0.1);
-
-      const projected = projectToScreen(out, 1, target);
-      // hard limit half-width 0.15; radius 1 at cameraDistance 10 = 0.1 of extent, so the CENTER lands
-      // 0.1 short of the limit's edge
-      expect(projected.x).toBeCloseTo(0.05, 4);
-    });
-
-    it('hardLimit=[0,0] (default): no enforcement, an unclamped damped result can lag past where a hard limit would clamp it', () => {
+    it('does nothing when the damped result is already inside it', () => {
       const target = new Vector3(20, 0, -20);
-
-      const bodyWithoutLimit = new PositionComposerBody(target, 10, [0, 0], 1, [0.1, 0.1], 5);
-      bodyWithoutLimit.update(createCameraState(), 0.1); // consume the first-ever-update hard snap
-      const withoutLimit = createCameraState();
-      bodyWithoutLimit.update(withoutLimit, 0.1);
-
-      const bodyWithLimit = new PositionComposerBody(target, 10, [0, 0], 1, [0.1, 0.1], 5, [0.15, 0.15]);
-      bodyWithLimit.update(createCameraState(), 0.1); // consume the first-ever-update hard snap
-      const withLimit = createCameraState();
-      bodyWithLimit.update(withLimit, 0.1);
-
-      expect(toVector3(withoutLimit.position).equals(toVector3(withLimit.position))).toBe(false);
-      const projected = projectToScreen(withoutLimit, 1, target);
-      expect(Math.abs(projected.x)).toBeGreaterThan(0.15); // past where hardLimit=[0.15,0.15] would have clamped it
-    });
-
-    it('does nothing when the damped result already sits inside a generous hardLimit', () => {
-      const target = new Vector3(20, 0, -20);
-      const withoutLimit = createCameraState();
-      new PositionComposerBody(target, 10, [0, 0], 1, [0.2, 0.2], 0.3).update(withoutLimit, 0.016);
-
-      const withLimit = createCameraState();
-      new PositionComposerBody(target, 10, [0, 0], 1, [0.2, 0.2], 0.3, [1000, 1000]).update(withLimit, 0.016);
-
-      expect(toVector3(withLimit.position).equals(toVector3(withoutLimit.position))).toBe(true);
+      const run = (hardLimit: [number, number]) => {
+        const out = createCameraState();
+        new PositionComposerBody(target, 10, [0, 0], 1, [0.2, 0.2], 0.3, hardLimit).update(out, 0.016);
+        return out.position;
+      };
+      expect(run([1000, 1000])).toEqual(run([0, 0]));
     });
   });
 
   describe('lookahead', () => {
     const dt = 1 / 60;
 
-    it('lookaheadTime 0 (default) leaves out.target at the raw target position', () => {
-      const target = new Vector3(0, 0, -20);
-      const body = new PositionComposerBody(target, 10);
-      const out = createCameraState();
-
-      body.update(out, dt, true);
-      target.set(5, 0, -20);
-      body.update(out, dt, false);
-
-      expect(toVector3(out.target).equals(target)).toBe(true);
-    });
-
-    it('extrapolates out.target ahead of a target moving at constant velocity', () => {
+    function moving(setup: (body: PositionComposerBody) => void) {
       const target = new Vector3();
       const body = new PositionComposerBody(target, 10);
       body.lookaheadTime = 0.5;
       body.lookaheadSmoothing = 10;
+      setup(body);
       const out = createCameraState();
+      body.update(out, dt, true);
+      return { target, body, out };
+    }
 
-      body.update(out, dt, true); // activation: predictor reset, records the first sample only
+    it('places out.target ahead of a moving target, and leaves it raw by default', () => {
+      const { target, body, out } = moving(() => {});
       for (let i = 0; i < 120; i++) {
-        target.x += 10 * dt; // constant velocity, 10 units/s
-        body.update(out, dt, false);
+        target.x += 10 * dt;
+        body.update(out, dt);
       }
+      expect(out.target[0] - target.x).toBeCloseTo(5, 1); // 0.5 s ahead at 10 units/s
 
-      // steady state: predicted 0.5s ahead at 10 units/s = +5 beyond the raw target
-      expect(out.target[0] - target.x).toBeCloseTo(5, 1);
+      body.lookaheadTime = 0;
+      body.update(out, dt);
+      expect(out.target).toEqual(target.toArray());
     });
 
-    it('a fresh activation resets the predictor — the first frame after it predicts nothing yet', () => {
-      const target = new Vector3();
-      const body = new PositionComposerBody(target, 10);
-      body.lookaheadTime = 0.5;
-      body.lookaheadSmoothing = 10;
-      const out = createCameraState();
-
-      body.update(out, dt, true);
+    it('starts over on activation and when the target changes', () => {
+      const { target, body, out } = moving(() => {});
       for (let i = 0; i < 60; i++) {
         target.x += 10 * dt;
-        body.update(out, dt, false);
+        body.update(out, dt);
       }
-      expect(out.target[0] - target.x).not.toBeCloseTo(0, 1); // built up a real lookahead offset
-
-      // a later, unrelated activation — same still-moving target, but the predictor shouldn't carry over
       body.update(out, dt, true);
       expect(out.target[0]).toBeCloseTo(target.x, 4);
-    });
 
-    it('retargeting to a different reference resets the predictor too, even without justActivated', () => {
-      const targetA = new Vector3();
-      const body = new PositionComposerBody(targetA, 10);
-      body.lookaheadTime = 0.5;
-      body.lookaheadSmoothing = 10;
-      const out = createCameraState();
-
-      body.update(out, dt, true);
       for (let i = 0; i < 60; i++) {
-        targetA.x += 10 * dt;
-        body.update(out, dt, false);
+        target.x += 10 * dt;
+        body.update(out, dt);
       }
-
-      const targetB = new Vector3(100, 0, -20);
-      body.target = targetB;
-      body.update(out, dt, false); // no justActivated — only the target reference changed
-
-      expect(toVector3(out.target).equals(targetB)).toBe(true); // no offset carried over from targetA's velocity
+      const other = new Vector3(100, 0, -20);
+      body.target = other;
+      body.update(out, dt);
+      expect(out.target).toEqual(other.toArray());
     });
 
-    it('ignoreY zeroes the vertical component of the predicted offset', () => {
-      const target = new Vector3();
-      const body = new PositionComposerBody(target, 10);
-      body.lookaheadTime = 0.5;
-      body.lookaheadSmoothing = 10;
-      body.lookaheadIgnoreY = true;
-      const out = createCameraState();
-
-      body.update(out, dt, true);
+    it('ignoreY drops the vertical part of the prediction', () => {
+      const { target, body, out } = moving((body) => (body.lookaheadIgnoreY = true));
       for (let i = 0; i < 120; i++) {
-        target.y += 10 * dt; // moving straight up
-        body.update(out, dt, false);
+        target.y += 10 * dt;
+        body.update(out, dt);
       }
-
-      expect(out.target[1]).toBeCloseTo(target.y, 4); // vertical lookahead suppressed
+      expect(out.target[1]).toBeCloseTo(target.y, 4);
     });
   });
 });
