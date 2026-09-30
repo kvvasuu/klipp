@@ -28,7 +28,7 @@ pnpm --filter examples dev
 - `src/core/` - camera logic as plain data and functions, on [`math`](https://github.com/pmndrs/math)
   only. No three.js, React or DOM.
 - `src/three/` - classes that read `Object3D` targets and write three.js cameras.
-- `src/dom/` - pointer and keyboard input. Depends on `core` only.
+- `src/dom/` - pointer and keyboard input, and debug overlays. Depends on `core` only.
 - `src/react/` - React Three Fiber components.
 
 Core modules follow one pattern: an `XParams` type for settings, an `XState` type with `createXState()`
