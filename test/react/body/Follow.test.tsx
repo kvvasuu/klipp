@@ -1,119 +1,45 @@
-import { create } from '@react-three/test-renderer';
 import { Object3D } from 'three';
 import { describe, expect, it } from 'vitest';
 import { BindingModes } from '../../../src/core/body/BindingModes';
-import { Follow } from '../../../src/react/body/Follow';
-import { Klipp } from '../../../src/react/Klipp';
-import { useKlipp } from '../../../src/react/KlippContext';
-import type { KlippCore } from '../../../src/core/KlippCore';
-import { VirtualCamera } from '../../../src/react/VirtualCamera';
+import { Body } from '../../../src/react/body/Body';
+import type { FollowBody } from '../../../src/three/body/FollowBody';
+import { expectPropsReachInstance, expectStopsWhenUnmounted, mountInCamera } from '../wiring';
 
-function CoreReader({ onRead }: { onRead: (core: KlippCore) => void }) {
-  onRead(useKlipp().core);
-  return null;
-}
-
-describe('Follow (React wrapper)', () => {
-  it("registers a FollowBody that actually runs every frame, using r3f's [x,y,z] offset shorthand", async () => {
-    let core: KlippCore | undefined;
+describe('Body.Follow', () => {
+  it('registers a body that runs every frame', async () => {
     const target = new Object3D();
     target.position.set(3, 0, 0);
-
-    const scene = (
-      <Klipp>
-        <CoreReader onRead={(c) => (core = c)} />
-        <VirtualCamera name="a" priority={10}>
-          <Follow target={target} offset={[0, 0, 0]} />
-        </VirtualCamera>
-      </Klipp>
-    );
-
-    const renderer = await create(scene);
-    await renderer.advanceFrames(1, 0.1);
-
-    expect(core!.activeState!.position[0]).toBeCloseTo(3, 10);
+    const mounted = await mountInCamera(<Body.Follow target={target} offset={[0, 2, 5]} />);
+    await mounted.frame();
+    expect(mounted.state.position).toEqual([3, 2, 5]);
   });
 
-  it('an offset prop change is picked up on the next frame (field mutation, not re-registration)', async () => {
-    let core: KlippCore | undefined;
-    const target = new Object3D();
-
-    const scene = (offsetX: number) => (
-      <Klipp>
-        <CoreReader onRead={(c) => (core = c)} />
-        <VirtualCamera name="a" priority={10}>
-          <Follow target={target} offset={[offsetX, 0, 0]} />
-        </VirtualCamera>
-      </Klipp>
+  it('passes every prop to the same body, on mount and when props change', async () => {
+    await expectPropsReachInstance<object, FollowBody>(
+      (props, ref) => <Body.Follow ref={ref} {...props} />,
+      { target: new Object3D(), offset: [0, 3, 8], damping: 0.5, bindingMode: BindingModes.worldSpace, maxSpeed: 4 },
+      {
+        target: new Object3D(),
+        offset: [1, 2, 3],
+        damping: { into: 0.2, from: 1 },
+        bindingMode: BindingModes.lockToTargetNoRoll,
+        maxSpeed: 8,
+      },
     );
-
-    const renderer = await create(scene(1));
-    await renderer.advanceFrames(1, 0.1);
-    expect(core!.activeState!.position[0]).toBeCloseTo(1, 5);
-
-    await renderer.update(scene(5));
-    await renderer.advanceFrames(1, 0.1);
-    expect(core!.activeState!.position[0]).toBeCloseTo(5, 5);
   });
 
-  it('unmounting stops the body from running', async () => {
-    const scene = (mounted: boolean) => (
-      <Klipp>
-        <VirtualCamera name="a" priority={10}>
-          {mounted && <Follow target={new Object3D()} />}
-        </VirtualCamera>
-      </Klipp>
-    );
-
-    const renderer = await create(scene(true));
-    await renderer.advanceFrames(1, 0.1);
-
-    await renderer.update(scene(false));
-    await expect(renderer.advanceFrames(1, 0.1)).resolves.not.toThrow();
+  it('stops moving the camera once unmounted', async () => {
+    await expectStopsWhenUnmounted((target) => <Body.Follow target={target} offset={[0, 0, 5]} />);
   });
 
-  it('a bindingMode prop change is picked up on the next frame', async () => {
-    let core: KlippCore | undefined;
-    const target = new Object3D();
-    target.rotation.set(0, Math.PI / 2, 0);
-
-    const scene = (bindingMode: (typeof BindingModes)[keyof typeof BindingModes]) => (
-      <Klipp>
-        <CoreReader onRead={(c) => (core = c)} />
-        <VirtualCamera name="a" priority={10}>
-          <Follow target={target} offset={[0, 0, 10]} bindingMode={bindingMode} />
-        </VirtualCamera>
-      </Klipp>
-    );
-
-    const renderer = await create(scene(BindingModes.lockToTarget));
-    await renderer.advanceFrames(1, 0.1);
-    expect(core!.activeState!.position[0]).toBeCloseTo(10, 5); // rotated into the target's 90° yaw
-
-    await renderer.update(scene(BindingModes.worldSpace));
-    await renderer.advanceFrames(1, 0.1);
-    expect(core!.activeState!.position[0]).toBeCloseTo(0, 5); // now raw, unrotated
-    expect(core!.activeState!.position[2]).toBeCloseTo(10, 5);
-  });
-
-  it("VirtualCamera's initialState.position seeds the damper - the first frame eases from there, not a snap", async () => {
-    let core: KlippCore | undefined;
+  it("eases in from VirtualCamera's initialState.position instead of snapping", async () => {
     const target = new Object3D();
     target.position.set(100, 0, 0);
-
-    const scene = (
-      <Klipp>
-        <CoreReader onRead={(c) => (core = c)} />
-        <VirtualCamera name="a" priority={10} initialState={{ position: [-100, 0, 0] }}>
-          <Follow target={target} offset={[0, 0, 0]} damping={0.5} />
-        </VirtualCamera>
-      </Klipp>
-    );
-
-    const renderer = await create(scene);
-    await renderer.advanceFrames(1, 0.016);
-
-    expect(core!.activeState!.position[0]).toBeGreaterThan(-100); // moved off initialState
-    expect(core!.activeState!.position[0]).toBeLessThan(100); // but not snapped to the target
+    const mounted = await mountInCamera(<Body.Follow target={target} offset={[0, 0, 0]} damping={0.5} />, {
+      position: [-100, 0, 0],
+    });
+    await mounted.frame(0.016);
+    expect(mounted.state.position[0]).toBeGreaterThan(-100);
+    expect(mounted.state.position[0]).toBeLessThan(100);
   });
 });
