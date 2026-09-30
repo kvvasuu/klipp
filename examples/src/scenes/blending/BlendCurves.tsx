@@ -13,7 +13,7 @@ import { SpinningSubject } from '../../scene/SpinningSubject';
 const subjectPosition: [number, number, number] = [0, 1.5, 0];
 const secondSubjectPosition: [number, number, number] = [6, 1.2, 1];
 
-const curveOptions = ['cut', 'linear', 'easeInOut', 'easeIn', 'easeOut', 'hardIn', 'hardOut'] as const;
+const curveOptions = ['cut', 'linear', 'easeInOut', 'easeIn', 'easeOut', 'cubicIn', 'cubicOut'] as const;
 type CurveName = (typeof curveOptions)[number];
 
 const cameraNames = ['shot-wide', 'shot-close', 'shot-high', 'shot-alt-a', 'shot-alt-b'] as const;

@@ -19,7 +19,7 @@ describe('resolveBlendDefinition', () => {
   });
 
   it('a "to" wildcard (any origin) matches, including from null', () => {
-    const blend = { curve: BlendCurves.hardIn, time: 2 };
+    const blend = { curve: BlendCurves.cubicIn, time: 2 };
     const customBlends: CustomBlend[] = [{ to: 'b', blend }];
 
     expect(resolveBlendDefinition(customBlends, 'a', 'b', defaultBlend)).toBe(blend);
@@ -28,7 +28,7 @@ describe('resolveBlendDefinition', () => {
   });
 
   it('a "from" wildcard (any destination) matches', () => {
-    const blend = { curve: BlendCurves.hardOut, time: 4 };
+    const blend = { curve: BlendCurves.cubicOut, time: 4 };
     const customBlends: CustomBlend[] = [{ from: 'a', blend }];
 
     expect(resolveBlendDefinition(customBlends, 'a', 'b', defaultBlend)).toBe(blend);
