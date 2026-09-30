@@ -19,7 +19,7 @@ const closeOffset: [number, number, number] = [3, 1, 3];
 const closePosition = addOffset(subjectPosition, closeOffset);
 const closeQuaternion = lookAtQuaternion(closePosition, subjectPosition);
 
-const curveOptions = ['cut', 'linear', 'easeInOut', 'easeIn', 'easeOut', 'hardIn', 'hardOut'] as const;
+const curveOptions = ['cut', 'linear', 'easeInOut', 'easeIn', 'easeOut', 'cubicIn', 'cubicOut'] as const;
 type CurveName = (typeof curveOptions)[number];
 
 type BlendMode = 'curve' | 'damping';

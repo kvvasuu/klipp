@@ -45,11 +45,11 @@ describe('BlendCurves', () => {
     expect(BlendCurves.easeOut(0.1)).toBeLessThan(BlendCurves.linear(0.1));
   });
 
-  it('hardOut is an even more abrupt departure than easeIn (both: fast start, eased arrival)', () => {
-    expect(BlendCurves.hardOut(0.1)).toBeGreaterThan(BlendCurves.easeIn(0.1));
+  it('cubicOut is an even more abrupt departure than easeIn (both: fast start, eased arrival)', () => {
+    expect(BlendCurves.cubicOut(0.1)).toBeGreaterThan(BlendCurves.easeIn(0.1));
   });
 
-  it('hardIn is an even more eased departure than easeOut (both: slow start, hard arrival)', () => {
-    expect(BlendCurves.hardIn(0.1)).toBeLessThan(BlendCurves.easeOut(0.1));
+  it('cubicIn is an even more eased departure than easeOut (both: slow start, hard arrival)', () => {
+    expect(BlendCurves.cubicIn(0.1)).toBeLessThan(BlendCurves.easeOut(0.1));
   });
 });
