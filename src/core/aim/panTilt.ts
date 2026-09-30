@@ -23,17 +23,10 @@ const scratchTargetForward: Vec3 = [0, 0, 0];
 const scratchA: Vec3 = [0, 0, 0];
 const scratchB: Vec3 = [0, 0, 0];
 const scratchRight: Vec3 = [0, 0, 0];
-const scratchCross: Vec3 = [0, 0, 0];
 
 /** The frame pan and tilt are measured in: the target's rotation, or `referenceUp` alone. */
 function referenceFrame(out: Quat, targetRotation: Quat | null, referenceUp: Vec3): Quat {
   return targetRotation ? quat.copy(out, targetRotation) : quat.rotationTo(out, worldUp, referenceUp);
-}
-
-/** Signed angle (degrees) from `from` to `to`, measured around `axis`. */
-function signedAngleDeg(from: Vec3, to: Vec3, axis: Vec3): number {
-  vec3.cross(scratchCross, from, to);
-  return radiansToDegrees(Math.atan2(vec3.dot(scratchCross, axis), vec3.dot(from, to)));
 }
 
 function projectOnPlane(out: Vec3, v: Vec3, normal: Vec3): Vec3 {
@@ -66,7 +59,7 @@ export function seedPanTilt(state: PanTiltState, targetRotation: Quat | null, ro
   projectOnPlane(scratchB, scratchTargetForward, referenceUp);
   let panRawDeg = 0;
   if (vec3.squaredLength(scratchA) > epsilon && vec3.squaredLength(scratchB) > epsilon) {
-    panRawDeg = signedAngleDeg(scratchA, scratchB, referenceUp);
+    panRawDeg = radiansToDegrees(vec3.signedAngle(scratchA, scratchB, referenceUp));
   }
 
   quat.setAxisAngle(scratchAxisRotation, referenceUp, degreesToRadians(panRawDeg));
@@ -74,7 +67,8 @@ export function seedPanTilt(state: PanTiltState, targetRotation: Quat | null, ro
   vec3.cross(scratchRight, referenceUp, scratchForward);
   let tiltDeg = 0;
   if (vec3.squaredLength(scratchRight) > epsilon) {
-    tiltDeg = signedAngleDeg(scratchForward, scratchTargetForward, scratchRight);
+    vec3.normalize(scratchRight, scratchRight);
+    tiltDeg = radiansToDegrees(vec3.signedAngle(scratchForward, scratchTargetForward, scratchRight));
   }
 
   // pan.value grows in the opposite direction from a standard signed angle around referenceUp.
