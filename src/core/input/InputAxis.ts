@@ -1,5 +1,5 @@
 import { clamp, repeat } from 'math';
-import { Damper, type DampingConstant } from '../damping/Damper';
+import { createDamperState, damp, resetDamper, type DamperState, type DampingConstant } from '../damping/Damper';
 import { shortestWrappedDelta } from './shortestWrappedDelta';
 
 export type InputAxisRecentering = {
@@ -10,8 +10,85 @@ export type InputAxisRecentering = {
   time: number;
 };
 
+/** An input axis as plain data: configuration plus the state the functions below advance. */
+export type InputAxisData = {
+  value: number;
+  center: number;
+  range: [number, number] | null;
+  wrap: boolean;
+  recentering: InputAxisRecentering;
+  damping: DampingConstant;
+  maxSpeed: number;
+  /** Whether to normalize a wrapped axis after it settles. */
+  autoNormalize: boolean;
+  /** Whether the input source is currently held. */
+  held: boolean;
+  /** Target the value eases toward. Internal. */
+  rawValue: number;
+  /** Seconds without input. Internal. */
+  idleTime: number;
+  /** Whether a delta arrived since the last update. Internal. */
+  hadDelta: boolean;
+  /** Internal. */
+  damper: DamperState;
+};
+
+const clampToRange = (axis: InputAxisData, value: number): number =>
+  axis.range ? clamp(value, axis.range[0], axis.range[1]) : value;
+
+/** Add an input delta to the axis target. */
+export function applyAxisDelta(axis: InputAxisData, delta: number): void {
+  if (delta === 0) return;
+  axis.rawValue = axis.wrap ? axis.rawValue + delta : clampToRange(axis, axis.rawValue + delta);
+  axis.idleTime = 0;
+  axis.hadDelta = true;
+}
+
+/** Wrap `value` and `rawValue` back into `range`. */
+export function normalizeAxis(axis: InputAxisData): void {
+  if (!axis.wrap || !axis.range) return;
+  const [min, max] = axis.range;
+  const span = max - min;
+  axis.value = min + repeat(axis.value - min, span);
+  axis.rawValue = min + repeat(axis.rawValue - min, span);
+}
+
+/** Advance the axis and apply damping or recentering. */
+export function updateAxis(axis: InputAxisData, dt: number): void {
+  const active = axis.held || axis.hadDelta;
+  axis.hadDelta = false;
+  if (active) axis.idleTime = 0;
+  else axis.idleTime += dt;
+  // Recenter starts on the first idle frame, even when the wait is zero.
+  const isRecentering = !active && axis.recentering.enabled && axis.idleTime >= axis.recentering.wait;
+
+  let dampTarget: number;
+  let dampTime: DampingConstant;
+  if (isRecentering) {
+    dampTarget =
+      axis.wrap && axis.range ? axis.value + shortestWrappedDelta(axis.value, axis.center, axis.range) : axis.center;
+    dampTime = axis.recentering.time;
+  } else {
+    dampTarget = axis.rawValue;
+    dampTime = axis.damping;
+  }
+
+  axis.damper.value = axis.value;
+  const eased = damp(axis.damper, dampTarget, dampTime, dt, axis.maxSpeed).value;
+  axis.value = axis.wrap ? eased : clampToRange(axis, eased);
+
+  if (isRecentering) axis.rawValue = axis.value;
+
+  if (axis.autoNormalize && axis.value === axis.rawValue) normalizeAxis(axis);
+}
+
+/** Reset damping so the next update snaps to the raw value. */
+export function resetAxis(axis: InputAxisData): void {
+  resetDamper(axis.damper);
+}
+
 /** Shapes an input value with range, wrapping, damping, and recentering. */
-export class InputAxis {
+export class InputAxis implements InputAxisData {
   value: number;
   center: number;
   range: [number, number] | null;
@@ -19,15 +96,12 @@ export class InputAxis {
   recentering: InputAxisRecentering;
   damping: DampingConstant = 0;
   maxSpeed = Infinity;
-  /** Whether to normalize a wrapped axis after it settles. */
   autoNormalize = false;
-  /** Whether the input source is currently held. */
   held = false;
-
-  private rawValue: number;
-  private idleTime = 0;
-  private hadDelta = false;
-  private readonly damper = new Damper();
+  rawValue: number;
+  idleTime = 0;
+  hadDelta = false;
+  readonly damper = createDamperState();
 
   constructor(
     value = 0,
@@ -42,59 +116,19 @@ export class InputAxis {
     this.range = range;
     this.wrap = wrap;
     this.recentering = recentering;
-    this.damper.update(value, value, 0, 0);
+    // Consume the damper's first-call snap so the first update eases instead of jumping.
+    this.damper.value = value;
+    damp(this.damper, value, 0, 0);
   }
 
-  applyDelta = (delta: number): void => {
-    if (delta === 0) return;
-    this.rawValue = this.wrap ? this.rawValue + delta : this.clamp(this.rawValue + delta);
-    this.idleTime = 0;
-    this.hadDelta = true;
-  };
+  applyDelta = (delta: number): void => applyAxisDelta(this, delta);
 
   /** Advance the axis and apply damping or recentering. */
-  update = (dt: number): void => {
-    const active = this.held || this.hadDelta;
-    this.hadDelta = false;
-    if (active) this.idleTime = 0;
-    else this.idleTime += dt;
-    // Recenter starts on the first idle frame, even when the wait is zero.
-    const isRecentering = !active && this.recentering.enabled && this.idleTime >= this.recentering.wait;
-
-    let dampTarget: number;
-    let dampTime: DampingConstant;
-    if (isRecentering) {
-      dampTarget =
-        this.wrap && this.range ? this.value + shortestWrappedDelta(this.value, this.center, this.range) : this.center;
-      dampTime = this.recentering.time;
-    } else {
-      dampTarget = this.rawValue;
-      dampTime = this.damping;
-    }
-
-    const eased = this.damper.update(this.value, dampTarget, dampTime, dt, this.maxSpeed);
-    this.value = this.wrap ? eased : this.clamp(eased);
-
-    if (isRecentering) this.rawValue = this.value;
-
-    if (this.autoNormalize && this.value === this.rawValue) this.normalize();
-  };
+  update = (dt: number): void => updateAxis(this, dt);
 
   /** Reset damping so the next update snaps to the raw value. */
-  reset = (): void => {
-    this.damper.reset();
-  };
+  reset = (): void => resetAxis(this);
 
   /** Wrap `value` and `rawValue` back into `range`. */
-  normalize = (): void => {
-    if (!this.wrap || !this.range) return;
-    const [min, max] = this.range;
-    const span = max - min;
-    this.value = min + repeat(this.value - min, span);
-    this.rawValue = min + repeat(this.rawValue - min, span);
-  };
-
-  private clamp(value: number): number {
-    return this.range ? clamp(value, this.range[0], this.range[1]) : value;
-  }
+  normalize = (): void => normalizeAxis(this);
 }
