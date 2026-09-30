@@ -1,124 +1,56 @@
 import { useThree } from '@react-three/fiber';
 import { create } from '@react-three/test-renderer';
 import CameraControlsImpl from 'camera-controls';
-import { useEffect } from 'react';
+import { createRef, useEffect } from 'react';
 import { Vector3 } from 'three';
 import { describe, expect, it, vi } from 'vitest';
 import { CameraControls } from '../../../src/react/body/CameraControls';
 import type { CameraControlsBody } from '../../../src/three/body/CameraControlsBody';
 import { HardLockToTarget } from '../../../src/react/body/HardLockToTarget';
 import { Klipp } from '../../../src/react/Klipp';
-import { useKlipp } from '../../../src/react/KlippContext';
-import type { KlippCore } from '../../../src/core/KlippCore';
 import { VirtualCamera } from '../../../src/react/VirtualCamera';
 import { toQuaternion, toVector3 } from '../../tuples';
-
-function CoreReader({ onRead }: { onRead: (core: KlippCore) => void }) {
-  onRead(useKlipp().core);
-  return null;
-}
+import { expectStopsWhenUnmounted, mountInCamera } from '../wiring';
 
 describe('CameraControls (React wrapper)', () => {
-  it('registers a CameraControlsBody that actually runs every frame', async () => {
-    let core: KlippCore | undefined;
+  it('registers a body that runs every frame', async () => {
     const target = new Vector3(0, 0, -20);
+    const mounted = await mountInCamera(<CameraControls target={target} />);
+    await mounted.renderer.advanceFrames(5, 0.05);
 
-    const scene = (
-      <Klipp>
-        <CoreReader onRead={(c) => (core = c)} />
-        <VirtualCamera name="a" priority={10}>
-          <CameraControls target={target} />
-        </VirtualCamera>
-      </Klipp>
-    );
-
-    const renderer = await create(scene);
-    await renderer.advanceFrames(5, 0.05);
-
-    const state = core!.activeState!;
+    const state = mounted.state;
     const forward = new Vector3(0, 0, -1).applyQuaternion(toQuaternion(state.quaternion));
-    const towardTarget = target.clone().sub(toVector3(state.position)).normalize();
-    expect(forward.dot(towardTarget)).toBeGreaterThan(0.99);
+    expect(forward.dot(target.clone().sub(toVector3(state.position)).normalize())).toBeGreaterThan(0.99);
   });
 
-  it('impl threads a custom CameraControls subclass through to the underlying body', async () => {
+  it('passes its own props to the body and any other prop to the camera-controls instance', async () => {
     class CustomControls extends CameraControlsImpl {}
-    let controlsBody: CameraControlsBody | null = null;
-
-    const scene = (
-      <Klipp>
-        <VirtualCamera name="a" priority={10}>
-          <CameraControls target={new Vector3(0, 0, -10)} impl={CustomControls} ref={(b) => (controlsBody = b)} />
-        </VirtualCamera>
-      </Klipp>
+    const ref = createRef<CameraControlsBody>();
+    const scene = (target: Vector3, enableTransition: boolean, minDistance: number) => (
+      <CameraControls
+        ref={ref}
+        target={target}
+        enableTransition={enableTransition}
+        impl={CustomControls}
+        minDistance={minDistance}
+      />
     );
+    const first = new Vector3(0, 0, -10);
+    const mounted = await mountInCamera(scene(first, false, 5));
+    const body = ref.current!;
+    expect(body.controls).toBeInstanceOf(CustomControls);
+    expect(body).toMatchObject({ target: first, enableTransition: false });
+    expect(body.controls.minDistance).toBe(5);
 
-    const renderer = await create(scene);
-    await renderer.advanceFrames(1, 0.05);
-
-    expect(controlsBody!.controls).toBeInstanceOf(CustomControls);
+    const second = new Vector3(20, 0, 0);
+    await mounted.update(scene(second, true, 20));
+    expect(ref.current).toBe(body);
+    expect(body).toMatchObject({ target: second, enableTransition: true });
+    expect(body.controls.minDistance).toBe(20);
   });
 
-  it('any other prop passes straight through onto the real CameraControls instance, drei-style, and stays reactive', async () => {
-    let controlsBody: CameraControlsBody | null = null;
-
-    const scene = (minDistance: number) => (
-      <Klipp>
-        <VirtualCamera name="a" priority={10}>
-          <CameraControls target={new Vector3(0, 0, -10)} minDistance={minDistance} ref={(b) => (controlsBody = b)} />
-        </VirtualCamera>
-      </Klipp>
-    );
-
-    const renderer = await create(scene(5));
-    await renderer.advanceFrames(1, 0.05);
-    expect(controlsBody!.controls.minDistance).toBe(5);
-
-    await renderer.update(scene(20));
-    await renderer.advanceFrames(1, 0.05);
-    expect(controlsBody!.controls.minDistance).toBe(20);
-  });
-
-  it('connecting/disconnecting on mount/unmount does not throw in the test renderer', async () => {
-    const scene = (mounted: boolean) => (
-      <Klipp>
-        <VirtualCamera name="a" priority={10}>
-          {mounted && <CameraControls target={new Vector3(0, 0, -10)} />}
-        </VirtualCamera>
-      </Klipp>
-    );
-
-    const renderer = await create(scene(true));
-    await renderer.advanceFrames(1, 0.05);
-
-    await renderer.update(scene(false));
-    await expect(renderer.advanceFrames(1, 0.05)).resolves.not.toThrow();
-  });
-
-  it('a target prop change is picked up on the next frame (field mutation, not re-registration)', async () => {
-    let core: KlippCore | undefined;
-    const targetA = new Vector3(0, 0, -10);
-    const targetB = new Vector3(20, 0, 0);
-
-    const scene = (target: Vector3) => (
-      <Klipp>
-        <CoreReader onRead={(c) => (core = c)} />
-        <VirtualCamera name="a" priority={10}>
-          <CameraControls target={target} />
-        </VirtualCamera>
-      </Klipp>
-    );
-
-    const renderer = await create(scene(targetA));
-    await renderer.advanceFrames(10, 0.05);
-
-    await renderer.update(scene(targetB));
-    await renderer.advanceFrames(10, 0.05);
-
-    const state = core!.activeState!;
-    const forward = new Vector3(0, 0, -1).applyQuaternion(toQuaternion(state.quaternion));
-    const towardB = targetB.clone().sub(toVector3(state.position)).normalize();
-    expect(forward.dot(towardB)).toBeGreaterThan(0.99);
+  it('stops moving the camera once unmounted', async () => {
+    await expectStopsWhenUnmounted((target) => <CameraControls target={target} />);
   });
 
   it('waitForBlend=false: connects the instant it wins priority, even mid-blend; disconnects the instant it loses', async () => {
