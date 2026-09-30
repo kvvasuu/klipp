@@ -1,5 +1,5 @@
 import { clamp, quat, vec3, vec4, type Quat, type Vec3 } from 'math';
-import { damp, type DamperState, type DampingConstant } from './Damper';
+import { damp, type DamperState, type DampingConstant } from './Damper.js';
 
 const scratchOutInverse: Quat = [0, 0, 0, 1];
 const scratchDelta: Quat = [0, 0, 0, 1];

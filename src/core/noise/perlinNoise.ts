@@ -1,7 +1,7 @@
 import { degreesToRadians, quat, vec3, type Euler, type Quat, type Vec3 } from 'math';
 import { perlin2d } from 'math/noise';
-import type { CameraState } from '../CameraState';
-import { createDamperState, damp, resetDamper, type DamperState, type DampingConstant } from '../damping/Damper';
+import type { CameraState } from '../CameraState.js';
+import { createDamperState, damp, resetDamper, type DamperState, type DampingConstant } from '../damping/Damper.js';
 
 type Generator = ReturnType<typeof perlin2d.create>;
 /** Three position and three rotation noise channels. */

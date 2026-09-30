@@ -1,12 +1,12 @@
 import type { Vector3 as Vector3Like } from '@react-three/fiber';
 import { useEffect, useImperativeHandle, useState, type Ref } from 'react';
-import type { DampingConstant } from '../../core/damping/Damper';
-import { resolveVec3 } from '../../three/resolve/resolveVector3';
-import type { Target } from '../../three/resolve/Target';
-import { useTargetSlot } from '../useTargetSlot';
-import { useVirtualCamera } from '../VirtualCameraContext';
-import { BindingModes, type BindingMode } from '../../core/body/BindingModes';
-import { FollowBody } from '../../three/body/FollowBody';
+import type { DampingConstant } from '../../core/damping/Damper.js';
+import { resolveVec3 } from '../../three/resolve/resolveVector3.js';
+import type { Target } from '../../three/resolve/Target.js';
+import { useTargetSlot } from '../useTargetSlot.js';
+import { useVirtualCamera } from '../VirtualCameraContext.js';
+import { BindingModes, type BindingMode } from '../../core/body/BindingModes.js';
+import { FollowBody } from '../../three/body/FollowBody.js';
 
 const defaultOffset: Vector3Like = [0, 0, 10];
 

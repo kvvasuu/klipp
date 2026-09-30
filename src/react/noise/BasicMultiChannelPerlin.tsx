@@ -1,9 +1,9 @@
 import type { Vector3 as Vector3Like } from '@react-three/fiber';
 import { useEffect, useImperativeHandle, type Ref } from 'react';
-import type { DampingConstant } from '../../core/damping/Damper';
-import { useVirtualCamera } from '../VirtualCameraContext';
-import type { BasicMultiChannelPerlinNoise } from '../../core/noise/BasicMultiChannelPerlinNoise';
-import { useBasicMultiChannelPerlinNoise } from './useBasicMultiChannelPerlinNoise';
+import type { DampingConstant } from '../../core/damping/Damper.js';
+import { useVirtualCamera } from '../VirtualCameraContext.js';
+import type { BasicMultiChannelPerlinNoise } from '../../core/noise/BasicMultiChannelPerlinNoise.js';
+import { useBasicMultiChannelPerlinNoise } from './useBasicMultiChannelPerlinNoise.js';
 
 export type BasicMultiChannelPerlinProps = {
   /** Per-axis positional shake amplitude in camera-local space. */

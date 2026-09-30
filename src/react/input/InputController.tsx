@@ -1,11 +1,15 @@
 import { useThree } from '@react-three/fiber';
 import { use, useEffect, useImperativeHandle, useState, type Ref, type RefObject } from 'react';
-import { useKlipp } from '../KlippContext';
-import { useIsActiveVirtualCamera, useIsLiveVirtualCamera } from '../VirtualCameraContext';
-import type { InputAxis } from '../../core/input/InputAxis';
-import { InputAxisController, type InputAxisControllerConfig, type InputInvert } from '../../dom/InputAxisController';
-import { InputAxisOwnerContext, type InputAxisOwner } from './InputAxisOwnerContext';
-import type { InteractiveArea } from '../../dom/InputSystem';
+import { useKlipp } from '../KlippContext.js';
+import { useIsActiveVirtualCamera, useIsLiveVirtualCamera } from '../VirtualCameraContext.js';
+import type { InputAxis } from '../../core/input/InputAxis.js';
+import {
+  InputAxisController,
+  type InputAxisControllerConfig,
+  type InputInvert,
+} from '../../dom/InputAxisController.js';
+import { InputAxisOwnerContext, type InputAxisOwner } from './InputAxisOwnerContext.js';
+import type { InteractiveArea } from '../../dom/InputSystem.js';
 
 export type InputSourceConfig = {
   /** Axis names to drive for each source. */

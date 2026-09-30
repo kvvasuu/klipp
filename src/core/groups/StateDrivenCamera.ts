@@ -1,7 +1,7 @@
-import type { CameraState } from '../CameraState';
-import { blendTargetId, createBlendState, setBlendTarget, tickBlend, type BlendState } from '../blend/blend';
-import { BlendCurves } from '../blend/BlendCurves';
-import type { BlendDefinition } from '../blend/BlendDefinition';
+import type { CameraState } from '../CameraState.js';
+import { blendTargetId, createBlendState, setBlendTarget, tickBlend, type BlendState } from '../blend/blend.js';
+import { BlendCurves } from '../blend/BlendCurves.js';
+import type { BlendDefinition } from '../blend/BlendDefinition.js';
 
 export type StateDrivenCandidate = {
   cameraId: string;

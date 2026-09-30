@@ -1,8 +1,8 @@
 import { Quaternion, Vector3 } from 'three';
-import type { TargetExtent } from '../core/TargetExtent';
-import { resolveTargetRotation, resolveTargetSize, type Target } from './resolve/Target';
-import type { TargetSlot } from './resolve/TargetRegistry';
-import type { Vector3Like } from './resolve/resolveVector3';
+import type { TargetExtent } from '../core/TargetExtent.js';
+import { resolveTargetRotation, resolveTargetSize, type Target } from './resolve/Target.js';
+import type { TargetSlot } from './resolve/TargetRegistry.js';
+import type { Vector3Like } from './resolve/resolveVector3.js';
 
 const scratchSize = new Vector3();
 const scratchRotation = new Quaternion();

@@ -1,8 +1,8 @@
 import type { Vector3 as Vector3Like } from '@react-three/fiber';
 import { useState } from 'react';
-import { resolveVec3 } from '../../three/resolve/resolveVector3';
-import type { BasicMultiChannelPerlinProps } from './BasicMultiChannelPerlin';
-import { BasicMultiChannelPerlinNoise } from '../../core/noise/BasicMultiChannelPerlinNoise';
+import { resolveVec3 } from '../../three/resolve/resolveVector3.js';
+import type { BasicMultiChannelPerlinProps } from './BasicMultiChannelPerlin.js';
+import { BasicMultiChannelPerlinNoise } from '../../core/noise/BasicMultiChannelPerlinNoise.js';
 
 const defaultAmplitude: Vector3Like = [0, 0, 0];
 const defaultFrequency: Vector3Like = [1, 1, 1];

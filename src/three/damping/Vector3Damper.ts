@@ -1,7 +1,7 @@
 import type { Vec3 } from 'math';
 import type { Vector3 } from 'three';
-import type { DampingConstant } from '../../core/damping/Damper';
-import { createVector3DamperState, dampVector3, resetVector3Damper } from '../../core/damping/dampVector3';
+import type { DampingConstant } from '../../core/damping/Damper.js';
+import { createVector3DamperState, dampVector3, resetVector3Damper } from '../../core/damping/dampVector3.js';
 
 const scratchOut: Vec3 = [0, 0, 0];
 const scratchTarget: Vec3 = [0, 0, 0];

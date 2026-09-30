@@ -1,5 +1,5 @@
 import { mat4, quat, vec3, type Mat4, type Vec3 } from 'math';
-import type { CameraState } from '../CameraState';
+import type { CameraState } from '../CameraState.js';
 
 const scratchLookMatrix: Mat4 = mat4.create();
 

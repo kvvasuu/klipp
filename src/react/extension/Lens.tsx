@@ -1,8 +1,8 @@
 import { useThree } from '@react-three/fiber';
 import { useEffect, useImperativeHandle, useState, type Ref } from 'react';
-import type { DampingConstant } from '../../core/damping/Damper';
-import { useVirtualCamera } from '../VirtualCameraContext';
-import { LensExtension } from '../../core/extension/LensExtension';
+import type { DampingConstant } from '../../core/damping/Damper.js';
+import { useVirtualCamera } from '../VirtualCameraContext.js';
+import { LensExtension } from '../../core/extension/LensExtension.js';
 
 export type LensProps = {
   /** Overrides the camera's field of view, in degrees. `undefined` leaves the current value untouched. */

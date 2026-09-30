@@ -1,4 +1,4 @@
-import type { Ease } from './BlendCurves';
+import type { Ease } from './BlendCurves.js';
 
 /** A fixed-duration curve or a damped transition. */
 export type BlendDefinition = { curve: Ease; time: number } | { damping: number; maxSpeed?: number };

@@ -6,7 +6,7 @@ import {
   sampleImpulses,
   type GenerateImpulseOptions,
   type ImpulseClockSeconds,
-} from './impulses';
+} from './impulses.js';
 
 /** Stores one-shot impulses and samples their combined effect at a world position. */
 export class ImpulseField {

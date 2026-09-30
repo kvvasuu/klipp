@@ -5,11 +5,11 @@ import {
   createGroupMember,
   type GroupMember,
   type GroupPositionMode,
-} from '../../core/extension/groupFraming';
-import { readTargetExtent } from '../readTargetExtent';
-import { resolveTargetPosition, resolveTargetSize, type Target } from '../resolve/Target';
-import type { TargetSlot } from '../resolve/TargetRegistry';
-import type { Vector3Like } from '../resolve/resolveVector3';
+} from '../../core/extension/groupFraming.js';
+import { readTargetExtent } from '../readTargetExtent.js';
+import { resolveTargetPosition, resolveTargetSize, type Target } from '../resolve/Target.js';
+import type { TargetSlot } from '../resolve/TargetRegistry.js';
+import type { Vector3Like } from '../resolve/resolveVector3.js';
 
 export type TargetGroupMember = {
   target: Target;

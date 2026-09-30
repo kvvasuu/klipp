@@ -1,15 +1,15 @@
 import { clamp, degreesToRadians, mat4, quat, vec3, vec4, type Mat4, type Quat, type Vec3 } from 'math';
-import type { CameraState } from '../CameraState';
-import { createDamperState, damp, resetDamper, type DamperState, type DampingConstant } from '../damping/Damper';
-import { dampQuaternion } from '../damping/dampQuaternion';
+import type { CameraState } from '../CameraState.js';
+import { createDamperState, damp, resetDamper, type DamperState, type DampingConstant } from '../damping/Damper.js';
+import { dampQuaternion } from '../damping/dampQuaternion.js';
 import {
   addPredictorPosition,
   createPredictorState,
   predictPositionDelta,
   resetPredictor,
   type PredictorState,
-} from '../damping/predictor';
-import { projectTargetExtent, type TargetExtent } from '../TargetExtent';
+} from '../damping/predictor.js';
+import { projectTargetExtent, type TargetExtent } from '../TargetExtent.js';
 
 export type RotationComposerParams = {
   screenPosition: [number, number];

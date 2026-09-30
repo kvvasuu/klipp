@@ -1,7 +1,7 @@
 import { useThree } from '@react-three/fiber';
 import { useEffect, useState } from 'react';
-import { DebugOverlay, type DebugZone } from '../dom/DebugOverlay';
-import { useIsActiveVirtualCamera } from './VirtualCameraContext';
+import { DebugOverlay, type DebugZone } from '../dom/DebugOverlay.js';
+import { useIsActiveVirtualCamera } from './VirtualCameraContext.js';
 
 export type { DebugZone };
 

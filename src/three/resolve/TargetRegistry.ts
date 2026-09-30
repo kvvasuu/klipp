@@ -1,6 +1,6 @@
 import type { Quat, Vec3 } from 'math';
 import { Quaternion, Vector3, type Object3D } from 'three';
-import type { RefLike } from './Target';
+import type { RefLike } from './Target.js';
 
 /** A target whose world transform comes from the scene graph. */
 export type RegisteredTarget = Object3D | RefLike<Object3D | null>;

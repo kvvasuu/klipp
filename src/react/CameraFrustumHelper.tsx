@@ -1,7 +1,7 @@
 import { useFrame, useThree } from '@react-three/fiber';
 import { useEffect, useImperativeHandle, useRef, useState, type Ref } from 'react';
 import { CameraHelper, Color, PerspectiveCamera, Quaternion, Vector3, type ColorRepresentation } from 'three';
-import { useIsLiveVirtualCamera, useVirtualCamera } from './VirtualCameraContext';
+import { useIsLiveVirtualCamera, useVirtualCamera } from './VirtualCameraContext.js';
 
 const scratchPosition = new Vector3();
 const scratchQuaternion = new Quaternion();

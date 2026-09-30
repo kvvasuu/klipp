@@ -1,7 +1,7 @@
 import { createContext, use } from 'react';
-import type { CameraState } from '../core/CameraState';
-import type { KlippCore } from '../core/KlippCore';
-import type { TargetRegistry } from '../three/resolve/TargetRegistry';
+import type { CameraState } from '../core/CameraState.js';
+import type { KlippCore } from '../core/KlippCore.js';
+import type { TargetRegistry } from '../three/resolve/TargetRegistry.js';
 
 /** Per-frame update for a virtual camera. Return `true` while future work remains. */
 export type FrameUpdate = (dt: number) => boolean | void;

@@ -1,9 +1,9 @@
 import { useEffect, useImperativeHandle, useState, type Ref } from 'react';
-import type { DampingConstant } from '../../core/damping/Damper';
-import type { Target } from '../../three/resolve/Target';
-import { useTargetSlot } from '../useTargetSlot';
-import { useVirtualCamera } from '../VirtualCameraContext';
-import { RotateWithFollowTargetAim } from '../../three/aim/RotateWithFollowTargetAim';
+import type { DampingConstant } from '../../core/damping/Damper.js';
+import type { Target } from '../../three/resolve/Target.js';
+import { useTargetSlot } from '../useTargetSlot.js';
+import { useVirtualCamera } from '../VirtualCameraContext.js';
+import { RotateWithFollowTargetAim } from '../../three/aim/RotateWithFollowTargetAim.js';
 
 export type RotateWithFollowTargetProps = {
   /** Target rotation to copy. Unresolved targets are ignored. */

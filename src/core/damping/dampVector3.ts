@@ -1,5 +1,5 @@
 import { vec3, type Vec3 } from 'math';
-import { createDamperState, damp, resetDamper, type DamperState, type DampingConstant } from './Damper';
+import { createDamperState, damp, resetDamper, type DamperState, type DampingConstant } from './Damper.js';
 
 /** One damper per Cartesian component. */
 export type Vector3DamperState = { x: DamperState; y: DamperState; z: DamperState };

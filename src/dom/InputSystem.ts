@@ -1,5 +1,5 @@
 import { degreesToRadians, deltaAngle, radiansToDegrees } from 'math';
-import type { ConsumedInput } from '../core/input/consumedInput';
+import type { ConsumedInput } from '../core/input/consumedInput.js';
 
 export const MouseButton = {
   left: 1,

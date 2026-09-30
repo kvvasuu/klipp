@@ -1,7 +1,7 @@
-import type { CameraState } from '../CameraState';
-import { blendTargetId, createBlendState, forgetBlendCandidate, setBlendTarget, tickBlend } from './blend';
-import type { BlendDefinition } from './BlendDefinition';
-import { BlendHints } from './BlendHints';
+import type { CameraState } from '../CameraState.js';
+import { blendTargetId, createBlendState, forgetBlendCandidate, setBlendTarget, tickBlend } from './blend.js';
+import type { BlendDefinition } from './BlendDefinition.js';
+import { BlendHints } from './BlendHints.js';
 
 /** Stateful wrapper over the blend functions, resolving camera states by id. */
 export class BlendDriver<Id> {

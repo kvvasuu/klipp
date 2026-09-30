@@ -1,12 +1,12 @@
 import type { Vector3 as Vector3Like } from '@react-three/fiber';
 import { useThree } from '@react-three/fiber';
 import { useEffect, useImperativeHandle, useState, type Ref } from 'react';
-import type { DampingConstant } from '../../core/damping/Damper';
-import { DebugZoneOverlay, type DebugZone } from '../DebugZoneOverlay';
-import type { Target } from '../../three/resolve/Target';
-import { useTargetSlot } from '../useTargetSlot';
-import { useVirtualCamera } from '../VirtualCameraContext';
-import { PositionComposerBody } from '../../three/body/PositionComposerBody';
+import type { DampingConstant } from '../../core/damping/Damper.js';
+import { DebugZoneOverlay, type DebugZone } from '../DebugZoneOverlay.js';
+import type { Target } from '../../three/resolve/Target.js';
+import { useTargetSlot } from '../useTargetSlot.js';
+import { useVirtualCamera } from '../VirtualCameraContext.js';
+import { PositionComposerBody } from '../../three/body/PositionComposerBody.js';
 
 export type PositionComposerProps = {
   /** Target to compose around. Unresolved targets are ignored. */

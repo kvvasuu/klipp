@@ -1,14 +1,14 @@
-import type { CameraState } from '../../core/CameraState';
-import type { DampingConstant } from '../../core/damping/Damper';
+import type { CameraState } from '../../core/CameraState.js';
+import type { DampingConstant } from '../../core/damping/Damper.js';
 import {
   createHardLockToTargetState,
   updateHardLockToTarget,
   type HardLockToTargetParams,
-} from '../../core/body/hardLockToTarget';
-import { createTargetPose } from '../../core/TargetPose';
-import { readTargetPose } from '../readTargetPose';
-import type { Target } from '../resolve/Target';
-import type { TargetSlot } from '../resolve/TargetRegistry';
+} from '../../core/body/hardLockToTarget.js';
+import { createTargetPose } from '../../core/TargetPose.js';
+import { readTargetPose } from '../readTargetPose.js';
+import type { Target } from '../resolve/Target.js';
+import type { TargetSlot } from '../resolve/TargetRegistry.js';
 
 /** Locks the camera position to a target, optionally with damping. */
 export class HardLockToTargetBody implements HardLockToTargetParams {

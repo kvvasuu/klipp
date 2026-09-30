@@ -12,8 +12,8 @@ import {
   type Spherical,
   type Vec3,
 } from 'math';
-import type { CameraState } from '../CameraState';
-import { BlendHints, hasBlendHint } from './BlendHints';
+import type { CameraState } from '../CameraState.js';
+import { BlendHints, hasBlendHint } from './BlendHints.js';
 
 /** Reused quaternion for the sign-adjusted destination case. */
 const negatedB: Quat = [0, 0, 0, 1];

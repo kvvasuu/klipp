@@ -1,9 +1,9 @@
-import type { CameraState } from '../../core/CameraState';
-import type { Target } from '../resolve/Target';
-import type { TargetSlot } from '../resolve/TargetRegistry';
-import { createTargetPose } from '../../core/TargetPose';
-import { readTargetPose } from '../readTargetPose';
-import { updateHardLookAt } from '../../core/aim/hardLookAt';
+import type { CameraState } from '../../core/CameraState.js';
+import type { Target } from '../resolve/Target.js';
+import type { TargetSlot } from '../resolve/TargetRegistry.js';
+import { createTargetPose } from '../../core/TargetPose.js';
+import { readTargetPose } from '../readTargetPose.js';
+import { updateHardLookAt } from '../../core/aim/hardLookAt.js';
 
 /** Rotates so the Look At Target is dead-center. */
 export class HardLookAtAim {

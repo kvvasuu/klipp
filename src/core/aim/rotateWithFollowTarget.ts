@@ -1,7 +1,7 @@
 import type { Quat } from 'math';
-import type { CameraState } from '../CameraState';
-import { createDamperState, resetDamper, type DamperState, type DampingConstant } from '../damping/Damper';
-import { dampQuaternion } from '../damping/dampQuaternion';
+import type { CameraState } from '../CameraState.js';
+import { createDamperState, resetDamper, type DamperState, type DampingConstant } from '../damping/Damper.js';
+import { dampQuaternion } from '../damping/dampQuaternion.js';
 
 export type RotateWithFollowTargetParams = { damping: DampingConstant; maxSpeed: number };
 

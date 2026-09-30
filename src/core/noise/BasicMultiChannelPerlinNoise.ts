@@ -1,12 +1,12 @@
 import type { Vec3 } from 'math';
-import type { CameraState } from '../CameraState';
-import type { DampingConstant } from '../damping/Damper';
+import type { CameraState } from '../CameraState.js';
+import type { DampingConstant } from '../damping/Damper.js';
 import {
   createPerlinNoiseState,
   updatePerlinNoise,
   type PerlinNoiseParams,
   type PerlinNoiseState,
-} from './perlinNoise';
+} from './perlinNoise.js';
 
 /** Adds Perlin position and rotation noise to a camera state. */
 export class BasicMultiChannelPerlinNoise implements PerlinNoiseParams {

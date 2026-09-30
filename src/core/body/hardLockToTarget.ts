@@ -1,12 +1,12 @@
 import { vec3, type Vec3 } from 'math';
-import type { CameraState } from '../CameraState';
-import type { DampingConstant } from '../damping/Damper';
+import type { CameraState } from '../CameraState.js';
+import type { DampingConstant } from '../damping/Damper.js';
 import {
   createVector3DamperState,
   dampVector3,
   resetVector3Damper,
   type Vector3DamperState,
-} from '../damping/dampVector3';
+} from '../damping/dampVector3.js';
 
 export type HardLockToTargetParams = { damping: DampingConstant; maxSpeed: number };
 

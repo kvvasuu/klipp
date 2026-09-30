@@ -1,15 +1,15 @@
 import type { Quat } from 'math';
-import type { CameraState } from '../../core/CameraState';
-import type { DampingConstant } from '../../core/damping/Damper';
+import type { CameraState } from '../../core/CameraState.js';
+import type { DampingConstant } from '../../core/damping/Damper.js';
 import {
   createRotateWithFollowTargetState,
   primeRotateWithFollowTarget,
   updateRotateWithFollowTarget,
   type RotateWithFollowTargetParams,
-} from '../../core/aim/rotateWithFollowTarget';
-import { readTargetRotation } from '../readTargetPose';
-import type { Target } from '../resolve/Target';
-import type { TargetSlot } from '../resolve/TargetRegistry';
+} from '../../core/aim/rotateWithFollowTarget.js';
+import { readTargetRotation } from '../readTargetPose.js';
+import type { Target } from '../resolve/Target.js';
+import type { TargetSlot } from '../resolve/TargetRegistry.js';
 
 /** Follows the target's rotation. */
 export class RotateWithFollowTargetAim implements RotateWithFollowTargetParams {

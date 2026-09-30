@@ -1,9 +1,9 @@
 import type { Quat, Vec3 } from 'math';
-import type { CameraState } from '../../core/CameraState';
-import { createPanTiltState, seedPanTilt, updatePanTilt } from '../../core/aim/panTilt';
-import { readTargetRotation } from '../readTargetPose';
-import type { Target } from '../resolve/Target';
-import type { TargetSlot } from '../resolve/TargetRegistry';
+import type { CameraState } from '../../core/CameraState.js';
+import { createPanTiltState, seedPanTilt, updatePanTilt } from '../../core/aim/panTilt.js';
+import { readTargetRotation } from '../readTargetPose.js';
+import type { Target } from '../resolve/Target.js';
+import type { TargetSlot } from '../resolve/TargetRegistry.js';
 
 /** Pure rotation from two `InputAxis` - `pan` (yaw, wraps ±180°) and `tilt` (pitch, clamped). */
 export class PanTiltAim {

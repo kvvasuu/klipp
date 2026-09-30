@@ -5,7 +5,7 @@ import {
   createPredictorState,
   predictPositionDelta,
   resetPredictor,
-} from '../../core/damping/predictor';
+} from '../../core/damping/predictor.js';
 
 const scratchPosition: Vec3 = [0, 0, 0];
 const scratchDelta: Vec3 = [0, 0, 0];

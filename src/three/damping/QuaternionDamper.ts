@@ -1,7 +1,7 @@
 import type { Quat } from 'math';
 import type { Quaternion } from 'three';
-import { createDamperState, resetDamper, type DampingConstant } from '../../core/damping/Damper';
-import { dampQuaternion } from '../../core/damping/dampQuaternion';
+import { createDamperState, resetDamper, type DampingConstant } from '../../core/damping/Damper.js';
+import { dampQuaternion } from '../../core/damping/dampQuaternion.js';
 
 const scratchOut: Quat = [0, 0, 0, 1];
 const scratchTarget: Quat = [0, 0, 0, 1];

@@ -1,6 +1,6 @@
-import type { CameraState } from './CameraState';
-import { EventDispatcher } from './EventDispatcher';
-import type { CameraTransitionEventMap, KlippCore } from './KlippCore';
+import type { CameraState } from './CameraState.js';
+import { EventDispatcher } from './EventDispatcher.js';
+import type { CameraTransitionEventMap, KlippCore } from './KlippCore.js';
 
 /** A writer mutates `out` or adds to it. Return `true` when more work remains for a later frame. */
 export type CameraStateWriter = (out: CameraState, dt: number, justActivated: boolean) => boolean | void;

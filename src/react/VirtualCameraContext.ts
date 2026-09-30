@@ -2,8 +2,8 @@ import type { Vector3 as Vector3Like } from '@react-three/fiber';
 import type { Quat } from 'math';
 import { createContext, use } from 'react';
 import type { Quaternion } from 'three';
-import type { CameraState } from '../core/CameraState';
-import type { VirtualCameraController } from '../core/VirtualCameraController';
+import type { CameraState } from '../core/CameraState.js';
+import type { VirtualCameraController } from '../core/VirtualCameraController.js';
 
 /** Initial camera state with r3f vector shorthand support. */
 export type InitialCameraState = Partial<

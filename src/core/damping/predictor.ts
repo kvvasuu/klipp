@@ -1,5 +1,5 @@
 import { vec3, type Vec3 } from 'math';
-import { createVector3DamperState, dampVector3, resetVector3Damper, type Vector3DamperState } from './dampVector3';
+import { createVector3DamperState, dampVector3, resetVector3Damper, type Vector3DamperState } from './dampVector3.js';
 
 /** Velocity tracking state for position extrapolation. */
 export type PredictorState = {

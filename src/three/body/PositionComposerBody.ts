@@ -1,19 +1,19 @@
 import type { Vec3 } from 'math';
-import type { CameraState } from '../../core/CameraState';
-import type { DampingConstant } from '../../core/damping/Damper';
+import type { CameraState } from '../../core/CameraState.js';
+import type { DampingConstant } from '../../core/damping/Damper.js';
 import {
   createPositionComposerState,
   primePositionComposer,
   updatePositionComposer,
   type PositionComposerParams,
-} from '../../core/body/positionComposer';
-import { createTargetExtent } from '../../core/TargetExtent';
-import { createTargetPose } from '../../core/TargetPose';
-import { readTargetExtent } from '../readTargetExtent';
-import { readTargetPose } from '../readTargetPose';
-import type { Target } from '../resolve/Target';
-import type { TargetSlot } from '../resolve/TargetRegistry';
-import type { Vector3Like } from '../resolve/resolveVector3';
+} from '../../core/body/positionComposer.js';
+import { createTargetExtent } from '../../core/TargetExtent.js';
+import { createTargetPose } from '../../core/TargetPose.js';
+import { readTargetExtent } from '../readTargetExtent.js';
+import { readTargetPose } from '../readTargetPose.js';
+import type { Target } from '../resolve/Target.js';
+import type { TargetSlot } from '../resolve/TargetRegistry.js';
+import type { Vector3Like } from '../resolve/resolveVector3.js';
 
 /** Positions the camera using depth and screen-space composition. */
 export class PositionComposerBody implements PositionComposerParams {

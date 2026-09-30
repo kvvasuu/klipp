@@ -2,12 +2,12 @@ import { useFrame, useThree } from '@react-three/fiber';
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { vec3, vec4 } from 'math';
 import type { Camera, PerspectiveCamera } from 'three';
-import { copyCameraState, createCameraState, type CameraState } from '../core/CameraState';
-import { KlippContext, useKlipp, type FrameUpdate, type KlippContextValue } from './KlippContext';
-import { KlippCore, type KlippCoreOptions } from '../core/KlippCore';
-import { TargetRegistry } from '../three/resolve/TargetRegistry';
-import { copyCameraStateFromCamera, writeCameraLens, writeCameraTransform } from '../three/camera';
-import { useCameraTransitionEvent, type CameraTransitionEventProps } from './useCameraTransitionEvent';
+import { copyCameraState, createCameraState, type CameraState } from '../core/CameraState.js';
+import { KlippContext, useKlipp, type FrameUpdate, type KlippContextValue } from './KlippContext.js';
+import { KlippCore, type KlippCoreOptions } from '../core/KlippCore.js';
+import { TargetRegistry } from '../three/resolve/TargetRegistry.js';
+import { copyCameraStateFromCamera, writeCameraLens, writeCameraTransform } from '../three/camera.js';
+import { useCameraTransitionEvent, type CameraTransitionEventProps } from './useCameraTransitionEvent.js';
 
 /** `three` can load twice in monorepos; `instanceof` then fails. Use the camera's own flag instead. */
 function isPerspectiveCamera(camera: Camera): camera is PerspectiveCamera {

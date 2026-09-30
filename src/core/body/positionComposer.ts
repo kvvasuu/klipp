@@ -1,20 +1,20 @@
 import { clamp, degreesToRadians, vec3, type Vec3 } from 'math';
-import type { CameraState } from '../CameraState';
-import { createDamperState, damp, resetDamper, type DamperState, type DampingConstant } from '../damping/Damper';
+import type { CameraState } from '../CameraState.js';
+import { createDamperState, damp, resetDamper, type DamperState, type DampingConstant } from '../damping/Damper.js';
 import {
   createVector3DamperState,
   dampVector3,
   resetVector3Damper,
   type Vector3DamperState,
-} from '../damping/dampVector3';
+} from '../damping/dampVector3.js';
 import {
   addPredictorPosition,
   createPredictorState,
   predictPositionDelta,
   resetPredictor,
   type PredictorState,
-} from '../damping/predictor';
-import { projectTargetExtent, type TargetExtent } from '../TargetExtent';
+} from '../damping/predictor.js';
+import { projectTargetExtent, type TargetExtent } from '../TargetExtent.js';
 
 export type PositionComposerParams = {
   cameraDistance: number;

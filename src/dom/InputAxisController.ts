@@ -1,13 +1,13 @@
-import { createConsumedInput, type ConsumedInput } from '../core/input/consumedInput';
-import { feedInputAxes, type InputAxisControllerConfig } from '../core/input/inputMapping';
-import { InputSystem } from './InputSystem';
+import { createConsumedInput, type ConsumedInput } from '../core/input/consumedInput.js';
+import { feedInputAxes, type InputAxisControllerConfig } from '../core/input/inputMapping.js';
+import { InputSystem } from './InputSystem.js';
 
 export type {
   InputAxisControllerConfig,
   InputAxisPair,
   InputInvert,
   InputSourceMapping,
-} from '../core/input/inputMapping';
+} from '../core/input/inputMapping.js';
 
 /** Maps DOM input onto named axis pairs. */
 export class InputAxisController {

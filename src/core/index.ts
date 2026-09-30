@@ -1,9 +1,14 @@
-export { createCameraState, copyCameraState, mergeCameraState, type CameraState } from './CameraState';
-export { createTargetPose, type TargetPose } from './TargetPose';
-export { createTargetExtent, projectTargetExtent, type TargetExtent } from './TargetExtent';
-export { EventDispatcher, type DispatchedEvent, type EventListener } from './EventDispatcher';
-export { VirtualCameraController, type VirtualCameraSlots, type CameraStateWriter } from './VirtualCameraController';
-export { KlippCore, type VirtualCameraConfig, type KlippCoreOptions, type CameraTransitionEventMap } from './KlippCore';
+export { createCameraState, copyCameraState, mergeCameraState, type CameraState } from './CameraState.js';
+export { createTargetPose, type TargetPose } from './TargetPose.js';
+export { createTargetExtent, projectTargetExtent, type TargetExtent } from './TargetExtent.js';
+export { EventDispatcher, type DispatchedEvent, type EventListener } from './EventDispatcher.js';
+export { VirtualCameraController, type VirtualCameraSlots, type CameraStateWriter } from './VirtualCameraController.js';
+export {
+  KlippCore,
+  type VirtualCameraConfig,
+  type KlippCoreOptions,
+  type CameraTransitionEventMap,
+} from './KlippCore.js';
 export {
   createKlippState,
   registerKlippCamera,
@@ -16,26 +21,33 @@ export {
   type KlippCamera,
   type KlippEvent,
   type KlippParams,
-} from './klippState';
+} from './klippState.js';
 
-export { Damper, damp, createDamperState, resetDamper, type DamperState, type DampingConstant } from './damping/Damper';
+export {
+  Damper,
+  damp,
+  createDamperState,
+  resetDamper,
+  type DamperState,
+  type DampingConstant,
+} from './damping/Damper.js';
 export {
   dampVector3,
   createVector3DamperState,
   resetVector3Damper,
   type Vector3DamperState,
-} from './damping/dampVector3';
-export { dampQuaternion } from './damping/dampQuaternion';
+} from './damping/dampVector3.js';
+export { dampQuaternion } from './damping/dampQuaternion.js';
 export {
   addPredictorPosition,
   predictPositionDelta,
   createPredictorState,
   resetPredictor,
   type PredictorState,
-} from './damping/predictor';
+} from './damping/predictor.js';
 
-export { lerpCameraState } from './blend/lerpCameraState';
-export { BlendDriver } from './blend/BlendDriver';
+export { lerpCameraState } from './blend/lerpCameraState.js';
+export { BlendDriver } from './blend/BlendDriver.js';
 export {
   createBlendState,
   setBlendTarget,
@@ -44,10 +56,10 @@ export {
   blendTargetId,
   type BlendState,
   type BlendTransition,
-} from './blend/blend';
-export { resolveBlendDefinition, type BlendDefinition, type CustomBlend } from './blend/BlendDefinition';
-export { BlendHints, hasBlendHint } from './blend/BlendHints';
-export { BlendCurves, type Ease } from './blend/BlendCurves';
+} from './blend/blend.js';
+export { resolveBlendDefinition, type BlendDefinition, type CustomBlend } from './blend/BlendDefinition.js';
+export { BlendHints, hasBlendHint } from './blend/BlendHints.js';
+export { BlendCurves, type Ease } from './blend/BlendCurves.js';
 
 export {
   Sequencer,
@@ -58,8 +70,8 @@ export {
   type SequencerOptions,
   type SequencerParams,
   type SequencerState,
-} from './groups/Sequencer';
-export { MixingCamera, mixCameraStates, type MixingCameraSlot } from './groups/MixingCamera';
+} from './groups/Sequencer.js';
+export { MixingCamera, mixCameraStates, type MixingCameraSlot } from './groups/MixingCamera.js';
 export {
   StateDrivenCamera,
   setDrivingState,
@@ -69,7 +81,7 @@ export {
   type StateDrivenCameraOptions,
   type StateDrivenParams,
   type StateDrivenState,
-} from './groups/StateDrivenCamera';
+} from './groups/StateDrivenCamera.js';
 export {
   ClearShot,
   tickClearShot,
@@ -79,9 +91,9 @@ export {
   type ClearShotOptions,
   type ClearShotParams,
   type ClearShotState,
-} from './groups/ClearShot';
+} from './groups/ClearShot.js';
 
-export { BindingModes, type BindingMode } from './body/BindingModes';
+export { BindingModes, type BindingMode } from './body/BindingModes.js';
 export {
   updateFollow,
   primeFollow,
@@ -89,29 +101,29 @@ export {
   followNeedsTargetRotation,
   type FollowParams,
   type FollowState,
-} from './body/follow';
+} from './body/follow.js';
 export {
   updateHardLockToTarget,
   createHardLockToTargetState,
   type HardLockToTargetParams,
   type HardLockToTargetState,
-} from './body/hardLockToTarget';
+} from './body/hardLockToTarget.js';
 export {
   updatePositionComposer,
   primePositionComposer,
   createPositionComposerState,
   type PositionComposerParams,
   type PositionComposerState,
-} from './body/positionComposer';
-export { updateHardLookAt } from './aim/hardLookAt';
+} from './body/positionComposer.js';
+export { updateHardLookAt } from './aim/hardLookAt.js';
 export {
   updateRotateWithFollowTarget,
   primeRotateWithFollowTarget,
   createRotateWithFollowTargetState,
   type RotateWithFollowTargetParams,
   type RotateWithFollowTargetState,
-} from './aim/rotateWithFollowTarget';
-export { updatePanTilt, seedPanTilt, createPanTiltState, type PanTiltState } from './aim/panTilt';
+} from './aim/rotateWithFollowTarget.js';
+export { updatePanTilt, seedPanTilt, createPanTiltState, type PanTiltState } from './aim/panTilt.js';
 export {
   updateRotationComposer,
   primeRotationComposer,
@@ -119,10 +131,10 @@ export {
   rotationComposerNeedsExtent,
   type RotationComposerParams,
   type RotationComposerState,
-} from './aim/rotationComposer';
+} from './aim/rotationComposer.js';
 
-export { LensExtension } from './extension/LensExtension';
-export { updateLens, createLensState, type LensParams, type LensState } from './extension/lens';
+export { LensExtension } from './extension/LensExtension.js';
+export { updateLens, createLensState, type LensParams, type LensState } from './extension/lens.js';
 export {
   updateGroupFraming,
   computeGroupBounds,
@@ -134,7 +146,7 @@ export {
   type GroupFramingState,
   type GroupFramingFitMode,
   type GroupFramingMode,
-} from './extension/groupFraming';
+} from './extension/groupFraming.js';
 export {
   InputAxis,
   applyAxisDelta,
@@ -143,25 +155,25 @@ export {
   normalizeAxis,
   type InputAxisData,
   type InputAxisRecentering,
-} from './input/InputAxis';
-export { createConsumedInput, type ConsumedInput } from './input/consumedInput';
+} from './input/InputAxis.js';
+export { createConsumedInput, type ConsumedInput } from './input/consumedInput.js';
 export {
   feedInputAxes,
   type InputAxisControllerConfig,
   type InputAxisPair,
   type InputInvert,
   type InputSourceMapping,
-} from './input/inputMapping';
+} from './input/inputMapping.js';
 
-export { BasicMultiChannelPerlinNoise } from './noise/BasicMultiChannelPerlinNoise';
+export { BasicMultiChannelPerlinNoise } from './noise/BasicMultiChannelPerlinNoise.js';
 export {
   updatePerlinNoise,
   createPerlinNoiseState,
   type PerlinNoiseParams,
   type PerlinNoiseState,
-} from './noise/perlinNoise';
-export { ImpulseField, impulseField } from './impulse/ImpulseField';
-export { ImpulseListenerNoise } from './impulse/ImpulseListenerNoise';
+} from './noise/perlinNoise.js';
+export { ImpulseField, impulseField } from './impulse/ImpulseField.js';
+export { ImpulseListenerNoise } from './impulse/ImpulseListenerNoise.js';
 export {
   ImpulseShapes,
   generateImpulse,
@@ -174,4 +186,4 @@ export {
   type ImpulseEvent,
   type ImpulseFieldState,
   type ImpulseClockSeconds,
-} from './impulse/impulses';
+} from './impulse/impulses.js';

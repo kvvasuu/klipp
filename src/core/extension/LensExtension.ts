@@ -1,6 +1,6 @@
-import type { CameraState } from '../CameraState';
-import type { DampingConstant } from '../damping/Damper';
-import { createLensState, updateLens, type LensParams } from './lens';
+import type { CameraState } from '../CameraState.js';
+import type { DampingConstant } from '../damping/Damper.js';
+import { createLensState, updateLens, type LensParams } from './lens.js';
 
 /** Overrides lens fields with independent damping. */
 export class LensExtension implements LensParams {

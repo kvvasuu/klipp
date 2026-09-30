@@ -1,9 +1,9 @@
 import { useEffect, useImperativeHandle, useState, type Ref } from 'react';
-import type { DampingConstant } from '../../core/damping/Damper';
-import type { Target } from '../../three/resolve/Target';
-import { useTargetSlot } from '../useTargetSlot';
-import { useVirtualCamera } from '../VirtualCameraContext';
-import { HardLockToTargetBody } from '../../three/body/HardLockToTargetBody';
+import type { DampingConstant } from '../../core/damping/Damper.js';
+import type { Target } from '../../three/resolve/Target.js';
+import { useTargetSlot } from '../useTargetSlot.js';
+import { useVirtualCamera } from '../VirtualCameraContext.js';
+import { HardLockToTargetBody } from '../../three/body/HardLockToTargetBody.js';
 
 export type HardLockToTargetProps = {
   /** Target position to follow. Unresolved targets are ignored. */

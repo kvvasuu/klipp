@@ -1,8 +1,8 @@
-import type { CameraState } from './CameraState';
-import { EventDispatcher } from './EventDispatcher';
-import { blendTargetId } from './blend/blend';
-import type { BlendDefinition, CustomBlend } from './blend/BlendDefinition';
-import type { BlendHints } from './blend/BlendHints';
+import type { CameraState } from './CameraState.js';
+import { EventDispatcher } from './EventDispatcher.js';
+import { blendTargetId } from './blend/blend.js';
+import type { BlendDefinition, CustomBlend } from './blend/BlendDefinition.js';
+import type { BlendHints } from './blend/BlendHints.js';
 import {
   DEFAULT_BLEND,
   createKlippState,
@@ -14,7 +14,7 @@ import {
   type CameraTransitionEventMap,
   type KlippParams,
   type VirtualCameraConfig,
-} from './klippState';
+} from './klippState.js';
 
 export type { CameraTransitionEventMap, VirtualCameraConfig };
 

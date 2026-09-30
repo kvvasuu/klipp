@@ -1,5 +1,5 @@
 import { quat, vec3 } from 'math';
-import { createCameraState, type CameraState } from '../CameraState';
+import { createCameraState, type CameraState } from '../CameraState.js';
 
 const MAX_SLOTS = 8;
 

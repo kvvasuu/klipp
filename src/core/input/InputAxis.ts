@@ -1,6 +1,6 @@
 import { clamp, repeat } from 'math';
-import { createDamperState, damp, resetDamper, type DamperState, type DampingConstant } from '../damping/Damper';
-import { shortestWrappedDelta } from './shortestWrappedDelta';
+import { createDamperState, damp, resetDamper, type DamperState, type DampingConstant } from '../damping/Damper.js';
+import { shortestWrappedDelta } from './shortestWrappedDelta.js';
 
 export type InputAxisRecentering = {
   enabled: boolean;

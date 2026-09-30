@@ -1,18 +1,18 @@
 import type { Vec3 } from 'math';
-import type { CameraState } from '../../core/CameraState';
-import type { DampingConstant } from '../../core/damping/Damper';
-import type { Target } from '../resolve/Target';
-import type { TargetSlot } from '../resolve/TargetRegistry';
-import { createTargetPose } from '../../core/TargetPose';
-import { readTargetPose } from '../readTargetPose';
-import { BindingModes, type BindingMode } from '../../core/body/BindingModes';
+import type { CameraState } from '../../core/CameraState.js';
+import type { DampingConstant } from '../../core/damping/Damper.js';
+import type { Target } from '../resolve/Target.js';
+import type { TargetSlot } from '../resolve/TargetRegistry.js';
+import { createTargetPose } from '../../core/TargetPose.js';
+import { readTargetPose } from '../readTargetPose.js';
+import { BindingModes, type BindingMode } from '../../core/body/BindingModes.js';
 import {
   createFollowState,
   followNeedsTargetRotation,
   primeFollow,
   updateFollow,
   type FollowParams,
-} from '../../core/body/follow';
+} from '../../core/body/follow.js';
 
 /** Follows a target with an offset rotated according to `bindingMode`. */
 export class FollowBody implements FollowParams {

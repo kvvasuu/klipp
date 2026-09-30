@@ -1,6 +1,6 @@
 import { Quaternion, Vector3, type Line, type Mesh, type Object3D, type Points } from 'three';
-import { isVector3Like, resolveVector3, type Vector3Like } from './resolveVector3';
-import type { TargetSlot } from './TargetRegistry';
+import { isVector3Like, resolveVector3, type Vector3Like } from './resolveVector3.js';
+import type { TargetSlot } from './TargetRegistry.js';
 
 /** A React-style ref, without depending on React. */
 export type RefLike<T> = { current: T };

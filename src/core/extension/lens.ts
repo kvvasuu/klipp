@@ -1,5 +1,5 @@
-import type { CameraState } from '../CameraState';
-import { createDamperState, damp, resetDamper, type DamperState, type DampingConstant } from '../damping/Damper';
+import type { CameraState } from '../CameraState.js';
+import { createDamperState, damp, resetDamper, type DamperState, type DampingConstant } from '../damping/Damper.js';
 
 export type LensParams = {
   fov?: number;

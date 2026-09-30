@@ -10,11 +10,11 @@ import {
 } from 'react';
 import { vec4 } from 'math';
 import { Quaternion, Vector3 } from 'three';
-import { BlendHints } from '../core/blend/BlendHints';
-import { copyCameraState, createCameraState, mergeCameraState } from '../core/CameraState';
-import { useKlipp } from './KlippContext';
-import { resolveVector3 } from '../three/resolve/resolveVector3';
-import { useCameraTransitionEvent, type CameraTransitionEventProps } from './useCameraTransitionEvent';
+import { BlendHints } from '../core/blend/BlendHints.js';
+import { copyCameraState, createCameraState, mergeCameraState } from '../core/CameraState.js';
+import { useKlipp } from './KlippContext.js';
+import { resolveVector3 } from '../three/resolve/resolveVector3.js';
+import { useCameraTransitionEvent, type CameraTransitionEventProps } from './useCameraTransitionEvent.js';
 import {
   useVirtualCamera,
   VirtualCameraActiveContext,
@@ -22,8 +22,8 @@ import {
   VirtualCameraLiveContext,
   type InitialCameraState,
   type VirtualCameraContextValue,
-} from './VirtualCameraContext';
-import { VirtualCameraController } from '../core/VirtualCameraController';
+} from './VirtualCameraContext.js';
+import { VirtualCameraController } from '../core/VirtualCameraController.js';
 
 export type VirtualCameraProps = {
   name: string;

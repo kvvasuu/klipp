@@ -1,4 +1,4 @@
-import type { CameraState } from './CameraState';
+import type { CameraState } from './CameraState.js';
 import {
   blendTargetId,
   createBlendState,
@@ -6,10 +6,10 @@ import {
   setBlendTarget,
   tickBlend,
   type BlendState,
-} from './blend/blend';
-import { BlendCurves } from './blend/BlendCurves';
-import { resolveBlendDefinition, type BlendDefinition, type CustomBlend } from './blend/BlendDefinition';
-import { BlendHints } from './blend/BlendHints';
+} from './blend/blend.js';
+import { BlendCurves } from './blend/BlendCurves.js';
+import { resolveBlendDefinition, type BlendDefinition, type CustomBlend } from './blend/BlendDefinition.js';
+import { BlendHints } from './blend/BlendHints.js';
 
 export type VirtualCameraConfig = {
   id: string;

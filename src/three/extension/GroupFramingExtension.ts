@@ -1,13 +1,13 @@
-import type { CameraState } from '../../core/CameraState';
-import type { DampingConstant } from '../../core/damping/Damper';
+import type { CameraState } from '../../core/CameraState.js';
+import type { DampingConstant } from '../../core/damping/Damper.js';
 import {
   createGroupFramingState,
   updateGroupFraming,
   type GroupFramingFitMode,
   type GroupFramingMode,
   type GroupFramingParams,
-} from '../../core/extension/groupFraming';
-import type { TargetGroup } from './TargetGroup';
+} from '../../core/extension/groupFraming.js';
+import type { TargetGroup } from './TargetGroup.js';
 
 export type { GroupFramingFitMode, GroupFramingMode };
 

@@ -2,16 +2,20 @@ import { useFrame, useThree } from '@react-three/fiber';
 import { clamp, degreesToRadians } from 'math';
 import { useEffect, useImperativeHandle, useState, type Ref } from 'react';
 import { Vector3 } from 'three';
-import type { DampingConstant } from '../../core/damping/Damper';
-import { DebugZoneOverlay, type DebugZone } from '../DebugZoneOverlay';
-import { useTargetSlots } from '../useTargetSlot';
-import { useVirtualCamera } from '../VirtualCameraContext';
+import type { DampingConstant } from '../../core/damping/Damper.js';
+import { DebugZoneOverlay, type DebugZone } from '../DebugZoneOverlay.js';
+import { useTargetSlots } from '../useTargetSlot.js';
+import { useVirtualCamera } from '../VirtualCameraContext.js';
 import {
   GroupFramingExtension,
   type GroupFramingFitMode,
   type GroupFramingMode,
-} from '../../three/extension/GroupFramingExtension';
-import { TargetGroup, type TargetGroupMember, type TargetGroupPositionMode } from '../../three/extension/TargetGroup';
+} from '../../three/extension/GroupFramingExtension.js';
+import {
+  TargetGroup,
+  type TargetGroupMember,
+  type TargetGroupPositionMode,
+} from '../../three/extension/TargetGroup.js';
 
 const scratchGroupPosition = new Vector3();
 const scratchCameraPosition = new Vector3();

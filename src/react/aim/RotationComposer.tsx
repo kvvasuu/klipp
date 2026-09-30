@@ -1,13 +1,13 @@
 import type { Vector3 as Vector3Like } from '@react-three/fiber';
 import { useThree } from '@react-three/fiber';
 import { useEffect, useImperativeHandle, useState, type Ref } from 'react';
-import type { DampingConstant } from '../../core/damping/Damper';
-import { DebugZoneOverlay, type DebugZone } from '../DebugZoneOverlay';
-import { resolveVec3 } from '../../three/resolve/resolveVector3';
-import type { Target } from '../../three/resolve/Target';
-import { useTargetSlot } from '../useTargetSlot';
-import { useVirtualCamera } from '../VirtualCameraContext';
-import { RotationComposerAim } from '../../three/aim/RotationComposerAim';
+import type { DampingConstant } from '../../core/damping/Damper.js';
+import { DebugZoneOverlay, type DebugZone } from '../DebugZoneOverlay.js';
+import { resolveVec3 } from '../../three/resolve/resolveVector3.js';
+import type { Target } from '../../three/resolve/Target.js';
+import { useTargetSlot } from '../useTargetSlot.js';
+import { useVirtualCamera } from '../VirtualCameraContext.js';
+import { RotationComposerAim } from '../../three/aim/RotationComposerAim.js';
 
 export type RotationComposerProps = {
   /** Target to compose at `screenPosition`. Unresolved targets are ignored. */

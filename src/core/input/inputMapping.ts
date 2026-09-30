@@ -1,5 +1,5 @@
-import type { ConsumedInput } from './consumedInput';
-import { applyAxisDelta, type InputAxisData } from './InputAxis';
+import type { ConsumedInput } from './consumedInput.js';
+import { applyAxisDelta, type InputAxisData } from './InputAxis.js';
 
 export type InputAxisPair = {
   x: InputAxisData;

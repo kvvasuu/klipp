@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
-import { useKlipp } from './KlippContext';
-import type { Target } from '../three/resolve/Target';
-import type { RegisteredTarget, TargetSlot } from '../three/resolve/TargetRegistry';
-import { isVector3Like } from '../three/resolve/resolveVector3';
+import { useKlipp } from './KlippContext.js';
+import type { Target } from '../three/resolve/Target.js';
+import type { RegisteredTarget, TargetSlot } from '../three/resolve/TargetRegistry.js';
+import { isVector3Like } from '../three/resolve/resolveVector3.js';
 
 const isRegistrable = (target: Target): target is RegisteredTarget => target != null && !isVector3Like(target);
 
