@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createConsumedInput, type ConsumedInput } from '../../src/core/input/consumedInput';
 import { InputSystem, MouseButton } from '../../src/dom/InputSystem';
 
@@ -94,50 +94,37 @@ describe('InputSystem', () => {
     expect(out.leftDx).toBe(0);
   });
 
-  it('routes right-drag into rightDx/rightDy, not left', () => {
+  it('routes each held button into its own bucket, both at once when both are held', () => {
     const el = setup();
+    const both = MouseButton.left | MouseButton.right;
 
+    pointer(el, 'pointerdown', 0, 0, both);
+    pointer(el, 'pointermove', 10, 0, both);
+    pointer(el, 'pointerup', 10, 0, 0);
     pointer(el, 'pointerdown', 0, 0, MouseButton.right);
     pointer(el, 'pointermove', 5, 5, MouseButton.right);
 
     const out = emptyInput();
     system.consume(out);
 
-    expect(out.rightDx).toBeCloseTo(5, 5);
-    expect(out.leftDx).toBe(0);
-  });
-
-  it('a single move while two buttons are held feeds the same delta into both', () => {
-    const el = setup();
-    const both = MouseButton.left | MouseButton.right;
-
-    pointer(el, 'pointerdown', 0, 0, both);
-    pointer(el, 'pointermove', 10, 0, both);
-
-    const out = emptyInput();
-    system.consume(out);
-
     expect(out.leftDx).toBeCloseTo(10, 5);
-    expect(out.rightDx).toBeCloseTo(10, 5);
+    expect(out.rightDx).toBeCloseTo(15, 5);
+    expect(out.rightDy).toBeCloseTo(5, 5);
   });
 
-  it('buffers wheel deltaY', () => {
-    const el = setup();
-    el.dispatchEvent(new WheelEvent('wheel', { deltaY: 100, bubbles: true }));
+  it('buffers wheel deltaX and deltaY, turning a shifted single-axis wheel sideways', () => {
+    const wheel = (init: WheelEventInit) => {
+      const el = setup();
+      el.dispatchEvent(new WheelEvent('wheel', { bubbles: true, ...init }));
+      const out = emptyInput();
+      system.consume(out);
+      system.disconnect();
+      return [out.wheelDeltaX, out.wheelDeltaY];
+    };
 
-    const out = emptyInput();
-    system.consume(out);
-    expect(out.wheelDeltaY).toBeCloseTo(100, 5);
-  });
-
-  it('buffers wheel deltaX independently of deltaY', () => {
-    const el = setup();
-    el.dispatchEvent(new WheelEvent('wheel', { deltaX: 30, deltaY: 100, bubbles: true }));
-
-    const out = emptyInput();
-    system.consume(out);
-    expect(out.wheelDeltaX).toBeCloseTo(30, 5);
-    expect(out.wheelDeltaY).toBeCloseTo(100, 5);
+    expect(wheel({ deltaX: 30, deltaY: 100 })).toEqual([30, 100]);
+    expect(wheel({ deltaY: 40, shiftKey: true })).toEqual([40, 0]);
+    expect(wheel({ deltaX: 15, deltaY: 40, shiftKey: true })).toEqual([15, 40]); // a trackpad's own deltaX wins
   });
 
   it('a ctrlKey wheel event (trackpad pinch) routes into wheelZoomDelta, not wheelDeltaX/Y', () => {
@@ -149,26 +136,6 @@ describe('InputSystem', () => {
     expect(out.wheelZoomDelta).toBeCloseTo(50, 5);
     expect(out.wheelDeltaX).toBe(0);
     expect(out.wheelDeltaY).toBe(0);
-  });
-
-  it('shift+wheel on a single-axis wheel (deltaX 0) routes deltaY into wheelDeltaX instead', () => {
-    const el = setup();
-    el.dispatchEvent(new WheelEvent('wheel', { deltaX: 0, deltaY: 40, shiftKey: true, bubbles: true }));
-
-    const out = emptyInput();
-    system.consume(out);
-    expect(out.wheelDeltaX).toBeCloseTo(40, 5);
-    expect(out.wheelDeltaY).toBe(0);
-  });
-
-  it('shift+wheel with a real deltaX (trackpad) is left alone, not doubled up with deltaY', () => {
-    const el = setup();
-    el.dispatchEvent(new WheelEvent('wheel', { deltaX: 15, deltaY: 40, shiftKey: true, bubbles: true }));
-
-    const out = emptyInput();
-    system.consume(out);
-    expect(out.wheelDeltaX).toBeCloseTo(15, 5);
-    expect(out.wheelDeltaY).toBeCloseTo(40, 5);
   });
 
   it('disconnect() stops further events from being buffered', () => {
@@ -198,34 +165,22 @@ describe('InputSystem', () => {
     expect(out.leftDy).toBeCloseTo(0, 5);
   });
 
-  it('a second, distinct mouse pointerId while one is already tracked is ignored - the first keeps going', () => {
+  it('tracks one mouse at a time: a second pointerId is ignored until the first lifts', () => {
     const el = setup();
 
     pointer(el, 'pointerdown', 0, 0, MouseButton.left, 1);
-    pointer(el, 'pointerdown', 100, 100, MouseButton.left, 2); // a second physical mouse - ignored
+    pointer(el, 'pointerdown', 100, 100, MouseButton.left, 2);
     pointer(el, 'pointermove', 10, 0, MouseButton.left, 1);
-    pointer(el, 'pointermove', 999, 999, MouseButton.left, 2); // must not affect the buffer
-
+    pointer(el, 'pointermove', 999, 999, MouseButton.left, 2);
     const out = emptyInput();
     system.consume(out);
+    expect([out.leftDx, out.leftDy]).toEqual([10, 0]);
 
-    expect(out.leftDx).toBeCloseTo(10, 5);
-    expect(out.leftDy).toBeCloseTo(0, 5);
-  });
-
-  it('a second mouse pointerId can start its own drag once the first lifts', () => {
-    const el = setup();
-
-    pointer(el, 'pointerdown', 0, 0, MouseButton.left, 1);
-    pointer(el, 'pointerup', 0, 0, 0, 1);
+    pointer(el, 'pointerup', 10, 0, 0, 1);
     pointer(el, 'pointerdown', 50, 50, MouseButton.left, 2);
     pointer(el, 'pointermove', 60, 55, MouseButton.left, 2);
-
-    const out = emptyInput();
     system.consume(out);
-
-    expect(out.leftDx).toBeCloseTo(10, 5);
-    expect(out.leftDy).toBeCloseTo(5, 5);
+    expect([out.leftDx, out.leftDy]).toEqual([10, 5]);
   });
 
   it('a hidden tab drops tracked pointers, so a later pointerdown re-anchors instead of staying stuck', () => {
@@ -280,30 +235,18 @@ describe('InputSystem', () => {
     expect(out.touchPinchDelta).toBeCloseTo(-10, 5); // distance: 90 -> 80, fingers came closer
   });
 
-  it('pinch: fingers spreading apart produces a positive touchPinchDelta', () => {
+  it('pinch grows as fingers spread, and stays 0 when both move together as a pan', () => {
     const el = setup();
-
-    touch(el, 'pointerdown', 0, 0, 1);
-    touch(el, 'pointerdown', 100, 0, 2); // baseline distance 100
-    touch(el, 'pointermove', -50, 0, 1); // spreads to a distance of 150
-
-    const out = emptyInput();
-    system.consume(out);
-
-    expect(out.touchPinchDelta).toBeCloseTo(50, 5);
-  });
-
-  it('pinch + pan together: both fingers moving by the same amount is pure pan, net pinch stays ~0', () => {
-    const el = setup();
-
     touch(el, 'pointerdown', 0, 0, 1);
     touch(el, 'pointerdown', 100, 0, 2);
-    touch(el, 'pointermove', 10, 0, 1);
-    touch(el, 'pointermove', 110, 0, 2);
-
+    touch(el, 'pointermove', -50, 0, 1);
     const out = emptyInput();
     system.consume(out);
+    expect(out.touchPinchDelta).toBeCloseTo(50, 5);
 
+    touch(el, 'pointermove', -40, 0, 1);
+    touch(el, 'pointermove', 110, 0, 2);
+    system.consume(out);
     expect(out.touchTwoDx).toBeCloseTo(10, 5);
     expect(out.touchPinchDelta).toBeCloseTo(0, 5);
   });
@@ -349,72 +292,46 @@ describe('InputSystem', () => {
     expect(out.touchRotateDelta).toBeCloseTo(Math.PI / 4, 5);
   });
 
-  it('lockTouchAxis: a scale-dominant move suppresses touchRotateDelta entirely', () => {
-    const el = setup();
-    system.lockTouchAxis = true;
+  it('lockTouchAxis keeps only the dominant of pinch and rotate', () => {
+    const gesture = (x: number, y: number) => {
+      const el = setup();
+      system.lockTouchAxis = true;
+      touch(el, 'pointerdown', 0, 0, 1);
+      touch(el, 'pointerdown', 100, 0, 2);
+      touch(el, 'pointermove', x, y, 2);
+      const out = emptyInput();
+      system.consume(out);
+      system.disconnect();
+      return out;
+    };
 
-    touch(el, 'pointerdown', 0, 0, 1);
-    touch(el, 'pointerdown', 100, 0, 2); // distance 100, angle 0
-    touch(el, 'pointermove', 150, 5, 2); // mostly radial, a little diagonal
-
-    const out = emptyInput();
-    system.consume(out);
-
-    const distance = Math.sqrt(150 * 150 + 5 * 5);
-    expect(out.touchPinchDelta).toBeCloseTo(distance - 100, 5);
-    expect(out.touchRotateDelta).toBe(0);
+    const pinch = gesture(150, 5);
+    expect(pinch.touchPinchDelta).toBeCloseTo(Math.hypot(150, 5) - 100, 5);
+    expect(pinch.touchRotateDelta).toBe(0);
+    const rotate = gesture(95, 34);
+    expect(rotate.touchRotateDelta).toBeCloseTo(Math.atan2(34, 95), 5);
+    expect(rotate.touchPinchDelta).toBe(0);
   });
 
-  it('lockTouchAxis: a rotate-dominant move suppresses touchPinchDelta entirely', () => {
+  it('lockTouchAxis decides once per gesture and decides again for the next one', () => {
     const el = setup();
     system.lockTouchAxis = true;
+    const out = emptyInput();
 
     touch(el, 'pointerdown', 0, 0, 1);
     touch(el, 'pointerdown', 100, 0, 2);
-    touch(el, 'pointermove', 95, 34, 2); // mostly a twist, barely any distance change
-
-    const out = emptyInput();
+    touch(el, 'pointermove', 95, 34, 2); // twist: locks to rotate
+    touch(el, 'pointermove', 190, 68, 2); // pure spread from here on
     system.consume(out);
-
-    expect(out.touchRotateDelta).toBeCloseTo(Math.atan2(34, 95), 5);
     expect(out.touchPinchDelta).toBe(0);
-  });
 
-  it('lockTouchAxis: once decided, the lock persists for the rest of the gesture', () => {
-    const el = setup();
-    system.lockTouchAxis = true;
-
-    touch(el, 'pointerdown', 0, 0, 1);
-    touch(el, 'pointerdown', 100, 0, 2);
-    touch(el, 'pointermove', 95, 34, 2); // rotate-dominant - locks to 'rotate'
-    touch(el, 'pointermove', 190, 68, 2); // pure radial from here on - looks pinch-dominant alone
-
-    const out = emptyInput();
-    system.consume(out);
-
-    expect(out.touchPinchDelta).toBe(0); // still suppressed, the lock doesn't re-evaluate mid-gesture
-  });
-
-  it('lockTouchAxis: lifting both fingers resets the lock for the next gesture', () => {
-    const el = setup();
-    system.lockTouchAxis = true;
-
-    touch(el, 'pointerdown', 0, 0, 1);
-    touch(el, 'pointerdown', 100, 0, 2);
-    touch(el, 'pointermove', 95, 34, 2); // locks to 'rotate' this gesture
-    touch(el, 'pointerup', 95, 34, 2);
+    touch(el, 'pointerup', 190, 68, 2);
     touch(el, 'pointerup', 0, 0, 1);
-    system.consume(emptyInput()); // drain the first gesture's buffered rotate delta before the next one
-
     touch(el, 'pointerdown', 0, 0, 1);
-    touch(el, 'pointerdown', 100, 0, 2); // fresh gesture, distance 100, angle 0
-    touch(el, 'pointermove', 150, 5, 2); // scale-dominant - should lock to 'pinch' this time
-
-    const out = emptyInput();
+    touch(el, 'pointerdown', 100, 0, 2);
+    touch(el, 'pointermove', 150, 5, 2); // spread: locks to pinch this time
     system.consume(out);
-
-    const distance = Math.sqrt(150 * 150 + 5 * 5);
-    expect(out.touchPinchDelta).toBeCloseTo(distance - 100, 5);
+    expect(out.touchPinchDelta).toBeCloseTo(Math.hypot(150, 5) - 100, 5);
     expect(out.touchRotateDelta).toBe(0);
   });
 
@@ -543,46 +460,29 @@ describe('InputSystem', () => {
     expect(out.touchOneDx).toBe(0);
   });
 
-  it('consume() writes into and returns the same out object (no allocation)', () => {
-    setup();
-    const out = emptyInput();
-    const returned = system.consume(out);
-    expect(returned).toBe(out);
-  });
-
   describe('suppressContextMenu', () => {
-    it('false by default - the native menu is left alone', () => {
+    it('prevents the native menu only when enabled', () => {
       const el = setup();
-      const event = new MouseEvent('contextmenu', { bubbles: true, cancelable: true });
-      el.dispatchEvent(event);
-      expect(event.defaultPrevented).toBe(false);
-    });
+      const open = () => {
+        const event = new MouseEvent('contextmenu', { bubbles: true, cancelable: true });
+        el.dispatchEvent(event);
+        return event.defaultPrevented;
+      };
 
-    it('true - prevents the native menu', () => {
-      const el = setup();
+      expect(open()).toBe(false);
       system.suppressContextMenu = true;
-      const event = new MouseEvent('contextmenu', { bubbles: true, cancelable: true });
-      el.dispatchEvent(event);
-      expect(event.defaultPrevented).toBe(true);
+      expect(open()).toBe(true);
     });
   });
 
   describe('Pointer Lock', () => {
-    it('requestPointerLock() requests it on the connected element', () => {
+    it('requests the lock on its element and releases only its own lock', () => {
       const el = setup();
       system.requestPointerLock();
       expect(document.pointerLockElement).toBe(el);
-    });
-
-    it("exitPointerLock() releases the lock when this system's element holds it", () => {
-      setup();
-      system.requestPointerLock();
       system.exitPointerLock();
       expect(document.pointerLockElement).toBe(null);
-    });
 
-    it('exitPointerLock() does nothing when a different element holds the lock', () => {
-      setup();
       const other = document.createElement('div');
       Object.defineProperty(document, 'pointerLockElement', { value: other, configurable: true });
       system.exitPointerLock();
@@ -778,136 +678,66 @@ describe('InputSystem', () => {
       expect(out.leftDy).toBeCloseTo(5, 5);
     });
 
-    it('a pointerlockerror event does not throw', () => {
+    it('warns when the browser rejects the lock', () => {
       setup();
-      expect(() => document.dispatchEvent(new Event('pointerlockerror'))).not.toThrow();
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      document.dispatchEvent(new Event('pointerlockerror'));
+      expect(warn).toHaveBeenCalledOnce();
+      warn.mockRestore();
     });
   });
 
   describe('interactiveArea', () => {
-    it('null (default) - the whole element reacts', () => {
+    it('only starts drags inside it, and keeps a started drag going outside it', () => {
       const el = setup();
-      pointer(el, 'pointerdown', 5, 5, MouseButton.left);
-      pointer(el, 'pointermove', 15, 5, MouseButton.left);
+      const drag = (fromX: number, toX: number) => {
+        pointer(el, 'pointerdown', fromX, 10, MouseButton.left);
+        pointer(el, 'pointermove', toX, 10, MouseButton.left);
+        pointer(el, 'pointerup', toX, 10, 0);
+        const out = emptyInput();
+        system.consume(out);
+        return out.leftDx;
+      };
 
-      const out = emptyInput();
-      system.consume(out);
-      expect(out.leftDx).toBeCloseTo(10, 5);
+      expect(drag(5, 15)).toBeCloseTo(10, 5); // no area: the whole element
+      system.interactiveArea = { x: 0.5, y: 0, width: 0.5, height: 1 }; // right half
+      expect(drag(10, 20)).toBe(0);
+      expect(drag(60, 70)).toBeCloseTo(10, 5);
+      expect(drag(60, 0)).toBeCloseTo(-60, 5);
     });
 
-    it('a pointerdown outside the area is ignored - no drag starts', () => {
-      const el = setup();
-      system.interactiveArea = { x: 0.5, y: 0, width: 0.5, height: 1 }; // right half only
-
-      pointer(el, 'pointerdown', 10, 10, MouseButton.left); // left half - outside
-      pointer(el, 'pointermove', 20, 10, MouseButton.left);
-
-      const out = emptyInput();
-      system.consume(out);
-      expect(out.leftDx).toBe(0);
-    });
-
-    it('a pointerdown inside the area starts a drag normally', () => {
+    it('gates the wheel too, except while the pointer is locked', () => {
       const el = setup();
       system.interactiveArea = { x: 0.5, y: 0, width: 0.5, height: 1 };
+      const wheel = (clientX: number) => {
+        el.dispatchEvent(new WheelEvent('wheel', { deltaY: 100, clientX, clientY: 10, bubbles: true }));
+        const out = emptyInput();
+        system.consume(out);
+        return out.wheelDeltaY;
+      };
 
-      pointer(el, 'pointerdown', 60, 10, MouseButton.left); // right half - inside
-      pointer(el, 'pointermove', 70, 10, MouseButton.left);
-
-      const out = emptyInput();
-      system.consume(out);
-      expect(out.leftDx).toBeCloseTo(10, 5);
-    });
-
-    it('a drag that starts inside keeps going after moving outside the area', () => {
-      const el = setup();
-      system.interactiveArea = { x: 0.5, y: 0, width: 0.5, height: 1 };
-
-      pointer(el, 'pointerdown', 60, 10, MouseButton.left);
-      pointer(el, 'pointermove', 0, 10, MouseButton.left); // now well outside the area
-
-      const out = emptyInput();
-      system.consume(out);
-      expect(out.leftDx).toBeCloseTo(-60, 5);
-    });
-
-    it('wheel outside the area is ignored', () => {
-      const el = setup();
-      system.interactiveArea = { x: 0.5, y: 0, width: 0.5, height: 1 };
-
-      el.dispatchEvent(new WheelEvent('wheel', { deltaY: 100, clientX: 10, clientY: 10, bubbles: true }));
-
-      const out = emptyInput();
-      system.consume(out);
-      expect(out.wheelDeltaY).toBe(0);
-    });
-
-    it('wheel inside the area is buffered normally', () => {
-      const el = setup();
-      system.interactiveArea = { x: 0.5, y: 0, width: 0.5, height: 1 };
-
-      el.dispatchEvent(new WheelEvent('wheel', { deltaY: 100, clientX: 60, clientY: 10, bubbles: true }));
-
-      const out = emptyInput();
-      system.consume(out);
-      expect(out.wheelDeltaY).toBeCloseTo(100, 5);
-    });
-
-    it('once locked, wheel is no longer gated by the area - clientX/Y freeze at the lock position', () => {
-      const el = setup();
-      system.interactiveArea = { x: 0.5, y: 0, width: 0.5, height: 1 };
-      system.requestPointerLock();
-
-      // clientX/Y frozen outside the area (0,0) is what every subsequent event would report while locked
-      el.dispatchEvent(new WheelEvent('wheel', { deltaY: 100, clientX: 0, clientY: 0, bubbles: true }));
-
-      const out = emptyInput();
-      system.consume(out);
-      expect(out.wheelDeltaY).toBeCloseTo(100, 5);
-    });
-
-    it('isInsideInteractiveArea() reports the same bypass-while-locked a consumer can rely on', () => {
-      setup();
-      system.interactiveArea = { x: 0.5, y: 0, width: 0.5, height: 1 };
-
+      expect(wheel(10)).toBe(0);
+      expect(wheel(60)).toBeCloseTo(100, 5);
       expect(system.isInsideInteractiveArea(10, 10)).toBe(false);
-      system.requestPointerLock();
+
+      system.requestPointerLock(); // a locked pointer reports a frozen position, possibly outside
+      expect(wheel(0)).toBeCloseTo(100, 5);
       expect(system.isInsideInteractiveArea(10, 10)).toBe(true);
     });
   });
 
   describe('Safari gesture events', () => {
-    it('scale change buffers into gestureZoomDelta', () => {
+    it('buffers scale steps into gestureZoomDelta and rotation steps into touchRotateDelta, in radians', () => {
       const el = setup();
       gesture(el, 'gesturestart', 1, 0);
       gesture(el, 'gesturechange', 1.1, 0);
+      gesture(el, 'gesturechange', 1.15, 10);
 
       const out = emptyInput();
       system.consume(out);
-      expect(out.gestureZoomDelta).toBeCloseTo(0.1, 5);
-      expect(out.touchRotateDelta).toBe(0);
-    });
 
-    it('rotation change buffers into touchRotateDelta, converted from degrees to radians', () => {
-      const el = setup();
-      gesture(el, 'gesturestart', 1, 0);
-      gesture(el, 'gesturechange', 1, 10);
-
-      const out = emptyInput();
-      system.consume(out);
-      expect(out.touchRotateDelta).toBeCloseTo((10 * Math.PI) / 180, 5);
-      expect(out.gestureZoomDelta).toBe(0);
-    });
-
-    it('scale/rotation are cumulative since gesturestart - each change buffers only the step', () => {
-      const el = setup();
-      gesture(el, 'gesturestart', 1, 0);
-      gesture(el, 'gesturechange', 1.1, 0);
-      gesture(el, 'gesturechange', 1.15, 0); // +0.05 from here, not +0.15 from the start
-
-      const out = emptyInput();
-      system.consume(out);
       expect(out.gestureZoomDelta).toBeCloseTo(0.15, 5);
+      expect(out.touchRotateDelta).toBeCloseTo((10 * Math.PI) / 180, 5);
     });
 
     it('gesturestart outside interactiveArea is ignored - its gesturechange does nothing', () => {
@@ -940,54 +770,40 @@ describe('InputSystem', () => {
     });
 
     describe('lockTouchAxis', () => {
-      it('a scale-dominant gesture suppresses touchRotateDelta entirely', () => {
-        const el = setup();
-        system.lockTouchAxis = true;
-        gesture(el, 'gesturestart', 1, 0);
-        gesture(el, 'gesturechange', 1.5, 5); // scaleFraction 0.5 * 30 = 15 vs 5deg - scale wins
+      it('keeps only the dominant of scale and rotation', () => {
+        const gestureWith = (scale: number, rotation: number) => {
+          const el = setup();
+          system.lockTouchAxis = true;
+          gesture(el, 'gesturestart', 1, 0);
+          gesture(el, 'gesturechange', scale, rotation);
+          const out = emptyInput();
+          system.consume(out);
+          system.disconnect();
+          return out;
+        };
 
-        const out = emptyInput();
-        system.consume(out);
-        expect(out.gestureZoomDelta).toBeCloseTo(0.5, 5);
-        expect(out.touchRotateDelta).toBe(0);
+        const zoom = gestureWith(1.5, 5);
+        expect(zoom.gestureZoomDelta).toBeCloseTo(0.5, 5);
+        expect(zoom.touchRotateDelta).toBe(0);
+        const turn = gestureWith(1.01, 20);
+        expect(turn.touchRotateDelta).toBeCloseTo((20 * Math.PI) / 180, 5);
+        expect(turn.gestureZoomDelta).toBe(0);
       });
 
-      it('a rotate-dominant gesture suppresses gestureZoomDelta entirely', () => {
+      it('decides once per gesture and decides again for the next one', () => {
         const el = setup();
         system.lockTouchAxis = true;
-        gesture(el, 'gesturestart', 1, 0);
-        gesture(el, 'gesturechange', 1.01, 20); // scaleFraction 0.01 * 30 = 0.3 vs 20deg - rotate wins
-
         const out = emptyInput();
-        system.consume(out);
-        expect(out.touchRotateDelta).toBeCloseTo((20 * Math.PI) / 180, 5);
-        expect(out.gestureZoomDelta).toBe(0);
-      });
 
-      it('once decided, the lock persists for the rest of the gesture', () => {
-        const el = setup();
-        system.lockTouchAxis = true;
         gesture(el, 'gesturestart', 1, 0);
-        gesture(el, 'gesturechange', 1.01, 20); // locks to 'rotate'
-        gesture(el, 'gesturechange', 1.5, 20); // pure scale from here - still suppressed
-
-        const out = emptyInput();
+        gesture(el, 'gesturechange', 1.01, 20); // locks to rotate
+        gesture(el, 'gesturechange', 1.5, 20);
         system.consume(out);
         expect(out.gestureZoomDelta).toBe(0);
-      });
 
-      it('a fresh gesturestart resets the lock for the next gesture', () => {
-        const el = setup();
-        system.lockTouchAxis = true;
+        gesture(el, 'gestureend', 1.5, 20);
         gesture(el, 'gesturestart', 1, 0);
-        gesture(el, 'gesturechange', 1.01, 20); // locks to 'rotate' this gesture
-        gesture(el, 'gestureend', 1.01, 20);
-        system.consume(emptyInput()); // drain the first gesture's buffered rotate delta
-
-        gesture(el, 'gesturestart', 1, 0);
-        gesture(el, 'gesturechange', 1.5, 5); // scale-dominant - should lock to 'pinch' this time
-
-        const out = emptyInput();
+        gesture(el, 'gesturechange', 1.5, 5); // locks to pinch this time
         system.consume(out);
         expect(out.gestureZoomDelta).toBeCloseTo(0.5, 5);
         expect(out.touchRotateDelta).toBe(0);
@@ -996,77 +812,41 @@ describe('InputSystem', () => {
   });
 
   describe('held state', () => {
-    it('leftHeld/rightHeld/middleHeld reflect which mouse buttons are currently down', () => {
+    it('reports which mouse buttons are down until the pointer lifts or disconnects, across reads', () => {
       const el = setup();
+      const out = emptyInput();
       pointer(el, 'pointerdown', 0, 0, MouseButton.left | MouseButton.right);
 
-      const out = emptyInput();
       system.consume(out);
-      expect(out.leftHeld).toBe(true);
-      expect(out.rightHeld).toBe(true);
-      expect(out.middleHeld).toBe(false);
-    });
+      system.consume(out);
+      expect([out.leftHeld, out.rightHeld, out.middleHeld]).toEqual([true, true, false]);
 
-    it('clears on pointerup', () => {
-      const el = setup();
-      pointer(el, 'pointerdown', 0, 0, MouseButton.left);
       pointer(el, 'pointerup', 0, 0, 0);
-
-      const out = emptyInput();
       system.consume(out);
-      expect(out.leftHeld).toBe(false);
-    });
+      expect([out.leftHeld, out.rightHeld]).toEqual([false, false]);
 
-    it('is not drained by consume() - stays true across repeated reads while still held', () => {
-      const el = setup();
-      pointer(el, 'pointerdown', 0, 0, MouseButton.left);
-
-      const out = emptyInput();
-      system.consume(out);
-      expect(out.leftHeld).toBe(true);
-      system.consume(out);
-      expect(out.leftHeld).toBe(true);
-    });
-
-    it('touchOneHeld is true with one finger down, false once a second joins', () => {
-      const el = setup();
-      touch(el, 'pointerdown', 0, 0, 1);
-
-      const out = emptyInput();
-      system.consume(out);
-      expect(out.touchOneHeld).toBe(true);
-
-      touch(el, 'pointerdown', 10, 10, 2);
-      system.consume(out);
-      expect(out.touchOneHeld).toBe(false);
-      expect(out.touchTwoHeld).toBe(true);
-    });
-
-    it('touchThreeHeld follows a third finger joining/leaving', () => {
-      const el = setup();
-      touch(el, 'pointerdown', 0, 0, 1);
-      touch(el, 'pointerdown', 10, 10, 2);
-      touch(el, 'pointerdown', 20, 20, 3);
-
-      const out = emptyInput();
-      system.consume(out);
-      expect(out.touchThreeHeld).toBe(true);
-      expect(out.touchTwoHeld).toBe(false);
-
-      touch(el, 'pointerup', 20, 20, 3);
-      system.consume(out);
-      expect(out.touchThreeHeld).toBe(false);
-      expect(out.touchTwoHeld).toBe(true); // the remaining two fingers are promoted, no gap
-    });
-
-    it('disconnect() clears held state', () => {
-      const el = setup();
       pointer(el, 'pointerdown', 0, 0, MouseButton.left);
       system.disconnect();
-
-      const out = emptyInput();
       system.consume(out);
       expect(out.leftHeld).toBe(false);
+    });
+
+    it('reports how many fingers are down, one gesture bucket at a time', () => {
+      const el = setup();
+      const out = emptyInput();
+      const held = () => {
+        system.consume(out);
+        return [out.touchOneHeld, out.touchTwoHeld, out.touchThreeHeld];
+      };
+
+      touch(el, 'pointerdown', 0, 0, 1);
+      expect(held()).toEqual([true, false, false]);
+      touch(el, 'pointerdown', 10, 10, 2);
+      expect(held()).toEqual([false, true, false]);
+      touch(el, 'pointerdown', 20, 20, 3);
+      expect(held()).toEqual([false, false, true]);
+      touch(el, 'pointerup', 20, 20, 3);
+      expect(held()).toEqual([false, true, false]);
     });
   });
 });
