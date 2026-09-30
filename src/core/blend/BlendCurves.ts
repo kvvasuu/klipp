@@ -17,7 +17,7 @@ export const BlendCurves = {
   /** Eased departure, fast arrival. */
   easeOut: ((t) => t * t) as Ease,
   /** Abrupt departure, smooth arrival. */
-  hardOut: easing.cubicOut as Ease,
+  cubicOut: easing.cubicOut as Ease,
   /** Smooth departure, abrupt arrival. */
-  hardIn: easing.cubicIn as Ease,
+  cubicIn: easing.cubicIn as Ease,
 } as const;
