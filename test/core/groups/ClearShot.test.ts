@@ -15,32 +15,18 @@ describe('ClearShot', () => {
     expect(() => new ClearShot([], { evaluator: () => 0 })).toThrow();
   });
 
-  it('picks the highest QUALITY, not the highest priority', () => {
-    const a = candidateAt('a', 0, 100); // higher priority, worse quality
-    const b = candidateAt('b', 10, 1);
-    const quality: Record<string, number> = { a: 1, b: 5 };
-    const clearShot = new ClearShot([a, b], { evaluator: (c) => quality[c.cameraId] });
+  it('picks the best quality, then the highest priority, then the first in the list', () => {
+    const pick = (quality: Record<string, number>, priorities: [number, number]) => {
+      const clearShot = new ClearShot([candidateAt('a', 0, priorities[0]), candidateAt('b', 10, priorities[1])], {
+        evaluator: (c) => quality[c.cameraId],
+      });
+      clearShot.tick(0);
+      return clearShot.liveCameraId;
+    };
 
-    clearShot.tick(0);
-    expect(clearShot.liveCameraId).toBe('b');
-  });
-
-  it('priority breaks a quality tie', () => {
-    const a = candidateAt('a', 0, 10);
-    const b = candidateAt('b', 10, 20);
-    const clearShot = new ClearShot([a, b], { evaluator: () => 5 });
-
-    clearShot.tick(0);
-    expect(clearShot.liveCameraId).toBe('b');
-  });
-
-  it('a full tie (quality AND priority) is broken by list order by default', () => {
-    const a = candidateAt('a', 0, 10);
-    const b = candidateAt('b', 10, 10);
-    const clearShot = new ClearShot([a, b], { evaluator: () => 5 });
-
-    clearShot.tick(0);
-    expect(clearShot.liveCameraId).toBe('a');
+    expect(pick({ a: 1, b: 5 }, [100, 1])).toBe('b');
+    expect(pick({ a: 5, b: 5 }, [10, 20])).toBe('b');
+    expect(pick({ a: 5, b: 5 }, [10, 10])).toBe('a');
   });
 
   it('randomizeChoice picks among full ties via the injected RNG instead of list order', () => {
