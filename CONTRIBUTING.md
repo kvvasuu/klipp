@@ -17,7 +17,6 @@ pnpm --filter examples dev
 
 - `pnpm run build` - compiles `src/` to `dist/` via `tsc`.
 - `pnpm run test` - the unit suite (`vitest`), including the golden trajectory tests.
-- `pnpm run bench:alloc` - the per-frame allocation guard. Budgets are measured on Node 22, like CI.
 - `pnpm run lint` - `oxlint`, which also enforces the layer boundaries below.
 - `pnpm run format` - `prettier`.
 - `pnpm run bench` - the performance benchmark suite (`@pmndrs/labs`).
@@ -44,8 +43,6 @@ as params. Hot paths don't allocate: reuse module-level scratch values instead.
   compares each frame to recorded fixtures. A failure there means observable behavior changed. If that
   is intended, re-record on Node 22 with `pnpm vitest run test/golden --mode golden-record` and commit
   the fixtures separately.
-- `test/allocations.ts` fails when a frame allocates noticeably more than its budget. If a budget moves
-  without a new object in the hot path, re-measure and update it.
 
 ## Project layout
 
