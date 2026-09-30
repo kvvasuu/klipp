@@ -41,6 +41,12 @@ as params. Hot paths don't allocate: reuse module-level scratch values instead.
   scenario tests that span several modules.
 - `test/core/` follows the same rule as `src/core/`: it imports only `math`, with shared helpers in
   `test/core/mathHelpers.ts`.
+- Tests are documentation. Write one test per documented behavior, and keep every test that guards a
+  real bug (say so in its name). Merge variants of the same behavior into one test.
+- Don't test plumbing: that fields are mutable, that `update` can be passed by reference, that a
+  function returns `out`.
+- React tests cover wiring only: the piece registers and runs, every prop reaches the instance (read it
+  through `ref`), unmounting stops it, and `initialState` is respected. Behavior is tested on the class.
 - `test/golden/` runs every Body, Aim, Extension, Noise, blend and group through a fixed world and
   compares each frame to recorded fixtures. A failure there means observable behavior changed. If that
   is intended, re-record on Node 22 with `pnpm vitest run test/golden --mode golden-record` and commit
