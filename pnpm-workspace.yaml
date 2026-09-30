@@ -5,3 +5,4 @@ allowBuilds:
   esbuild: false
 minimumReleaseAgeExclude:
   - '@pmndrs/labs@0.9.0'
+  - math@0.0.0-canary-20260930-56e1c4d3
