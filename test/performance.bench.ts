@@ -15,7 +15,8 @@ import { GroupFramingExtension } from '../src/three/extension/GroupFramingExtens
 import { TargetGroup } from '../src/three/extension/TargetGroup';
 import { ImpulseField } from '../src/core/impulse/ImpulseField';
 import { ImpulseListenerNoise } from '../src/core/impulse/ImpulseListenerNoise';
-import { InputSystem, MouseButton, createConsumedInput, type ConsumedInput } from '../src/dom/InputSystem';
+import { createConsumedInput, type ConsumedInput } from '../src/core/input/consumedInput';
+import { InputSystem, MouseButton } from '../src/dom/InputSystem';
 import { BasicMultiChannelPerlinNoise } from '../src/core/noise/BasicMultiChannelPerlinNoise';
 import { TargetRegistry } from '../src/three/resolve/TargetRegistry';
 import { toQuaternion, toTuple } from './tuples';

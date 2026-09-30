@@ -1,4 +1,4 @@
-export { InputSystem, MouseButton, type ConsumedInput, type InteractiveArea } from './InputSystem';
+export { InputSystem, MouseButton, type InteractiveArea } from './InputSystem';
 export {
   InputAxisController,
   type InputAxisPair,

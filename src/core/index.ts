@@ -135,7 +135,23 @@ export {
   type GroupFramingFitMode,
   type GroupFramingMode,
 } from './extension/groupFraming';
-export { InputAxis, type InputAxisRecentering } from './input/InputAxis';
+export {
+  InputAxis,
+  applyAxisDelta,
+  updateAxis,
+  resetAxis,
+  normalizeAxis,
+  type InputAxisData,
+  type InputAxisRecentering,
+} from './input/InputAxis';
+export { createConsumedInput, type ConsumedInput } from './input/consumedInput';
+export {
+  feedInputAxes,
+  type InputAxisControllerConfig,
+  type InputAxisPair,
+  type InputInvert,
+  type InputSourceMapping,
+} from './input/inputMapping';
 
 export { BasicMultiChannelPerlinNoise } from './noise/BasicMultiChannelPerlinNoise';
 export {

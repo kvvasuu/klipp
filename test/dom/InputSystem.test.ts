@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { InputSystem, MouseButton, createConsumedInput, type ConsumedInput } from '../../src/dom/InputSystem';
+import { createConsumedInput, type ConsumedInput } from '../../src/core/input/consumedInput';
+import { InputSystem, MouseButton } from '../../src/dom/InputSystem';
 
 function pointer(el: HTMLElement, type: string, x: number, y: number, buttons: number, pointerId = 1): void {
   el.dispatchEvent(
