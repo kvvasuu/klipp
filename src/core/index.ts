@@ -4,6 +4,19 @@ export { createTargetExtent, projectTargetExtent, type TargetExtent } from './Ta
 export { EventDispatcher, type DispatchedEvent, type EventListener } from './EventDispatcher';
 export { VirtualCameraController, type VirtualCameraSlots, type CameraStateWriter } from './VirtualCameraController';
 export { KlippCore, type VirtualCameraConfig, type KlippCoreOptions, type CameraTransitionEventMap } from './KlippCore';
+export {
+  createKlippState,
+  registerKlippCamera,
+  unregisterKlippCamera,
+  setKlippPriority,
+  setKlippHints,
+  tickKlipp,
+  DEFAULT_BLEND,
+  type KlippState,
+  type KlippCamera,
+  type KlippEvent,
+  type KlippParams,
+} from './klippState';
 
 export { Damper, damp, createDamperState, resetDamper, type DamperState, type DampingConstant } from './damping/Damper';
 export {
@@ -22,6 +35,15 @@ export {
 } from './damping/predictor';
 
 export { lerpCameraState } from './blend/lerpCameraState';
+export {
+  createBlendState,
+  setBlendTarget,
+  tickBlend,
+  forgetBlendCandidate,
+  blendTargetId,
+  type BlendState,
+  type BlendTransition,
+} from './blend/blend';
 export { resolveBlendDefinition, type BlendDefinition, type CustomBlend } from './blend/BlendDefinition';
 export { BlendHints, hasBlendHint } from './blend/BlendHints';
 export { BlendCurves, type Ease } from './blend/BlendCurves';
