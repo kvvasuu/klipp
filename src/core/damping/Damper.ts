@@ -1,5 +1,5 @@
 import { clamp } from 'math';
-import type { Spring } from 'math/time';
+import { spring, type Spring } from 'math/time';
 
 /** Damping time, optionally asymmetric for widening and narrowing gaps. */
 export type DampingConstant = number | { into: number; from: number };
@@ -58,22 +58,14 @@ export function damp(
 
   const maxChange = maxSpeed * Math.max(time, dt);
   const change = clamp(current - target, -maxChange, maxChange);
-  const adjustedTarget = current - change;
-
-  const omega = 2 / time;
-  const x = omega * dt;
-  const exp = 1 / (1 + x + 0.48 * x * x + 0.235 * x * x * x);
-  const temp = (state.velocity + omega * change) * dt;
-  state.velocity = (state.velocity - omega * temp) * exp;
-  let output = adjustedTarget + (change + temp) * exp;
+  spring.damp(state, current - change, time, dt);
 
   // Snap instead of oscillating after an overshoot.
-  if (target - current > 0 === output > target) {
-    output = target;
-    state.velocity = (output - target) / dt;
+  if (target - current > 0 === state.value > target) {
+    state.value = target;
+    state.velocity = 0;
   }
 
-  state.value = output;
   return state;
 }
 

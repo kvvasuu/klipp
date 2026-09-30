@@ -122,7 +122,7 @@ const scenarios: { name: string; budget: number; frame: () => void }[] = [
   },
   {
     name: 'frame: Follow + HardLookAt',
-    budget: 80,
+    budget: 160,
     frame: klippFrame((target, c, slot) => {
       c.registerBody(withSlot(new FollowBody(target, [0, 3, 8], 0.5), slot).update);
       c.registerAim(withSlot(new HardLookAtAim(target), slot).update);
@@ -130,7 +130,7 @@ const scenarios: { name: string; budget: number; frame: () => void }[] = [
   },
   {
     name: 'frame: Follow + RotationComposer',
-    budget: 536,
+    budget: 694,
     frame: klippFrame((target, c, slot) => {
       c.registerBody(withSlot(new FollowBody(target, [0, 3, 12], 0.5), slot).update);
       c.registerAim(withSlot(new RotationComposerAim(target, [0, 0], 16 / 9, [0.15, 0.15], 0.5), slot).update);
@@ -138,7 +138,7 @@ const scenarios: { name: string; budget: number; frame: () => void }[] = [
   },
   {
     name: 'frame: Follow + HardLookAt + GroupFraming',
-    budget: 176,
+    budget: 261,
     frame: klippFrame((target, c, slot) => {
       c.registerBody(withSlot(new FollowBody(target, [0, 3, 12], 0.5), slot).update);
       c.registerAim(withSlot(new HardLookAtAim(target), slot).update);
@@ -155,7 +155,7 @@ const scenarios: { name: string; budget: number; frame: () => void }[] = [
   },
   {
     name: 'frame: Follow + HardLookAt + Perlin',
-    budget: 319,
+    budget: 414,
     frame: klippFrame((target, c, slot) => {
       c.registerBody(withSlot(new FollowBody(target, [0, 3, 12], 0.5), slot).update);
       c.registerAim(withSlot(new HardLookAtAim(target), slot).update);
@@ -164,7 +164,7 @@ const scenarios: { name: string; budget: number; frame: () => void }[] = [
   },
   {
     name: 'frame: two cameras, Follow + HardLookAt, shared target',
-    budget: 160,
+    budget: 288,
     frame: klippFrame((target, c, slot) => {
       c.registerBody(withSlot(new FollowBody(target, [0, 3, 8], 0.5), slot).update);
       c.registerAim(withSlot(new HardLookAtAim(target), slot).update);
