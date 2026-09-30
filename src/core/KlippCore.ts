@@ -1,24 +1,22 @@
 import type { CameraState } from './CameraState';
 import { EventDispatcher } from './EventDispatcher';
-import { BlendCurves } from './blend/BlendCurves';
-import { resolveBlendDefinition, type BlendDefinition, type CustomBlend } from './blend/BlendDefinition';
-import { BlendDriver } from './blend/BlendDriver';
-import { BlendHints } from './blend/BlendHints';
+import { blendTargetId } from './blend/blend';
+import type { BlendDefinition, CustomBlend } from './blend/BlendDefinition';
+import type { BlendHints } from './blend/BlendHints';
+import {
+  DEFAULT_BLEND,
+  createKlippState,
+  registerKlippCamera,
+  setKlippHints,
+  setKlippPriority,
+  tickKlipp,
+  unregisterKlippCamera,
+  type CameraTransitionEventMap,
+  type KlippParams,
+  type VirtualCameraConfig,
+} from './klippState';
 
-export type VirtualCameraConfig = {
-  id: string;
-  priority: number;
-  /** Mutable live state read by the core. */
-  state: CameraState;
-  /** Blend hints for transitions involving this camera. */
-  hints?: BlendHints;
-};
-
-type Candidate = VirtualCameraConfig & { activatedAt: number };
-
-let activationCounter = 0;
-
-const DEFAULT_BLEND: BlendDefinition = { curve: BlendCurves.easeInOut, time: 2 };
+export type { CameraTransitionEventMap, VirtualCameraConfig };
 
 export type KlippCoreOptions = {
   /** Used when no `customBlends` entry matches a from→to transition. */
@@ -26,56 +24,36 @@ export type KlippCoreOptions = {
   customBlends?: CustomBlend[];
 };
 
-/** Transition events emitted by the core and virtual camera controllers. */
-export type CameraTransitionEventMap = {
-  /** A camera became the active candidate. */
-  activated: { incoming: string; outgoing: string | null };
-  /** A camera stopped contributing to output. */
-  deactivated: { outgoing: string };
-  /** A blend transition started. */
-  blendCreated: { incoming: string; outgoing: string | null };
-  /** A blend transition finished. */
-  blendFinished: { liveId: string };
-  /** An instant transition occurred. */
-  cut: { incoming: string; outgoing: string | null };
-};
-
 /** Priority arbitration and transition blending for the active virtual camera. */
 export class KlippCore extends EventDispatcher<CameraTransitionEventMap> {
-  private candidates = new Map<string, Candidate>();
-  private activeId: string | null = null;
+  readonly state = createKlippState();
+  private readonly params: KlippParams;
   private readonly activeIdListeners = new Set<() => void>();
-
-  private defaultBlend: BlendDefinition;
-  private customBlends: CustomBlend[];
-
-  private readonly driver: BlendDriver<string>;
   private readonly liveIdListeners = new Set<() => void>();
-
-  private customBlendFromId: string | null = null;
-  private customBlendFromHints: BlendHints = BlendHints.none;
+  private draining = false;
 
   constructor(options: KlippCoreOptions = {}) {
     super();
-    this.defaultBlend = options.defaultBlend ?? DEFAULT_BLEND;
-    this.customBlends = options.customBlends ?? [];
-    this.driver = new BlendDriver((id) => this.candidates.get(id)!.state);
+    this.params = {
+      defaultBlend: options.defaultBlend ?? DEFAULT_BLEND,
+      customBlends: options.customBlends ?? [],
+    };
   }
 
   setDefaultBlend(defaultBlend?: BlendDefinition): void {
-    this.defaultBlend = defaultBlend ?? DEFAULT_BLEND;
+    this.params.defaultBlend = defaultBlend ?? DEFAULT_BLEND;
   }
 
   setCustomBlends(customBlends?: CustomBlend[]): void {
-    this.customBlends = customBlends ?? [];
+    this.params.customBlends = customBlends ?? [];
   }
 
   get activeCameraId(): string | null {
-    return this.activeId;
+    return this.state.activeId;
   }
 
   isActive(id: string): boolean {
-    return this.activeId === id;
+    return this.state.activeId === id;
   }
 
   /** Subscribe to active camera changes. */
@@ -86,16 +64,16 @@ export class KlippCore extends EventDispatcher<CameraTransitionEventMap> {
 
   /** The active camera's raw state. */
   get activeState(): CameraState | null {
-    return this.activeId !== null ? this.candidates.get(this.activeId)!.state : null;
+    return this.state.activeId !== null ? this.state.cameras.get(this.state.activeId)!.state : null;
   }
 
   /** Camera currently settled in the output. */
   get liveCameraId(): string | null {
-    return this.driver.liveId;
+    return this.state.blend.liveId;
   }
 
   isLive(id: string): boolean {
-    return this.driver.liveId === id;
+    return this.state.blend.liveId === id;
   }
 
   /** Subscribe to live camera changes. */
@@ -105,106 +83,59 @@ export class KlippCore extends EventDispatcher<CameraTransitionEventMap> {
   };
 
   get isBlending(): boolean {
-    return this.driver.isBlending;
+    return this.state.blend.transition.active;
+  }
+
+  /** Destination of the active blend, or the live camera when settled. */
+  get blendTargetId(): string | null {
+    return blendTargetId(this.state.blend);
   }
 
   /** Whether the core has produced a real camera output. */
   get hasEverActivated(): boolean {
-    return this.driver.hasEverActivated;
+    return this.state.blend.hasEverActivated;
   }
 
   /** Register a camera and return an unregister callback. */
   registerCamera(config: VirtualCameraConfig): () => void {
-    const candidate: Candidate = { ...config, activatedAt: ++activationCounter };
-    this.candidates.set(config.id, candidate);
-    this.recompute();
+    const camera = registerKlippCamera(this.state, config);
+    this.drainEvents();
     return () => {
-      if (this.candidates.get(config.id) !== candidate) return;
-      this.candidates.delete(config.id);
-      // Continue from the current output if the camera disappears.
-      const previousLiveId = this.driver.liveId;
-      this.driver.forget(config.id);
-      this.notifyIfLiveIdChanged(previousLiveId);
-      this.recompute();
+      unregisterKlippCamera(this.state, camera);
+      this.drainEvents();
     };
   }
 
   /** Update a candidate priority without restarting the current blend. */
   updatePriority(id: string, priority: number): void {
-    const candidate = this.candidates.get(id);
-    if (!candidate) return;
-    candidate.priority = priority;
-    this.recompute();
+    setKlippPriority(this.state, id, priority);
+    this.drainEvents();
   }
 
   /** Update candidate hints in place. */
   updateHints(id: string, hints: BlendHints): void {
-    const candidate = this.candidates.get(id);
-    if (candidate) candidate.hints = hints;
-    if (id === this.customBlendFromId) this.customBlendFromHints = hints;
-  }
-
-  private recompute(): void {
-    let winner: Candidate | null = null;
-    for (const candidate of this.candidates.values()) {
-      if (
-        !winner ||
-        candidate.priority > winner.priority ||
-        (candidate.priority === winner.priority && candidate.activatedAt > winner.activatedAt)
-      ) {
-        winner = candidate;
-      }
-    }
-    const newActiveId = winner?.id ?? null;
-    if (newActiveId === this.activeId) return;
-    const outgoing = this.activeId;
-    this.activeId = newActiveId;
-    for (const listener of this.activeIdListeners) listener();
-    if (newActiveId !== null) this.dispatchEvent({ type: 'activated', incoming: newActiveId, outgoing });
-  }
-
-  /** Notify listeners if the live camera changed since `previousLiveId` was read. */
-  private notifyIfLiveIdChanged(previousLiveId: string | null): void {
-    if (this.driver.liveId === previousLiveId) return;
-    for (const listener of this.liveIdListeners) listener();
-    if (previousLiveId !== null) this.dispatchEvent({ type: 'deactivated', outgoing: previousLiveId });
+    setKlippHints(this.state, id, hints);
   }
 
   /** Advance the blend and return the reusable output state. */
   tick(dt: number): CameraState {
-    const previousLiveId = this.driver.liveId;
-    const justCreatedCut =
-      this.activeId !== null && this.activeId !== this.driver.blendTargetId && this.retarget(this.activeId);
-
-    const wasBlending = this.driver.isBlending;
-    const result = this.driver.tick(dt);
-    if (wasBlending && !this.driver.isBlending && !justCreatedCut) {
-      this.dispatchEvent({ type: 'blendFinished', liveId: this.driver.liveId! });
-    }
-    this.notifyIfLiveIdChanged(previousLiveId);
+    const result = tickKlipp(this.state, this.params, dt);
+    this.drainEvents();
     return result;
   }
 
-  /** Start a transition to `incoming`. Returns `true` when it resolved to an instant cut. */
-  private retarget(incoming: string): boolean {
-    const definition = resolveBlendDefinition(this.customBlends, this.customBlendFromId, incoming, this.defaultBlend);
-    const toHints = this.candidates.get(incoming)?.hints ?? BlendHints.none;
-    // Prefer current hints when the outgoing candidate still exists.
-    const fromCandidate = this.customBlendFromId !== null ? this.candidates.get(this.customBlendFromId) : undefined;
-    const fromHints = fromCandidate?.hints ?? this.customBlendFromHints;
-    const outgoing = this.driver.blendTargetId;
-    const isFirstEver = !this.driver.hasEverActivated;
-    this.driver.setTarget(incoming, definition, fromHints | toHints);
-    this.customBlendFromId = incoming;
-    this.customBlendFromHints = toHints;
-
-    if (isFirstEver) {
-      this.dispatchEvent({ type: 'cut', incoming, outgoing: null });
-      return false;
+  /** Notify subscribers and listeners of buffered events, including ones raised while notifying. */
+  private drainEvents(): void {
+    if (this.draining) return;
+    this.draining = true;
+    const events = this.state.events;
+    for (let i = 0; i < events.length; i++) {
+      const event = events[i];
+      if (event.type === 'activeIdChanged') for (const listener of this.activeIdListeners) listener();
+      else if (event.type === 'liveIdChanged') for (const listener of this.liveIdListeners) listener();
+      else this.dispatchEvent(event);
     }
-    this.dispatchEvent({ type: 'blendCreated', incoming, outgoing });
-    if ('damping' in definition || definition.time > 0) return false;
-    this.dispatchEvent({ type: 'cut', incoming, outgoing });
-    return true;
+    events.length = 0;
+    this.draining = false;
   }
 }
