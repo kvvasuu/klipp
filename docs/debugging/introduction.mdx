@@ -25,17 +25,18 @@ Each element has a CSS class you can restyle: `klipp-debug-deadzone`, `klipp-deb
 }
 ```
 
-Without React, draw zones yourself with `DebugOverlay`. `screenPosition` and `size` use the same normalized screen coordinates as the composers:
+Without React, draw zones with `DebugOverlay`. `composerDebugZones` turns a composer's settings into the same boxes the components draw:
 
 ```ts
+import { composerDebugZones } from '@kvvasuu/klipp';
 import { DebugOverlay } from '@kvvasuu/klipp/dom';
 
 const overlay = new DebugOverlay();
 overlay.connect(renderer.domElement.parentElement!);
-overlay.render([{ screenPosition: [0, 0], size: [0.4, 0.4], className: 'klipp-debug-deadzone' }], [0, 0]);
+overlay.render(composerDebugZones(body.screenPosition, body.deadZone, body.hardLimit), body.screenPosition);
 ```
 
-Call `render` again whenever the zones change, and `disconnect()` to remove it.
+Call `render` again whenever the zones change, and `disconnect()` to remove it. For group framing, `groupFramingPaddingBox` gives the size of the padding boundary.
 
 ## `<CameraFrustumHelper>`
 
