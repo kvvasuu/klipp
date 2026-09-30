@@ -1,11 +1,11 @@
 // @vitest-environment node
 /**
- * Golden trajectory tests: the behavior safety net for the math/DOD migration.
+ * Golden trajectory tests: whole-camera behavior pinned frame by frame.
  *
- *   pnpm vitest run test/golden --mode golden-record   record fixtures from the CURRENT code
- *                                                      (once, before migrating; commit them)
  *   pnpm test                                          compare against fixtures (normal suite)
+ *   pnpm vitest run test/golden --mode golden-record   re-record fixtures from the current code
  *
+ * Re-record only for an intended behavior change, on Node 22, in a separate commit.
  * Tolerance is 1e-6 per number; quaternions are compared up to sign (q and -q are one rotation).
  */
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
@@ -49,10 +49,7 @@ describe('golden trajectories', () => {
         return;
       }
 
-      expect(
-        existsSync(file),
-        `missing fixture: run \`pnpm vitest run test/golden --mode golden-record\` on the pre-migration code`,
-      ).toBe(true);
+      expect(existsSync(file), `missing fixture: run \`pnpm vitest run test/golden --mode golden-record\``).toBe(true);
       const fixture = JSON.parse(readFileSync(file, 'utf8')) as Fixture;
       expect(firstMismatch(fixture.samples, samples)).toBeNull();
     });
