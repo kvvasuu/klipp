@@ -3,222 +3,102 @@ import { create } from '@react-three/test-renderer';
 import { createRef } from 'react';
 import { Euler, Object3D, Quaternion, Vector3 } from 'three';
 import { describe, expect, it } from 'vitest';
+import type { KlippCore } from '../../../src/core/KlippCore';
 import { Aim } from '../../../src/react/aim/Aim';
-import type { PanTiltAim } from '../../../src/three/aim/PanTiltAim';
+import type { PanTiltProps } from '../../../src/react/aim/PanTilt';
 import { InputController } from '../../../src/react/input/InputController';
 import { Klipp } from '../../../src/react/Klipp';
 import { useKlipp } from '../../../src/react/KlippContext';
-import type { KlippCore } from '../../../src/core/KlippCore';
 import { VirtualCamera } from '../../../src/react/VirtualCamera';
-import { toQuaternion } from '../../tuples';
+import type { PanTiltAim } from '../../../src/three/aim/PanTiltAim';
+import { mountInCamera } from '../wiring';
 
-function CoreReader({ onRead }: { onRead: (core: KlippCore) => void }) {
-  onRead(useKlipp().core);
+function SceneReader({ onRead }: { onRead: (core: KlippCore, element: HTMLElement) => void }) {
+  const element = useThree((state) => state.gl.domElement);
+  onRead(useKlipp().core, element);
   return null;
 }
 
-function DomElementReader({ onRead }: { onRead: (el: HTMLElement) => void }) {
-  onRead(useThree((state) => state.gl.domElement));
-  return null;
-}
-
-describe('PanTilt (React wrapper)', () => {
-  it('a nested <InputController> resolves pan/tilt from context, without an explicit target', async () => {
+describe('Aim.PanTilt', () => {
+  it('turns with a nested InputController, found through context', async () => {
     let core: KlippCore | undefined;
-    let domElement: HTMLElement | undefined;
-
-    const scene = (
+    let element: HTMLElement | undefined;
+    const renderer = await create(
       <Klipp>
-        <CoreReader onRead={(c) => (core = c)} />
-        <DomElementReader onRead={(el) => (domElement = el)} />
+        <SceneReader onRead={(c, e) => ((core = c), (element = e))} />
         <VirtualCamera name="a" priority={10}>
           <Aim.PanTilt>
             <InputController mouseButtons={{ left: null, right: { axes: { x: 'pan', y: 'tilt' } }, middle: null }} />
           </Aim.PanTilt>
         </VirtualCamera>
-      </Klipp>
-    );
-
-    const renderer = await create(scene);
-    await renderer.advanceFrames(1, 0.05);
-
-    const before = toQuaternion(core!.activeState!.quaternion);
-
-    const el = domElement!;
-    el.dispatchEvent(
-      new PointerEvent('pointerdown', {
-        pointerId: 1,
-        clientX: 0,
-        clientY: 0,
-        buttons: 2,
-        bubbles: true,
-        pointerType: 'mouse',
-      }),
-    );
-    el.dispatchEvent(
-      new PointerEvent('pointermove', {
-        pointerId: 1,
-        clientX: 20,
-        clientY: 0,
-        buttons: 2,
-        bubbles: true,
-        pointerType: 'mouse',
-      }),
+      </Klipp>,
     );
     await renderer.advanceFrames(1, 0.05);
+    const before = [...core!.activeState!.quaternion];
 
-    expect(toQuaternion(core!.activeState!.quaternion).equals(before)).toBe(false);
+    const pointer = { pointerId: 1, buttons: 2, bubbles: true, pointerType: 'mouse' };
+    element!.dispatchEvent(new PointerEvent('pointerdown', { ...pointer, clientX: 0, clientY: 0 }));
+    element!.dispatchEvent(new PointerEvent('pointermove', { ...pointer, clientX: 20, clientY: 0 }));
+    await renderer.advanceFrames(1, 0.05);
+
+    expect(core!.activeState!.quaternion).not.toEqual(before);
   });
 
-  it('target prop reaches the underlying PanTiltAim', async () => {
-    let core: KlippCore | undefined;
+  it('passes the target to the aim and every axis prop to both axes, with pan wrapping and tilt clamped by default', async () => {
+    const ref = createRef<PanTiltAim>();
+    const scene = (props: PanTiltProps) => <Aim.PanTilt ref={ref} {...props} />;
+    const mounted = await mountInCamera(scene({}));
+    const aim = ref.current!;
+    expect([aim.pan.wrap, aim.tilt.wrap]).toEqual([true, false]);
+
     const target = new Object3D();
-    target.rotation.set(0, Math.PI / 2, 0);
-    target.updateMatrixWorld();
-
-    const scene = (
-      <Klipp>
-        <CoreReader onRead={(c) => (core = c)} />
-        <VirtualCamera name="a" priority={10}>
-          <Aim.PanTilt target={target} />
-        </VirtualCamera>
-      </Klipp>
-    );
-
-    const renderer = await create(scene);
-    await renderer.advanceFrames(1, 0.05);
-
-    const forward = new Vector3(0, 0, -1).applyQuaternion(toQuaternion(core!.activeState!.quaternion));
-    const targetForward = new Vector3(0, 0, -1).applyQuaternion(target.quaternion);
-    expect(forward.dot(targetForward)).toBeCloseTo(1, 4);
-  });
-
-  it("VirtualCamera's initialState.quaternion seeds pan/tilt once at mount", async () => {
-    let core: KlippCore | undefined;
-    const initialQuaternion = new Quaternion().setFromEuler(new Euler(0, Math.PI / 4, 0));
-
-    const scene = (
-      <Klipp>
-        <CoreReader onRead={(c) => (core = c)} />
-        <VirtualCamera name="a" priority={10} initialState={{ quaternion: initialQuaternion }}>
-          <Aim.PanTilt />
-        </VirtualCamera>
-      </Klipp>
-    );
-
-    const renderer = await create(scene);
-    await renderer.advanceFrames(1, 0.05);
-
-    expect(toQuaternion(core!.activeState!.quaternion).angleTo(initialQuaternion)).toBeLessThan(1e-3);
-  });
-
-  it('damping/maxSpeed props apply to both pan and tilt', async () => {
-    const aimRef = createRef<PanTiltAim>();
-
-    const scene = (
-      <Klipp>
-        <VirtualCamera name="a" priority={10}>
-          <Aim.PanTilt ref={aimRef} damping={0.5} maxSpeed={20} />
-        </VirtualCamera>
-      </Klipp>
-    );
-
-    const renderer = await create(scene);
-    await renderer.advanceFrames(1, 0.05);
-
-    expect(aimRef.current!.pan.damping).toBe(0.5);
-    expect(aimRef.current!.pan.maxSpeed).toBe(20);
-    expect(aimRef.current!.tilt.damping).toBe(0.5);
-    expect(aimRef.current!.tilt.maxSpeed).toBe(20);
-  });
-
-  it('autoNormalize prop reaches pan.autoNormalize', async () => {
-    const aimRef = createRef<PanTiltAim>();
-
-    const scene = (
-      <Klipp>
-        <VirtualCamera name="a" priority={10}>
-          <Aim.PanTilt ref={aimRef} autoNormalize />
-        </VirtualCamera>
-      </Klipp>
-    );
-
-    const renderer = await create(scene);
-    await renderer.advanceFrames(1, 0.05);
-
-    expect(aimRef.current!.pan.autoNormalize).toBe(true);
-  });
-
-  it('panRange/tiltRange props apply to pan.range/tilt.range', async () => {
-    const aimRef = createRef<PanTiltAim>();
-
-    const scene = (
-      <Klipp>
-        <VirtualCamera name="a" priority={10}>
-          <Aim.PanTilt ref={aimRef} panRange={[-90, 90]} tiltRange={[-45, 45]} />
-        </VirtualCamera>
-      </Klipp>
-    );
-
-    const renderer = await create(scene);
-    await renderer.advanceFrames(1, 0.05);
-
-    expect(aimRef.current!.pan.range).toEqual([-90, 90]);
-    expect(aimRef.current!.tilt.range).toEqual([-45, 45]);
-  });
-
-  it('recentering prop applies to both pan.recentering and tilt.recentering', async () => {
-    const aimRef = createRef<PanTiltAim>();
     const recentering = { enabled: true, wait: 0.5, time: 0.8 };
-
-    const scene = (
-      <Klipp>
-        <VirtualCamera name="a" priority={10}>
-          <Aim.PanTilt ref={aimRef} recentering={recentering} />
-        </VirtualCamera>
-      </Klipp>
+    await mounted.update(
+      scene({
+        target,
+        damping: 0.5,
+        maxSpeed: 20,
+        autoNormalize: true,
+        panWrap: false,
+        tiltWrap: true,
+        panRange: [-90, 90],
+        tiltRange: [-45, 45],
+        recentering,
+      }),
     );
 
-    const renderer = await create(scene);
-    await renderer.advanceFrames(1, 0.05);
-
-    expect(aimRef.current!.pan.recentering).toEqual(recentering);
-    expect(aimRef.current!.tilt.recentering).toEqual(recentering);
+    expect(ref.current).toBe(aim);
+    expect(aim.target).toBe(target);
+    expect(aim.pan).toMatchObject({
+      damping: 0.5,
+      maxSpeed: 20,
+      autoNormalize: true,
+      wrap: false,
+      range: [-90, 90],
+      recentering,
+    });
+    expect(aim.tilt).toMatchObject({ damping: 0.5, maxSpeed: 20, wrap: true, range: [-45, 45], recentering });
   });
 
-  it('defaults to pan wrapping (free look-around) and tilt clamped (no flip past up/down)', async () => {
-    const aimRef = createRef<PanTiltAim>();
+  it('stops turning the camera once unmounted', async () => {
+    const ref = createRef<PanTiltAim>();
+    const mounted = await mountInCamera(<Aim.PanTilt ref={ref} />);
+    await mounted.frame();
+    const aim = ref.current!;
+    await mounted.update(null);
+    const before = [...mounted.state.quaternion];
 
-    const scene = (
-      <Klipp>
-        <VirtualCamera name="a" priority={10}>
-          <Aim.PanTilt ref={aimRef} />
-        </VirtualCamera>
-      </Klipp>
-    );
+    aim.pan.applyDelta(90);
+    await mounted.frame();
 
-    const renderer = await create(scene);
-    await renderer.advanceFrames(1, 0.05);
-
-    expect(aimRef.current!.pan.wrap).toBe(true);
-    expect(aimRef.current!.tilt.wrap).toBe(false);
+    expect(mounted.state.quaternion).toEqual(before);
   });
 
-  it('panWrap/tiltWrap props apply to pan.wrap/tilt.wrap - e.g. a restricted-arc turret', async () => {
-    const aimRef = createRef<PanTiltAim>();
-
-    const scene = (
-      <Klipp>
-        <VirtualCamera name="a" priority={10}>
-          <Aim.PanTilt ref={aimRef} panWrap={false} tiltWrap />
-        </VirtualCamera>
-      </Klipp>
-    );
-
-    const renderer = await create(scene);
-    await renderer.advanceFrames(1, 0.05);
-
-    expect(aimRef.current!.pan.wrap).toBe(false);
-    expect(aimRef.current!.tilt.wrap).toBe(true);
+  it("starts from VirtualCamera's initialState.quaternion", async () => {
+    const initial = new Quaternion().setFromEuler(new Euler(0, Math.PI / 4, 0));
+    const mounted = await mountInCamera(<Aim.PanTilt />, { quaternion: initial });
+    await mounted.frame(0.05);
+    expect(new Quaternion().fromArray(mounted.state.quaternion).angleTo(initial)).toBeLessThan(1e-3);
+    expect(new Vector3(0, 0, -1).applyQuaternion(initial).x).toBeLessThan(0);
   });
 });

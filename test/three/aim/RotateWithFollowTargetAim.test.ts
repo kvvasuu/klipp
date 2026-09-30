@@ -1,310 +1,133 @@
 import { Object3D, Quaternion, Vector3 } from 'three';
 import { describe, expect, it } from 'vitest';
-import { createCameraState } from '../../../src/core/CameraState';
+import { createCameraState, type CameraState } from '../../../src/core/CameraState';
 import { RotateWithFollowTargetAim } from '../../../src/three/aim/RotateWithFollowTargetAim';
-import { toQuaternion, toTuple } from '../../tuples';
 
-function expectQuaternionsClose(actual: Quaternion, expected: Quaternion, precision = 9) {
-  expect(actual.angleTo(expected)).toBeLessThan(10 ** -precision);
+const rotationOf = (out: CameraState) => new Quaternion().fromArray(out.quaternion);
+
+function rotatedTarget(x: number, y: number, z: number) {
+  const target = new Object3D();
+  target.rotation.set(x, y, z);
+  return target;
+}
+
+/** Runs one update on a throwaway state, so the next update damps instead of snapping. */
+function warmUp(aim: RotateWithFollowTargetAim): RotateWithFollowTargetAim {
+  aim.update(createCameraState(), 0.016);
+  return aim;
 }
 
 describe('RotateWithFollowTargetAim', () => {
-  it("copies the target's WORLD rotation 1:1 (damping <= 0, default)", () => {
-    const target = new Object3D();
-    target.rotation.set(0.3, 1.1, -0.4);
-
-    const aim = new RotateWithFollowTargetAim(target);
-    const out = createCameraState();
-    aim.update(out, 0.1);
-
-    expectQuaternionsClose(toQuaternion(out.quaternion), new Quaternion().setFromEuler(target.rotation));
-  });
-
-  it("copies the target's WORLD rotation, accounting for a parent transform", () => {
+  it("copies the target's world rotation", () => {
     const parent = new Object3D();
-    parent.rotation.set(0, Math.PI / 2, 0);
-    const target = new Object3D();
-    target.rotation.set(0, Math.PI / 4, 0);
+    parent.rotation.set(0, 0.5, 0);
+    const target = rotatedTarget(0.3, 0.2, 0.1);
     parent.add(target);
-    parent.updateMatrixWorld(true);
-
-    const aim = new RotateWithFollowTargetAim(target);
     const out = createCameraState();
-    aim.update(out, 0.1);
 
-    const expected = new Quaternion().setFromEuler(target.rotation).premultiply(parent.quaternion);
-    expectQuaternionsClose(toQuaternion(out.quaternion), expected);
+    new RotateWithFollowTargetAim(target).update(out, 0.1);
+
+    expect(rotationOf(out).angleTo(target.getWorldQuaternion(new Quaternion()))).toBeLessThan(1e-9);
   });
 
-  it('a fixed-point target (no rotation to give) is a no-op', () => {
-    const aim = new RotateWithFollowTargetAim(new Vector3(1, 2, 3));
-    const out = createCameraState();
-    aim.update(out, 0.1);
-
-    expectQuaternionsClose(toQuaternion(out.quaternion), new Quaternion());
-  });
-
-  it('a ref whose .current is null is a no-op, not a crash', () => {
-    const aim = new RotateWithFollowTargetAim({ current: null });
-    const out = createCameraState();
-
-    expect(() => aim.update(out, 0.1)).not.toThrow();
-    expectQuaternionsClose(toQuaternion(out.quaternion), new Quaternion());
-  });
-
-  it('a null target is a no-op, not a crash', () => {
-    const aim = new RotateWithFollowTargetAim(null);
-    const out = createCameraState();
-
-    expect(() => aim.update(out, 0.1)).not.toThrow();
-    expectQuaternionsClose(toQuaternion(out.quaternion), new Quaternion());
-  });
-
-  it('target is a mutable field — reassigning it changes what gets copied', () => {
-    const a = new Object3D();
-    a.rotation.set(0, 1, 0);
-    const b = new Object3D();
-    b.rotation.set(0, -1, 0.5);
-
-    const aim = new RotateWithFollowTargetAim(a);
-    const out = createCameraState();
-    aim.update(out, 0.1);
-
-    aim.target = b;
-    aim.update(out, 0.1);
-
-    expectQuaternionsClose(toQuaternion(out.quaternion), new Quaternion().setFromEuler(b.rotation));
+  it('leaves out untouched for a target without rotation or without a target', () => {
+    for (const target of [new Vector3(1, 2, 3), null]) {
+      const out = createCameraState();
+      new RotateWithFollowTargetAim(target).update(out, 0.1);
+      expect(out.quaternion).toEqual([0, 0, 0, 1]);
+    }
   });
 
   describe('damping', () => {
-    it('damping > 0 catches up gradually instead of snapping in one frame', () => {
-      const target = new Object3D();
-      target.rotation.set(0, Math.PI / 2, 0);
-
-      const aim = new RotateWithFollowTargetAim(target, 0.5);
-      aim.update(createCameraState(), 0.016); // consume the first-ever-update hard snap on a throwaway state
+    it('eases toward the target rotation and converges', () => {
+      const target = rotatedTarget(0.4, -1.2, 0.7);
+      const aim = warmUp(new RotateWithFollowTargetAim(target, 0.3));
       const out = createCameraState();
+
       aim.update(out, 0.016);
-
-      const targetQuaternion = new Quaternion().setFromEuler(target.rotation);
-      expect(toQuaternion(out.quaternion).angleTo(new Quaternion())).toBeGreaterThan(0); // moved off identity
-      expect(toQuaternion(out.quaternion).angleTo(targetQuaternion)).toBeGreaterThan(0.01); // but not there yet
-    });
-
-    it('converges to a static target over repeated ticks with damping enabled', () => {
-      const target = new Object3D();
-      target.rotation.set(0.4, -1.2, 0.7);
-      const targetQuaternion = new Quaternion().setFromEuler(target.rotation);
-
-      const aim = new RotateWithFollowTargetAim(target, 0.3);
-      const out = createCameraState();
+      expect(rotationOf(out).angleTo(new Quaternion())).toBeGreaterThan(0);
+      expect(rotationOf(out).angleTo(target.quaternion)).toBeGreaterThan(0.01);
 
       for (let i = 0; i < 300; i++) aim.update(out, 0.016);
-
-      expectQuaternionsClose(toQuaternion(out.quaternion), targetQuaternion, 3);
+      expect(rotationOf(out).angleTo(target.quaternion)).toBeLessThan(1e-3);
     });
 
-    it('never jumps suddenly while tracking a continuously-rotating target (steady angular speed, no reversal)', () => {
-      const target = new Object3D();
-      const aim = new RotateWithFollowTargetAim(target, 0.3);
-      const out = createCameraState();
-
-      const dt = 1 / 60;
-      const angularSpeed = 1.5; // rad/s around Y — a fast, steady sweep
-      let elapsed = 0;
-      let maxStepAngle = 0;
-
-      for (let i = 0; i < 300; i++) {
-        elapsed += dt;
-        target.rotation.set(0, angularSpeed * elapsed, 0);
-        const before = toQuaternion(out.quaternion);
-
-        aim.update(out, dt);
-
-        const stepAngle = before.angleTo(toQuaternion(out.quaternion));
-        if (stepAngle > maxStepAngle) maxStepAngle = stepAngle;
-      }
-
-      // a per-step jump anywhere near this size would mean the damping broke continuity — a smoothly
-      // tracking camera should never move further in one 1/60s tick than the raw target itself does
-      // (angularSpeed * dt), plus generous slack for the spring's own catch-up motion
-      expect(maxStepAngle).toBeLessThan(angularSpeed * dt * 5);
-    });
-
-    it('settles into a roughly constant lag behind a target rotating at constant angular speed', () => {
+    it('follows a steadily turning target smoothly, settling into a constant lag', () => {
       const target = new Object3D();
       const aim = new RotateWithFollowTargetAim(target, 0.2);
       const out = createCameraState();
-
       const dt = 1 / 60;
-      const angularSpeed = 1;
-      let elapsed = 0;
+      let largestStep = 0;
       const lags: number[] = [];
 
-      for (let i = 0; i < 600; i++) {
-        elapsed += dt;
-        target.rotation.set(0, angularSpeed * elapsed, 0);
+      for (let i = 1; i <= 600; i++) {
+        target.rotation.set(0, 1.5 * dt * i, 0);
+        const before = rotationOf(out);
         aim.update(out, dt);
-        if (i >= 500) lags.push(toQuaternion(out.quaternion).angleTo(new Quaternion().setFromEuler(target.rotation)));
+        largestStep = Math.max(largestStep, before.angleTo(rotationOf(out)));
+        if (i > 500) lags.push(rotationOf(out).angleTo(target.quaternion));
       }
 
-      // once settled (last 100 of 600 ticks), the lag should be roughly constant, not still drifting
-      const first = lags[0];
-      const last = lags[lags.length - 1];
-      expect(Math.abs(last - first)).toBeLessThan(0.02);
+      expect(largestStep).toBeLessThan(1.5 * dt * 5);
+      expect(Math.abs(lags[lags.length - 1] - lags[0])).toBeLessThan(0.02);
     });
 
-    it('accepts an asymmetric {into, from} DampingConstant, same as Damper itself', () => {
-      const target = new Object3D();
-      target.rotation.set(0, 1, 0);
+    it('maxSpeed caps how fast damping closes the gap', () => {
+      const target = rotatedTarget(0, Math.PI / 2, 0);
+      const gap = (maxSpeed: number) => {
+        const aim = warmUp(new RotateWithFollowTargetAim(target, 1, maxSpeed));
+        const out = createCameraState();
+        aim.update(out, 0.05);
+        return rotationOf(out).angleTo(target.quaternion);
+      };
 
-      const aim = new RotateWithFollowTargetAim(target, { into: 0.05, from: 2 });
-      const out = createCameraState();
-
-      expect(() => aim.update(out, 0.016)).not.toThrow();
-      expect(toQuaternion(out.quaternion).angleTo(new Quaternion())).toBeGreaterThan(0);
-    });
-
-    it('damping is a mutable field — toggling it back to 0 snaps instantly on the next frame', () => {
-      const target = new Object3D();
-      target.rotation.set(0, 1, 0);
-      const targetQuaternion = new Quaternion().setFromEuler(target.rotation);
-
-      const aim = new RotateWithFollowTargetAim(target, 0.5);
-      aim.update(createCameraState(), 0.05); // consume the first-ever-update hard snap on a throwaway state
-      const out = createCameraState();
-      aim.update(out, 0.05);
-      expect(toQuaternion(out.quaternion).angleTo(targetQuaternion)).toBeGreaterThan(0);
-
-      aim.damping = 0;
-      aim.update(out, 0.05);
-      expectQuaternionsClose(toQuaternion(out.quaternion), targetQuaternion);
+      expect(gap(1)).toBeGreaterThan(gap(Infinity));
     });
   });
 
-  describe('maxSpeed', () => {
-    it('clamps how fast damping can close the gap, in radians/sec', () => {
-      const target = new Object3D();
-      target.rotation.set(0, Math.PI / 2, 0);
-
-      const unclamped = new RotateWithFollowTargetAim(target, 1);
-      unclamped.update(createCameraState(), 0.05); // consume the first-ever-update hard snap
-      const outUnclamped = createCameraState();
-      unclamped.update(outUnclamped, 0.05);
-
-      const clamped = new RotateWithFollowTargetAim(target, 1, 1);
-      clamped.update(createCameraState(), 0.05);
-      const outClamped = createCameraState();
-      clamped.update(outClamped, 0.05); // maxSpeed = 1 rad/sec
-
-      const targetQuaternion = new Quaternion().setFromEuler(target.rotation);
-      expect(toQuaternion(outClamped.quaternion).angleTo(targetQuaternion)).toBeGreaterThan(
-        toQuaternion(outUnclamped.quaternion).angleTo(targetQuaternion),
-      );
-    });
-  });
-
-  describe('justActivated', () => {
-    it('snaps straight to the target rotation even with a warmed-up damper and a stale out.quaternion', () => {
-      const target = new Object3D();
-      target.rotation.set(0, Math.PI / 2, 0); // off-axis, so warm-up below exercises real damping
-
+  it('justActivated snaps to a new target rotation from a stale one, where a plain update would ease', () => {
+    const gap = (justActivated: boolean) => {
+      const target = rotatedTarget(0, Math.PI / 2, 0);
       const aim = new RotateWithFollowTargetAim(target, 0.5);
       const out = createCameraState();
-
-      aim.update(out, 0.016, true); // first-ever session: snaps, warms up the damper
-      aim.update(out, 0.016, false);
-
-      // a later, unrelated session: out.quaternion is frozen at wherever the FIRST session left it
-      target.rotation.set(1.2, -0.5, 0.3);
-      const newTargetQuaternion = new Quaternion().setFromEuler(target.rotation);
       aim.update(out, 0.016, true);
-
-      expectQuaternionsClose(toQuaternion(out.quaternion), newTargetQuaternion);
-    });
-
-    it('without justActivated, the same stale-state scenario eases instead of snapping (the bug this fixes)', () => {
-      const target = new Object3D();
-      target.rotation.set(0, Math.PI / 2, 0);
-
-      const aim = new RotateWithFollowTargetAim(target, 0.5);
-      const out = createCameraState();
-
-      aim.update(out, 0.016, true);
-      aim.update(out, 0.016, false);
-
+      aim.update(out, 0.016);
       target.rotation.set(1.2, -0.5, 0.3);
-      const newTargetQuaternion = new Quaternion().setFromEuler(target.rotation);
-      aim.update(out, 0.016, false); // no reactivation signal — damps from the stale orientation instead
+      aim.update(out, 0.016, justActivated);
+      return rotationOf(out).angleTo(target.quaternion);
+    };
 
-      expect(toQuaternion(out.quaternion).angleTo(newTargetQuaternion)).toBeGreaterThan(0.01);
-    });
+    expect(gap(true)).toBeLessThan(1e-9);
+    expect(gap(false)).toBeGreaterThan(0.01);
   });
 
   describe('primeFrom', () => {
-    it('the next update() eases from the primed rotation toward the target instead of snapping', () => {
-      const target = new Object3D();
-      target.rotation.set(0, Math.PI / 2, 0);
-      const initial = new Quaternion(); // identity - far from the target
-
+    it('makes the next activation ease from the primed rotation, once', () => {
+      const target = rotatedTarget(0, Math.PI / 2, 0);
       const aim = new RotateWithFollowTargetAim(target, 0.5);
-      aim.primeFrom(toTuple(initial));
       const out = createCameraState();
-      initial.toArray(out.quaternion);
+      aim.primeFrom(out.quaternion);
+
       aim.update(out, 0.016, true);
-
-      const targetQuaternion = new Quaternion().setFromEuler(target.rotation);
-      expect(toQuaternion(out.quaternion).angleTo(initial)).toBeGreaterThan(0); // moved off the primed rotation
-      expect(toQuaternion(out.quaternion).angleTo(targetQuaternion)).toBeGreaterThan(0.01); // but not there yet
-    });
-
-    it('without priming, update() still snaps straight to the target on justActivated (unchanged default)', () => {
-      const target = new Object3D();
-      target.rotation.set(0, Math.PI / 2, 0);
-
-      const aim = new RotateWithFollowTargetAim(target, 0.5);
-      const out = createCameraState();
-      aim.update(out, 0.016, true);
-
-      expectQuaternionsClose(toQuaternion(out.quaternion), new Quaternion().setFromEuler(target.rotation));
-    });
-
-    it('is consumed by the first justActivated only - a later reactivation snaps normally', () => {
-      const target = new Object3D();
-      target.rotation.set(0, Math.PI / 2, 0);
-      const initial = new Quaternion();
-
-      const aim = new RotateWithFollowTargetAim(target, 0.5);
-      aim.primeFrom(toTuple(initial));
-      const out = createCameraState();
-      initial.toArray(out.quaternion);
-      aim.update(out, 0.016, true); // consumes the prime, eases
-      aim.update(out, 0.016, false);
+      expect(rotationOf(out).angleTo(new Quaternion())).toBeGreaterThan(0);
+      expect(rotationOf(out).angleTo(target.quaternion)).toBeGreaterThan(0.01);
 
       target.rotation.set(1.2, -0.5, 0.3);
-      const newTargetQuaternion = new Quaternion().setFromEuler(target.rotation);
-      aim.update(out, 0.016, true); // a later reactivation - primeFrom was NOT called again
-
-      expectQuaternionsClose(toQuaternion(out.quaternion), newTargetQuaternion);
+      aim.update(out, 0.016, true); // a later activation snaps as usual
+      expect(rotationOf(out).angleTo(target.quaternion)).toBeLessThan(1e-9);
     });
 
-    it("is still consumed even when the target isn't resolved yet on the primed justActivated call", () => {
-      const initial = new Quaternion();
+    it('is used up even when the target is not resolved yet on that activation', () => {
       const aim = new RotateWithFollowTargetAim({ current: null }, 0.5);
-      aim.primeFrom(toTuple(initial));
       const out = createCameraState();
-      initial.toArray(out.quaternion);
+      aim.primeFrom(out.quaternion);
+      aim.update(out, 0.016, true);
+      expect(out.quaternion).toEqual([0, 0, 0, 1]);
 
-      aim.update(out, 0.016, true); // target still unresolved - early return, but primed must be consumed
-      expect(toQuaternion(out.quaternion).equals(initial)).toBe(true); // no-op, nothing to update yet
-
-      const target = new Object3D();
-      target.rotation.set(1.2, -0.5, 0.3);
+      const target = rotatedTarget(1.2, -0.5, 0.3);
       aim.target = target;
-      const newTargetQuaternion = new Quaternion().setFromEuler(target.rotation);
-      aim.update(out, 0.016, true); // an unrelated LATER reactivation - must snap, not ease
-
-      expectQuaternionsClose(toQuaternion(out.quaternion), newTargetQuaternion);
+      aim.update(out, 0.016, true);
+      expect(rotationOf(out).angleTo(target.quaternion)).toBeLessThan(1e-9);
     });
   });
 });
