@@ -82,6 +82,12 @@
           }
         ]
       }
+    },
+    {
+      "files": ["test/**"],
+      "rules": {
+        "react/only-export-components": "off"
+      }
     }
   ]
 }
