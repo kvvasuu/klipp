@@ -1,9 +1,9 @@
 import { useFrame, useThree } from '@react-three/fiber';
-import { clamp, degreesToRadians } from 'math';
 import { useEffect, useImperativeHandle, useState, type Ref } from 'react';
 import { Vector3 } from 'three';
 import type { DampingConstant } from '../../core/damping/Damper.js';
-import { DebugZoneOverlay, type DebugZone } from '../DebugZoneOverlay.js';
+import { groupFramingPaddingBox } from '../../core/debug/debugZones.js';
+import { DebugZoneOverlay } from '../DebugZoneOverlay.js';
 import { useTargetSlots } from '../useTargetSlot.js';
 import { useVirtualCamera } from '../VirtualCameraContext.js';
 import {
@@ -21,11 +21,6 @@ const scratchGroupPosition = new Vector3();
 const scratchCameraPosition = new Vector3();
 /** Minimum visible change for the debug overlay. */
 const DEBUG_BOX_EPSILON = 0.002;
-
-// Use the frustum plane distance for a padded box.
-function paddingBoxEdgeFraction(halfFov: number, distance: number, padding: number): number {
-  return clamp(1 - padding / (distance * Math.sin(halfFov)), 0, 1);
-}
 
 export type GroupFramingProps = {
   /** Targets to keep in frame. */
@@ -111,13 +106,14 @@ export function GroupFraming({
       return;
     }
     const distance = scratchCameraPosition.fromArray(cameraState.position).distanceTo(scratchGroupPosition);
-    const verticalHalfFov = degreesToRadians(cameraState.fov) / 2;
-    const horizontalHalfFov = Math.atan(Math.tan(verticalHalfFov) * (size.width / size.height));
-    // an excluded axis has no padding boundary to show - full frame, not a fabricated constraint
-    const next: [number, number] = [
-      framingMode === 'vertical' ? 2 : paddingBoxEdgeFraction(horizontalHalfFov, distance, padding) * 2,
-      framingMode === 'horizontal' ? 2 : paddingBoxEdgeFraction(verticalHalfFov, distance, padding) * 2,
-    ];
+    const next = groupFramingPaddingBox(
+      [0, 0],
+      cameraState.fov,
+      size.width / size.height,
+      distance,
+      padding,
+      framingMode,
+    );
     setPaddingBox((previous) =>
       previous &&
       Math.abs(previous[0] - next[0]) < DEBUG_BOX_EPSILON &&
@@ -128,6 +124,5 @@ export function GroupFraming({
   });
 
   if (!debug || !paddingBox) return null;
-  const zones: DebugZone[] = [{ screenPosition, size: paddingBox, className: 'klipp-debug-groupframing' }];
-  return <DebugZoneOverlay zones={zones} />;
+  return <DebugZoneOverlay zones={[{ screenPosition, size: paddingBox, className: 'klipp-debug-groupframing' }]} />;
 }

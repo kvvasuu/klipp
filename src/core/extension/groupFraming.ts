@@ -134,6 +134,10 @@ export function computeGroupBounds(
   return radius;
 }
 
+/** Half the horizontal field of view, in radians, for a vertical half-FOV and aspect ratio. */
+export const horizontalHalfFov = (verticalHalfFov: number, aspect: number): number =>
+  Math.atan(Math.tan(verticalHalfFov) * aspect);
+
 /**
  * Keeps the group inside the frame by moving `out` along its own view axis and easing `viewOffset` to
  * `screenPosition`. Returns true while still moving.
@@ -152,7 +156,7 @@ export function updateGroupFraming(
 
   const verticalHalfFov = degreesToRadians(out.fov) / 2;
   const aspect = params.viewportWidth / params.viewportHeight;
-  const horizontalHalfFov = Math.atan(Math.tan(verticalHalfFov) * aspect);
+  const horizontalHalf = horizontalHalfFov(verticalHalfFov, aspect);
 
   vec3.transformQuat(scratchRight, rightAxis, out.quaternion);
   vec3.transformQuat(scratchUp, upAxis, out.quaternion);
@@ -162,11 +166,11 @@ export function updateGroupFraming(
   const includeHorizontal = params.framingMode !== 'vertical';
   const padding = Math.max(0, params.padding);
   const tanVertical = Math.tan(verticalHalfFov);
-  const tanHorizontal = Math.tan(horizontalHalfFov);
+  const tanHorizontal = Math.tan(horizontalHalf);
   const sinVertical = Math.sin(verticalHalfFov);
-  const sinHorizontal = Math.sin(horizontalHalfFov);
+  const sinHorizontal = Math.sin(horizontalHalf);
   const cosVertical = Math.cos(verticalHalfFov);
-  const cosHorizontal = Math.cos(horizontalHalfFov);
+  const cosHorizontal = Math.cos(horizontalHalf);
 
   let requiredDistance = 0;
 

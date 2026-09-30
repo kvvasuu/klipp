@@ -1,11 +1,6 @@
-export type DebugZone = {
-  /** Zone center in normalized screen coordinates. */
-  screenPosition: [number, number];
-  /** Zone width and height. */
-  size: [number, number];
-  /** CSS class applied to the zone. */
-  className: string;
-};
+import type { DebugZone } from '../core/debug/debugZones.js';
+
+export type { DebugZone };
 
 const STYLESHEET_ID = 'klipp-debug-zone-overlay-styles';
 

@@ -2,7 +2,8 @@ import type { Vector3 as Vector3Like } from '@react-three/fiber';
 import { useThree } from '@react-three/fiber';
 import { useEffect, useImperativeHandle, useState, type Ref } from 'react';
 import type { DampingConstant } from '../../core/damping/Damper.js';
-import { DebugZoneOverlay, type DebugZone } from '../DebugZoneOverlay.js';
+import { composerDebugZones } from '../../core/debug/debugZones.js';
+import { DebugZoneOverlay } from '../DebugZoneOverlay.js';
 import { resolveVec3 } from '../../three/resolve/resolveVector3.js';
 import type { Target } from '../../three/resolve/Target.js';
 import { useTargetSlot } from '../useTargetSlot.js';
@@ -101,13 +102,7 @@ export function RotationComposer({
   useEffect(() => controller.registerAim(aim.update), [controller, aim]);
 
   if (!debug) return null;
-  const zones: DebugZone[] = [];
-  // deadZone/hardLimit are a half-reach from screenPosition, DebugZoneOverlay wants a full box size
-  if (hardLimit[0] > 0 || hardLimit[1] > 0) {
-    zones.push({ screenPosition, size: [hardLimit[0] * 2, hardLimit[1] * 2], className: 'klipp-debug-hardlimit' });
-  }
-  if (deadZone[0] > 0 || deadZone[1] > 0) {
-    zones.push({ screenPosition, size: [deadZone[0] * 2, deadZone[1] * 2], className: 'klipp-debug-deadzone' });
-  }
-  return <DebugZoneOverlay zones={zones} crosshair={screenPosition} />;
+  return (
+    <DebugZoneOverlay zones={composerDebugZones(screenPosition, deadZone, hardLimit)} crosshair={screenPosition} />
+  );
 }

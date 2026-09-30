@@ -133,10 +133,12 @@ export {
   type RotationComposerState,
 } from './aim/rotationComposer.js';
 
+export { composerDebugZones, groupFramingPaddingBox, type DebugZone } from './debug/debugZones.js';
 export { LensExtension } from './extension/LensExtension.js';
 export { updateLens, createLensState, type LensParams, type LensState } from './extension/lens.js';
 export {
   updateGroupFraming,
+  horizontalHalfFov,
   computeGroupBounds,
   createGroupFramingState,
   createGroupMember,
