@@ -19,30 +19,33 @@ function owner(axes: Record<string, InputAxis>): { current: InputAxisOwner | nul
 }
 
 describe('InputController (React wrapper)', () => {
-  it("resolves the target's named inputAxes into the underlying InputAxisController's config", async () => {
+  it('resolves axis names on the target, over any owner context, and follows name changes', async () => {
     const pan = new InputAxis();
     const tilt = new InputAxis();
-    const target = owner({ pan, tilt });
+    const radial = new InputAxis();
     let controller: InputAxisController | null = null;
-
-    const scene = (
+    const scene = (y: string) => (
       <Klipp>
         <VirtualCamera name="a" priority={10}>
-          <InputController
-            ref={(c) => (controller = c)}
-            target={target}
-            mouseButtons={{ left: null, right: { axes: { x: 'pan', y: 'tilt' } }, middle: null }}
-          />
+          <InputAxisOwnerContext.Provider value={{ inputAxes: { pan: new InputAxis(), tilt: new InputAxis() } }}>
+            <InputController
+              ref={(c) => (controller = c)}
+              target={owner({ pan, tilt, radial })}
+              mouseButtons={{ left: null, right: { axes: { x: 'pan', y } }, middle: null }}
+            />
+          </InputAxisOwnerContext.Provider>
         </VirtualCamera>
       </Klipp>
     );
 
-    const renderer = await create(scene);
+    const renderer = await create(scene('tilt'));
     await renderer.advanceFrames(1, 0.05);
-
-    expect(controller!.config.mouseButtons.right?.axes.x).toBe(pan);
-    expect(controller!.config.mouseButtons.right?.axes.y).toBe(tilt);
+    expect(controller!.config.mouseButtons.right?.axes).toEqual({ x: pan, y: tilt });
     expect(controller!.config.mouseButtons.left).toBeNull();
+
+    await renderer.update(scene('radial'));
+    await renderer.advanceFrames(1, 0.05);
+    expect(controller!.config.mouseButtons.right?.axes.y).toBe(radial);
   });
 
   it('with no target prop, resolves inputAxes from the nearest InputAxisOwnerContext instead', async () => {
@@ -70,35 +73,6 @@ describe('InputController (React wrapper)', () => {
     expect(controller!.config.mouseButtons.right?.axes.y).toBe(tilt);
   });
 
-  it('an explicit target prop overrides an ambient InputAxisOwnerContext', async () => {
-    const contextPan = new InputAxis();
-    const contextTilt = new InputAxis();
-    const explicitPan = new InputAxis();
-    const explicitTilt = new InputAxis();
-    const target = owner({ pan: explicitPan, tilt: explicitTilt });
-    let controller: InputAxisController | null = null;
-
-    const scene = (
-      <Klipp>
-        <VirtualCamera name="a" priority={10}>
-          <InputAxisOwnerContext.Provider value={{ inputAxes: { pan: contextPan, tilt: contextTilt } }}>
-            <InputController
-              ref={(c) => (controller = c)}
-              target={target}
-              mouseButtons={{ left: null, right: { axes: { x: 'pan', y: 'tilt' } }, middle: null }}
-            />
-          </InputAxisOwnerContext.Provider>
-        </VirtualCamera>
-      </Klipp>
-    );
-
-    const renderer = await create(scene);
-    await renderer.advanceFrames(1, 0.05);
-
-    expect(controller!.config.mouseButtons.right?.axes.x).toBe(explicitPan);
-    expect(controller!.config.mouseButtons.right?.axes.y).toBe(explicitTilt);
-  });
-
   it('a source with no axis name of that kind on the target resolves to null, with a dev warning', async () => {
     const target = owner({ pan: new InputAxis(), tilt: new InputAxis() });
     let controller: InputAxisController | null = null;
@@ -124,43 +98,17 @@ describe('InputController (React wrapper)', () => {
     warnSpy.mockRestore();
   });
 
-  it('a prop change (new axis names) is picked up on the next frame', async () => {
-    const pan = new InputAxis();
-    const tilt = new InputAxis();
-    const radial = new InputAxis();
-    const target = owner({ pan, tilt, radial });
+  it('disconnects when unmounted', async () => {
     let controller: InputAxisController | null = null;
-
-    const scene = (axisName: string) => (
-      <Klipp>
-        <VirtualCamera name="a" priority={10}>
-          <InputController
-            ref={(c) => (controller = c)}
-            target={target}
-            mouseButtons={{ left: null, right: { axes: { x: 'pan', y: axisName } }, middle: null }}
-          />
-        </VirtualCamera>
-      </Klipp>
-    );
-
-    const renderer = await create(scene('tilt'));
-    await renderer.advanceFrames(1, 0.05);
-    expect(controller!.config.mouseButtons.right?.axes.y).toBe(tilt);
-
-    await renderer.update(scene('radial'));
-    await renderer.advanceFrames(1, 0.05);
-    expect(controller!.config.mouseButtons.right?.axes.y).toBe(radial);
-  });
-
-  it('connecting/disconnecting on mount/unmount does not throw in the test renderer', async () => {
-    const target = owner({ pan: new InputAxis(), tilt: new InputAxis() });
-
     const scene = (mounted: boolean) => (
       <Klipp>
         <VirtualCamera name="a" priority={10}>
           {mounted && (
             <InputController
-              target={target}
+              ref={(c) => {
+                if (c) controller = c;
+              }}
+              target={owner({ pan: new InputAxis(), tilt: new InputAxis() })}
               mouseButtons={{ left: { axes: { x: 'pan', y: 'tilt' } }, right: null, middle: null }}
             />
           )}
@@ -170,129 +118,76 @@ describe('InputController (React wrapper)', () => {
 
     const renderer = await create(scene(true));
     await renderer.advanceFrames(1, 0.05);
+    const disconnect = vi.spyOn(controller!, 'disconnect');
 
     await renderer.update(scene(false));
-    await expect(renderer.advanceFrames(1, 0.05)).resolves.not.toThrow();
+
+    expect(disconnect).toHaveBeenCalled();
   });
 
-  it('waitForBlend=true (default): does not connect until the blend into it actually finishes', async () => {
-    const target = owner({ pan: new InputAxis(), tilt: new InputAxis() });
-    let controller: InputAxisController | null = null;
+  it('connects once the blend into its camera finishes, or right away with waitForBlend off', async () => {
+    const connectsAt = async (waitForBlend?: boolean) => {
+      let controller: InputAxisController | null = null;
+      const scene = (priority: number) => (
+        <Klipp>
+          <VirtualCamera name="orbital" priority={priority}>
+            <InputController
+              ref={(c) => (controller = c)}
+              target={owner({ pan: new InputAxis(), tilt: new InputAxis() })}
+              waitForBlend={waitForBlend}
+              mouseButtons={{ left: { axes: { x: 'pan', y: 'tilt' } }, right: null, middle: null }}
+            />
+          </VirtualCamera>
+          <VirtualCamera name="other" priority={5}>
+            <HardLockToTarget target={[0, 0, 0]} />
+          </VirtualCamera>
+        </Klipp>
+      );
+      const renderer = await create(scene(1));
+      await renderer.advanceFrames(1, 0.05);
+      const connect = vi.spyOn(controller!, 'connect');
 
-    const scene = (orbitalPriority: number) => (
-      <Klipp>
-        <VirtualCamera name="orbital" priority={orbitalPriority}>
-          <InputController
-            ref={(c) => (controller = c)}
-            target={target}
-            mouseButtons={{ left: { axes: { x: 'pan', y: 'tilt' } }, right: null, middle: null }}
-          />
-        </VirtualCamera>
-        <VirtualCamera name="other" priority={5}>
-          <HardLockToTarget target={[0, 0, 0]} />
-        </VirtualCamera>
-      </Klipp>
-    );
+      await renderer.update(scene(10)); // a 2 s blend into it starts
+      await renderer.advanceFrames(1, 0.5);
+      const midBlend = connect.mock.calls.length;
+      await renderer.advanceFrames(1, 2);
+      return [midBlend, connect.mock.calls.length];
+    };
 
-    const renderer = await create(scene(1));
-    await renderer.advanceFrames(1, 0.05); // 'other' snaps live instantly (first-ever, no blend)
-
-    const connectSpy = vi.spyOn(controller!, 'connect');
-
-    await renderer.update(scene(10)); // orbital wins priority - blend into it starts (default 2s)
-    await renderer.advanceFrames(1, 0.5); // mid-blend: not live yet
-    expect(connectSpy).not.toHaveBeenCalled();
-
-    await renderer.advanceFrames(1, 2); // pushes elapsed well past the 2s blend duration
-    expect(connectSpy).toHaveBeenCalledTimes(1);
+    expect(await connectsAt()).toEqual([0, 1]);
+    expect(await connectsAt(false)).toEqual([1, 1]);
   });
 
-  it('waitForBlend=false: connects the instant it wins priority, even mid-blend', async () => {
-    const target = owner({ pan: new InputAxis(), tilt: new InputAxis() });
-    let controller: InputAxisController | null = null;
-
-    const scene = (orbitalPriority: number) => (
-      <Klipp>
-        <VirtualCamera name="orbital" priority={orbitalPriority}>
-          <InputController
-            ref={(c) => (controller = c)}
-            target={target}
-            waitForBlend={false}
-            mouseButtons={{ left: { axes: { x: 'pan', y: 'tilt' } }, right: null, middle: null }}
-          />
-        </VirtualCamera>
-        <VirtualCamera name="other" priority={5}>
-          <HardLockToTarget target={[0, 0, 0]} />
-        </VirtualCamera>
-      </Klipp>
-    );
-
-    const renderer = await create(scene(1));
-    await renderer.advanceFrames(1, 0.05);
-
-    const connectSpy = vi.spyOn(controller!, 'connect');
-
-    await renderer.update(scene(10));
-    await renderer.advanceFrames(1, 0.05); // still mid-blend, but waitForBlend=false doesn't care
-    expect(connectSpy).toHaveBeenCalledTimes(1);
-  });
-
-  it('suppressContextMenu/interactiveArea/lockTouchAxis are applied to the underlying InputSystem declaratively', async () => {
-    const target = owner({ pan: new InputAxis(), tilt: new InputAxis() });
+  it('passes its options to the controller and its InputSystem, enabled by default', async () => {
     let controller: InputAxisController | null = null;
     const area = { x: 0.25, y: 0.25, width: 0.5, height: 0.5 };
-
-    const scene = (
+    const scene = (enabled?: boolean) => (
       <Klipp>
         <VirtualCamera name="a" priority={10}>
           <InputController
             ref={(c) => (controller = c)}
-            target={target}
+            target={owner({ pan: new InputAxis(), tilt: new InputAxis() })}
             mouseButtons={{ left: { axes: { x: 'pan', y: 'tilt' } }, right: null, middle: null }}
             suppressContextMenu
             interactiveArea={area}
             lockTouchAxis
-          />
-        </VirtualCamera>
-      </Klipp>
-    );
-
-    const renderer = await create(scene);
-    await renderer.advanceFrames(1, 0.05);
-
-    expect(controller!.inputSystem.suppressContextMenu).toBe(true);
-    expect(controller!.inputSystem.interactiveArea).toBe(area);
-    expect(controller!.inputSystem.lockTouchAxis).toBe(true);
-  });
-
-  it('enabled defaults to true and is reactive to the prop', async () => {
-    const target = owner({ pan: new InputAxis(), tilt: new InputAxis() });
-    let controller: InputAxisController | null = null;
-
-    const scene = (enabled: boolean | undefined) => (
-      <Klipp>
-        <VirtualCamera name="a" priority={10}>
-          <InputController
-            ref={(c) => (controller = c)}
-            target={target}
-            mouseButtons={{ left: { axes: { x: 'pan', y: 'tilt' } }, right: null, middle: null }}
             enabled={enabled}
           />
         </VirtualCamera>
       </Klipp>
     );
 
-    const renderer = await create(scene(undefined));
+    const renderer = await create(scene());
     await renderer.advanceFrames(1, 0.05);
     expect(controller!.enabled).toBe(true);
+    expect(controller!.inputSystem).toMatchObject({
+      suppressContextMenu: true,
+      interactiveArea: area,
+      lockTouchAxis: true,
+    });
 
     await renderer.update(scene(false));
-    await renderer.advanceFrames(1, 0.05);
     expect(controller!.enabled).toBe(false);
-
-    await renderer.update(scene(true));
-    await renderer.advanceFrames(1, 0.05);
-    expect(controller!.enabled).toBe(true);
   });
 
   it('enabled=false does not affect connect/disconnect - InputSystem still listens, drained deltas just never reach the axes', async () => {
