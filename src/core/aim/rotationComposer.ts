@@ -1,16 +1,4 @@
-import {
-  clamp,
-  degreesToRadians,
-  mat3,
-  mat4,
-  quat,
-  vec3,
-  vec4,
-  type Mat3,
-  type Mat4,
-  type Quat,
-  type Vec3,
-} from 'math';
+import { clamp, degreesToRadians, mat4, quat, vec3, vec4, type Mat4, type Quat, type Vec3 } from 'math';
 import type { CameraState } from '../CameraState';
 import { createDamperState, damp, resetDamper, type DamperState, type DampingConstant } from '../damping/Damper';
 import { dampQuaternion } from '../damping/dampQuaternion';
@@ -86,7 +74,6 @@ const scratchDelta: Quat = [0, 0, 0, 1];
 const scratchRight: Vec3 = [0, 0, 0];
 const scratchUp: Vec3 = [0, 0, 0];
 const scratchLookMatrix: Mat4 = mat4.create();
-const scratchRotationMatrix: Mat3 = mat3.create();
 const scratchExtents: [number, number] = [0, 0];
 /** `[x, y, depth]` of a world point in the camera's screen space. `depth <= 0` means behind the camera. */
 const scratchScreenPoint: [number, number, number] = [0, 0, 0];
@@ -109,8 +96,7 @@ function computeScreenPoint(
 
 function lookAtRotation(out: Quat, position: Vec3, target: Vec3, up: Vec3): Quat {
   mat4.targetTo(scratchLookMatrix, position, target, up);
-  // Not quat.fromMat4: it allocates a Mat3 per call.
-  return quat.fromMat3(out, mat3.fromMat4(scratchRotationMatrix, scratchLookMatrix));
+  return quat.fromMat4(out, scratchLookMatrix);
 }
 
 /** A look-at rotation that places the target at screen point `(desiredX, desiredY)` instead of the center. */
