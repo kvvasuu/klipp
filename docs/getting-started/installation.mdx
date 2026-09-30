@@ -20,10 +20,10 @@ import { Klipp, VirtualCamera, Body, Aim } from '@kvvasuu/klipp/react';
 
 The package has one entry per layer:
 
-- `@kvvasuu/klipp`: the core. Plain data and functions on `math`, no three.js or React (`BlendCurves`, `BindingModes`, `KlippCore`, `updateFollow`, ...).
-- `@kvvasuu/klipp/three`: the three.js layer. Classes that resolve `Object3D` targets and write cameras (`FollowBody`, `HardLookAtAim`, `impulseField`, ...).
+- `@kvvasuu/klipp`: the core. Plain data and functions on `math`, no three.js or React (`BlendCurves`, `KlippCore`, `impulseField`, `updateFollow`, ...).
+- `@kvvasuu/klipp/three`: the three.js layer. Classes that resolve `Object3D` targets and write cameras (`FollowBody`, `HardLookAtAim`, `applyCameraState`, ...).
 - `@kvvasuu/klipp/react`: React Three Fiber components.
-- `@kvvasuu/klipp/dom`: pointer and keyboard input (`InputSystem`, `InputAxisController`).
+- `@kvvasuu/klipp/dom`: pointer and keyboard input and debug overlays (`InputSystem`, `InputAxisController`, `DebugOverlay`).
 
 ```tsx
 import { BlendCurves, BindingModes } from '@kvvasuu/klipp';

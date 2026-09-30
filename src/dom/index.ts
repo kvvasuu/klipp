@@ -6,3 +6,4 @@ export {
   type InputAxisControllerConfig,
   type InputInvert,
 } from './InputAxisController';
+export { DebugOverlay, type DebugZone } from './DebugOverlay';

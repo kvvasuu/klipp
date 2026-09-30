@@ -586,7 +586,6 @@ group('Target reads, two cameras on one target @targets', () => {
 
 // How to read the output: `avg (min…max) p75/p99` is time per call — compare that to a frame's budget
 // (16.67ms at 60fps, 8.33ms at 120fps) to see how many of these fit in one frame. Don't read allocations
-// off the `heap` row: it overstates per-call bytes by orders of magnitude for sub-microsecond calls. The
-// zero-allocation rule is enforced by `pnpm bench:alloc` (test/allocations.ts), which counts bytes per
-// frame via v8.GCProfiler. Run `pnpm bench --baseline` once to save a reference point, then `pnpm bench
-// --compare` after a change to see if it moved outside noise (statistically, not just eyeballed).
+// off the `heap` row: it overstates per-call bytes by orders of magnitude for sub-microsecond calls. Run
+// `pnpm bench --baseline` once to save a reference point, then `pnpm bench --compare` after a change to
+// see if it moved outside noise (statistically, not just eyeballed).

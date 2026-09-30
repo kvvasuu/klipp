@@ -1,0 +1,116 @@
+---
+title: Data and functions
+description: Use klipp's core without classes, from an ECS or your own loop.
+nav: 92
+---
+
+Every class in klipp is a thin wrapper. The actual work lives in `@kvvasuu/klipp` as plain data and functions, built on [`math`](https://github.com/pmndrs/math) with no three.js or React. You can call them directly, for example from an ECS or a server-side simulation.
+
+## The pattern
+
+Every piece has the same three parts:
+
+- `XParams`: its settings, a plain object (`FollowParams`: `offset`, `damping`, ...).
+- `XState` and `createXState()`: the memory it keeps between frames (damping velocity and so on).
+- `updateX(out, state, params, ...)`: advances one frame and writes into a `CameraState`.
+
+Vectors are arrays: `[x, y, z]` and quaternions `[x, y, z, w]`.
+
+```ts
+import { vec3 } from 'math';
+import {
+  BindingModes,
+  createCameraState,
+  createFollowState,
+  createTargetPose,
+  updateFollow,
+  updateHardLookAt,
+  type FollowParams,
+} from '@kvvasuu/klipp';
+
+const camera = createCameraState();
+const follow = createFollowState();
+const params: FollowParams = {
+  offset: [0, 3, 8],
+  damping: 0.5,
+  bindingMode: BindingModes.worldSpace,
+  maxSpeed: Infinity,
+};
+const player = createTargetPose();
+
+function frame(dt: number, playerPosition: [number, number, number]) {
+  vec3.copy(player.position, playerPosition);
+  updateFollow(camera, follow, params, player, dt, false);
+  updateHardLookAt(camera, player.position);
+  // camera.position and camera.quaternion now hold the shot.
+}
+```
+
+The last argument of most `update` functions is `justActivated`. Pass `true` on the first frame after the camera turns on, so smoothing starts from the right place.
+
+## With an ECS
+
+Because state is plain data, it can live in components. A sketch with [Koota](https://github.com/pmndrs/koota):
+
+```ts
+import { createWorld, trait } from 'koota';
+import {
+  BindingModes,
+  createCameraState,
+  createFollowState,
+  createTargetPose,
+  updateFollow,
+  type FollowParams,
+} from '@kvvasuu/klipp';
+
+const Camera = trait(() => createCameraState());
+const Target = trait(() => createTargetPose());
+const Follow = trait(() => {
+  const params: FollowParams = { offset: [0, 3, 8], damping: 0.5, bindingMode: BindingModes.worldSpace, maxSpeed: Infinity };
+  return { state: createFollowState(), params };
+});
+
+const world = createWorld();
+world.spawn(Camera, Target, Follow);
+
+function frame(dt: number) {
+  world.query(Camera, Target, Follow).updateEach(([camera, target, follow]) => {
+    updateFollow(camera, follow.state, follow.params, target, dt, false);
+  });
+}
+```
+
+Any store works the same way: the `update` functions only read and write the objects you pass in.
+
+## Choosing the camera
+
+`KlippCore` has a functional form too. `tickKlipp` picks the winning camera, advances the blend and returns the output state. Transitions are pushed to `state.events` as data, so read and clear them after each call:
+
+```ts
+import { createKlippState, registerKlippCamera, tickKlipp, DEFAULT_BLEND } from '@kvvasuu/klipp';
+
+const klipp = createKlippState();
+const params = { defaultBlend: DEFAULT_BLEND, customBlends: [] };
+registerKlippCamera(klipp, { id: 'follow', priority: 10, state: camera });
+
+function frame(dt: number) {
+  const output = tickKlipp(klipp, params, dt);
+  for (const event of klipp.events) console.log(event.type);
+  klipp.events.length = 0;
+}
+```
+
+## What's available
+
+| Piece | Functions |
+| ----- | --------- |
+| Body | `updateFollow`, `updateHardLockToTarget`, `updatePositionComposer` |
+| Aim | `updateHardLookAt`, `updateRotateWithFollowTarget`, `updateRotationComposer`, `updatePanTilt` |
+| Extension | `updateLens`, `updateGroupFraming` |
+| Noise | `updatePerlinNoise`, `sampleImpulses` |
+| Input | `updateAxis`, `applyAxisDelta`, `feedInputAxes` |
+| Blending | `tickBlend`, `lerpCameraState` |
+| Groups | `tickSequencer`, `tickStateDriven`, `tickClearShot`, `mixCameraStates` |
+| Damping | `damp`, `dampVector3`, `dampQuaternion` |
+
+Each has a matching `create...State()` where it needs memory. The three.js layer (`@kvvasuu/klipp/three`) shows how the classes read `Object3D` targets and call these functions.

@@ -25,6 +25,18 @@ Each element has a CSS class you can restyle: `klipp-debug-deadzone`, `klipp-deb
 }
 ```
 
+Without React, draw zones yourself with `DebugOverlay`. `screenPosition` and `size` use the same normalized screen coordinates as the composers:
+
+```ts
+import { DebugOverlay } from '@kvvasuu/klipp/dom';
+
+const overlay = new DebugOverlay();
+overlay.connect(renderer.domElement.parentElement!);
+overlay.render([{ screenPosition: [0, 0], size: [0.4, 0.4], className: 'klipp-debug-deadzone' }], [0, 0]);
+```
+
+Call `render` again whenever the zones change, and `disconnect()` to remove it.
+
 ## `<CameraFrustumHelper>`
 
 Draws a camera's frustum in the scene, so you can see where an inactive camera is and what it's looking at. Place it inside the `<VirtualCamera>` you want to see.
