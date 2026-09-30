@@ -35,6 +35,7 @@ export {
 } from './damping/predictor';
 
 export { lerpCameraState } from './blend/lerpCameraState';
+export { BlendDriver } from './blend/BlendDriver';
 export {
   createBlendState,
   setBlendTarget,
@@ -48,18 +49,36 @@ export { resolveBlendDefinition, type BlendDefinition, type CustomBlend } from '
 export { BlendHints, hasBlendHint } from './blend/BlendHints';
 export { BlendCurves, type Ease } from './blend/BlendCurves';
 
-export { Sequencer, type SequencerInstruction, type SequencerOptions } from './groups/Sequencer';
-export { MixingCamera, type MixingCameraSlot } from './groups/MixingCamera';
+export {
+  Sequencer,
+  tickSequencer,
+  createSequencerState,
+  sequencerIndex,
+  type SequencerInstruction,
+  type SequencerOptions,
+  type SequencerParams,
+  type SequencerState,
+} from './groups/Sequencer';
+export { MixingCamera, mixCameraStates, type MixingCameraSlot } from './groups/MixingCamera';
 export {
   StateDrivenCamera,
+  setDrivingState,
+  tickStateDriven,
+  createStateDrivenState,
   type StateDrivenCandidate,
   type StateDrivenCameraOptions,
+  type StateDrivenParams,
+  type StateDrivenState,
 } from './groups/StateDrivenCamera';
 export {
   ClearShot,
+  tickClearShot,
+  createClearShotState,
   type ClearShotCandidate,
   type ShotQualityEvaluator,
   type ClearShotOptions,
+  type ClearShotParams,
+  type ClearShotState,
 } from './groups/ClearShot';
 
 export { BindingModes, type BindingMode } from './body/BindingModes';

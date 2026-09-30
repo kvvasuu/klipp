@@ -1,7 +1,7 @@
 import type { CameraState } from '../CameraState';
+import { blendTargetId, createBlendState, setBlendTarget, tickBlend, type BlendState } from '../blend/blend';
 import { BlendCurves } from '../blend/BlendCurves';
 import type { BlendDefinition } from '../blend/BlendDefinition';
-import { BlendDriver } from '../blend/BlendDriver';
 
 export type ClearShotCandidate = {
   cameraId: string;
@@ -28,118 +28,141 @@ export type ClearShotOptions = {
   random?: () => number;
 };
 
+export type ClearShotParams = {
+  candidates: readonly ClearShotCandidate[];
+  evaluator: ShotQualityEvaluator;
+  defaultBlend: BlendDefinition;
+  activateAfter: number;
+  minDuration: number;
+  randomizeChoice: boolean;
+  random: () => number;
+};
+
+export type ClearShotState = {
+  /** Seconds since the last commit (initial swap or mid-blend retarget). */
+  liveElapsed: number;
+  /** The candidate being debounced toward (`activateAfter`), before it is committed to. */
+  pendingId: string | null;
+  pendingElapsed: number;
+  blend: BlendState<string>;
+};
+
+export const createClearShotState = (): ClearShotState => ({
+  liveElapsed: 0,
+  pendingId: null,
+  pendingElapsed: 0,
+  blend: createBlendState<string>(),
+});
+
+function candidateState(params: ClearShotParams, cameraId: string | null): CameraState | null {
+  return cameraId !== null ? params.candidates.find((c) => c.cameraId === cameraId)!.state : null;
+}
+
+/** Highest quality wins; `priority` breaks quality ties; among exact ties, `randomizeChoice` picks
+ *  uniformly at random via reservoir sampling (no allocation), otherwise list order. */
+function pickBest(params: ClearShotParams): string {
+  let bestQuality = -Infinity;
+  let bestPriority = -Infinity;
+  let bestId = params.candidates[0].cameraId;
+  let tieCount = 0;
+
+  for (const candidate of params.candidates) {
+    const quality = params.evaluator(candidate);
+    if (quality > bestQuality || (quality === bestQuality && candidate.priority > bestPriority)) {
+      bestQuality = quality;
+      bestPriority = candidate.priority;
+      bestId = candidate.cameraId;
+      tieCount = 1;
+    } else if (quality === bestQuality && candidate.priority === bestPriority) {
+      tieCount++;
+      if (params.randomizeChoice && params.random() < 1 / tieCount) bestId = candidate.cameraId;
+    }
+  }
+
+  return bestId;
+}
+
+function commit(state: ClearShotState, params: ClearShotParams, cameraId: string): void {
+  setBlendTarget(state.blend, cameraId, candidateState(params, cameraId)!, params.defaultBlend);
+}
+
+/** Re-evaluates the candidates, advances any blend by `dt` and returns the output. */
+export function tickClearShot(state: ClearShotState, params: ClearShotParams, dt: number): CameraState {
+  const rawBest = pickBest(params);
+  const target = blendTargetId(state.blend);
+
+  if (rawBest !== target) {
+    if (target === null) {
+      // First activation snaps on its own: there is nothing to debounce toward yet.
+      commit(state, params, rawBest);
+      state.pendingId = null;
+      state.pendingElapsed = 0;
+    } else {
+      if (state.pendingId !== rawBest) {
+        state.pendingId = rawBest;
+        state.pendingElapsed = 0;
+      } else {
+        state.pendingElapsed += dt;
+      }
+
+      const activateAfterSatisfied = state.pendingElapsed >= params.activateAfter;
+      // liveElapsed counts from the last commit, including mid-blend retargets, so a flickering evaluator
+      // cannot redirect a blend in flight every frame.
+      const minDurationSatisfied = state.liveElapsed >= params.minDuration;
+
+      if (activateAfterSatisfied && minDurationSatisfied) {
+        commit(state, params, rawBest);
+        state.pendingId = null;
+        state.pendingElapsed = 0;
+        state.liveElapsed = 0;
+      }
+    }
+  } else {
+    state.pendingId = null;
+    state.pendingElapsed = 0;
+  }
+
+  const result = tickBlend(state.blend, dt, candidateState(params, blendTargetId(state.blend)));
+  state.liveElapsed += dt; // keeps counting through the blend, see minDurationSatisfied above
+  return result;
+}
+
 /**
  * Picks the child with the best shot quality - `priority` only breaks quality ties.
  * `activateAfter` debounces the pick (a new best must hold that title continuously before it's committed,
  * anti-flicker); `minDuration` then protects the committed camera from being swapped out again too soon.
  */
 export class ClearShot {
-  private readonly candidates: ClearShotCandidate[];
-  private readonly evaluator: ShotQualityEvaluator;
-  private readonly defaultBlend: BlendDefinition;
-  private readonly activateAfter: number;
-  private readonly minDuration: number;
-  private readonly randomizeChoice: boolean;
-  private readonly random: () => number;
-  private readonly driver: BlendDriver<string>;
-
-  private liveElapsed = 0;
-
-  private pendingId: string | null = null;
-  private pendingElapsed = 0;
+  readonly state = createClearShotState();
+  private readonly params: ClearShotParams;
 
   constructor(candidates: ClearShotCandidate[], options: ClearShotOptions) {
     if (candidates.length === 0) throw new Error('ClearShot needs at least one candidate.');
-    this.candidates = candidates;
-    this.evaluator = options.evaluator;
-    this.defaultBlend = options.defaultBlend ?? { curve: BlendCurves.easeInOut, time: 2 };
-    this.activateAfter = options.activateAfter ?? 0;
-    this.minDuration = options.minDuration ?? 0;
-    this.randomizeChoice = options.randomizeChoice ?? false;
-    this.random = options.random ?? Math.random;
-    this.driver = new BlendDriver((id) => this.candidateState(id));
+    this.params = {
+      candidates,
+      evaluator: options.evaluator,
+      defaultBlend: options.defaultBlend ?? { curve: BlendCurves.easeInOut, time: 2 },
+      activateAfter: options.activateAfter ?? 0,
+      minDuration: options.minDuration ?? 0,
+      randomizeChoice: options.randomizeChoice ?? false,
+      random: options.random ?? Math.random,
+    };
   }
 
   get liveCameraId(): string | null {
-    return this.driver.liveId;
+    return this.state.blend.liveId;
   }
 
   get isBlending(): boolean {
-    return this.driver.isBlending;
+    return this.state.blend.transition.active;
   }
 
   /** The candidate currently being debounced toward (`activateAfter`), before it's committed to. */
   get pendingCameraId(): string | null {
-    return this.pendingId;
+    return this.state.pendingId;
   }
 
   tick(dt: number): CameraState {
-    const rawBest = this.pickBest();
-    const target = this.driver.blendTargetId;
-
-    if (rawBest !== target) {
-      if (target === null) {
-        // first-ever activation: setTarget snaps on its own (nothing to debounce toward yet)
-        this.driver.setTarget(rawBest, this.defaultBlend);
-        this.pendingId = null;
-        this.pendingElapsed = 0;
-      } else {
-        if (this.pendingId !== rawBest) {
-          this.pendingId = rawBest;
-          this.pendingElapsed = 0;
-        } else {
-          this.pendingElapsed += dt;
-        }
-
-        const activateAfterSatisfied = this.pendingElapsed >= this.activateAfter;
-        // liveElapsed tracks time since the LAST commit (an initial swap away from a settled camera, OR
-        // a mid-blend retarget) rather than only time spent fully settled - otherwise a blend already in
-        // flight would exempt every retarget of it from minDuration entirely, letting a flickering
-        // evaluator redirect the destination every single frame with no protection at all
-        const minDurationSatisfied = this.liveElapsed >= this.minDuration;
-
-        if (activateAfterSatisfied && minDurationSatisfied) {
-          this.driver.setTarget(rawBest, this.defaultBlend);
-          this.pendingId = null;
-          this.pendingElapsed = 0;
-          this.liveElapsed = 0;
-        }
-      }
-    } else {
-      this.pendingId = null;
-      this.pendingElapsed = 0;
-    }
-
-    const result = this.driver.tick(dt);
-    this.liveElapsed += dt; // keeps counting through the blend - see the minDurationSatisfied comment above
-    return result;
-  }
-
-  /** Highest quality wins; `priority` breaks quality ties; among exact ties, `randomizeChoice` picks
-   *  uniformly at random via reservoir sampling (no allocation), otherwise list order. */
-  private pickBest(): string {
-    let bestQuality = -Infinity;
-    let bestPriority = -Infinity;
-    let bestId = this.candidates[0].cameraId;
-    let tieCount = 0;
-
-    for (const candidate of this.candidates) {
-      const quality = this.evaluator(candidate);
-      if (quality > bestQuality || (quality === bestQuality && candidate.priority > bestPriority)) {
-        bestQuality = quality;
-        bestPriority = candidate.priority;
-        bestId = candidate.cameraId;
-        tieCount = 1;
-      } else if (quality === bestQuality && candidate.priority === bestPriority) {
-        tieCount++;
-        if (this.randomizeChoice && this.random() < 1 / tieCount) bestId = candidate.cameraId;
-      }
-    }
-
-    return bestId;
-  }
-
-  private candidateState(cameraId: string): CameraState {
-    return this.candidates.find((c) => c.cameraId === cameraId)!.state;
+    return tickClearShot(this.state, this.params, dt);
   }
 }
