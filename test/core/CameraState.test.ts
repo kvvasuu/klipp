@@ -1,14 +1,12 @@
-import { vec3, vec4 } from 'math';
-import { Quaternion, Vector3 } from 'three';
+import { quat, vec3, vec4 } from 'math';
 import { describe, expect, it } from 'vitest';
 import { copyCameraState, createCameraState, mergeCameraState, type CameraState } from '../../src/core/CameraState';
-import { toQuaternion, toTuple, toVector3 } from '../tuples';
 
 describe('copyCameraState', () => {
   it('copies values into "out" without replacing its arrays', () => {
     const source: CameraState = {
       position: [1, 2, 3],
-      quaternion: toTuple(new Quaternion(0.1, 0.2, 0.3, 0.9).normalize()),
+      quaternion: quat.normalize(quat.create(), [0.1, 0.2, 0.3, 0.9]),
       fov: 50,
       near: 0.1,
       far: 1000,
@@ -17,7 +15,7 @@ describe('copyCameraState', () => {
       hasTarget: true,
       lookAtTarget: [7, 8, 9],
       hasLookAtTarget: true,
-      referenceUp: toTuple(new Vector3(0.1, 0.9, 0.2).normalize()),
+      referenceUp: vec3.normalize(vec3.create(), [0.1, 0.9, 0.2]),
     };
     const out = createCameraState();
     const outPosition = out.position;
@@ -30,15 +28,15 @@ describe('copyCameraState', () => {
     expect(out.position).toBe(outPosition); // same instance, mutated in place — no allocation
     expect(out.quaternion).toBe(outQuaternion);
     expect(out.viewOffset).toBe(outViewOffset); // same array, mutated element-wise — no allocation
-    expect(toVector3(out.position).equals(toVector3(source.position))).toBe(true);
-    expect(toQuaternion(out.quaternion).equals(toQuaternion(source.quaternion))).toBe(true);
+    expect(vec3.exactEquals(out.position, source.position)).toBe(true);
+    expect(vec4.exactEquals(out.quaternion, source.quaternion)).toBe(true);
     expect(out.fov).toBe(50);
     expect(out.viewOffset).toEqual([40, -20]);
-    expect(toVector3(out.target).equals(toVector3(source.target))).toBe(true);
+    expect(vec3.exactEquals(out.target, source.target)).toBe(true);
     expect(out.hasTarget).toBe(true);
-    expect(toVector3(out.lookAtTarget).equals(toVector3(source.lookAtTarget))).toBe(true);
+    expect(vec3.exactEquals(out.lookAtTarget, source.lookAtTarget)).toBe(true);
     expect(out.hasLookAtTarget).toBe(true);
-    expect(toVector3(out.referenceUp).equals(toVector3(source.referenceUp))).toBe(true);
+    expect(vec3.exactEquals(out.referenceUp, source.referenceUp)).toBe(true);
   });
 
   it('stays unchanged after the source is mutated — the actual "freeze" guarantee', () => {
@@ -63,8 +61,8 @@ describe('copyCameraState', () => {
     source.fov = 10;
     source.viewOffset[0] = 999;
 
-    expect(toVector3(out.position).equals(new Vector3(1, 2, 3))).toBe(true);
-    expect(toQuaternion(out.quaternion).equals(new Quaternion())).toBe(true);
+    expect(vec3.exactEquals(out.position, [1, 2, 3])).toBe(true);
+    expect(vec4.exactEquals(out.quaternion, [0, 0, 0, 1])).toBe(true);
     expect(out.fov).toBe(50);
     expect(out.viewOffset).toEqual([40, -20]);
   });
@@ -73,7 +71,7 @@ describe('copyCameraState', () => {
     const state = createCameraState();
     vec3.set(state.position, 1, 2, 3);
     expect(() => copyCameraState(state, state)).not.toThrow();
-    expect(toVector3(state.position).equals(new Vector3(1, 2, 3))).toBe(true);
+    expect(vec3.exactEquals(state.position, [1, 2, 3])).toBe(true);
   });
 });
 
@@ -86,7 +84,7 @@ describe('mergeCameraState', () => {
     const returned = mergeCameraState(out, { position: [5, 20, 5], fov: 90 });
 
     expect(returned).toBe(out);
-    expect(toVector3(out.position).equals(new Vector3(5, 20, 5))).toBe(true);
+    expect(vec3.exactEquals(out.position, [5, 20, 5])).toBe(true);
     expect(out.fov).toBe(90);
     expect(out.near).toBe(0.1); // untouched
   });
@@ -96,7 +94,7 @@ describe('mergeCameraState', () => {
 
     mergeCameraState(out, { referenceUp: [1, 0, 0] });
 
-    expect(toVector3(out.referenceUp).equals(new Vector3(1, 0, 0))).toBe(true);
+    expect(vec3.exactEquals(out.referenceUp, [1, 0, 0])).toBe(true);
   });
 
   it("copies vector fields instead of aliasing the caller's own arrays", () => {
@@ -157,7 +155,7 @@ describe('mergeCameraState', () => {
 
     mergeCameraState(out, {});
 
-    expect(toVector3(out.position).equals(new Vector3(1, 2, 3))).toBe(true);
+    expect(vec3.exactEquals(out.position, [1, 2, 3])).toBe(true);
     expect(out.fov).toBe(70);
   });
 });

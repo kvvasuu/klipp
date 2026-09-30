@@ -1,11 +1,9 @@
-import { vec3 } from 'math';
-import { Vector3 } from 'three';
+import { vec3, type Vec3 } from 'math';
 import { describe, expect, it, vi } from 'vitest';
 import { createCameraState } from '../../src/core/CameraState';
 import { BlendCurves } from '../../src/core/blend/BlendCurves';
 import { BlendHints } from '../../src/core/blend/BlendHints';
 import { KlippCore } from '../../src/core/KlippCore';
-import { toVector3 } from '../tuples';
 
 function stateAt(x: number): ReturnType<typeof createCameraState> {
   const state = createCameraState();
@@ -395,7 +393,7 @@ describe('KlippCore — tick(dt): blend lifecycle', () => {
 
     expect(core.liveCameraId).toBe('a');
     expect(core.isBlending).toBe(false);
-    expect(toVector3(out.position).equals(toVector3(state.position))).toBe(true);
+    expect(vec3.exactEquals(out.position, state.position)).toBe(true);
   });
 
   it('a new, higher-priority camera blends in over the configured time, not an instant cut', () => {
@@ -641,9 +639,9 @@ describe('KlippCore — setDefaultBlend/setCustomBlends', () => {
 });
 
 describe('KlippCore — BlendHints', () => {
-  function orbitingStateAt(position: Vector3): ReturnType<typeof createCameraState> {
+  function orbitingStateAt(position: Vec3): ReturnType<typeof createCameraState> {
     const state = createCameraState();
-    position.toArray(state.position);
+    vec3.copy(state.position, position);
     vec3.set(state.target, 0, 0, 0);
     state.hasTarget = true;
     return state;
@@ -651,38 +649,38 @@ describe('KlippCore — BlendHints', () => {
 
   it("a hint on the INCOMING camera alone is enough to shape the blend (the user's real case: two cameras that both look at the same origin point)", () => {
     const core = new KlippCore({ defaultBlend: { curve: BlendCurves.linear, time: 1 } });
-    const a = orbitingStateAt(new Vector3(5, 5, 5));
-    const b = orbitingStateAt(new Vector3(0, 0, 5));
+    const a = orbitingStateAt([5, 5, 5]);
+    const b = orbitingStateAt([0, 0, 5]);
     core.registerCamera({ id: 'a', priority: 10, state: a });
     core.tick(0);
     core.registerCamera({ id: 'b', priority: 20, state: b, hints: BlendHints.sphericalPosition });
 
     const out = core.tick(0.5); // halfway through the 1s blend
 
-    const radiusA = toVector3(a.position).length();
-    const radiusB = toVector3(b.position).length();
-    expect(toVector3(out.position).length()).toBeCloseTo((radiusA + radiusB) / 2, 5);
+    const radiusA = vec3.length(a.position);
+    const radiusB = vec3.length(b.position);
+    expect(vec3.length(out.position)).toBeCloseTo((radiusA + radiusB) / 2, 5);
   });
 
   it('a hint on the OUTGOING camera alone also shapes the blend (hints combine via OR, not just the incoming side)', () => {
     const core = new KlippCore({ defaultBlend: { curve: BlendCurves.linear, time: 1 } });
-    const a = orbitingStateAt(new Vector3(5, 5, 5));
-    const b = orbitingStateAt(new Vector3(0, 0, 5));
+    const a = orbitingStateAt([5, 5, 5]);
+    const b = orbitingStateAt([0, 0, 5]);
     core.registerCamera({ id: 'a', priority: 10, state: a, hints: BlendHints.sphericalPosition });
     core.tick(0);
     core.registerCamera({ id: 'b', priority: 20, state: b }); // no hint on the incoming side
 
     const out = core.tick(0.5);
 
-    const radiusA = toVector3(a.position).length();
-    const radiusB = toVector3(b.position).length();
-    expect(toVector3(out.position).length()).toBeCloseTo((radiusA + radiusB) / 2, 5);
+    const radiusA = vec3.length(a.position);
+    const radiusB = vec3.length(b.position);
+    expect(vec3.length(out.position)).toBeCloseTo((radiusA + radiusB) / 2, 5);
   });
 
   it("the OUTGOING camera's hint survives it unregistering before the incoming one registers (the `active`-prop toggle pattern - real bug: its candidate entry, and hints with it, was already gone by the time tick() read them)", () => {
     const core = new KlippCore({ defaultBlend: { curve: BlendCurves.linear, time: 1 } });
-    const a = orbitingStateAt(new Vector3(5, 5, 5));
-    const b = orbitingStateAt(new Vector3(0, 0, 5));
+    const a = orbitingStateAt([5, 5, 5]);
+    const b = orbitingStateAt([0, 0, 5]);
     const unregisterA = core.registerCamera({ id: 'a', priority: 10, state: a, hints: BlendHints.sphericalPosition });
     core.tick(0);
 
@@ -691,15 +689,15 @@ describe('KlippCore — BlendHints', () => {
 
     const out = core.tick(0.5);
 
-    const radiusA = toVector3(a.position).length();
-    const radiusB = toVector3(b.position).length();
-    expect(toVector3(out.position).length()).toBeCloseTo((radiusA + radiusB) / 2, 5);
+    const radiusA = vec3.length(a.position);
+    const radiusB = vec3.length(b.position);
+    expect(vec3.length(out.position)).toBeCloseTo((radiusA + radiusB) / 2, 5);
   });
 
   it("updating the LIVE outgoing camera's hints takes effect on its NEXT transition - real bug: the captured customBlendFromHints stayed stale one transition behind, since it was only refreshed at transition time, not when a live camera's hints changed", () => {
     const core = new KlippCore({ defaultBlend: { curve: BlendCurves.linear, time: 1 } });
-    const a = orbitingStateAt(new Vector3(5, 5, 5));
-    const b = orbitingStateAt(new Vector3(0, 0, 5));
+    const a = orbitingStateAt([5, 5, 5]);
+    const b = orbitingStateAt([0, 0, 5]);
     core.registerCamera({ id: 'a', priority: 10, state: a, hints: BlendHints.sphericalPosition });
     core.tick(0); // 'a' goes live with sphericalPosition - captures customBlendFromHints
 
@@ -708,15 +706,15 @@ describe('KlippCore — BlendHints', () => {
 
     const out = core.tick(0.5);
 
-    const radiusA = toVector3(a.position).length();
-    const radiusB = toVector3(b.position).length();
-    expect(toVector3(out.position).length()).not.toBeCloseTo((radiusA + radiusB) / 2, 1);
+    const radiusA = vec3.length(a.position);
+    const radiusB = vec3.length(b.position);
+    expect(vec3.length(out.position)).not.toBeCloseTo((radiusA + radiusB) / 2, 1);
   });
 
   it("updating the LIVE outgoing camera's hints ALSO takes effect when it unregisters before the incoming one registers (the `active`-prop toggle pattern combined with a hints toggle - real bug: the stale snapshot was the ONLY hints source left once the candidate itself was gone)", () => {
     const core = new KlippCore({ defaultBlend: { curve: BlendCurves.linear, time: 1 } });
-    const a = orbitingStateAt(new Vector3(5, 5, 5));
-    const b = orbitingStateAt(new Vector3(0, 0, 5));
+    const a = orbitingStateAt([5, 5, 5]);
+    const b = orbitingStateAt([0, 0, 5]);
     const unregisterA = core.registerCamera({ id: 'a', priority: 10, state: a, hints: BlendHints.sphericalPosition });
     core.tick(0); // 'a' goes live with sphericalPosition - captures customBlendFromHints
 
@@ -726,23 +724,23 @@ describe('KlippCore — BlendHints', () => {
 
     const out = core.tick(0.5);
 
-    const radiusA = toVector3(a.position).length();
-    const radiusB = toVector3(b.position).length();
-    expect(toVector3(out.position).length()).not.toBeCloseTo((radiusA + radiusB) / 2, 1);
+    const radiusA = vec3.length(a.position);
+    const radiusB = vec3.length(b.position);
+    expect(vec3.length(out.position)).not.toBeCloseTo((radiusA + radiusB) / 2, 1);
   });
 
   it('without any hint, the same two cameras blend along a straight cartesian line instead', () => {
     const core = new KlippCore({ defaultBlend: { curve: BlendCurves.linear, time: 1 } });
-    const a = orbitingStateAt(new Vector3(5, 5, 5));
-    const b = orbitingStateAt(new Vector3(0, 0, 5));
+    const a = orbitingStateAt([5, 5, 5]);
+    const b = orbitingStateAt([0, 0, 5]);
     core.registerCamera({ id: 'a', priority: 10, state: a });
     core.tick(0);
     core.registerCamera({ id: 'b', priority: 20, state: b });
 
     const out = core.tick(0.5);
 
-    const radiusA = toVector3(a.position).length();
-    const radiusB = toVector3(b.position).length();
-    expect(toVector3(out.position).length()).not.toBeCloseTo((radiusA + radiusB) / 2, 1);
+    const radiusA = vec3.length(a.position);
+    const radiusB = vec3.length(b.position);
+    expect(vec3.length(out.position)).not.toBeCloseTo((radiusA + radiusB) / 2, 1);
   });
 });

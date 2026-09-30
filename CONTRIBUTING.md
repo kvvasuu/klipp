@@ -39,6 +39,8 @@ as params. Hot paths don't allocate: reuse module-level scratch values instead.
 
 - `test/` mirrors `src/` (`src/core/CameraState.ts` → `test/core/CameraState.test.ts`), plus a few
   scenario tests that span several modules.
+- `test/core/` follows the same rule as `src/core/`: it imports only `math`, with shared helpers in
+  `test/core/mathHelpers.ts`.
 - `test/golden/` runs every Body, Aim, Extension, Noise, blend and group through a fixed world and
   compares each frame to recorded fixtures. A failure there means observable behavior changed. If that
   is intended, re-record on Node 22 with `pnpm vitest run test/golden --mode golden-record` and commit

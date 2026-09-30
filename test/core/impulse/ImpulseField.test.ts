@@ -1,9 +1,7 @@
 import { vec3, type Vec3 } from 'math';
-import { Vector3 } from 'three';
 import { describe, expect, it } from 'vitest';
 import { ImpulseField } from '../../../src/core/impulse/ImpulseField';
 import { ImpulseShapes } from '../../../src/core/impulse/impulses';
-import { toTuple } from '../../tuples';
 
 const always = () => 1;
 
@@ -104,14 +102,14 @@ describe('ImpulseField', () => {
       0,
     );
 
-    const listenerPosition = new Vector3(50, 0, 0); // 5s away at this speed
+    const listenerPosition: Vec3 = [50, 0, 0]; // 5s away at this speed
 
     const tooEarly: Vec3 = [0, 0, 0];
-    field.sampleAt(tooEarly, toTuple(listenerPosition), 1, 1, 4); // hasn't arrived yet
+    field.sampleAt(tooEarly, listenerPosition, 1, 1, 4); // hasn't arrived yet
     expect(vec3.exactEquals(tooEarly, [0, 0, 0])).toBe(true);
 
     const arrived: Vec3 = [0, 0, 0];
-    field.sampleAt(arrived, toTuple(listenerPosition), 1, 1, 6); // arrived 1s ago
+    field.sampleAt(arrived, listenerPosition, 1, 1, 6); // arrived 1s ago
     expect(arrived[0]).toBeCloseTo(10, 5);
   });
 
@@ -191,17 +189,6 @@ describe('ImpulseField', () => {
     field.generate({ position: [0, 0, 0], direction: [1, 0, 0], shape: always, duration: 1 }, 0);
     field.generate({ position: [0, 0, 0], direction: [1, 0, 0], shape: always, duration: 1 }, 0.5);
     expect(field.sampleAt([0, 0, 0], [0, 0, 0], 1, 1, 0.75)).toBe(2);
-  });
-
-  it("a Vector3Like position/direction (r3f's [x,y,z] shorthand) works, not just real Vector3 instances", () => {
-    const field = new ImpulseField();
-    expect(() =>
-      field.generate({ position: [1, 2, 3], direction: [4, 5, 6], shape: always, duration: 1 }, 0),
-    ).not.toThrow();
-
-    const out: Vec3 = [0, 0, 0];
-    field.sampleAt(out, [1, 2, 3], 1, 1, 0.5);
-    expect(out[0]).toBeCloseTo(4, 5);
   });
 
   it('gain scales the direction kick, and is returned as (part of) strength', () => {
