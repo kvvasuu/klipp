@@ -24,16 +24,17 @@ export type HardLockToTargetState = { damper: Vector3DamperState };
 
 export const createHardLockToTargetState = (): HardLockToTargetState => ({ damper: createVector3DamperState() });
 
-/** Moves `out` onto `targetPosition`, optionally damped. */
+/** Moves `out` onto `targetPosition`, optionally damped. A `null` target leaves `out` as is. */
 export function updateHardLockToTarget(
   out: CameraState,
   state: HardLockToTargetState,
   params: HardLockToTargetParams,
-  targetPosition: Vec3,
+  targetPosition: Vec3 | null,
   dt: number,
   justActivated: boolean,
 ): void {
   if (justActivated) resetVector3Damper(state.damper);
+  if (!targetPosition) return;
   dampVector3(state.damper, out.position, targetPosition, params.damping, dt, params.maxSpeed);
   vec3.copy(out.target, out.position);
   out.hasTarget = true;

@@ -121,27 +121,21 @@ describe('PositionComposerBody', () => {
       expect(projectToScreen(out, 1, target).x).toBeCloseTo(0.1, 2);
     });
 
-    it('coasts to a stop after the target settles inside it, instead of freezing mid-motion', () => {
-      const target = new Vector3(20, 0, -20);
-      const body = new PositionComposerBody(target, {
-        cameraDistance: 10,
-        screenPosition: [0, 0],
-        aspect: 1,
-        deadZone: [0.15, 0.15],
-        damping: 0.3,
-      });
-      const out = createCameraState();
-      for (let i = 0; i < 5; i++) body.update(out, 0.016, false);
-      const moving = vec3.clone(out.position);
+    it('finishes the move it started when the target walks into the dead zone, instead of freezing mid-motion', () => {
+      const settle = (stepInside: boolean) => {
+        const target = new Vector3(0, 0, -20);
+        const body = new PositionComposerBody(target, { deadZone: [0.6, 0.6], damping: 0.5 });
+        const out = createCameraState();
+        body.update(out, 0.016, true);
+        target.set(20, 0, -20);
+        while (out.position[0] < 12) body.update(out, 0.016, false);
+        // 14.6 is inside the dead zone both from here and from where the camera is heading
+        if (stepInside) target.set(14.6, 0, -20);
+        for (let i = 0; i < 600; i++) body.update(out, 0.016, false);
+        return out.position[0];
+      };
 
-      target.set(0, 0, -20);
-      body.update(out, 0.016, false);
-      expect(out.position).not.toEqual(moving);
-
-      for (let i = 0; i < 300; i++) body.update(out, 0.016, false);
-      const settled = vec3.clone(out.position);
-      body.update(out, 0.016, false);
-      expect(out.position).toEqual(settled);
+      expect(settle(true)).toBeCloseTo(settle(false), 4);
     });
 
     it('never moves back toward the old direction when the target reverses after settling (real bug: stale damper velocity survived the freeze)', () => {
@@ -272,6 +266,25 @@ describe('PositionComposerBody', () => {
     });
   });
 
+  it('a reactivation snaps even when the target only resolves a frame later (real bug: it eased from the old shot)', () => {
+    const ref: { current: Object3D | null } = { current: new Object3D() };
+    ref.current!.position.set(0, 0, -20);
+    const body = new PositionComposerBody(ref, { cameraDistance: 10, deadZone: [0.9, 0.9], damping: 0.5 });
+    const out = createCameraState();
+    body.update(out, 0.016, true);
+    ref.current!.position.set(5, 0, -20);
+    for (let i = 0; i < 5; i++) body.update(out, 0.016, false);
+
+    ref.current = null;
+    body.update(out, 0.016, true);
+    ref.current = new Object3D();
+    ref.current.position.set(40, -12, -30);
+    body.update(out, 0.016, false);
+
+    expect(projectToScreen(out, 1, ref.current.position).x).toBeCloseTo(0, 4);
+    expect(depthOf(out, ref.current.position)).toBeCloseTo(10, 4);
+  });
+
   it('maxSpeed caps how fast damping closes the gap', () => {
     const target = new Vector3(20, 0, -10);
     const run = (maxSpeed: number) => {
@@ -329,6 +342,20 @@ describe('PositionComposerBody', () => {
       body.target = new Vector3(0, 0, -20);
       body.update(out, 0.016, true);
       expect(out.position[2]).toBeCloseTo(-10, 5);
+    });
+
+    it('still eases from the primed position when the target only resolves a frame later', () => {
+      const body = new PositionComposerBody({ current: null }, { cameraDistance: 10, damping: 0.5 });
+      const out = createCameraState();
+      vec3.set(out.position, 0, 0, 50);
+      body.primeFrom(out.position);
+      body.update(out, 0.016, true);
+
+      body.target = new Vector3(0, 0, -20);
+      body.update(out, 0.016, false);
+
+      expect(out.position[2]).toBeLessThan(50);
+      expect(out.position[2]).toBeGreaterThan(-10);
     });
   });
 

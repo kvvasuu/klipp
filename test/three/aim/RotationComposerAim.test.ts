@@ -499,6 +499,26 @@ describe('RotationComposerAim', () => {
     });
   });
 
+  it('a reactivation snaps even when the target only resolves a frame later (real bug: it eased from the old shot)', () => {
+    const ref: { current: Object3D | null } = { current: new Object3D() };
+    ref.current!.position.set(10, 0, -10);
+    const aim = new RotationComposerAim(ref, { deadZone: [0.9, 0.9], damping: 0.5 });
+    const out = createCameraState();
+    aim.update(out, 0.016, true);
+    ref.current!.position.set(15, 0, -10);
+    for (let i = 0; i < 5; i++) aim.update(out, 0.016, false);
+
+    ref.current = null;
+    aim.update(out, 0.016, true);
+    ref.current = new Object3D();
+    ref.current.position.set(-30, -8, -5);
+    aim.update(out, 0.016, false);
+
+    const screen = projectToScreen(out, 1, ref.current.position);
+    expect(screen.x).toBeCloseTo(0, 5);
+    expect(screen.y).toBeCloseTo(0, 5);
+  });
+
   describe('primeFrom', () => {
     it('makes the next activation ease from the primed rotation, once', () => {
       const target = new Vector3(10, 0, -10);

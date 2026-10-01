@@ -451,5 +451,26 @@ describe('GroupFramingExtension', () => {
       expect(run(true)).toBeCloseTo(sphereFit(10), 8);
       expect(run(false)).not.toBeCloseTo(sphereFit(10), 1);
     });
+
+    it('a reactivation snaps even when the group only resolves a frame later (real bug: it eased from the old shot)', () => {
+      const group = new TargetGroup(unit());
+      const extension = new GroupFramingExtension(group, {
+        padding: 0,
+        viewportWidth: 100,
+        viewportHeight: 100,
+        damping: 0.5,
+      });
+      const out = camera();
+      extension.update(out, 0.1, true);
+      extension.update(out, 0.1, false);
+
+      const members = group.members;
+      group.members = [];
+      extension.update(out, 0.1, true);
+      group.members = [{ ...members[0], radius: 10 }];
+      extension.update(out, 0.1, false);
+
+      expect(out.position[2]).toBeCloseTo(sphereFit(10), 8);
+    });
   });
 });

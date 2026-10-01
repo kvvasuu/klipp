@@ -67,6 +67,10 @@ export type PositionComposerState = {
   depthDamper: DamperState;
   predictor: PredictorState;
   primed: boolean;
+  /** Activation seen while the target was unresolved, applied on the first frame that has one. */
+  activationPending: boolean;
+  /** Whether that pending activation was primed. */
+  activationPrimed: boolean;
   /** Last desired lateral position, kept while the target stays inside the dead zone. */
   lastActiveDesiredPosition: Vec3;
   hasActiveDesiredPosition: boolean;
@@ -77,6 +81,8 @@ export const createPositionComposerState = (): PositionComposerState => ({
   depthDamper: createDamperState(),
   predictor: createPredictorState(),
   primed: false,
+  activationPending: false,
+  activationPrimed: false,
   lastActiveDesiredPosition: [0, 0, 0],
   hasActiveDesiredPosition: false,
 });
@@ -105,13 +111,20 @@ export function updatePositionComposer(
   dt: number,
   justActivated: boolean,
 ): void {
-  const skipReset = justActivated && state.primed;
-  if (justActivated) state.primed = false;
+  // An activation without a target waits for the first frame that has one.
+  if (justActivated) {
+    state.activationPending = true;
+    state.activationPrimed = state.primed;
+    state.primed = false;
+  }
   if (!targetPose) return;
+  const activating = state.activationPending;
+  const skipReset = activating && state.activationPrimed;
+  state.activationPending = false;
 
   const { extent } = targetPose;
   const target = vec3.copy(scratchTarget, targetPose.position);
-  if (justActivated) resetPredictor(state.predictor);
+  if (activating) resetPredictor(state.predictor);
   addPredictorPosition(state.predictor, target, dt, params.lookaheadSmoothing);
   if (params.lookaheadTime > 0) {
     predictPositionDelta(scratchLookaheadDelta, state.predictor, params.lookaheadTime);
@@ -134,7 +147,7 @@ export function updatePositionComposer(
   let insideDepthDeadZone = false;
 
   // A fresh activation has no meaningful previous camera position for this check.
-  if (!justActivated && params.depthDeadZone > 0) {
+  if (!activating && params.depthDeadZone > 0) {
     const depthError = currentDepth - params.cameraDistance;
     insideDepthDeadZone = Math.abs(depthError) <= params.depthDeadZone;
     if (!insideDepthDeadZone) {
@@ -144,7 +157,7 @@ export function updatePositionComposer(
 
   // Recompute the desired depth so target motion remains visible inside the dead zone.
   if (!insideDepthDeadZone) {
-    if (justActivated && !skipReset) resetDamper(state.depthDamper);
+    if (activating && !skipReset) resetDamper(state.depthDamper);
     const instant = typeof params.damping === 'number' && params.damping <= 0;
     state.depthDamper.value = currentDepth;
     const dampedDepth = instant
@@ -170,7 +183,7 @@ export function updatePositionComposer(
   let insideDeadZone = false;
 
   // A fresh activation has no meaningful previous camera position for this check.
-  if (!justActivated && (params.deadZone[0] > 0 || params.deadZone[1] > 0)) {
+  if (!activating && (params.deadZone[0] > 0 || params.deadZone[1] > 0)) {
     const halfDeadWidth = params.deadZone[0];
     const halfDeadHeight = params.deadZone[1];
     // Cap the extent to prevent an oversized target from overshooting the zone.
@@ -205,7 +218,7 @@ export function updatePositionComposer(
     vec3.copy(scratchDesired, position); // No previous target means no correction.
   }
 
-  if (justActivated && !skipReset) resetVector3Damper(state.damper);
+  if (activating && !skipReset) resetVector3Damper(state.damper);
   dampVector3(state.damper, position, scratchDesired, params.damping, dt, params.maxSpeed);
 
   if (params.hardLimit[0] <= 0 && params.hardLimit[1] <= 0) return;

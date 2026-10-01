@@ -31,6 +31,23 @@ describe('HardLockToTargetBody', () => {
     expect(out.position).toEqual([0, 0, 0]);
   });
 
+  it('a reactivation snaps even when the target only resolves a frame later (real bug: it eased from the old shot)', () => {
+    const ref: { current: Object3D | null } = { current: new Object3D() };
+    const body = new HardLockToTargetBody(ref, { damping: 0.5 });
+    const out = createCameraState();
+    body.update(out, 0.016, true);
+    ref.current!.position.set(10, 0, 0);
+    for (let i = 0; i < 5; i++) body.update(out, 0.016, false);
+
+    ref.current = null;
+    body.update(out, 0.016, true);
+    ref.current = new Object3D();
+    ref.current.position.set(-20, 0, 0);
+    body.update(out, 0.016, false);
+
+    expect(out.position).toEqual([-20, 0, 0]);
+  });
+
   describe('damping', () => {
     it('snaps on the very first update, then eases toward the target and converges', () => {
       const body = new HardLockToTargetBody(new Vector3(10, 5, -3), { damping: 0.3 });
