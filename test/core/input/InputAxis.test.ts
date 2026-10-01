@@ -10,7 +10,7 @@ const recentering = (wait: number, time: number) => ({ enabled: true, wait, time
 
 describe('InputAxis', () => {
   it('adds deltas to its value, unbounded without a range', () => {
-    const axis = new InputAxis(3);
+    const axis = new InputAxis({ value: 3 });
     axis.applyDelta(1e6);
     axis.applyDelta(-2);
     settle(axis);
@@ -18,7 +18,7 @@ describe('InputAxis', () => {
   });
 
   it('clamps to its range, even while damping', () => {
-    const axis = new InputAxis(0, 0, [-10, 10]);
+    const axis = new InputAxis({ value: 0, center: 0, range: [-10, 10] });
     axis.damping = 1;
     axis.applyDelta(50);
     settle(axis, 2000);
@@ -31,7 +31,7 @@ describe('InputAxis', () => {
 
   describe('damping', () => {
     it('eases toward the target, keeps going after input stops, and converges', () => {
-      const axis = new InputAxis(0);
+      const axis = new InputAxis({ value: 0 });
       axis.damping = 0.3;
       axis.applyDelta(50);
 
@@ -49,7 +49,7 @@ describe('InputAxis', () => {
 
     it('maxSpeed caps the approach and still converges', () => {
       const run = (maxSpeed: number) => {
-        const axis = new InputAxis(0);
+        const axis = new InputAxis({ value: 0 });
         axis.damping = 1;
         axis.maxSpeed = maxSpeed;
         axis.applyDelta(100);
@@ -65,7 +65,7 @@ describe('InputAxis', () => {
     });
 
     it('reset() makes the next update snap to the target', () => {
-      const axis = new InputAxis(0);
+      const axis = new InputAxis({ value: 0 });
       axis.damping = 0.5;
       axis.applyDelta(100);
       axis.update(0.016);
@@ -80,7 +80,7 @@ describe('InputAxis', () => {
 
   describe('wrap', () => {
     it('lets a drag run past the seam, and normalize() folds it back to the same angle', () => {
-      const axis = new InputAxis(170, 0, [-180, 180], true);
+      const axis = new InputAxis({ value: 170, center: 0, range: [-180, 180], wrap: true });
       axis.applyDelta(20);
       settle(axis);
       expect(axis.value).toBeCloseTo(190, 5);
@@ -90,24 +90,24 @@ describe('InputAxis', () => {
     });
 
     it('normalize() leaves a non-wrapping or unranged axis alone', () => {
-      const clamped = new InputAxis(5, 0, [-10, 10]);
+      const clamped = new InputAxis({ value: 5, center: 0, range: [-10, 10] });
       clamped.normalize();
       expect(clamped.value).toBe(5);
 
-      const unranged = new InputAxis(400, 0, null, true);
+      const unranged = new InputAxis({ value: 400, center: 0, range: null, wrap: true });
       unranged.normalize();
       expect(unranged.value).toBe(400);
     });
 
     it('autoNormalize folds back once settled, but never mid-drag', () => {
-      const settled = new InputAxis(170, 0, [-180, 180], true);
+      const settled = new InputAxis({ value: 170, center: 0, range: [-180, 180], wrap: true });
       settled.autoNormalize = true;
       settled.applyDelta(20);
       settle(settled);
       expect(settled.value).toBeCloseTo(-170, 5);
 
       for (const autoNormalize of [false, true]) {
-        const dragging = new InputAxis(0, 0, [-180, 180], true);
+        const dragging = new InputAxis({ value: 0, center: 0, range: [-180, 180], wrap: true });
         dragging.autoNormalize = autoNormalize;
         dragging.damping = 0.5;
         dragging.applyDelta(-270);
@@ -121,14 +121,20 @@ describe('InputAxis', () => {
 
   describe('recentering', () => {
     it('is off by default', () => {
-      const axis = new InputAxis(5);
+      const axis = new InputAxis({ value: 5 });
       axis.applyDelta(3);
       for (let i = 0; i < 100; i++) axis.update(0.1);
       expect(axis.value).toBe(8);
     });
 
     it('eases back to center after `wait` seconds without input, gradually from the first frame', () => {
-      const axis = new InputAxis(10, 0, null, false, recentering(0.2, 0.5));
+      const axis = new InputAxis({
+        value: 10,
+        center: 0,
+        range: null,
+        wrap: false,
+        recentering: recentering(0.2, 0.5),
+      });
       axis.update(0.1);
       expect(axis.value).toBe(10);
 
@@ -141,7 +147,7 @@ describe('InputAxis', () => {
     });
 
     it('any real delta restarts the wait, but a zero delta does not', () => {
-      const axis = new InputAxis(10, 0, null, false, recentering(1, 1));
+      const axis = new InputAxis({ value: 10, center: 0, range: null, wrap: false, recentering: recentering(1, 1) });
       axis.update(0.9);
       axis.applyDelta(0);
       axis.update(0.2);
@@ -154,7 +160,7 @@ describe('InputAxis', () => {
     });
 
     it('with no wait, still follows a delta from the same frame', () => {
-      const axis = new InputAxis(0, 0, null, false, recentering(0, 1));
+      const axis = new InputAxis({ value: 0, center: 0, range: null, wrap: false, recentering: recentering(0, 1) });
       axis.applyDelta(5);
       axis.update(0.016);
       expect(axis.value).toBeGreaterThan(0);
@@ -162,13 +168,25 @@ describe('InputAxis', () => {
 
     it('takes the short way back across the wrap seam', () => {
       // center -170 is 20 degrees away through the seam, 340 the other way
-      const axis = new InputAxis(170, -170, [-180, 180], true, recentering(0, 1));
+      const axis = new InputAxis({
+        value: 170,
+        center: -170,
+        range: [-180, 180],
+        wrap: true,
+        recentering: recentering(0, 1),
+      });
       axis.update(0.016);
       expect(axis.value).toBeGreaterThan(170);
     });
 
     it('waits while held, counting the wait only from release', () => {
-      const axis = new InputAxis(10, 0, null, false, recentering(0.2, 0.5));
+      const axis = new InputAxis({
+        value: 10,
+        center: 0,
+        range: null,
+        wrap: false,
+        recentering: recentering(0.2, 0.5),
+      });
       axis.held = true;
       for (let i = 0; i < 50; i++) axis.update(0.1);
       expect(axis.value).toBe(10);

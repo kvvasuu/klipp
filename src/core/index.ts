@@ -146,6 +146,7 @@ export {
   horizontalHalfFov,
   computeGroupBounds,
   createGroupFramingState,
+  createGroupFramingParams,
   createGroupMember,
   type GroupMember,
   type GroupPositionMode,
@@ -156,11 +157,13 @@ export {
 } from './extension/groupFraming.js';
 export {
   InputAxis,
+  createInputAxisParams,
   applyAxisDelta,
   updateAxis,
   resetAxis,
   normalizeAxis,
   type InputAxisData,
+  type InputAxisParams,
   type InputAxisRecentering,
 } from './input/InputAxis.js';
 export { createConsumedInput, type ConsumedInput } from './input/consumedInput.js';

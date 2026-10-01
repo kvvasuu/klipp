@@ -119,7 +119,12 @@ describe('stages read the same values from registry slots as from the scene grap
         { target: w.memberA, radius: 0.5 },
         { target: w.mesh },
       ]);
-      const extension = new GroupFramingExtension(group, 0.1, 1920, 1080, 0.3);
+      const extension = new GroupFramingExtension(group, {
+        padding: 0.1,
+        viewportWidth: 1920,
+        viewportHeight: 1080,
+        damping: 0.3,
+      });
       return [
         single(new HardLookAtAim(w.target)),
         {

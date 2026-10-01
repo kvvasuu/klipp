@@ -27,6 +27,7 @@ export { PanTiltAim } from './aim/PanTiltAim.js';
 export { TargetGroup, type TargetGroupMember, type TargetGroupPositionMode } from './extension/TargetGroup.js';
 export {
   GroupFramingExtension,
+  type GroupFramingOptions,
   type GroupFramingFitMode,
   type GroupFramingMode,
 } from './extension/GroupFramingExtension.js';

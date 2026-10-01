@@ -251,7 +251,18 @@ export const scenarios: Scenario[] = [
       { target: w.memberA, radius: 0.5, weight: 2 },
       { target: w.memberB, radius: 2 },
     ]);
-    c.registerExtension(new GroupFramingExtension(group, 0.1, 1920, 1080, 0.3, [0.05, 0], 'ceiling', 5, 40).update);
+    c.registerExtension(
+      new GroupFramingExtension(group, {
+        padding: 0.1,
+        viewportWidth: 1920,
+        viewportHeight: 1080,
+        damping: 0.3,
+        screenPosition: [0.05, 0],
+        fitMode: 'ceiling',
+        minDistance: 5,
+        maxDistance: 40,
+      }).update,
+    );
   }),
   controllerScenario('extension.groupFraming.rigid.horizontal.average', (c, w) => {
     const group = new TargetGroup(
@@ -263,7 +274,17 @@ export const scenarios: Scenario[] = [
       'groupAverage',
     );
     c.registerExtension(
-      new GroupFramingExtension(group, 0.2, 1280, 720, 0.5, [0, 0], 'rigid', 2, 60, 'horizontal').update,
+      new GroupFramingExtension(group, {
+        padding: 0.2,
+        viewportWidth: 1280,
+        viewportHeight: 720,
+        damping: 0.5,
+        screenPosition: [0, 0],
+        fitMode: 'rigid',
+        minDistance: 2,
+        maxDistance: 60,
+        framingMode: 'horizontal',
+      }).update,
     );
   }),
 

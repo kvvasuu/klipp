@@ -275,7 +275,12 @@ group('Noise/Extension.update @noise', () => {
 
   bench('GroupFraming (single member)', function* () {
     const targetGroup = new TargetGroup([{ target: new Vector3(0, 0, 0), radius: 1 }]);
-    const groupFraming = new GroupFramingExtension(targetGroup, 40, 1920, 1080, 0.5);
+    const groupFraming = new GroupFramingExtension(targetGroup, {
+      padding: 40,
+      viewportWidth: 1920,
+      viewportHeight: 1080,
+      damping: 0.5,
+    });
     const out = createCameraState();
     yield () => {
       groupFraming.update(out, 0.016, false);
@@ -489,7 +494,10 @@ group('VirtualCameraController.update @controller', () => {
       new RotationComposerAim(object, { screenPosition: [0, 0], aspect: 16 / 9, deadZone: [0.15, 0.15], damping: 0.5 })
         .update,
     );
-    controller.registerExtension(new GroupFramingExtension(targetGroup, 40, 1920, 1080, 0.5).update);
+    controller.registerExtension(
+      new GroupFramingExtension(targetGroup, { padding: 40, viewportWidth: 1920, viewportHeight: 1080, damping: 0.5 })
+        .update,
+    );
     controller.registerNoise(
       new BasicMultiChannelPerlinNoise({
         positionAmplitude: [0.1, 0.1, 0.1],

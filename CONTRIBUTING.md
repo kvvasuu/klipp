@@ -32,9 +32,10 @@ pnpm --filter examples dev
 - `src/dom/` - pointer and keyboard input, and debug overlays. Depends on `core` only.
 - `src/react/` - React Three Fiber components.
 
-Core modules follow one pattern: an `XParams` type for settings, an `XState` type with `createXState()`
-for memory, and `updateX(out, state, params, ...)`. Classes are thin wrappers that pass their own fields
-as params. Hot paths don't allocate: reuse module-level scratch values instead.
+Core modules follow one pattern: an `XParams` type for settings with `createXParams(settings)` for
+defaults, an `XState` type with `createXState()` for memory, and `updateX(out, state, params, ...)`.
+Classes are thin wrappers that take `(target, options)`, fill their fields from `createXParams` and pass
+themselves as params. React components read their defaults from the same factory. Hot paths don't allocate: reuse module-level scratch values instead.
 
 ## Tests
 

@@ -8,6 +8,17 @@ CameraControls.install({ THREE });
 
 const scratchTargetPosition = new THREE.Vector3();
 
+export type CameraControlsOptions = {
+  /** Viewport width divided by height. */
+  aspect?: number;
+  /** Where the camera starts. */
+  initialPosition?: THREE.Vector3 | null;
+  /** A `CameraControls` subclass to use instead. */
+  impl?: typeof CameraControls;
+  /** Animate the internal `camera-controls` calls. */
+  enableTransition?: boolean;
+};
+
 /** Adapts `camera-controls` orbit and dolly input to the virtual camera pipeline. */
 export class CameraControlsBody {
   target: Target;
@@ -21,22 +32,17 @@ export class CameraControlsBody {
   private hasResolvedTargetOnce = false;
   private wasResolvedLastFrame = false;
 
-  constructor(
-    target: Target,
-    aspect = 1,
-    initialPosition: THREE.Vector3 | null = null,
-    impl: typeof CameraControls = CameraControls,
-    enableTransition = false,
-  ) {
+  constructor(target: Target, options?: CameraControlsOptions) {
     this.target = target;
-    this.aspect = aspect;
-    this.enableTransition = enableTransition;
+    this.aspect = options?.aspect ?? 1;
+    this.enableTransition = options?.enableTransition ?? false;
     this.camera = new THREE.PerspectiveCamera();
-    this.controls = new impl(this.camera);
-    this.initialPosition = initialPosition;
+    this.controls = new (options?.impl ?? CameraControls)(this.camera);
+    this.initialPosition = options?.initialPosition ?? null;
 
-    if (initialPosition) {
-      this.controls.setPosition(initialPosition.x, initialPosition.y, initialPosition.z, false);
+    if (this.initialPosition) {
+      const { x, y, z } = this.initialPosition;
+      this.controls.setPosition(x, y, z, false);
     }
   }
 

@@ -2,6 +2,7 @@ import { clamp, degreesToRadians, vec3, type Vec3 } from 'math';
 import type { CameraState } from '../CameraState.js';
 import { createDamperState, damp, resetDamper, type DamperState, type DampingConstant } from '../damping/Damper.js';
 import { createTargetExtent, type TargetExtent } from '../TargetExtent.js';
+import { withDefaults } from '../params.js';
 
 /** A group member resolved for this frame. Unresolved members are skipped. */
 export type GroupMember = { position: Vec3; extent: TargetExtent; weight: number; resolved: boolean };
@@ -23,17 +24,45 @@ export type GroupFramingFitMode = 'ceiling' | 'rigid';
 export type GroupFramingMode = 'horizontal' | 'vertical' | 'horizontalAndVertical';
 
 export type GroupFramingParams = {
+  /** Margin kept clear around the group's members, in world units. */
   padding: number;
+  /** Viewport width in pixels. */
   viewportWidth: number;
+  /** Viewport height in pixels. */
   viewportHeight: number;
+  /** Response time for distance and screen composition. */
   damping: DampingConstant;
+  /** Maximum damping speed, in world units/sec. */
   maxSpeed: number;
+  /** Frustum offset used to compose the group on screen. */
   screenPosition: [number, number];
+  /** `'ceiling'` never dollies closer than the Body placed the camera, `'rigid'` always sits at the fit distance. */
   fitMode: GroupFramingFitMode;
+  /** Minimum fit distance. */
   minDistance: number;
+  /** Maximum fit distance. */
   maxDistance: number;
+  /** Which screen dimensions the fit distance has to satisfy. */
   framingMode: GroupFramingMode;
 };
+
+/** Every setting from `settings`, or its default. */
+export const createGroupFramingParams = (settings?: Partial<GroupFramingParams>): GroupFramingParams =>
+  withDefaults(
+    {
+      padding: 0,
+      viewportWidth: 1,
+      viewportHeight: 1,
+      damping: 0,
+      maxSpeed: Infinity,
+      screenPosition: [0, 0],
+      fitMode: 'ceiling',
+      minDistance: 0,
+      maxDistance: Infinity,
+      framingMode: 'horizontalAndVertical',
+    },
+    settings,
+  );
 
 export type GroupFramingState = {
   distanceDamper: DamperState;
