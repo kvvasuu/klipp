@@ -75,7 +75,7 @@ export function setBlendTarget<Id>(
   transition.elapsed = 0;
   transition.progress = 0;
   transition.hints = hints;
-  if ('damping' in definition) {
+  if (definition.damping !== undefined) {
     // Prime the damper so blend progress starts at zero.
     resetDamper(transition.damper);
     damp(transition.damper, 0, definition.damping, 0);
@@ -103,7 +103,7 @@ export function tickBlend<Id>(state: BlendState<Id>, dt: number, targetState: Ca
   if (transition.active && targetState) {
     const definition = transition.definition!;
     let t: number;
-    if ('damping' in definition) {
+    if (definition.damping !== undefined) {
       transition.damper.value = transition.progress;
       transition.progress = damp(transition.damper, 1, definition.damping, dt, definition.maxSpeed).value;
       t = transition.progress;

@@ -5,7 +5,7 @@ import type { BlendDefinition } from '../blend/BlendDefinition.js';
 
 export type SequencerInstruction = {
   cameraId: string;
-  /** Live reference - `Sequencer` reads it directly, same convention as `KlippCore.registerCamera`. */
+  /** Live reference - `Sequencer` reads it directly. */
   state: CameraState;
   /** Seconds to hold this camera before advancing. Ignored on the last instruction unless `loop`. */
   hold: number;

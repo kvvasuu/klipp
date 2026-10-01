@@ -8,7 +8,7 @@
 import { vec3, type Vec3 } from 'math';
 import { createCameraState, type CameraState } from '../../src/core/CameraState';
 import { KlippCore } from '../../src/core/KlippCore';
-import { VirtualCameraController } from '../../src/core/VirtualCameraController';
+import { VirtualCameraCore } from '../../src/core/VirtualCameraCore';
 import { HardLookAtAim } from '../../src/three/aim/HardLookAtAim';
 import { PanTiltAim } from '../../src/three/aim/PanTiltAim';
 import { RotateWithFollowTargetAim } from '../../src/three/aim/RotateWithFollowTargetAim';
@@ -31,6 +31,7 @@ import { ImpulseField } from '../../src/core/impulse/ImpulseField';
 import { ImpulseListenerNoise } from '../../src/core/impulse/ImpulseListenerNoise';
 import { BasicMultiChannelPerlinNoise } from '../../src/core/noise/BasicMultiChannelPerlinNoise';
 import { orbitCamera, simulate, type World } from './world';
+import { advance, register, setPriority } from '../../src/core/internal';
 
 export type Scenario = { name: string; run: () => number[][] };
 
@@ -70,8 +71,8 @@ const aim = (name: string, make: (w: World) => Update, perFrame?: (w: World, dt:
 });
 
 /** A full controller: Follow + HardLookAt, plus whatever `extra` registers. */
-function rig(w: World, extra?: (c: VirtualCameraController) => void, offset: Vec3 = [0, 3, 8]) {
-  const controller = new VirtualCameraController('rig');
+function rig(w: World, extra?: (c: VirtualCameraCore) => void, offset: Vec3 = [0, 3, 8]) {
+  const controller = new VirtualCameraCore('rig');
   controller.registerBody(new FollowBody(w.target, { offset, damping: 0.4 }).update);
   controller.registerAim(new HardLookAtAim(w.target).update);
   extra?.(controller);
@@ -79,7 +80,7 @@ function rig(w: World, extra?: (c: VirtualCameraController) => void, offset: Vec
   return { controller, state };
 }
 
-const controllerScenario = (name: string, extra: (c: VirtualCameraController, w: World) => void): Scenario => ({
+const controllerScenario = (name: string, extra: (c: VirtualCameraCore, w: World) => void): Scenario => ({
   name,
   run: () =>
     simulate((w) => {
@@ -95,7 +96,7 @@ function coreScenario(name: string, defaultBlend: BlendDefinition, hints: BlendH
     run: () =>
       simulate((w) => {
         const a = rig(w);
-        const b = new VirtualCameraController('b');
+        const b = new VirtualCameraCore('b');
         b.registerBody(
           new FollowBody(w.target, { offset: [6, 2, -4], damping: 0.3, bindingMode: BindingModes.worldSpace }).update,
         );
@@ -109,14 +110,14 @@ function coreScenario(name: string, defaultBlend: BlendDefinition, hints: BlendH
         );
         const bState = initialState();
         const core = new KlippCore({ defaultBlend });
-        core.registerCamera({ id: 'a', priority: 10, state: a.state, hints });
-        core.registerCamera({ id: 'b', priority: 5, state: bState, hints });
+        core[register]({ id: 'a', priority: 10, state: a.state, hints });
+        core[register]({ id: 'b', priority: 5, state: bState, hints });
         return (dt, frame) => {
           a.controller.update(a.state, dt, frame === 0);
           b.update(bState, dt, frame === 0);
-          if (frame === 60) core.updatePriority('b', 20);
-          if (frame === 170) core.updatePriority('b', 1);
-          return core.tick(dt);
+          if (frame === 60) core[setPriority]('b', 20);
+          if (frame === 170) core[setPriority]('b', 1);
+          return core[advance](dt);
         };
       }),
   };

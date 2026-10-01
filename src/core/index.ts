@@ -1,12 +1,26 @@
-export { createCameraState, copyCameraState, mergeCameraState, type CameraState } from './CameraState.js';
+export {
+  createCameraState,
+  copyCameraState,
+  mergeCameraState,
+  cameraTransformEquals,
+  cameraLensEquals,
+  type CameraState,
+} from './CameraState.js';
 export { createTargetPose, type TargetPose } from './TargetPose.js';
 export { createTargetExtent, projectTargetExtent, type TargetExtent } from './TargetExtent.js';
 export { EventDispatcher, type DispatchedEvent, type EventListener } from './EventDispatcher.js';
-export { VirtualCameraController, type VirtualCameraSlots, type CameraStateWriter } from './VirtualCameraController.js';
+export {
+  VirtualCameraCore,
+  type VirtualCameraCoreOptions,
+  type CameraPiece,
+  type CameraStateWriter,
+} from './VirtualCameraCore.js';
 export {
   KlippCore,
   type VirtualCameraConfig,
   type KlippCoreOptions,
+  type KlippMode,
+  type FrameUpdate,
   type CameraTransitionEventMap,
 } from './KlippCore.js';
 export {

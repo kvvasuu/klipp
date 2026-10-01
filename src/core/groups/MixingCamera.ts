@@ -5,7 +5,7 @@ const MAX_SLOTS = 8;
 
 export type MixingCameraSlot = {
   cameraId: string;
-  /** Live reference - read fresh every `tick()`, same convention as `KlippCore.registerCamera`. */
+  /** Live reference - read fresh every `tick()`. */
   state: CameraState;
   /** Mutable - this camera's contribution is `weight / sum(weights)`. Zero/negative = no contribution. */
   weight: number;

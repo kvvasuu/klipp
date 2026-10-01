@@ -1,7 +1,9 @@
 import type { Ease } from './BlendCurves.js';
 
 /** A fixed-duration curve or a damped transition. */
-export type BlendDefinition = { curve: Ease; time: number } | { damping: number; maxSpeed?: number };
+export type BlendDefinition =
+  | { curve: Ease; time: number; damping?: never; maxSpeed?: never }
+  | { damping: number; maxSpeed?: number; curve?: never; time?: never };
 
 /** A blend override for an optional source and destination camera. */
 export type CustomBlend = {

@@ -1,4 +1,10 @@
-import type { CameraState } from './CameraState.js';
+import {
+  cameraLensEquals,
+  cameraTransformEquals,
+  copyCameraState,
+  createCameraState,
+  type CameraState,
+} from './CameraState.js';
 import { EventDispatcher } from './EventDispatcher.js';
 import { blendTargetId } from './blend/blend.js';
 import type { BlendDefinition, CustomBlend } from './blend/BlendDefinition.js';
@@ -16,17 +22,42 @@ import {
   type VirtualCameraConfig,
 } from './klippState.js';
 
+import { advance, attachTo, checkName, prepare, register, run, setHints, setPriority } from './internal.js';
+import { VirtualCameraCore, type VirtualCameraCoreOptions } from './VirtualCameraCore.js';
+
 export type { CameraTransitionEventMap, VirtualCameraConfig };
+
+/** `'enabled'` writes the output, `'standby'` keeps every camera updating without writing, `'disabled'` stops. */
+export type KlippMode = 'enabled' | 'standby' | 'disabled';
+
+/** Per-frame work that runs before the cameras, like input. Return `true` while it is still moving. */
+export type FrameUpdate = (dt: number) => boolean | void;
 
 export type KlippCoreOptions = {
   /** Used when no `customBlends` entry matches a from→to transition. */
   defaultBlend?: BlendDefinition;
   customBlends?: CustomBlend[];
+  mode?: KlippMode;
+  /** The pose and lens new virtual cameras start from. */
+  initialCameraState?: CameraState;
 };
 
-/** Priority arbitration and transition blending for the active virtual camera. */
+/** Runs virtual cameras, picks the winner by priority and blends between shots. */
 export class KlippCore extends EventDispatcher<CameraTransitionEventMap> {
   readonly state = createKlippState();
+  /** The pose and lens new virtual cameras start from. */
+  readonly initialCameraState: CameraState;
+  mode: KlippMode;
+  /** Viewport width in pixels, passed on to pieces that frame by screen size. */
+  width = 1;
+  /** Viewport height in pixels. */
+  height = 1;
+
+  protected readonly cameras = new Set<VirtualCameraCore>();
+  private readonly updates = new Set<FrameUpdate>();
+  private readonly previousResult = createCameraState();
+  private settled = false;
+  private sized = false;
   private readonly params: KlippParams;
   private readonly activeIdListeners = new Set<() => void>();
   private readonly liveIdListeners = new Set<() => void>();
@@ -34,6 +65,8 @@ export class KlippCore extends EventDispatcher<CameraTransitionEventMap> {
 
   constructor(options: KlippCoreOptions = {}) {
     super();
+    this.mode = options.mode ?? 'enabled';
+    this.initialCameraState = options.initialCameraState ?? createCameraState();
     this.params = {
       defaultBlend: options.defaultBlend ?? DEFAULT_BLEND,
       customBlends: options.customBlends ?? [],
@@ -97,7 +130,7 @@ export class KlippCore extends EventDispatcher<CameraTransitionEventMap> {
   }
 
   /** Register a camera and return an unregister callback. */
-  registerCamera(config: VirtualCameraConfig): () => void {
+  [register](config: VirtualCameraConfig): () => void {
     const camera = registerKlippCamera(this.state, config);
     this.drainEvents();
     return () => {
@@ -107,18 +140,110 @@ export class KlippCore extends EventDispatcher<CameraTransitionEventMap> {
   }
 
   /** Update a candidate priority without restarting the current blend. */
-  updatePriority(id: string, priority: number): void {
+  [setPriority](id: string, priority: number): void {
     setKlippPriority(this.state, id, priority);
     this.drainEvents();
   }
 
   /** Update candidate hints in place. */
-  updateHints(id: string, hints: BlendHints): void {
+  [setHints](id: string, hints: BlendHints): void {
     setKlippHints(this.state, id, hints);
   }
 
+  setSize(width: number, height: number): void {
+    this.width = width;
+    this.height = height;
+    this.sized = true;
+  }
+
+  /** Create a virtual camera and add it. */
+  addCamera(name: string, options?: VirtualCameraCoreOptions): VirtualCameraCore {
+    const camera = new VirtualCameraCore(name, options);
+    this.add(camera);
+    return camera;
+  }
+
+  /** Add a virtual camera, moving it from any other `KlippCore`. Returns a function that removes it. */
+  add(camera: VirtualCameraCore): () => void {
+    if (camera.klipp !== this) {
+      camera.klipp?.remove(camera);
+      this[checkName](camera);
+      this.cameras.add(camera);
+      camera[attachTo](this);
+    }
+    return () => this.remove(camera);
+  }
+
+  /** Remove a virtual camera. It leaves the arbitration, and the shot blends to the next winner. */
+  remove(camera: VirtualCameraCore): void {
+    if (!this.cameras.delete(camera)) return;
+    camera[attachTo](null);
+  }
+
+  [checkName](camera: VirtualCameraCore): void {
+    for (const other of this.cameras) {
+      if (other !== camera && other.name === camera.name) {
+        console.warn(
+          `Two virtual cameras are named "${camera.name}". Names must be unique: blends and events use them.`,
+        );
+        return;
+      }
+    }
+  }
+
+  /** Run `update` every frame before the cameras. Returns a function that stops it. */
+  registerUpdate(update: FrameUpdate): () => void {
+    this.updates.add(update);
+    return () => this.updates.delete(update);
+  }
+
+  /**
+   * Advance one frame: run every camera, pick and blend the shot, and `write` it when it changed.
+   * Returns `true` while something is still moving, so on-demand rendering knows to request another frame.
+   */
+  update(dt: number): boolean {
+    if (this.mode === 'disabled') return false;
+
+    this.prepareFrame();
+    // Keep `=== true` semantics: some writers return a real boolean value even when typed as void.
+    let stillInFlight = false;
+    for (const update of this.updates) {
+      if (update(dt) === true) stillInFlight = true;
+    }
+    for (const camera of this.cameras) {
+      if (camera[run](dt)) stillInFlight = true;
+    }
+    const result = this[advance](dt);
+
+    // Standby stays warm but never writes.
+    if (this.mode === 'standby') return stillInFlight || this.isBlending;
+    // Do not write the untouched initial state before any camera has gone live.
+    if (!this.hasEverActivated) return stillInFlight;
+
+    const previous = this.previousResult;
+    const transformChanged = !this.settled || !cameraTransformEquals(result, previous);
+    const lensChanged = !this.settled || !cameraLensEquals(result, previous);
+    if (!transformChanged && !lensChanged) return stillInFlight;
+
+    copyCameraState(previous, result);
+    this.settled = true;
+    this.write(result, transformChanged, lensChanged);
+    return true;
+  }
+
+  /** Runs at the start of every frame, before any camera. Layers override it to read their targets. */
+  protected prepareFrame(): void {
+    // Until setSize, pieces keep the size they were given.
+    const width = this.sized ? this.width : 0;
+    const height = this.sized ? this.height : 0;
+    for (const camera of this.cameras) camera[prepare](width, height);
+  }
+
+  /** Called with the output whenever it changed. Layers override it to write their camera. */
+  protected write(_result: CameraState, _transformChanged: boolean, _lensChanged: boolean): void {}
+
   /** Advance the blend and return the reusable output state. */
-  tick(dt: number): CameraState {
+  [advance](dt: number): CameraState {
     const result = tickKlipp(this.state, this.params, dt);
     this.drainEvents();
     return result;

@@ -37,7 +37,7 @@ export function VirtualCamera({
 }: VirtualCameraProps) {
   const klipp = useKlipp();
   const invalidate = useThree((state) => state.invalidate);
-  const [camera] = useState(() => new VirtualCameraRig(klipp, name, { priority, active, hints, initialState }));
+  const [camera] = useState(() => new VirtualCameraRig(name, { priority, active, hints, initialState }));
   useImperativeHandle(ref, () => camera, [camera]);
 
   // Settings first, so a (re)registration below already uses them.

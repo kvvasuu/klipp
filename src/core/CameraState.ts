@@ -71,3 +71,15 @@ export function mergeCameraState(out: CameraState, partial: Partial<CameraState>
   if (partial.referenceUp) vec3.copy(out.referenceUp, partial.referenceUp);
   return out;
 }
+
+/** Whether `a` and `b` have the same position and rotation. */
+export const cameraTransformEquals = (a: CameraState, b: CameraState): boolean =>
+  vec3.exactEquals(a.position, b.position) && vec4.exactEquals(a.quaternion, b.quaternion);
+
+/** Whether `a` and `b` have the same lens, view offset included. */
+export const cameraLensEquals = (a: CameraState, b: CameraState): boolean =>
+  a.fov === b.fov &&
+  a.near === b.near &&
+  a.far === b.far &&
+  a.viewOffset[0] === b.viewOffset[0] &&
+  a.viewOffset[1] === b.viewOffset[1];

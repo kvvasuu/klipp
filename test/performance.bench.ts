@@ -5,7 +5,7 @@ import { createCameraState } from '../src/core/CameraState';
 import { KlippCore } from '../src/core/KlippCore';
 import { BlendHints } from '../src/core/blend/BlendHints';
 import { lerpCameraState } from '../src/core/blend/lerpCameraState';
-import { VirtualCameraController } from '../src/core/VirtualCameraController';
+import { VirtualCameraCore } from '../src/core/VirtualCameraCore';
 import { HardLookAtAim } from '../src/three/aim/HardLookAtAim';
 import { RotationComposerAim } from '../src/three/aim/RotationComposerAim';
 import { FollowBody } from '../src/three/body/FollowBody';
@@ -20,6 +20,7 @@ import { InputSystem, MouseButton } from '../src/dom/InputSystem';
 import { BasicMultiChannelPerlinNoise } from '../src/core/noise/BasicMultiChannelPerlinNoise';
 import { TargetRegistry } from '../src/three/resolve/TargetRegistry';
 import { toQuaternion, toTuple } from './tuples';
+import { advance, register } from '../src/core/internal';
 
 const always = () => 1;
 
@@ -471,10 +472,10 @@ group('InputSystem event handlers @input', () => {
   });
 });
 
-group('VirtualCameraController.update @controller', () => {
+group('VirtualCameraCore.update @controller', () => {
   bench('minimal: HardLockToTarget + HardLookAt', function* () {
     const { object, step } = makeMovingTarget();
-    const controller = new VirtualCameraController('minimal');
+    const controller = new VirtualCameraCore('minimal');
     controller.registerBody(new HardLockToTargetBody(object, { damping: 0.5 }).update);
     controller.registerAim(new HardLookAtAim(object).update);
     const out = createCameraState();
@@ -487,7 +488,7 @@ group('VirtualCameraController.update @controller', () => {
 
   bench('full: Follow + RotationComposer + GroupFraming + Perlin (like FocusReproScene)', function* () {
     const { object, step } = makeMovingTarget();
-    const controller = new VirtualCameraController('full');
+    const controller = new VirtualCameraCore('full');
     const targetGroup = new TargetGroup([{ target: object, radius: 1.5 }]);
     controller.registerBody(new FollowBody(object, { offset: [0, 3, 12], damping: 0.5 }).update);
     controller.registerAim(
@@ -528,24 +529,24 @@ group('KlippCore.tick @core', () => {
     for (let i = 0; i < count; i++) {
       const state = createCameraState();
       vec3.set(state.position, i, 0, 0);
-      core.registerCamera({ id: `cam-${i}`, priority: i, state });
+      core[register]({ id: `cam-${i}`, priority: i, state });
     }
     return core;
   }
 
   bench('1 registered camera', function* () {
     const core = makeCoreWithCameras(1);
-    yield () => core.tick(0.016).position[0];
+    yield () => core[advance](0.016).position[0];
   });
 
   bench('10 registered cameras', function* () {
     const core = makeCoreWithCameras(10);
-    yield () => core.tick(0.016).position[0];
+    yield () => core[advance](0.016).position[0];
   });
 
   bench('50 registered cameras', function* () {
     const core = makeCoreWithCameras(50);
-    yield () => core.tick(0.016).position[0];
+    yield () => core[advance](0.016).position[0];
   });
 });
 

@@ -88,7 +88,7 @@ describe('VirtualCamera — registration lifecycle', () => {
     expect(core!.activeCameraId).toBe('challenger');
   });
 
-  it('the hints prop reaches core.registerCamera on mount, and core.updateHints on a later change (without a full re-register)', async () => {
+  it('the hints prop reaches the arbitration on mount, and on a later change without re-registering', async () => {
     let core: KlippCore | undefined;
     const scene = (mounted: boolean, hints: number) => (
       <Klipp>
@@ -98,15 +98,13 @@ describe('VirtualCamera — registration lifecycle', () => {
     );
 
     const renderer = await create(scene(false, BlendHints.none));
-    const registerSpy = vi.spyOn(core!, 'registerCamera');
-    const updateHintsSpy = vi.spyOn(core!, 'updateHints');
-
     await renderer.update(scene(true, BlendHints.sphericalPosition));
-    expect(registerSpy).toHaveBeenCalledWith(expect.objectContaining({ id: 'a', hints: BlendHints.sphericalPosition }));
+    const registered = core!.state.cameras.get('a')!;
+    expect(registered.hints).toBe(BlendHints.sphericalPosition);
 
     await renderer.update(scene(true, BlendHints.cylindricalPosition));
-    expect(updateHintsSpy).toHaveBeenCalledWith('a', BlendHints.cylindricalPosition);
-    expect(registerSpy).toHaveBeenCalledTimes(1); // the hints-only change did not re-register
+    expect(core!.state.cameras.get('a')).toBe(registered);
+    expect(registered.hints).toBe(BlendHints.cylindricalPosition);
   });
 
   it('a priority edit on the sole, already-live camera does not spuriously restart a blend (real bug: it briefly stopped tracking)', async () => {
@@ -179,10 +177,10 @@ describe('VirtualCamera — Body/Aim/Noise wiring', () => {
         </VirtualCamera>
       </Klipp>,
     );
-    const tick = vi.spyOn(core!, 'tick');
+    const update = vi.spyOn(core!, 'update');
     await renderer.advanceFrames(1, 0.25);
 
-    expect(tick).toHaveBeenCalledWith(0.25);
+    expect(update).toHaveBeenCalledWith(0.25);
     expect(state).toBe(core!.activeState);
     expect(state!.position[0]).toBe(42);
   });

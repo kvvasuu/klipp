@@ -48,9 +48,7 @@ export type InputControllerProps = {
 function resolveAxis(owner: InputAxisOwner, name: string): InputAxis | null {
   const axis = owner.inputAxes[name];
   if (!axis) {
-    if (process.env.NODE_ENV !== 'production') {
-      console.warn(`<InputController>: no axis named "${name}" on target's inputAxes.`);
-    }
+    console.warn(`<InputController>: no axis named "${name}" on target's inputAxes.`);
     return null;
   }
   return axis;

@@ -204,9 +204,9 @@ describe('Klipp / useKlipp', () => {
         </Klipp>,
         { frameloop },
       );
-      const tick = vi.spyOn(core!, 'tick');
+      const update = vi.spyOn(core!, 'update');
       await renderer.advanceFrames(1, 2);
-      return tick.mock.calls[0][0];
+      return update.mock.calls[0][0];
     };
 
     expect(await tickDt('demand')).toBeLessThan(1 / 29);

@@ -1,6 +1,13 @@
 import { quat, vec3, vec4 } from 'math';
 import { describe, expect, it } from 'vitest';
-import { copyCameraState, createCameraState, mergeCameraState, type CameraState } from '../../src/core/CameraState';
+import {
+  cameraLensEquals,
+  cameraTransformEquals,
+  copyCameraState,
+  createCameraState,
+  mergeCameraState,
+  type CameraState,
+} from '../../src/core/CameraState';
 
 describe('copyCameraState', () => {
   it('copies values into "out" without replacing its arrays', () => {
@@ -114,5 +121,20 @@ describe('mergeCameraState', () => {
     ]);
     expect(out.position).toBe(own[0]);
     expect(out.viewOffset).toBe(own[1]);
+  });
+});
+
+describe('cameraTransformEquals / cameraLensEquals', () => {
+  it('tell a moved or turned camera apart from a lens or view offset change', () => {
+    const a = createCameraState();
+    const b = createCameraState();
+    expect([cameraTransformEquals(a, b), cameraLensEquals(a, b)]).toEqual([true, true]);
+
+    b.quaternion[3] = -1;
+    expect([cameraTransformEquals(a, b), cameraLensEquals(a, b)]).toEqual([false, true]);
+
+    copyCameraState(b, a);
+    b.viewOffset[1] = 0.2;
+    expect([cameraTransformEquals(a, b), cameraLensEquals(a, b)]).toEqual([true, false]);
   });
 });

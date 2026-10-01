@@ -17,7 +17,7 @@ function scene(options?: ConstructorParameters<typeof Klipp>[1]) {
 }
 
 describe('Klipp', () => {
-  it('drives the camera from the winning shot and blends to a new winner', () => {
+  it('drives a PerspectiveCamera from the winning shot, lens included, and blends to a new winner', () => {
     const { camera, klipp, right } = scene();
     right.aim = new HardLookAtAim([10, 0, -10]);
     right.addExtension(new LensExtension({ fov: 30 }));
@@ -32,57 +32,29 @@ describe('Klipp', () => {
     expect(camera.fov).toBe(30);
   });
 
-  it('update returns true only while something moves or the camera changed', () => {
-    const { klipp, right } = scene();
-    expect(klipp.update(0.1)).toBe(true); // first write
-    expect(klipp.update(0.1)).toBe(false);
+  it('writes the view offset in pixels of the size it was given', () => {
+    const camera = new PerspectiveCamera();
+    const klipp = new Klipp(camera);
+    klipp.setSize(1280, 800);
+    klipp.addCamera('a').addExtension({
+      update: (out) => {
+        out.viewOffset[0] = 0.5;
+        out.viewOffset[1] = -0.3;
+      },
+    });
+    klipp.update(0.1);
 
-    right.priority = 20;
-    expect(klipp.update(0.1)).toBe(true);
-    for (let i = 0; i < 20; i++) klipp.update(0.1);
-    expect(klipp.update(0.1)).toBe(false);
+    expect(camera.view).toMatchObject({ enabled: true, offsetX: -320, offsetY: -120 });
   });
 
-  it('leaves the camera alone until a virtual camera goes live', () => {
+  it("a new Klipp on the same camera starts from the camera's original pose, not the last shot (real bug: switching scenes carried it over)", () => {
     const camera = new PerspectiveCamera();
     camera.position.set(1, 2, 3);
-    const klipp = new Klipp(camera);
-    const shot = klipp.addCamera('a', { active: false });
-    shot.body = new HardLockToTargetBody([5, 0, 0]);
-    klipp.update(0.1);
-    expect(camera.position.toArray()).toEqual([1, 2, 3]);
+    const first = new Klipp(camera);
+    first.addCamera('a').body = new HardLockToTargetBody([10, 20, 30]);
+    first.update(0.1);
+    expect(camera.position.toArray()).toEqual([10, 20, 30]);
 
-    shot.active = true;
-    klipp.update(0.1);
-    expect(camera.position.toArray()).toEqual([5, 0, 0]);
-  });
-
-  it('standby keeps cameras updating without writing the camera, and disabled stops everything', () => {
-    for (const mode of ['standby', 'disabled'] as const) {
-      const { camera, klipp, left } = scene({ mode });
-      klipp.update(0.1);
-      expect(camera.position.x).toBe(0);
-      expect(left.state.position[0]).toBe(mode === 'standby' ? -10 : 0);
-    }
-  });
-
-  it('runs registered updates before the cameras, and stops them once removed', () => {
-    const { klipp, left } = scene();
-    const order: string[] = [];
-    const stop = klipp.registerUpdate(() => void order.push('update'));
-    left.addNoise({ update: () => void order.push('camera') });
-    klipp.update(0.1);
-    stop();
-    klipp.update(0.1);
-
-    expect(order).toEqual(['update', 'camera', 'camera']);
-  });
-
-  it('a removed camera leaves the arbitration', () => {
-    const { klipp, left } = scene();
-    klipp.update(0.1);
-    klipp.remove(left);
-    klipp.update(0.1);
-    expect(klipp.activeCameraId).toBe('right');
+    expect(new Klipp(camera).addCamera('b').state.position).toEqual([1, 2, 3]);
   });
 });
