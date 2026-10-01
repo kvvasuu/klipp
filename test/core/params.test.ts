@@ -35,8 +35,8 @@ describe('params factories', () => {
 
       expect(make(undefinedSettings)).toEqual(defaults);
       for (const [key, value] of Object.entries(make())) {
-        if (typeof value === 'object' && value !== null && !('generate' in value))
-          expect(value).not.toBe(defaults[key]);
+        // the shared impulseField is meant to be shared
+        if (typeof value === 'object' && value !== null && key !== 'field') expect(value).not.toBe(defaults[key]);
       }
     },
   );

@@ -17,10 +17,7 @@ export type FollowProps = Omit<FollowOptions, 'offset'> & {
 /** Follows a target with a configurable offset and rotation frame. */
 export function Follow({ target, offset, ref, ...settings }: FollowProps) {
   const { controller, state, initialState } = useVirtualCamera();
-  const params = createFollowParams({
-    ...settings,
-    offset: offset === undefined ? undefined : resolveVec3([0, 0, 0], offset),
-  });
+  const { offset: defaultOffset, ...params } = createFollowParams(settings);
   const [body] = useState(() => {
     const instance = new FollowBody(target, params);
     if (initialState?.position) instance.primeFrom(state.position);
@@ -29,6 +26,7 @@ export function Follow({ target, offset, ref, ...settings }: FollowProps) {
   body.target = target;
   body.targetSlot = useTargetSlot(target);
   Object.assign(body, params);
+  resolveVec3(body.offset, offset ?? defaultOffset);
 
   useImperativeHandle(ref, () => body, [body]);
   useEffect(() => controller.registerBody(body.update), [controller, body]);

@@ -23,11 +23,7 @@ export type RotationComposerProps = Omit<RotationComposerOptions, 'aspect' | 'ta
 export function RotationComposer({ target, targetOffset, debug = false, ref, ...settings }: RotationComposerProps) {
   const { controller, state: cameraState, initialState } = useVirtualCamera();
   const aspect = useThree((state) => state.viewport.aspect);
-  const params = createRotationComposerParams({
-    ...settings,
-    aspect,
-    targetOffset: targetOffset === undefined ? undefined : resolveVec3([0, 0, 0], targetOffset),
-  });
+  const { targetOffset: defaultTargetOffset, ...params } = createRotationComposerParams({ ...settings, aspect });
   const [aim] = useState(() => {
     const instance = new RotationComposerAim(target, params);
     if (initialState?.quaternion) instance.primeFrom(cameraState.quaternion);
@@ -36,6 +32,7 @@ export function RotationComposer({ target, targetOffset, debug = false, ref, ...
   aim.target = target;
   aim.targetSlot = useTargetSlot(target);
   Object.assign(aim, params);
+  resolveVec3(aim.targetOffset, targetOffset ?? defaultTargetOffset);
   aim.radius = settings.radius;
   aim.size = settings.size;
 

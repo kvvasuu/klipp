@@ -1,10 +1,8 @@
 import { useState } from 'react';
 import { createPerlinNoiseParams } from '../../core/noise/perlinNoise.js';
-import { resolveVec3, type Vector3Like } from '../../three/resolve/resolveVector3.js';
+import { resolveVec3 } from '../../three/resolve/resolveVector3.js';
 import type { BasicMultiChannelPerlinProps } from './BasicMultiChannelPerlin.js';
 import { BasicMultiChannelPerlinNoise } from '../../core/noise/BasicMultiChannelPerlinNoise.js';
-
-const toVec3 = (value: Vector3Like | undefined) => (value === undefined ? undefined : resolveVec3([0, 0, 0], value));
 
 /** Creates and synchronizes a shared Perlin noise instance from props. */
 export function useBasicMultiChannelPerlinNoise({
@@ -15,15 +13,19 @@ export function useBasicMultiChannelPerlinNoise({
   seed,
   ...settings
 }: Omit<BasicMultiChannelPerlinProps, 'ref'>): BasicMultiChannelPerlinNoise {
-  const params = createPerlinNoiseParams({
-    ...settings,
-    positionAmplitude: toVec3(positionAmplitude),
-    positionFrequency: toVec3(positionFrequency),
-    rotationAmplitude: toVec3(rotationAmplitude),
-    rotationFrequency: toVec3(rotationFrequency),
-  });
+  const {
+    positionAmplitude: defaultPositionAmplitude,
+    positionFrequency: defaultPositionFrequency,
+    rotationAmplitude: defaultRotationAmplitude,
+    rotationFrequency: defaultRotationFrequency,
+    ...params
+  } = createPerlinNoiseParams(settings);
   const [noise] = useState(() => new BasicMultiChannelPerlinNoise({ ...params, seed }));
   Object.assign(noise, params);
+  resolveVec3(noise.positionAmplitude, positionAmplitude ?? defaultPositionAmplitude);
+  resolveVec3(noise.positionFrequency, positionFrequency ?? defaultPositionFrequency);
+  resolveVec3(noise.rotationAmplitude, rotationAmplitude ?? defaultRotationAmplitude);
+  resolveVec3(noise.rotationFrequency, rotationFrequency ?? defaultRotationFrequency);
 
   return noise;
 }
