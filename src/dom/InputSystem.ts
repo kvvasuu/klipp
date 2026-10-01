@@ -134,9 +134,8 @@ export class InputSystem {
     document.removeEventListener('pointerlockchange', this.onPointerLockChange);
     document.removeEventListener('pointerlockerror', this.onPointerLockError);
     document.removeEventListener('visibilitychange', this.onVisibilityChange);
-    // Keep the pointer lock active because it belongs to the document, not this connection.
-    // need to outlive this one connection (e.g. surviving a hand-off to a different VirtualCamera);
-    // release it explicitly via exitPointerLock() if that's actually what's wanted
+    // Keep the pointer lock: it belongs to the document and can outlive this connection, for example across a
+    // hand-off to another virtual camera. Release it with exitPointerLock().
     this.element = null;
     this.activePointer = null;
     this.touchPointer = null;
