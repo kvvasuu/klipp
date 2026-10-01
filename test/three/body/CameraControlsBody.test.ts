@@ -28,7 +28,9 @@ describe('CameraControlsBody', () => {
   it('builds its controls from the given implementation', () => {
     class CustomControls extends CameraControls {}
     expect(new CameraControlsBody(null).controls).toBeInstanceOf(CameraControls);
-    expect(new CameraControlsBody(null, 1, null, CustomControls).controls).toBeInstanceOf(CustomControls);
+    expect(
+      new CameraControlsBody(null, { aspect: 1, initialPosition: null, impl: CustomControls }).controls,
+    ).toBeInstanceOf(CustomControls);
   });
 
   it('orbits a target, looks at it and publishes it as both target and look-at target', () => {
@@ -46,7 +48,7 @@ describe('CameraControlsBody', () => {
   });
 
   it('uses the lens from out and its own aspect', () => {
-    const body = new CameraControlsBody(new Vector3(0, 0, -20), 2);
+    const body = new CameraControlsBody(new Vector3(0, 0, -20), { aspect: 2 });
     const out = createCameraState();
     out.fov = 35;
     out.near = 0.5;
@@ -74,7 +76,7 @@ describe('CameraControlsBody', () => {
 
   it('drags the camera along with a moving target, keeping the orbit offset (real bug: setTarget only re-aimed)', () => {
     const target = new Vector3(0, 0, -20);
-    const body = new CameraControlsBody(target, 1);
+    const body = new CameraControlsBody(target, { aspect: 1 });
     const out = createCameraState();
     run(body, out, 60);
     const before = vec3.clone(out.position);
@@ -101,7 +103,7 @@ describe('CameraControlsBody', () => {
     it('starts at that exact point looking at the target, only once', () => {
       const target = new Vector3(5, 0, 5);
       const start = new Vector3(5, 8, 15);
-      const body = new CameraControlsBody(target, 1, start);
+      const body = new CameraControlsBody(target, { aspect: 1, initialPosition: start });
       const out = createCameraState();
 
       body.update(out, 0.05, false);
@@ -116,7 +118,7 @@ describe('CameraControlsBody', () => {
     it('holds the camera there while the target is not resolved yet, then only turns toward it', () => {
       const ref: { current: Object3D | null } = { current: null };
       const start = new Vector3(0, 5, 20);
-      const body = new CameraControlsBody(ref, 1, start);
+      const body = new CameraControlsBody(ref, { aspect: 1, initialPosition: start });
       const out = createCameraState();
 
       run(body, out, 5);
@@ -147,7 +149,7 @@ describe('CameraControlsBody', () => {
 
   describe('switching targets', () => {
     it('keeps publishing its own state when the target is dropped mid-flight', () => {
-      const body = new CameraControlsBody(new Vector3(10, 0, 0), 1);
+      const body = new CameraControlsBody(new Vector3(10, 0, 0), { aspect: 1 });
       const out = createCameraState();
       run(body, out, 5);
       const locked = vec3.clone(out.position);
@@ -162,7 +164,7 @@ describe('CameraControlsBody', () => {
 
     it('re-anchors from where the camera is when a target comes back (real bug: jumped by how far the target moved meanwhile)', () => {
       const target = new Vector3();
-      const body = new CameraControlsBody(target, 1);
+      const body = new CameraControlsBody(target, { aspect: 1 });
       const out = createCameraState();
       run(body, out, 5);
 
@@ -182,7 +184,7 @@ describe('CameraControlsBody', () => {
 
     it('re-anchors on justActivated too, after a gap without updates (real bug: an inactive camera jumped when reactivated)', () => {
       const target = new Vector3();
-      const body = new CameraControlsBody(target, 1);
+      const body = new CameraControlsBody(target, { aspect: 1 });
       const out = createCameraState();
       run(body, out, 5);
       const before = vec3.clone(out.position);
@@ -197,7 +199,12 @@ describe('CameraControlsBody', () => {
 
     it('turns back the short way after free turns (real bug: unwound every accumulated turn)', () => {
       const target = new Vector3();
-      const body = new CameraControlsBody(target, 1, new Vector3(6, 4, 6), CameraControls, true);
+      const body = new CameraControlsBody(target, {
+        aspect: 1,
+        initialPosition: new Vector3(6, 4, 6),
+        impl: CameraControls,
+        enableTransition: true,
+      });
       const out = createCameraState();
       run(body, out, 5);
 
@@ -220,7 +227,12 @@ describe('CameraControlsBody', () => {
 
     it('enableTransition eases into a returning target instead of re-anchoring instantly', () => {
       const target = new Vector3();
-      const body = new CameraControlsBody(target, 1, null, CameraControls, true);
+      const body = new CameraControlsBody(target, {
+        aspect: 1,
+        initialPosition: null,
+        impl: CameraControls,
+        enableTransition: true,
+      });
       const out = createCameraState();
       run(body, out, 5);
       body.target = null;
@@ -241,13 +253,17 @@ describe('CameraControlsBody', () => {
     it('sphericalPosition arcs around the shared target (real bug: blends into CameraControls always went straight)', () => {
       const core = new KlippCore({ defaultBlend: { curve: BlendCurves.linear, time: 1 } });
       const a = createCameraState();
-      new FollowBody(new Vector3(), [10, 0, 0]).update(a, 0.016, false);
+      new FollowBody(new Vector3(), { offset: [10, 0, 0] }).update(a, 0.016, false);
       new HardLookAtAim(new Vector3()).update(a);
       core.registerCamera({ id: 'a', priority: 10, state: a, hints: BlendHints.sphericalPosition });
       core.tick(0);
 
       const b = createCameraState();
-      new CameraControlsBody(new Vector3(), 1, new Vector3(0, 5, -10)).update(b, 0.016, false);
+      new CameraControlsBody(new Vector3(), { aspect: 1, initialPosition: new Vector3(0, 5, -10) }).update(
+        b,
+        0.016,
+        false,
+      );
       core.registerCamera({ id: 'b', priority: 20, state: b, hints: BlendHints.sphericalPosition });
 
       const mid = core.tick(0.5);
@@ -264,7 +280,11 @@ describe('CameraControlsBody', () => {
       core.tick(0);
 
       const b = createCameraState();
-      new CameraControlsBody(new Vector3(5, 2, 47), 1, new Vector3(5, 7, 37)).update(b, 0.016, false);
+      new CameraControlsBody(new Vector3(5, 2, 47), { aspect: 1, initialPosition: new Vector3(5, 7, 37) }).update(
+        b,
+        0.016,
+        false,
+      );
       core.registerCamera({ id: 'b', priority: 20, state: b });
 
       for (let i = 0; i < 3; i++) {
@@ -281,7 +301,7 @@ describe('CameraControlsBody', () => {
       core.tick(0);
 
       const state = createCameraState();
-      const body = new CameraControlsBody(new Vector3(), 1, new Vector3(-2, 0, -1));
+      const body = new CameraControlsBody(new Vector3(), { aspect: 1, initialPosition: new Vector3(-2, 0, -1) });
       body.controls.rotate(Math.PI, 0, false);
       body.controls.dollyTo(5, false);
 

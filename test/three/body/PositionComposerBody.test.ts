@@ -25,7 +25,7 @@ function warmUp(body: PositionComposerBody): PositionComposerBody {
 describe('PositionComposerBody', () => {
   it('centers the target at cameraDistance without touching rotation, and publishes it as out.target', () => {
     const target = new Vector3(5, 2, -30);
-    const body = new PositionComposerBody(target, 8, [0, 0], 1.5);
+    const body = new PositionComposerBody(target, { cameraDistance: 8, screenPosition: [0, 0], aspect: 1.5 });
     const out = createCameraState();
     out.fov = 60;
     vec4.normalize(out.quaternion, [0, 0.2, 0, 0.98]);
@@ -44,7 +44,7 @@ describe('PositionComposerBody', () => {
 
   it('lands the target at screenPosition for any fov, aspect and camera rotation', () => {
     const target = new Vector3(10, 5, 10);
-    const body = new PositionComposerBody(target, 12, [0.5, -0.3], 2);
+    const body = new PositionComposerBody(target, { cameraDistance: 12, screenPosition: [0.5, -0.3], aspect: 2 });
     const out = createCameraState();
     new Quaternion().setFromAxisAngle(new Vector3(0, 1, 0), Math.PI / 3).toArray(out.quaternion);
     out.fov = 90;
@@ -65,7 +65,13 @@ describe('PositionComposerBody', () => {
   describe('dead zone', () => {
     it('ignores a target that moves within it', () => {
       const target = new Vector3(0, 0, -20);
-      const body = new PositionComposerBody(target, 10, [0, 0], 1, [0.4, 0.4], 0);
+      const body = new PositionComposerBody(target, {
+        cameraDistance: 10,
+        screenPosition: [0, 0],
+        aspect: 1,
+        deadZone: [0.4, 0.4],
+        damping: 0,
+      });
       const out = createCameraState();
       body.update(out, 0.1, false);
       const before = vec3.clone(out.position);
@@ -78,7 +84,13 @@ describe('PositionComposerBody', () => {
 
     it('without damping, snaps the target to the dead zone edge and stays there', () => {
       const target = new Vector3(20, 0, -20);
-      const body = new PositionComposerBody(target, 10, [0, 0], 1, [0.1, 0.1], 0);
+      const body = new PositionComposerBody(target, {
+        cameraDistance: 10,
+        screenPosition: [0, 0],
+        aspect: 1,
+        deadZone: [0.1, 0.1],
+        damping: 0,
+      });
       const out = createCameraState();
 
       body.update(out, 0.1, false);
@@ -91,7 +103,15 @@ describe('PositionComposerBody', () => {
 
     it('with damping, eases toward the dead zone edge', () => {
       const target = new Vector3(20, 0, -20);
-      const body = warmUp(new PositionComposerBody(target, 10, [0, 0], 1, [0.1, 0.1], 0.3));
+      const body = warmUp(
+        new PositionComposerBody(target, {
+          cameraDistance: 10,
+          screenPosition: [0, 0],
+          aspect: 1,
+          deadZone: [0.1, 0.1],
+          damping: 0.3,
+        }),
+      );
       const out = createCameraState();
 
       body.update(out, 0.016, false);
@@ -103,7 +123,13 @@ describe('PositionComposerBody', () => {
 
     it('coasts to a stop after the target settles inside it, instead of freezing mid-motion', () => {
       const target = new Vector3(20, 0, -20);
-      const body = new PositionComposerBody(target, 10, [0, 0], 1, [0.15, 0.15], 0.3);
+      const body = new PositionComposerBody(target, {
+        cameraDistance: 10,
+        screenPosition: [0, 0],
+        aspect: 1,
+        deadZone: [0.15, 0.15],
+        damping: 0.3,
+      });
       const out = createCameraState();
       for (let i = 0; i < 5; i++) body.update(out, 0.016, false);
       const moving = vec3.clone(out.position);
@@ -120,7 +146,13 @@ describe('PositionComposerBody', () => {
 
     it('never moves back toward the old direction when the target reverses after settling (real bug: stale damper velocity survived the freeze)', () => {
       const target = new Vector3(0, 0, -20);
-      const body = new PositionComposerBody(target, 10, [0, 0], 1, [0.15, 0.15], 0.3);
+      const body = new PositionComposerBody(target, {
+        cameraDistance: 10,
+        screenPosition: [0, 0],
+        aspect: 1,
+        deadZone: [0.15, 0.15],
+        damping: 0.3,
+      });
       const out = createCameraState();
       for (let i = 0; i < 40; i++) {
         target.x += 0.3;
@@ -141,7 +173,7 @@ describe('PositionComposerBody', () => {
   describe('depth dead zone', () => {
     it('without damping, snaps to the edge of the depth dead zone, not to cameraDistance', () => {
       const target = new Vector3(0, 0, -20);
-      const body = new PositionComposerBody(target, 10, [0, 0], 1);
+      const body = new PositionComposerBody(target, { cameraDistance: 10, screenPosition: [0, 0], aspect: 1 });
       body.depthDeadZone = 3;
       const out = createCameraState();
 
@@ -152,7 +184,13 @@ describe('PositionComposerBody', () => {
 
     it('tolerates gradual drift inside it over many frames (real bug: a frozen desired depth fought the target)', () => {
       const target = new Vector3(0, 0, -10);
-      const body = new PositionComposerBody(target, 10, [0, 0], 1, [0, 0], 0.3);
+      const body = new PositionComposerBody(target, {
+        cameraDistance: 10,
+        screenPosition: [0, 0],
+        aspect: 1,
+        deadZone: [0, 0],
+        damping: 0.3,
+      });
       body.depthDeadZone = 20;
       const out = createCameraState();
       body.update(out, 0.016, false);
@@ -168,7 +206,15 @@ describe('PositionComposerBody', () => {
 
     it('with damping, eases the depth toward cameraDistance', () => {
       const target = new Vector3(0, 0, -20);
-      const body = warmUp(new PositionComposerBody(target, 10, [0, 0], 1, [0, 0], 0.3));
+      const body = warmUp(
+        new PositionComposerBody(target, {
+          cameraDistance: 10,
+          screenPosition: [0, 0],
+          aspect: 1,
+          deadZone: [0, 0],
+          damping: 0.3,
+        }),
+      );
       const out = createCameraState();
 
       body.update(out, 0.016, false);
@@ -183,7 +229,13 @@ describe('PositionComposerBody', () => {
     it('snaps to the composed shot from a stale position, where a plain update would ease', () => {
       const run = (justActivated: boolean) => {
         const target = new Vector3(0, 0, -20);
-        const body = new PositionComposerBody(target, 10, [0, 0], 1, [0, 0], 0.5);
+        const body = new PositionComposerBody(target, {
+          cameraDistance: 10,
+          screenPosition: [0, 0],
+          aspect: 1,
+          deadZone: [0, 0],
+          damping: 0.5,
+        });
         const out = createCameraState();
         body.update(out, 0.016, true);
         body.update(out, 0.016, false);
@@ -201,7 +253,13 @@ describe('PositionComposerBody', () => {
 
     it('skips both dead zones, which would otherwise hide the jump', () => {
       const target = new Vector3(0, 0, -20);
-      const body = new PositionComposerBody(target, 10, [0, 0], 1, [0.9, 0.9], 0);
+      const body = new PositionComposerBody(target, {
+        cameraDistance: 10,
+        screenPosition: [0, 0],
+        aspect: 1,
+        deadZone: [0.9, 0.9],
+        damping: 0,
+      });
       body.depthDeadZone = 5;
       const out = createCameraState();
       body.update(out, 0.016, true);
@@ -217,7 +275,13 @@ describe('PositionComposerBody', () => {
   it('maxSpeed caps how fast damping closes the gap', () => {
     const target = new Vector3(20, 0, -10);
     const run = (maxSpeed: number) => {
-      const body = new PositionComposerBody(target, 10, [0, 0], 1, [0, 0], 1);
+      const body = new PositionComposerBody(target, {
+        cameraDistance: 10,
+        screenPosition: [0, 0],
+        aspect: 1,
+        deadZone: [0, 0],
+        damping: 1,
+      });
       body.maxSpeed = maxSpeed;
       warmUp(body);
       const out = createCameraState();
@@ -231,7 +295,13 @@ describe('PositionComposerBody', () => {
   describe('primeFrom', () => {
     it('makes the next activation ease from the primed position, once', () => {
       const target = new Vector3(0, 0, -20);
-      const body = new PositionComposerBody(target, 10, [0, 0], 1, [0, 0], 0.5);
+      const body = new PositionComposerBody(target, {
+        cameraDistance: 10,
+        screenPosition: [0, 0],
+        aspect: 1,
+        deadZone: [0, 0],
+        damping: 0.5,
+      });
       const out = createCameraState();
       vec3.set(out.position, 0, 0, 50);
       body.primeFrom(out.position);
@@ -246,7 +316,10 @@ describe('PositionComposerBody', () => {
     });
 
     it('is used up even when the target is not resolved yet on that activation', () => {
-      const body = new PositionComposerBody({ current: null }, 10, [0, 0], 1, [0, 0], 0.5);
+      const body = new PositionComposerBody(
+        { current: null },
+        { cameraDistance: 10, screenPosition: [0, 0], aspect: 1, deadZone: [0, 0], damping: 0.5 },
+      );
       const out = createCameraState();
       vec3.set(out.position, 0, 0, 50);
       body.primeFrom(out.position);
@@ -273,25 +346,57 @@ describe('PositionComposerBody', () => {
 
     it("a radius makes the dead zone react to the target's edge", () => {
       const point = new Vector3(0, 0, -20);
-      expect(nudgeFromCenter(point, new PositionComposerBody(point, 10, [0, 0], 1, [0.2, 0.2], 0))).toBeCloseTo(
-        0.15,
-        4,
-      );
+      expect(
+        nudgeFromCenter(
+          point,
+          new PositionComposerBody(point, {
+            cameraDistance: 10,
+            screenPosition: [0, 0],
+            aspect: 1,
+            deadZone: [0.2, 0.2],
+            damping: 0,
+          }),
+        ),
+      ).toBeCloseTo(0.15, 4);
 
       const sphere = new Vector3(0, 0, -20);
-      const body = new PositionComposerBody(sphere, 10, [0, 0], 1, [0.2, 0.2], 0, [0, 0], 1);
+      const body = new PositionComposerBody(sphere, {
+        cameraDistance: 10,
+        screenPosition: [0, 0],
+        aspect: 1,
+        deadZone: [0.2, 0.2],
+        damping: 0,
+        hardLimit: [0, 0],
+        radius: 1,
+      });
       expect(nudgeFromCenter(sphere, body)).toBeCloseTo(0.1, 4); // edge at 0.2, center 0.1 short of it
     });
 
     it('a size works like a radius, and a rotated box uses its oriented extent', () => {
       const box = new Vector3(0, 0, -20);
-      const body = new PositionComposerBody(box, 10, [0, 0], 1, [0.2, 0.2], 0, [0, 0], undefined, [2, 2, 2]);
+      const body = new PositionComposerBody(box, {
+        cameraDistance: 10,
+        screenPosition: [0, 0],
+        aspect: 1,
+        deadZone: [0.2, 0.2],
+        damping: 0,
+        hardLimit: [0, 0],
+        size: [2, 2, 2],
+      });
       expect(nudgeFromCenter(box, body)).toBeCloseTo(0.1, 4);
 
       const rotated = new Object3D();
       rotated.quaternion.setFromAxisAngle(new Vector3(0, 1, 0), Math.PI / 4);
       rotated.position.set(0, 0, -20);
-      const rotatedBody = new PositionComposerBody(rotated, 10, [0, 0], 1, [0.2, 0.2], 0, [0, 0], undefined, [2, 2, 2]);
+      const rotatedBody = new PositionComposerBody(rotated, {
+        cameraDistance: 10,
+        screenPosition: [0, 0],
+        aspect: 1,
+        deadZone: [0.2, 0.2],
+        damping: 0,
+        hardLimit: [0, 0],
+        size: [2, 2, 2],
+      });
       expect(nudgeFromCenter(rotated, rotatedBody)).toBeCloseTo(0.2 - Math.SQRT2 / 10, 4);
     });
 
@@ -299,7 +404,13 @@ describe('PositionComposerBody', () => {
       const mesh = new Mesh(new BoxGeometry(2, 2, 2), new MeshBasicMaterial());
       mesh.position.set(10, 0, -20);
       // the dead zone half-width sits between the 3x and 9x extents, so a stale size shows clearly
-      const body = new PositionComposerBody(mesh, 10, [0, 0], 1, [0.6, 0.6], 0);
+      const body = new PositionComposerBody(mesh, {
+        cameraDistance: 10,
+        screenPosition: [0, 0],
+        aspect: 1,
+        deadZone: [0.6, 0.6],
+        damping: 0,
+      });
       const out = createCameraState();
       out.fov = 90;
       body.update(out, 0.1, false);
@@ -328,7 +439,15 @@ describe('PositionComposerBody', () => {
 
     it('an extent larger than the dead zone settles at the center instead of oscillating (real bug)', () => {
       const target = new Vector3(0, 0, -20);
-      const body = new PositionComposerBody(target, 10, [0, 0], 1, [0.2, 0.2], 0, [0, 0], 2);
+      const body = new PositionComposerBody(target, {
+        cameraDistance: 10,
+        screenPosition: [0, 0],
+        aspect: 1,
+        deadZone: [0.2, 0.2],
+        damping: 0,
+        hardLimit: [0, 0],
+        radius: 2,
+      });
       const out = createCameraState();
       body.update(out, 0.1, true);
 
@@ -343,7 +462,17 @@ describe('PositionComposerBody', () => {
 
     it('an extent larger than hardLimit settles at the center too (real bug)', () => {
       const target = new Vector3(20, 0, -20);
-      const body = warmUp(new PositionComposerBody(target, 10, [0, 0], 1, [0.1, 0.1], 5, [0.15, 0.15], 2));
+      const body = warmUp(
+        new PositionComposerBody(target, {
+          cameraDistance: 10,
+          screenPosition: [0, 0],
+          aspect: 1,
+          deadZone: [0.1, 0.1],
+          damping: 5,
+          hardLimit: [0.15, 0.15],
+          radius: 2,
+        }),
+      );
       const out = createCameraState();
 
       body.update(out, 0.1, false);
@@ -358,13 +487,32 @@ describe('PositionComposerBody', () => {
   describe('hardLimit', () => {
     it('keeps the target inside it even when heavy damping would leave it outside, measured to its edge', () => {
       const pointTarget = new Vector3(20, 0, -10);
-      const point = warmUp(new PositionComposerBody(pointTarget, 10, [0, 0], 1, [0.1, 0.1], 5, [0.15, 0.15]));
+      const point = warmUp(
+        new PositionComposerBody(pointTarget, {
+          cameraDistance: 10,
+          screenPosition: [0, 0],
+          aspect: 1,
+          deadZone: [0.1, 0.1],
+          damping: 5,
+          hardLimit: [0.15, 0.15],
+        }),
+      );
       const out = createCameraState();
       point.update(out, 0.1, false);
       expect(projectToScreen(out, 1, pointTarget).x).toBeCloseTo(0.15, 4);
 
       const sphereTarget = new Vector3(20, 0, -10);
-      const sphere = warmUp(new PositionComposerBody(sphereTarget, 10, [0, 0], 1, [0.1, 0.1], 5, [0.15, 0.15], 1));
+      const sphere = warmUp(
+        new PositionComposerBody(sphereTarget, {
+          cameraDistance: 10,
+          screenPosition: [0, 0],
+          aspect: 1,
+          deadZone: [0.1, 0.1],
+          damping: 5,
+          hardLimit: [0.15, 0.15],
+          radius: 1,
+        }),
+      );
       const sphereOut = createCameraState();
       sphereOut.fov = 90;
       sphere.update(sphereOut, 0.1, false);
@@ -373,7 +521,14 @@ describe('PositionComposerBody', () => {
 
     it('still applies when the target sits inside a larger dead zone (real bug: the dead zone returned early)', () => {
       const target = new Vector3(0, 0, -20);
-      const body = new PositionComposerBody(target, 10, [0, 0], 1, [0.4, 0.4], 0, [0.1, 0.1]);
+      const body = new PositionComposerBody(target, {
+        cameraDistance: 10,
+        screenPosition: [0, 0],
+        aspect: 1,
+        deadZone: [0.4, 0.4],
+        damping: 0,
+        hardLimit: [0.1, 0.1],
+      });
       const out = createCameraState();
       body.update(out, 0.1, false);
       const before = vec3.clone(out.position);
@@ -388,7 +543,14 @@ describe('PositionComposerBody', () => {
       const target = new Vector3(20, 0, -20);
       const run = (hardLimit: [number, number]) => {
         const out = createCameraState();
-        new PositionComposerBody(target, 10, [0, 0], 1, [0.2, 0.2], 0.3, hardLimit).update(out, 0.016, false);
+        new PositionComposerBody(target, {
+          cameraDistance: 10,
+          screenPosition: [0, 0],
+          aspect: 1,
+          deadZone: [0.2, 0.2],
+          damping: 0.3,
+          hardLimit,
+        }).update(out, 0.016, false);
         return out.position;
       };
       expect(run([1000, 1000])).toEqual(run([0, 0]));
@@ -400,7 +562,7 @@ describe('PositionComposerBody', () => {
 
     function moving(setup: (body: PositionComposerBody) => void) {
       const target = new Vector3();
-      const body = new PositionComposerBody(target, 10);
+      const body = new PositionComposerBody(target, { cameraDistance: 10 });
       body.lookaheadTime = 0.5;
       body.lookaheadSmoothing = 10;
       setup(body);

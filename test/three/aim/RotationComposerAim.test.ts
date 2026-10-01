@@ -47,7 +47,7 @@ describe('RotationComposerAim', () => {
   });
 
   it('lands the target at screenPosition for any distance, fov and aspect', () => {
-    const aim = new RotationComposerAim(new Vector3(), [0.3, 0.2], 1.5);
+    const aim = new RotationComposerAim(new Vector3(), { screenPosition: [0.3, 0.2], aspect: 1.5 });
     const out = createCameraState();
     out.fov = 35;
     vec3.set(out.position, 3, -1, 5);
@@ -64,20 +64,25 @@ describe('RotationComposerAim', () => {
 
   it('leaves out untouched without a target', () => {
     const out = createCameraState();
-    new RotationComposerAim(null, [0.5, 0.5]).update(out, 0.1, false);
+    new RotationComposerAim(null, { screenPosition: [0.5, 0.5] }).update(out, 0.1, false);
     expect(out.quaternion).toEqual([0, 0, 0, 1]);
   });
 
   describe('lookAtTarget', () => {
     it('publishes the raw target, unaffected by screenPosition', () => {
       const out = createCameraState();
-      new RotationComposerAim(new Vector3(5, 2, -30), [0.3, 0.2]).update(out, 0.1, false);
+      new RotationComposerAim(new Vector3(5, 2, -30), { screenPosition: [0.3, 0.2] }).update(out, 0.1, false);
       expect(out.hasLookAtTarget).toBe(true);
       expect(out.lookAtTarget).toEqual([5, 2, -30]);
     });
 
     it('eases across a target change with damping instead of teleporting (real bug: a blend read a 12 unit jump for 0.14° of rotation)', () => {
-      const aim = new RotationComposerAim(new Vector3(-6, 1, 0), [0, 0], 1, [0, 0], 0.5);
+      const aim = new RotationComposerAim(new Vector3(-6, 1, 0), {
+        screenPosition: [0, 0],
+        aspect: 1,
+        deadZone: [0, 0],
+        damping: 0.5,
+      });
       const out = createCameraState();
       vec3.set(out.position, -6, 3, 7);
       aim.update(out, 1 / 60, true);
@@ -93,7 +98,12 @@ describe('RotationComposerAim', () => {
     });
 
     it('eases when only the distance changes (real bug: skipped ahead along the ray once the direction settled)', () => {
-      const aim = new RotationComposerAim(new Vector3(0, 0, -200), [0, 0], 1, [0, 0], 0.4);
+      const aim = new RotationComposerAim(new Vector3(0, 0, -200), {
+        screenPosition: [0, 0],
+        aspect: 1,
+        deadZone: [0, 0],
+        damping: 0.4,
+      });
       const out = createCameraState();
       aim.update(out, 1 / 60, true);
 
@@ -113,7 +123,14 @@ describe('RotationComposerAim', () => {
       target.rotation.set(0, Math.PI / 2, 0);
       const out = createCameraState();
 
-      new RotationComposerAim(target, [0, 0], 1, [0, 0], 0, [0, 0], [1, 0, 0]).update(out, 0.1, false);
+      new RotationComposerAim(target, {
+        screenPosition: [0, 0],
+        aspect: 1,
+        deadZone: [0, 0],
+        damping: 0,
+        hardLimit: [0, 0],
+        targetOffset: [1, 0, 0],
+      }).update(out, 0.1, false);
 
       const point = target.position.clone().add(new Vector3(1, 0, 0).applyQuaternion(target.quaternion));
       expect(projectToScreen(out, 1, point).x).toBeCloseTo(0, 5);
@@ -121,7 +138,14 @@ describe('RotationComposerAim', () => {
 
     it('adds in world space for a fixed-point target', () => {
       const out = createCameraState();
-      new RotationComposerAim(new Vector3(0, 0, -20), [0, 0], 1, [0, 0], 0, [0, 0], [2, 3, 0]).update(out, 0.1, false);
+      new RotationComposerAim(new Vector3(0, 0, -20), {
+        screenPosition: [0, 0],
+        aspect: 1,
+        deadZone: [0, 0],
+        damping: 0,
+        hardLimit: [0, 0],
+        targetOffset: [2, 3, 0],
+      }).update(out, 0.1, false);
       const projected = projectToScreen(out, 1, new Vector3(2, 3, -20));
       expect(projected.x).toBeCloseTo(0, 5);
       expect(projected.y).toBeCloseTo(0, 5);
@@ -131,7 +155,12 @@ describe('RotationComposerAim', () => {
   describe('dead zone', () => {
     it('ignores a target that moves within it', () => {
       const target = new Vector3(0, 0, -20);
-      const aim = new RotationComposerAim(target, [0, 0], 1, [0.4, 0.4], 0);
+      const aim = new RotationComposerAim(target, {
+        screenPosition: [0, 0],
+        aspect: 1,
+        deadZone: [0.4, 0.4],
+        damping: 0,
+      });
       const out = createCameraState();
 
       target.set(1, 1, -20);
@@ -142,7 +171,12 @@ describe('RotationComposerAim', () => {
 
     it('without damping, turns the target to the dead zone edge and stays there', () => {
       const target = new Vector3(20, 0, -20);
-      const aim = new RotationComposerAim(target, [0, 0], 1, [0.1, 0.1], 0);
+      const aim = new RotationComposerAim(target, {
+        screenPosition: [0, 0],
+        aspect: 1,
+        deadZone: [0.1, 0.1],
+        damping: 0,
+      });
       const out = createCameraState();
 
       aim.update(out, 0.1, false);
@@ -155,7 +189,9 @@ describe('RotationComposerAim', () => {
 
     it('with damping, eases toward the dead zone edge', () => {
       const target = new Vector3(20, 0, -20);
-      const aim = warmUp(new RotationComposerAim(target, [0, 0], 1, [0.1, 0.1], 0.3));
+      const aim = warmUp(
+        new RotationComposerAim(target, { screenPosition: [0, 0], aspect: 1, deadZone: [0.1, 0.1], damping: 0.3 }),
+      );
       const out = createCameraState();
 
       aim.update(out, 0.016, false);
@@ -167,7 +203,12 @@ describe('RotationComposerAim', () => {
 
     it('never turns back the old way when the target reverses after settling (real bug: stale damper velocity survived the freeze)', () => {
       const target = new Vector3(0, 0, -20);
-      const aim = new RotationComposerAim(target, [0, 0], 1, [0.15, 0.15], 0.3);
+      const aim = new RotationComposerAim(target, {
+        screenPosition: [0, 0],
+        aspect: 1,
+        deadZone: [0.15, 0.15],
+        damping: 0.3,
+      });
       const out = createCameraState();
       for (let i = 0; i < 40; i++) {
         target.x += 0.3;
@@ -197,7 +238,9 @@ describe('RotationComposerAim', () => {
     const instant = createCameraState();
     new RotationComposerAim(target).update(instant, 0.05, false);
     const gap = (maxSpeed: number) => {
-      const aim = warmUp(new RotationComposerAim(target, [0, 0], 1, [0, 0], 1));
+      const aim = warmUp(
+        new RotationComposerAim(target, { screenPosition: [0, 0], aspect: 1, deadZone: [0, 0], damping: 1 }),
+      );
       aim.maxSpeed = maxSpeed;
       const out = createCameraState();
       aim.update(out, 0.05, false);
@@ -221,43 +264,72 @@ describe('RotationComposerAim', () => {
 
     it("a radius makes the dead zone react to the target's edge", () => {
       const point = new Vector3(0, 0, -10);
-      expect(nudgeFromCenter(point, new RotationComposerAim(point, [0, 0], 1, [0.2, 0.2], 0))).toBeCloseTo(0.15, 4);
+      expect(
+        nudgeFromCenter(
+          point,
+          new RotationComposerAim(point, { screenPosition: [0, 0], aspect: 1, deadZone: [0.2, 0.2], damping: 0 }),
+        ),
+      ).toBeCloseTo(0.15, 4);
 
       const sphere = new Vector3(0, 0, -10);
-      const aim = new RotationComposerAim(sphere, [0, 0], 1, [0.2, 0.2], 0, [0, 0], [0, 0, 0], 1);
+      const aim = new RotationComposerAim(sphere, {
+        screenPosition: [0, 0],
+        aspect: 1,
+        deadZone: [0.2, 0.2],
+        damping: 0,
+        hardLimit: [0, 0],
+        targetOffset: [0, 0, 0],
+        radius: 1,
+      });
       expect(nudgeFromCenter(sphere, aim)).toBeCloseTo(0.1, 4);
     });
 
     it('a size works like a radius, a rotated box uses its oriented extent, and a mesh is measured on its own', () => {
       const box = new Vector3(0, 0, -10);
-      const boxAim = new RotationComposerAim(box, [0, 0], 1, [0.2, 0.2], 0, [0, 0], [0, 0, 0], undefined, [2, 2, 2]);
+      const boxAim = new RotationComposerAim(box, {
+        screenPosition: [0, 0],
+        aspect: 1,
+        deadZone: [0.2, 0.2],
+        damping: 0,
+        hardLimit: [0, 0],
+        targetOffset: [0, 0, 0],
+        size: [2, 2, 2],
+      });
       expect(nudgeFromCenter(box, boxAim)).toBeCloseTo(0.1, 4);
 
       const rotated = new Object3D();
       rotated.quaternion.setFromAxisAngle(new Vector3(0, 1, 0), Math.PI / 4);
       rotated.position.set(0, 0, -10);
-      const rotatedAim = new RotationComposerAim(
-        rotated,
-        [0, 0],
-        1,
-        [0.2, 0.2],
-        0,
-        [0, 0],
-        [0, 0, 0],
-        undefined,
-        [2, 2, 2],
-      );
+      const rotatedAim = new RotationComposerAim(rotated, {
+        screenPosition: [0, 0],
+        aspect: 1,
+        deadZone: [0.2, 0.2],
+        damping: 0,
+        hardLimit: [0, 0],
+        targetOffset: [0, 0, 0],
+        size: [2, 2, 2],
+      });
       expect(nudgeFromCenter(rotated, rotatedAim)).toBeCloseTo(0.2 - Math.SQRT2 / 10, 4);
 
       const mesh = new Mesh(new BoxGeometry(2, 2, 2), new MeshBasicMaterial());
       mesh.position.set(0, 0, -10);
-      expect(nudgeFromCenter(mesh, new RotationComposerAim(mesh, [0, 0], 1, [0.2, 0.2], 0))).toBeCloseTo(0.1, 4);
+      expect(
+        nudgeFromCenter(
+          mesh,
+          new RotationComposerAim(mesh, { screenPosition: [0, 0], aspect: 1, deadZone: [0.2, 0.2], damping: 0 }),
+        ),
+      ).toBeCloseTo(0.1, 4);
     });
 
     it('measures a mesh again only after recalculateSize()', () => {
       const mesh = new Mesh(new BoxGeometry(2, 2, 2), new MeshBasicMaterial());
       mesh.position.set(4, 0, -10);
-      const aim = new RotationComposerAim(mesh, [0, 0], 1, [0.6, 0.6], 0);
+      const aim = new RotationComposerAim(mesh, {
+        screenPosition: [0, 0],
+        aspect: 1,
+        deadZone: [0.6, 0.6],
+        damping: 0,
+      });
       const out = createCameraState();
       out.fov = 90;
       // raw vertex edits are the one change three.js never syncs into a cached bounding box
@@ -286,7 +358,15 @@ describe('RotationComposerAim', () => {
 
     it('an extent larger than the dead zone settles at the center instead of oscillating', () => {
       const target = new Vector3(0, 0, -10);
-      const aim = new RotationComposerAim(target, [0, 0], 1, [0.2, 0.2], 0, [0, 0], [0, 0, 0], 3);
+      const aim = new RotationComposerAim(target, {
+        screenPosition: [0, 0],
+        aspect: 1,
+        deadZone: [0.2, 0.2],
+        damping: 0,
+        hardLimit: [0, 0],
+        targetOffset: [0, 0, 0],
+        radius: 3,
+      });
       const out = createCameraState();
       out.fov = 90;
       aim.update(out, 0.1, false);
@@ -302,7 +382,15 @@ describe('RotationComposerAim', () => {
 
     it('an extent larger than hardLimit settles at the center too', () => {
       const target = new Vector3(0, 0, -10);
-      const aim = new RotationComposerAim(target, [0, 0], 1, [10, 10], 0, [0.1, 0.1], [0, 0, 0], 3);
+      const aim = new RotationComposerAim(target, {
+        screenPosition: [0, 0],
+        aspect: 1,
+        deadZone: [10, 10],
+        damping: 0,
+        hardLimit: [0.1, 0.1],
+        targetOffset: [0, 0, 0],
+        radius: 3,
+      });
       const out = createCameraState();
       out.fov = 90;
       aim.update(out, 0.1, false);
@@ -320,7 +408,15 @@ describe('RotationComposerAim', () => {
   describe('hardLimit', () => {
     it('keeps the target inside it even when heavy damping would leave it outside', () => {
       const target = new Vector3(20, 0, -20);
-      const aim = warmUp(new RotationComposerAim(target, [0, 0], 1, [0.1, 0.1], 5, [0.15, 0.15]));
+      const aim = warmUp(
+        new RotationComposerAim(target, {
+          screenPosition: [0, 0],
+          aspect: 1,
+          deadZone: [0.1, 0.1],
+          damping: 5,
+          hardLimit: [0.15, 0.15],
+        }),
+      );
       const out = createCameraState();
 
       aim.update(out, 0.1, false);
@@ -330,7 +426,13 @@ describe('RotationComposerAim', () => {
 
     it('still applies when the target sits inside a larger dead zone (real bug: the dead zone returned early)', () => {
       const target = new Vector3(0, 0, -20);
-      const aim = new RotationComposerAim(target, [0, 0], 1, [0.4, 0.4], 0, [0.05, 0.05]);
+      const aim = new RotationComposerAim(target, {
+        screenPosition: [0, 0],
+        aspect: 1,
+        deadZone: [0.4, 0.4],
+        damping: 0,
+        hardLimit: [0.05, 0.05],
+      });
       const out = createCameraState();
 
       target.set(1, 1, -20);
@@ -343,7 +445,13 @@ describe('RotationComposerAim', () => {
       const target = new Vector3(20, 0, -20);
       const run = (hardLimit: [number, number]) => {
         const out = createCameraState();
-        new RotationComposerAim(target, [0, 0], 1, [0.2, 0.2], 0.3, hardLimit).update(out, 0.016, false);
+        new RotationComposerAim(target, {
+          screenPosition: [0, 0],
+          aspect: 1,
+          deadZone: [0.2, 0.2],
+          damping: 0.3,
+          hardLimit,
+        }).update(out, 0.016, false);
         return out.quaternion;
       };
       expect(run([1000, 1000])).toEqual(run([0, 0]));
@@ -353,7 +461,12 @@ describe('RotationComposerAim', () => {
   describe('justActivated', () => {
     it('snaps to a new target from a stale rotation, where a plain update would ease', () => {
       const run = (justActivated: boolean) => {
-        const aim = new RotationComposerAim(new Vector3(10, 0, -10), [0, 0], 1, [0, 0], 0.5);
+        const aim = new RotationComposerAim(new Vector3(10, 0, -10), {
+          screenPosition: [0, 0],
+          aspect: 1,
+          deadZone: [0, 0],
+          damping: 0.5,
+        });
         const out = createCameraState();
         aim.update(out, 0.016, true);
         aim.update(out, 0.016, false);
@@ -370,7 +483,12 @@ describe('RotationComposerAim', () => {
     });
 
     it('skips the dead zone, which would otherwise hide the jump', () => {
-      const aim = new RotationComposerAim(new Vector3(0, 0, -10), [0, 0], 1, [0.9, 0.9], 0);
+      const aim = new RotationComposerAim(new Vector3(0, 0, -10), {
+        screenPosition: [0, 0],
+        aspect: 1,
+        deadZone: [0.9, 0.9],
+        damping: 0,
+      });
       const out = createCameraState();
       aim.update(out, 0.016, true);
 
@@ -384,7 +502,12 @@ describe('RotationComposerAim', () => {
   describe('primeFrom', () => {
     it('makes the next activation ease from the primed rotation, once', () => {
       const target = new Vector3(10, 0, -10);
-      const aim = new RotationComposerAim(target, [0, 0], 1, [0, 0], 0.5);
+      const aim = new RotationComposerAim(target, {
+        screenPosition: [0, 0],
+        aspect: 1,
+        deadZone: [0, 0],
+        damping: 0.5,
+      });
       const out = createCameraState();
       aim.primeFrom(out.quaternion);
 
@@ -399,7 +522,10 @@ describe('RotationComposerAim', () => {
     });
 
     it('is used up even when the target is not resolved yet on that activation', () => {
-      const aim = new RotationComposerAim({ current: null }, [0, 0], 1, [0, 0], 0.5);
+      const aim = new RotationComposerAim(
+        { current: null },
+        { screenPosition: [0, 0], aspect: 1, deadZone: [0, 0], damping: 0.5 },
+      );
       const out = createCameraState();
       aim.primeFrom(out.quaternion);
       aim.update(out, 0.016, true);

@@ -1,6 +1,7 @@
 import type { CameraState } from '../../core/CameraState.js';
 import type { DampingConstant } from '../../core/damping/Damper.js';
 import {
+  createGroupFramingParams,
   createGroupFramingState,
   updateGroupFraming,
   type GroupFramingFitMode,
@@ -11,47 +12,28 @@ import type { TargetGroup } from './TargetGroup.js';
 
 export type { GroupFramingFitMode, GroupFramingMode };
 
+export type GroupFramingOptions = Partial<GroupFramingParams>;
+
 /** Keeps a target group inside the camera frame by adjusting position and view offset. */
 export class GroupFramingExtension implements GroupFramingParams {
   group: TargetGroup;
-  padding: number;
-  viewportWidth: number;
-  viewportHeight: number;
-  damping: DampingConstant;
-  maxSpeed: number;
-  screenPosition: [number, number];
-  fitMode: GroupFramingFitMode;
-  minDistance: number;
-  maxDistance: number;
-  framingMode: GroupFramingMode;
+  declare padding: number;
+  declare viewportWidth: number;
+  declare viewportHeight: number;
+  declare damping: DampingConstant;
+  declare maxSpeed: number;
+  declare screenPosition: [number, number];
+  declare fitMode: GroupFramingFitMode;
+  declare minDistance: number;
+  declare maxDistance: number;
+  declare framingMode: GroupFramingMode;
 
   readonly state = createGroupFramingState();
   private forceSizeRecalculation = false;
 
-  constructor(
-    group: TargetGroup,
-    padding = 0,
-    viewportWidth = 1,
-    viewportHeight = 1,
-    damping: DampingConstant = 0,
-    screenPosition: [number, number] = [0, 0],
-    fitMode: GroupFramingFitMode = 'ceiling',
-    minDistance = 0,
-    maxDistance = Infinity,
-    framingMode: GroupFramingMode = 'horizontalAndVertical',
-    maxSpeed = Infinity,
-  ) {
+  constructor(group: TargetGroup, options?: GroupFramingOptions) {
     this.group = group;
-    this.padding = padding;
-    this.viewportWidth = viewportWidth;
-    this.viewportHeight = viewportHeight;
-    this.damping = damping;
-    this.screenPosition = screenPosition;
-    this.fitMode = fitMode;
-    this.minDistance = minDistance;
-    this.maxDistance = maxDistance;
-    this.framingMode = framingMode;
-    this.maxSpeed = maxSpeed;
+    Object.assign(this, createGroupFramingParams(options));
   }
 
   /** Re-measure member sizes on the next update. */

@@ -1,5 +1,6 @@
 import { clamp, repeat } from 'math';
 import { createDamperState, damp, resetDamper, type DamperState, type DampingConstant } from '../damping/Damper.js';
+import { withDefaults } from '../params.js';
 import { shortestWrappedDelta } from './shortestWrappedDelta.js';
 
 export type InputAxisRecentering = {
@@ -10,17 +11,44 @@ export type InputAxisRecentering = {
   time: number;
 };
 
-/** An input axis as plain data: configuration plus the state the functions below advance. */
-export type InputAxisData = {
+/** An input axis's settings. */
+export type InputAxisParams = {
+  /** The current value. */
   value: number;
+  /** The value `recentering` returns to. */
   center: number;
+  /** `[min, max]` limits, or `null` for none. */
   range: [number, number] | null;
+  /** Loop around at the edges of `range` instead of stopping. */
   wrap: boolean;
+  /** Return to `center` after a while without input. */
   recentering: InputAxisRecentering;
+  /** Response time to the input. */
   damping: DampingConstant;
+  /** Maximum change per second. */
   maxSpeed: number;
   /** Whether to normalize a wrapped axis after it settles. */
   autoNormalize: boolean;
+};
+
+/** Every setting from `settings`, or its default. */
+export const createInputAxisParams = (settings?: Partial<InputAxisParams>): InputAxisParams =>
+  withDefaults(
+    {
+      value: 0,
+      center: 0,
+      range: null,
+      wrap: false,
+      recentering: { enabled: false, wait: 1, time: 1 },
+      damping: 0,
+      maxSpeed: Infinity,
+      autoNormalize: false,
+    },
+    settings,
+  );
+
+/** An input axis as plain data: settings plus the state the functions below advance. */
+export type InputAxisData = InputAxisParams & {
   /** Whether the input source is currently held. */
   held: boolean;
   /** Target the value eases toward. Internal. */
@@ -89,36 +117,26 @@ export function resetAxis(axis: InputAxisData): void {
 
 /** Shapes an input value with range, wrapping, damping, and recentering. */
 export class InputAxis implements InputAxisData {
-  value: number;
-  center: number;
-  range: [number, number] | null;
-  wrap: boolean;
-  recentering: InputAxisRecentering;
-  damping: DampingConstant = 0;
-  maxSpeed = Infinity;
-  autoNormalize = false;
+  declare value: number;
+  declare center: number;
+  declare range: [number, number] | null;
+  declare wrap: boolean;
+  declare recentering: InputAxisRecentering;
+  declare damping: DampingConstant;
+  declare maxSpeed: number;
+  declare autoNormalize: boolean;
   held = false;
   rawValue: number;
   idleTime = 0;
   hadDelta = false;
   readonly damper = createDamperState();
 
-  constructor(
-    value = 0,
-    center = 0,
-    range: [number, number] | null = null,
-    wrap = false,
-    recentering: InputAxisRecentering = { enabled: false, wait: 1, time: 1 },
-  ) {
-    this.value = value;
-    this.rawValue = value;
-    this.center = center;
-    this.range = range;
-    this.wrap = wrap;
-    this.recentering = recentering;
+  constructor(options?: Partial<InputAxisParams>) {
+    Object.assign(this, createInputAxisParams(options));
+    this.rawValue = this.value;
     // Consume the damper's first-call snap so the first update eases instead of jumping.
-    this.damper.value = value;
-    damp(this.damper, value, 0, 0);
+    this.damper.value = this.value;
+    damp(this.damper, this.value, 0, 0);
   }
 
   applyDelta = (delta: number): void => applyAxisDelta(this, delta);

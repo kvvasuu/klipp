@@ -14,21 +14,53 @@ import {
   resetPredictor,
   type PredictorState,
 } from '../damping/predictor.js';
-import { projectTargetExtent, type TargetExtent } from '../TargetExtent.js';
+import { withDefaults } from '../params.js';
+import { projectTargetExtent } from '../TargetExtent.js';
+import type { TargetPose } from '../TargetPose.js';
 
 export type PositionComposerParams = {
+  /** Desired distance from the camera to the target. */
   cameraDistance: number;
+  /** Where the target should land on screen: `[x, y]`, `0` = center, `±1` = edge. */
   screenPosition: [number, number];
+  /** Viewport width divided by height. */
   aspect: number;
+  /** Allowed target drift from `screenPosition` before the camera shifts laterally. */
   deadZone: [number, number];
+  /** Response time for dolly and lateral composition. */
   damping: DampingConstant;
+  /** Maximum allowed target drift, enforced immediately. */
   hardLimit: [number, number];
+  /** Allowed target depth drift before the camera dollies. */
   depthDeadZone: number;
+  /** Maximum damping speed for both stages, in world units/sec. */
   maxSpeed: number;
+  /** Seconds to extrapolate the target's tracked position ahead by. */
   lookaheadTime: number;
+  /** Smooth-time budget (seconds) for the velocity estimate driving `lookaheadTime`. */
   lookaheadSmoothing: number;
+  /** Whether lookahead ignores vertical movement. */
   lookaheadIgnoreY: boolean;
 };
+
+/** Every setting from `settings`, or its default. */
+export const createPositionComposerParams = (settings?: Partial<PositionComposerParams>): PositionComposerParams =>
+  withDefaults(
+    {
+      cameraDistance: 10,
+      screenPosition: [0, 0],
+      aspect: 1,
+      deadZone: [0, 0],
+      damping: 0,
+      hardLimit: [0, 0],
+      depthDeadZone: 0,
+      maxSpeed: Infinity,
+      lookaheadTime: 0,
+      lookaheadSmoothing: 1,
+      lookaheadIgnoreY: false,
+    },
+    settings,
+  );
 
 export type PositionComposerState = {
   damper: Vector3DamperState;
@@ -62,25 +94,24 @@ const rightAxis: Vec3 = [1, 0, 0];
 const upAxis: Vec3 = [0, 1, 0];
 
 /**
- * Positions `out` using depth and screen-space composition around `targetPosition`. A `null` target
- * leaves `out` as is. `retarget` restarts the lookahead history (the target object changed).
+ * Positions `out` using depth and screen-space composition around the target and its `extent`. A `null`
+ * target leaves `out` as is.
  */
 export function updatePositionComposer(
   out: CameraState,
   state: PositionComposerState,
   params: PositionComposerParams,
-  targetPosition: Vec3 | null,
-  extent: TargetExtent,
+  targetPose: TargetPose | null,
   dt: number,
   justActivated: boolean,
-  retarget: boolean,
 ): void {
   const skipReset = justActivated && state.primed;
   if (justActivated) state.primed = false;
-  if (!targetPosition) return;
+  if (!targetPose) return;
 
-  const target = vec3.copy(scratchTarget, targetPosition);
-  if (justActivated || retarget) resetPredictor(state.predictor);
+  const { extent } = targetPose;
+  const target = vec3.copy(scratchTarget, targetPose.position);
+  if (justActivated) resetPredictor(state.predictor);
   addPredictorPosition(state.predictor, target, dt, params.lookaheadSmoothing);
   if (params.lookaheadTime > 0) {
     predictPositionDelta(scratchLookaheadDelta, state.predictor, params.lookaheadTime);
@@ -206,6 +237,11 @@ export function updatePositionComposer(
     Math.sign(limitErrorY) * limitExtentY;
   vec3.scaleAndAdd(position, position, scratchRight, afterRight - clampedX * halfWidth);
   vec3.scaleAndAdd(position, position, scratchUp, afterUp - clampedY * halfHeight);
+}
+
+/** Restart the lookahead history, for when the target switches to a different object. */
+export function retargetPositionComposer(state: PositionComposerState): void {
+  resetPredictor(state.predictor);
 }
 
 /** Start the next activation from `position` instead of snapping to the target. */

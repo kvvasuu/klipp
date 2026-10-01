@@ -75,13 +75,12 @@ export function CameraControls({
   const get = useThree((state) => state.get);
   const [body] = useState(
     () =>
-      new CameraControlsBody(
-        target,
+      new CameraControlsBody(target, {
         aspect,
-        initialPosition ? resolveVector3(new Vector3(), initialPosition) : null,
+        initialPosition: initialPosition ? resolveVector3(new Vector3(), initialPosition) : null,
         impl,
         enableTransition,
-      ),
+      }),
   );
   body.target = target;
   body.targetSlot = useTargetSlot(target);

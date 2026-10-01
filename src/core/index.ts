@@ -98,6 +98,7 @@ export {
   updateFollow,
   primeFollow,
   createFollowState,
+  createFollowParams,
   followNeedsTargetRotation,
   type FollowParams,
   type FollowState,
@@ -105,13 +106,16 @@ export {
 export {
   updateHardLockToTarget,
   createHardLockToTargetState,
+  createHardLockToTargetParams,
   type HardLockToTargetParams,
   type HardLockToTargetState,
 } from './body/hardLockToTarget.js';
 export {
   updatePositionComposer,
   primePositionComposer,
+  retargetPositionComposer,
   createPositionComposerState,
+  createPositionComposerParams,
   type PositionComposerParams,
   type PositionComposerState,
 } from './body/positionComposer.js';
@@ -120,6 +124,7 @@ export {
   updateRotateWithFollowTarget,
   primeRotateWithFollowTarget,
   createRotateWithFollowTargetState,
+  createRotateWithFollowTargetParams,
   type RotateWithFollowTargetParams,
   type RotateWithFollowTargetState,
 } from './aim/rotateWithFollowTarget.js';
@@ -127,20 +132,23 @@ export { updatePanTilt, seedPanTilt, createPanTiltState, type PanTiltState } fro
 export {
   updateRotationComposer,
   primeRotationComposer,
+  retargetRotationComposer,
   createRotationComposerState,
+  createRotationComposerParams,
   rotationComposerNeedsExtent,
   type RotationComposerParams,
   type RotationComposerState,
 } from './aim/rotationComposer.js';
 
 export { composerDebugZones, groupFramingPaddingBox, type DebugZone } from './debug/debugZones.js';
-export { LensExtension } from './extension/LensExtension.js';
-export { updateLens, createLensState, type LensParams, type LensState } from './extension/lens.js';
+export { LensExtension, type LensOptions } from './extension/LensExtension.js';
+export { updateLens, createLensState, createLensParams, type LensParams, type LensState } from './extension/lens.js';
 export {
   updateGroupFraming,
   horizontalHalfFov,
   computeGroupBounds,
   createGroupFramingState,
+  createGroupFramingParams,
   createGroupMember,
   type GroupMember,
   type GroupPositionMode,
@@ -151,11 +159,13 @@ export {
 } from './extension/groupFraming.js';
 export {
   InputAxis,
+  createInputAxisParams,
   applyAxisDelta,
   updateAxis,
   resetAxis,
   normalizeAxis,
   type InputAxisData,
+  type InputAxisParams,
   type InputAxisRecentering,
 } from './input/InputAxis.js';
 export { createConsumedInput, type ConsumedInput } from './input/consumedInput.js';
@@ -167,15 +177,21 @@ export {
   type InputSourceMapping,
 } from './input/inputMapping.js';
 
-export { BasicMultiChannelPerlinNoise } from './noise/BasicMultiChannelPerlinNoise.js';
+export { BasicMultiChannelPerlinNoise, type PerlinNoiseOptions } from './noise/BasicMultiChannelPerlinNoise.js';
 export {
   updatePerlinNoise,
   createPerlinNoiseState,
+  createPerlinNoiseParams,
   type PerlinNoiseParams,
   type PerlinNoiseState,
 } from './noise/perlinNoise.js';
 export { ImpulseField, impulseField } from './impulse/ImpulseField.js';
-export { ImpulseListenerNoise } from './impulse/ImpulseListenerNoise.js';
+export {
+  ImpulseListenerNoise,
+  createImpulseListenerParams,
+  type ImpulseListenerOptions,
+  type ImpulseListenerParams,
+} from './impulse/ImpulseListenerNoise.js';
 export {
   ImpulseShapes,
   generateImpulse,

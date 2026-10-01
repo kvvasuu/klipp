@@ -22,14 +22,19 @@ function runFocusPull(retargetAtTick: number | null, reactivateOntoSameTargetFir
   const defaultState = createCameraState();
   const focusedState = createCameraState();
 
-  const defaultBody = new FollowBody(productCenter, [0, 4, 16], 0);
+  const defaultBody = new FollowBody(productCenter, { offset: [0, 4, 16], damping: 0 });
   const defaultAim = new HardLookAtAim(productCenter);
 
   const firstFocus = { position: new Vector3(-6, 3, 7), lookAt: new Vector3(-6, 1, 0) };
   const secondFocus = { position: new Vector3(6, 1, -4), lookAt: new Vector3(6, 5, 1) };
 
-  const focusedBody = new HardLockToTargetBody(firstFocus.position, 0.5);
-  const focusedAim = new RotationComposerAim(firstFocus.lookAt, [0, 0], 1, [0, 0], 0.5);
+  const focusedBody = new HardLockToTargetBody(firstFocus.position, { damping: 0.5 });
+  const focusedAim = new RotationComposerAim(firstFocus.lookAt, {
+    screenPosition: [0, 0],
+    aspect: 1,
+    deadZone: [0, 0],
+    damping: 0.5,
+  });
 
   const driver = new BlendDriver<'default' | 'focused'>((id) => (id === 'default' ? defaultState : focusedState));
 

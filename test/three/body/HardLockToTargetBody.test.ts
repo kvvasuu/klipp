@@ -33,7 +33,7 @@ describe('HardLockToTargetBody', () => {
 
   describe('damping', () => {
     it('snaps on the very first update, then eases toward the target and converges', () => {
-      const body = new HardLockToTargetBody(new Vector3(10, 5, -3), 0.3);
+      const body = new HardLockToTargetBody(new Vector3(10, 5, -3), { damping: 0.3 });
       const first = createCameraState();
       body.update(first, 0.016, false);
       expect(first.position).toEqual([10, 5, -3]);
@@ -50,7 +50,7 @@ describe('HardLockToTargetBody', () => {
     });
 
     it('publishes the damped position as out.target, not the raw target (real bug: blend hints read the lag as an orbit offset)', () => {
-      const body = new HardLockToTargetBody(new Vector3(10, 0, 0), 0.5);
+      const body = new HardLockToTargetBody(new Vector3(10, 0, 0), { damping: 0.5 });
       const out = warmUp(body);
 
       body.update(out, 0.016, false);
@@ -61,7 +61,7 @@ describe('HardLockToTargetBody', () => {
 
     it('damps each axis on its own', () => {
       const target = new Vector3(10, 0, 0);
-      const body = new HardLockToTargetBody(target, 0.5);
+      const body = new HardLockToTargetBody(target, { damping: 0.5 });
       const out = createCameraState();
 
       body.update(out, 0.1, false);
@@ -74,7 +74,7 @@ describe('HardLockToTargetBody', () => {
 
     it('maxSpeed caps how fast damping closes the gap', () => {
       const run = (maxSpeed: number) => {
-        const body = new HardLockToTargetBody(new Vector3(100, 0, 0), 1, maxSpeed);
+        const body = new HardLockToTargetBody(new Vector3(100, 0, 0), { damping: 1, maxSpeed });
         const out = warmUp(body);
         body.update(out, 0.05, false);
         return out.position[0];
@@ -86,7 +86,7 @@ describe('HardLockToTargetBody', () => {
 
   it('justActivated snaps to a new target from a stale position, where a plain update would ease', () => {
     const run = (justActivated: boolean) => {
-      const body = new HardLockToTargetBody(new Vector3(10, 0, 0), 0.5);
+      const body = new HardLockToTargetBody(new Vector3(10, 0, 0), { damping: 0.5 });
       const out = createCameraState();
       body.update(out, 0.016, true);
       body.update(out, 0.016, false);

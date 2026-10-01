@@ -9,13 +9,25 @@ import {
 } from '../damping/dampVector3.js';
 import type { TargetPose } from '../TargetPose.js';
 import { BindingModes, type BindingMode } from './BindingModes.js';
+import { withDefaults } from '../params.js';
 
 export type FollowParams = {
+  /** Offset from the target, rotated according to `bindingMode`. */
   offset: Vec3;
+  /** Response time for following the target position. */
   damping: DampingConstant;
+  /** Rotation frame used to interpret `offset`. */
   bindingMode: BindingMode;
+  /** Maximum damping speed, in world units/sec. */
   maxSpeed: number;
 };
+
+/** Every setting from `settings`, or its default. */
+export const createFollowParams = (settings?: Partial<FollowParams>): FollowParams =>
+  withDefaults(
+    { offset: [0, 0, 10], damping: 0, bindingMode: BindingModes.lockToTarget, maxSpeed: Infinity },
+    settings,
+  );
 
 export type FollowState = {
   damper: Vector3DamperState;

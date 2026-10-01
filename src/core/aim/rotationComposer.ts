@@ -9,21 +9,50 @@ import {
   resetPredictor,
   type PredictorState,
 } from '../damping/predictor.js';
-import { projectTargetExtent, type TargetExtent } from '../TargetExtent.js';
+import { projectTargetExtent } from '../TargetExtent.js';
+import type { TargetPose } from '../TargetPose.js';
+import { withDefaults } from '../params.js';
 
 export type RotationComposerParams = {
+  /** Where the target should land on screen: `[x, y]`, `0` = center, `±1` = edge. */
   screenPosition: [number, number];
+  /** Viewport width divided by height. */
   aspect: number;
+  /** Allowed target drift from `screenPosition` before the camera reacts. */
   deadZone: [number, number];
+  /** Response time when the target leaves the `deadZone`. */
   damping: DampingConstant;
+  /** Maximum damping speed, in radians/sec. */
   maxSpeed: number;
+  /** Maximum allowed target drift, enforced immediately. */
   hardLimit: [number, number];
   /** Offset from the target, in the target's local space. */
   targetOffset: Vec3;
+  /** Seconds to aim ahead of the target's current position. */
   lookaheadTime: number;
+  /** Smoothing time for the lookahead velocity estimate. */
   lookaheadSmoothing: number;
+  /** Whether lookahead ignores vertical movement. */
   lookaheadIgnoreY: boolean;
 };
+
+/** Every setting from `settings`, or its default. */
+export const createRotationComposerParams = (settings?: Partial<RotationComposerParams>): RotationComposerParams =>
+  withDefaults(
+    {
+      screenPosition: [0, 0],
+      aspect: 1,
+      deadZone: [0, 0],
+      damping: 0,
+      maxSpeed: Infinity,
+      hardLimit: [0, 0],
+      targetOffset: [0, 0, 0],
+      lookaheadTime: 0,
+      lookaheadSmoothing: 1,
+      lookaheadIgnoreY: false,
+    },
+    settings,
+  );
 
 export type RotationComposerState = {
   damper: DamperState;
@@ -122,26 +151,24 @@ function composeRotationForScreenPoint(
 }
 
 /**
- * Rotates `out` to place the target at `screenPosition`. A `null` target leaves `out` as is; a `null`
- * rotation counts as identity for `targetOffset`. `retarget` restarts the lookahead history.
+ * Rotates `out` to place the target at `screenPosition`. A `null` target leaves `out` as is; a target
+ * without rotation counts as identity for `targetOffset`.
  */
 export function updateRotationComposer(
   out: CameraState,
   state: RotationComposerState,
   params: RotationComposerParams,
-  targetPosition: Vec3 | null,
-  targetRotation: Quat | null,
-  extent: TargetExtent,
+  targetPose: TargetPose | null,
   dt: number,
   justActivated: boolean,
-  retarget: boolean,
 ): void {
   const skipReset = justActivated && state.primed;
   if (justActivated) state.primed = false;
-  if (!targetPosition) return;
+  if (!targetPose) return;
 
-  const target = vec3.copy(scratchTarget, targetPosition);
-  if (justActivated || retarget) resetPredictor(state.predictor);
+  const { extent } = targetPose;
+  const target = vec3.copy(scratchTarget, targetPose.position);
+  if (justActivated) resetPredictor(state.predictor);
   addPredictorPosition(state.predictor, target, dt, params.lookaheadSmoothing);
   if (params.lookaheadTime > 0) {
     predictPositionDelta(scratchLookaheadDelta, state.predictor, params.lookaheadTime);
@@ -149,7 +176,7 @@ export function updateRotationComposer(
     vec3.add(target, target, scratchLookaheadDelta);
   }
 
-  if (targetRotation) quat.copy(scratchTargetRotation, targetRotation);
+  if (targetPose.hasRotation) quat.copy(scratchTargetRotation, targetPose.rotation);
   else quat.identity(scratchTargetRotation);
   vec3.add(target, target, vec3.transformQuat(scratchOffset, params.targetOffset, scratchTargetRotation));
 
@@ -282,6 +309,11 @@ export function updateRotationComposer(
     tanHalfFovV,
   );
   quat.copy(rotation, scratchHardLimitRotation);
+}
+
+/** Restart the lookahead history, for when the target switches to a different object. */
+export function retargetRotationComposer(state: RotationComposerState): void {
+  resetPredictor(state.predictor);
 }
 
 /** Start the next activation from `rotation` instead of snapping to the target. */

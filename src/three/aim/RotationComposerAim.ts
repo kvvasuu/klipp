@@ -4,11 +4,12 @@ import type { DampingConstant } from '../../core/damping/Damper.js';
 import {
   createRotationComposerState,
   primeRotationComposer,
+  retargetRotationComposer,
   rotationComposerNeedsExtent,
   updateRotationComposer,
+  createRotationComposerParams,
   type RotationComposerParams,
 } from '../../core/aim/rotationComposer.js';
-import { createTargetExtent } from '../../core/TargetExtent.js';
 import { createTargetPose } from '../../core/TargetPose.js';
 import { readTargetExtent } from '../readTargetExtent.js';
 import { readTargetPose } from '../readTargetPose.js';
@@ -16,57 +17,40 @@ import type { Target } from '../resolve/Target.js';
 import type { TargetSlot } from '../resolve/TargetRegistry.js';
 import type { Vector3Like } from '../resolve/resolveVector3.js';
 
+export type RotationComposerOptions = Partial<RotationComposerParams> & {
+  /** Target radius used when composing its visible edge. Ignored when `size` is set. */
+  radius?: number;
+  /** Target dimensions used when composing its visible edges. Measured automatically for meshes. */
+  size?: Vector3Like;
+};
+
 /** Rotates the camera to place a target at `screenPosition`. */
 export class RotationComposerAim implements RotationComposerParams {
   target: Target;
   targetSlot: TargetSlot | null = null;
-  screenPosition: [number, number];
-  aspect: number;
-  deadZone: [number, number];
-  damping: DampingConstant;
-  maxSpeed: number;
-  hardLimit: [number, number];
-  targetOffset: Vec3;
+  declare screenPosition: [number, number];
+  declare aspect: number;
+  declare deadZone: [number, number];
+  declare damping: DampingConstant;
+  declare maxSpeed: number;
+  declare hardLimit: [number, number];
+  declare targetOffset: Vec3;
   radius?: number;
   size?: Vector3Like;
-  lookaheadTime: number;
-  lookaheadSmoothing: number;
-  lookaheadIgnoreY: boolean;
+  declare lookaheadTime: number;
+  declare lookaheadSmoothing: number;
+  declare lookaheadIgnoreY: boolean;
 
   readonly state = createRotationComposerState();
   private readonly pose = createTargetPose();
-  private readonly extent = createTargetExtent();
   private lastTarget: Target = undefined;
   private forceSizeRecalculation = false;
 
-  constructor(
-    target: Target,
-    screenPosition: [number, number] = [0, 0],
-    aspect = 1,
-    deadZone: [number, number] = [0, 0],
-    damping: DampingConstant = 0,
-    hardLimit: [number, number] = [0, 0],
-    targetOffset: Vec3 = [0, 0, 0],
-    radius?: number,
-    size?: Vector3Like,
-    lookaheadTime = 0,
-    lookaheadSmoothing = 1,
-    lookaheadIgnoreY = false,
-    maxSpeed = Infinity,
-  ) {
+  constructor(target: Target, options?: RotationComposerOptions) {
     this.target = target;
-    this.screenPosition = screenPosition;
-    this.aspect = aspect;
-    this.deadZone = deadZone;
-    this.damping = damping;
-    this.hardLimit = hardLimit;
-    this.targetOffset = targetOffset;
-    this.radius = radius;
-    this.size = size;
-    this.lookaheadTime = lookaheadTime;
-    this.lookaheadSmoothing = lookaheadSmoothing;
-    this.lookaheadIgnoreY = lookaheadIgnoreY;
-    this.maxSpeed = maxSpeed;
+    Object.assign(this, createRotationComposerParams(options));
+    this.radius = options?.radius;
+    this.size = options?.size;
   }
 
   /** Forces the auto-detected `size` to be re-measured on the next `update()`, then goes back to the cached value. */
@@ -78,12 +62,12 @@ export class RotationComposerAim implements RotationComposerParams {
 
   update = (out: CameraState, dt: number, justActivated: boolean): void => {
     const resolved = readTargetPose(this.pose, this.target, this.targetSlot, true);
-    const retarget = resolved && this.target !== this.lastTarget;
     if (resolved) {
+      if (this.target !== this.lastTarget) retargetRotationComposer(this.state);
       this.lastTarget = this.target;
       if (rotationComposerNeedsExtent(this)) {
         readTargetExtent(
-          this.extent,
+          this.pose.extent,
           this.target,
           this.size,
           this.radius,
@@ -93,8 +77,6 @@ export class RotationComposerAim implements RotationComposerParams {
       }
       this.forceSizeRecalculation = false;
     }
-    const position = resolved ? this.pose.position : null;
-    const rotation = resolved && this.pose.hasRotation ? this.pose.rotation : null;
-    updateRotationComposer(out, this.state, this, position, rotation, this.extent, dt, justActivated, retarget);
+    updateRotationComposer(out, this.state, this, resolved ? this.pose : null, dt, justActivated);
   };
 }

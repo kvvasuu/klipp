@@ -6,7 +6,14 @@ import { angleBetween } from '../mathHelpers';
 
 /** Noise with a fixed seed, so two instances produce the same samples. */
 const seeded = (position: Vec3, rotation?: Vec3, seed = 3, frequencyGain = 1, amplitudeDamping = 0) =>
-  new BasicMultiChannelPerlinNoise(position, undefined, rotation, undefined, 1, frequencyGain, seed, amplitudeDamping);
+  new BasicMultiChannelPerlinNoise({
+    positionAmplitude: position,
+    rotationAmplitude: rotation,
+    amplitudeGain: 1,
+    frequencyGain,
+    seed,
+    amplitudeDamping,
+  });
 
 /** Size of the position offset one update adds to a fresh camera at the origin. */
 function offset(noise: BasicMultiChannelPerlinNoise, dt: number, justActivated = false) {
@@ -17,7 +24,10 @@ function offset(noise: BasicMultiChannelPerlinNoise, dt: number, justActivated =
 
 describe('BasicMultiChannelPerlinNoise', () => {
   it('does nothing with zero amplitudes or a zero amplitudeGain', () => {
-    const silenced = new BasicMultiChannelPerlinNoise([5, 5, 5], undefined, [20, 20, 20]);
+    const silenced = new BasicMultiChannelPerlinNoise({
+      positionAmplitude: [5, 5, 5],
+      rotationAmplitude: [20, 20, 20],
+    });
     silenced.amplitudeGain = 0;
     for (const noise of [new BasicMultiChannelPerlinNoise(), silenced]) {
       const out = createCameraState();

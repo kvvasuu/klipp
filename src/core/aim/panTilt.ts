@@ -6,8 +6,8 @@ import { InputAxis } from '../input/InputAxis.js';
 export type PanTiltState = { pan: InputAxis; tilt: InputAxis };
 
 export const createPanTiltState = (): PanTiltState => ({
-  pan: new InputAxis(0, 0, [-180, 180], true),
-  tilt: new InputAxis(0, 0, [-90, 90]),
+  pan: new InputAxis({ range: [-180, 180], wrap: true }),
+  tilt: new InputAxis({ range: [-90, 90] }),
 });
 
 const worldUp: Vec3 = [0, 1, 0];
