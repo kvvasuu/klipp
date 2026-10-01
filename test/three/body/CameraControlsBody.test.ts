@@ -241,7 +241,7 @@ describe('CameraControlsBody', () => {
     it('sphericalPosition arcs around the shared target (real bug: blends into CameraControls always went straight)', () => {
       const core = new KlippCore({ defaultBlend: { curve: BlendCurves.linear, time: 1 } });
       const a = createCameraState();
-      new FollowBody(new Vector3(), [10, 0, 0]).update(a, 0.016, false);
+      new FollowBody(new Vector3(), { offset: [10, 0, 0] }).update(a, 0.016, false);
       new HardLookAtAim(new Vector3()).update(a);
       core.registerCamera({ id: 'a', priority: 10, state: a, hints: BlendHints.sphericalPosition });
       core.tick(0);

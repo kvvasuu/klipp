@@ -1,32 +1,31 @@
 import { useEffect, useImperativeHandle, useState, type Ref } from 'react';
-import type { DampingConstant } from '../../core/damping/Damper.js';
+import { createRotateWithFollowTargetParams } from '../../core/aim/rotateWithFollowTarget.js';
 import type { Target } from '../../three/resolve/Target.js';
 import { useTargetSlot } from '../useTargetSlot.js';
 import { useVirtualCamera } from '../VirtualCameraContext.js';
-import { RotateWithFollowTargetAim } from '../../three/aim/RotateWithFollowTargetAim.js';
+import {
+  RotateWithFollowTargetAim,
+  type RotateWithFollowTargetOptions,
+} from '../../three/aim/RotateWithFollowTargetAim.js';
 
-export type RotateWithFollowTargetProps = {
+export type RotateWithFollowTargetProps = RotateWithFollowTargetOptions & {
   /** Target rotation to copy. Unresolved targets are ignored. */
   target?: Target;
-  /** Spring response time to the target's rotation (or `{into, from}` for asymmetric damping). */
-  damping?: DampingConstant;
-  /** Caps how fast `damping` can close the gap, in radians/sec. */
-  maxSpeed?: number;
   ref?: Ref<RotateWithFollowTargetAim>;
 };
 
 /** Thin wrapper around `RotateWithFollowTargetAim`. */
-export function RotateWithFollowTarget({ target, damping = 0, maxSpeed = Infinity, ref }: RotateWithFollowTargetProps) {
+export function RotateWithFollowTarget({ target, ref, ...settings }: RotateWithFollowTargetProps) {
   const { controller, state, initialState } = useVirtualCamera();
+  const params = createRotateWithFollowTargetParams(settings);
   const [aim] = useState(() => {
-    const instance = new RotateWithFollowTargetAim(target, damping, maxSpeed);
+    const instance = new RotateWithFollowTargetAim(target, params);
     if (initialState?.quaternion) instance.primeFrom(state.quaternion);
     return instance;
   });
   aim.target = target;
   aim.targetSlot = useTargetSlot(target);
-  aim.damping = damping;
-  aim.maxSpeed = maxSpeed;
+  Object.assign(aim, params);
 
   useImperativeHandle(ref, () => aim, [aim]);
   useEffect(() => controller.registerAim(aim.update), [controller, aim]);

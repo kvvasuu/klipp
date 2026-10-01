@@ -98,6 +98,7 @@ export {
   updateFollow,
   primeFollow,
   createFollowState,
+  createFollowParams,
   followNeedsTargetRotation,
   type FollowParams,
   type FollowState,
@@ -105,6 +106,7 @@ export {
 export {
   updateHardLockToTarget,
   createHardLockToTargetState,
+  createHardLockToTargetParams,
   type HardLockToTargetParams,
   type HardLockToTargetState,
 } from './body/hardLockToTarget.js';
@@ -121,6 +123,7 @@ export {
   updateRotateWithFollowTarget,
   primeRotateWithFollowTarget,
   createRotateWithFollowTargetState,
+  createRotateWithFollowTargetParams,
   type RotateWithFollowTargetParams,
   type RotateWithFollowTargetState,
 } from './aim/rotateWithFollowTarget.js';
@@ -129,6 +132,7 @@ export {
   updateRotationComposer,
   primeRotationComposer,
   createRotationComposerState,
+  createRotationComposerParams,
   rotationComposerNeedsExtent,
   type RotationComposerParams,
   type RotationComposerState,

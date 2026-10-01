@@ -20,14 +20,15 @@ export type PositionComposerProps = Omit<PositionComposerOptions, 'aspect'> & {
 export function PositionComposer({ target, debug = false, ref, ...settings }: PositionComposerProps) {
   const { controller, state: cameraState, initialState } = useVirtualCamera();
   const aspect = useThree((state) => state.viewport.aspect);
+  const params = createPositionComposerParams({ ...settings, aspect });
   const [body] = useState(() => {
-    const instance = new PositionComposerBody(target, { ...settings, aspect });
+    const instance = new PositionComposerBody(target, params);
     if (initialState?.position) instance.primeFrom(cameraState.position);
     return instance;
   });
   body.target = target;
   body.targetSlot = useTargetSlot(target);
-  Object.assign(body, createPositionComposerParams({ ...settings, aspect }));
+  Object.assign(body, params);
   body.radius = settings.radius;
   body.size = settings.size;
 

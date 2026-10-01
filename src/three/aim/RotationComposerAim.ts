@@ -6,6 +6,7 @@ import {
   primeRotationComposer,
   rotationComposerNeedsExtent,
   updateRotationComposer,
+  createRotationComposerParams,
   type RotationComposerParams,
 } from '../../core/aim/rotationComposer.js';
 import { createTargetExtent } from '../../core/TargetExtent.js';
@@ -16,22 +17,29 @@ import type { Target } from '../resolve/Target.js';
 import type { TargetSlot } from '../resolve/TargetRegistry.js';
 import type { Vector3Like } from '../resolve/resolveVector3.js';
 
+export type RotationComposerOptions = Partial<RotationComposerParams> & {
+  /** Target radius used when composing its visible edge. Ignored when `size` is set. */
+  radius?: number;
+  /** Target dimensions used when composing its visible edges. Measured automatically for meshes. */
+  size?: Vector3Like;
+};
+
 /** Rotates the camera to place a target at `screenPosition`. */
 export class RotationComposerAim implements RotationComposerParams {
   target: Target;
   targetSlot: TargetSlot | null = null;
-  screenPosition: [number, number];
-  aspect: number;
-  deadZone: [number, number];
-  damping: DampingConstant;
-  maxSpeed: number;
-  hardLimit: [number, number];
-  targetOffset: Vec3;
+  declare screenPosition: [number, number];
+  declare aspect: number;
+  declare deadZone: [number, number];
+  declare damping: DampingConstant;
+  declare maxSpeed: number;
+  declare hardLimit: [number, number];
+  declare targetOffset: Vec3;
   radius?: number;
   size?: Vector3Like;
-  lookaheadTime: number;
-  lookaheadSmoothing: number;
-  lookaheadIgnoreY: boolean;
+  declare lookaheadTime: number;
+  declare lookaheadSmoothing: number;
+  declare lookaheadIgnoreY: boolean;
 
   readonly state = createRotationComposerState();
   private readonly pose = createTargetPose();
@@ -39,34 +47,11 @@ export class RotationComposerAim implements RotationComposerParams {
   private lastTarget: Target = undefined;
   private forceSizeRecalculation = false;
 
-  constructor(
-    target: Target,
-    screenPosition: [number, number] = [0, 0],
-    aspect = 1,
-    deadZone: [number, number] = [0, 0],
-    damping: DampingConstant = 0,
-    hardLimit: [number, number] = [0, 0],
-    targetOffset: Vec3 = [0, 0, 0],
-    radius?: number,
-    size?: Vector3Like,
-    lookaheadTime = 0,
-    lookaheadSmoothing = 1,
-    lookaheadIgnoreY = false,
-    maxSpeed = Infinity,
-  ) {
+  constructor(target: Target, options?: RotationComposerOptions) {
     this.target = target;
-    this.screenPosition = screenPosition;
-    this.aspect = aspect;
-    this.deadZone = deadZone;
-    this.damping = damping;
-    this.hardLimit = hardLimit;
-    this.targetOffset = targetOffset;
-    this.radius = radius;
-    this.size = size;
-    this.lookaheadTime = lookaheadTime;
-    this.lookaheadSmoothing = lookaheadSmoothing;
-    this.lookaheadIgnoreY = lookaheadIgnoreY;
-    this.maxSpeed = maxSpeed;
+    Object.assign(this, createRotationComposerParams(options));
+    this.radius = options?.radius;
+    this.size = options?.size;
   }
 
   /** Forces the auto-detected `size` to be re-measured on the next `update()`, then goes back to the cached value. */

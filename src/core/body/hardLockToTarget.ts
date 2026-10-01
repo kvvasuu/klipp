@@ -7,8 +7,18 @@ import {
   resetVector3Damper,
   type Vector3DamperState,
 } from '../damping/dampVector3.js';
+import { withDefaults } from '../params.js';
 
-export type HardLockToTargetParams = { damping: DampingConstant; maxSpeed: number };
+export type HardLockToTargetParams = {
+  /** Response time for following the target position. */
+  damping: DampingConstant;
+  /** Maximum damping speed, in world units/sec. */
+  maxSpeed: number;
+};
+
+/** Every setting from `settings`, or its default. */
+export const createHardLockToTargetParams = (settings?: Partial<HardLockToTargetParams>): HardLockToTargetParams =>
+  withDefaults({ damping: 0, maxSpeed: Infinity }, settings);
 
 export type HardLockToTargetState = { damper: Vector3DamperState };
 

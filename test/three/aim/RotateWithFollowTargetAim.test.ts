@@ -41,7 +41,7 @@ describe('RotateWithFollowTargetAim', () => {
   describe('damping', () => {
     it('eases toward the target rotation and converges', () => {
       const target = rotatedTarget(0.4, -1.2, 0.7);
-      const aim = warmUp(new RotateWithFollowTargetAim(target, 0.3));
+      const aim = warmUp(new RotateWithFollowTargetAim(target, { damping: 0.3 }));
       const out = createCameraState();
 
       aim.update(out, 0.016, false);
@@ -54,7 +54,7 @@ describe('RotateWithFollowTargetAim', () => {
 
     it('follows a steadily turning target smoothly, settling into a constant lag', () => {
       const target = new Object3D();
-      const aim = new RotateWithFollowTargetAim(target, 0.2);
+      const aim = new RotateWithFollowTargetAim(target, { damping: 0.2 });
       const out = createCameraState();
       const dt = 1 / 60;
       let largestStep = 0;
@@ -75,7 +75,7 @@ describe('RotateWithFollowTargetAim', () => {
     it('maxSpeed caps how fast damping closes the gap', () => {
       const target = rotatedTarget(0, Math.PI / 2, 0);
       const gap = (maxSpeed: number) => {
-        const aim = warmUp(new RotateWithFollowTargetAim(target, 1, maxSpeed));
+        const aim = warmUp(new RotateWithFollowTargetAim(target, { damping: 1, maxSpeed }));
         const out = createCameraState();
         aim.update(out, 0.05, false);
         return rotationOf(out).angleTo(target.quaternion);
@@ -88,7 +88,7 @@ describe('RotateWithFollowTargetAim', () => {
   it('justActivated snaps to a new target rotation from a stale one, where a plain update would ease', () => {
     const gap = (justActivated: boolean) => {
       const target = rotatedTarget(0, Math.PI / 2, 0);
-      const aim = new RotateWithFollowTargetAim(target, 0.5);
+      const aim = new RotateWithFollowTargetAim(target, { damping: 0.5 });
       const out = createCameraState();
       aim.update(out, 0.016, true);
       aim.update(out, 0.016, false);
@@ -104,7 +104,7 @@ describe('RotateWithFollowTargetAim', () => {
   describe('primeFrom', () => {
     it('makes the next activation ease from the primed rotation, once', () => {
       const target = rotatedTarget(0, Math.PI / 2, 0);
-      const aim = new RotateWithFollowTargetAim(target, 0.5);
+      const aim = new RotateWithFollowTargetAim(target, { damping: 0.5 });
       const out = createCameraState();
       aim.primeFrom(out.quaternion);
 
@@ -118,7 +118,7 @@ describe('RotateWithFollowTargetAim', () => {
     });
 
     it('is used up even when the target is not resolved yet on that activation', () => {
-      const aim = new RotateWithFollowTargetAim({ current: null }, 0.5);
+      const aim = new RotateWithFollowTargetAim({ current: null }, { damping: 0.5 });
       const out = createCameraState();
       aim.primeFrom(out.quaternion);
       aim.update(out, 0.016, true);

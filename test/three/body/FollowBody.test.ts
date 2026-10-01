@@ -23,7 +23,7 @@ function warmUp(body: FollowBody) {
 describe('FollowBody', () => {
   it('sits at the offset from the target and publishes the target as out.target', () => {
     const out = createCameraState();
-    new FollowBody(new Vector3(2, 3, 4), [1, 2, 3]).update(out, 0.1, false);
+    new FollowBody(new Vector3(2, 3, 4), { offset: [1, 2, 3] }).update(out, 0.1, false);
 
     expect(out.position).toEqual([3, 5, 7]);
     expect(out.target).toEqual([2, 3, 4]);
@@ -38,7 +38,7 @@ describe('FollowBody', () => {
 
   describe('damping', () => {
     it('snaps on the very first update, then eases toward the offset position and converges', () => {
-      const body = new FollowBody(new Vector3(), [10, 5, -3], 0.3);
+      const body = new FollowBody(new Vector3(), { offset: [10, 5, -3], damping: 0.3 });
       const out = createCameraState();
       body.update(out, 0.016, false);
       expect(out.position).toEqual([10, 5, -3]);
@@ -54,7 +54,7 @@ describe('FollowBody', () => {
 
     it('keeps out.target exactly offset away from the damped position (real bug: the lag distorted the offset blend hints read)', () => {
       const target = new Vector3();
-      const body = new FollowBody(target, [0, 0, 10], 0.5);
+      const body = new FollowBody(target, { offset: [0, 0, 10], damping: 0.5 });
       const out = createCameraState();
       body.update(out, 0.016, false);
 
@@ -67,7 +67,12 @@ describe('FollowBody', () => {
 
     it('maxSpeed caps how fast damping closes the gap', () => {
       const run = (maxSpeed: number) => {
-        const body = new FollowBody(new Vector3(), [100, 0, 0], 1, BindingModes.lockToTarget, maxSpeed);
+        const body = new FollowBody(new Vector3(), {
+          offset: [100, 0, 0],
+          damping: 1,
+          bindingMode: BindingModes.lockToTarget,
+          maxSpeed,
+        });
         const out = warmUp(body);
         body.update(out, 0.05, false);
         return out.position[0];
@@ -79,7 +84,7 @@ describe('FollowBody', () => {
 
   it('justActivated snaps to a new target from a stale position, where a plain update would ease', () => {
     const run = (justActivated: boolean) => {
-      const body = new FollowBody(new Vector3(10, 0, 0), [0, 0, 0], 0.5);
+      const body = new FollowBody(new Vector3(10, 0, 0), { offset: [0, 0, 0], damping: 0.5 });
       const out = createCameraState();
       body.update(out, 0.016, true);
       body.update(out, 0.016, false);
@@ -93,7 +98,7 @@ describe('FollowBody', () => {
   });
 
   it('primeFrom makes the next activation ease from the primed position, once', () => {
-    const body = new FollowBody(new Vector3(), [0, 0, 0], 0.5);
+    const body = new FollowBody(new Vector3(), { offset: [0, 0, 0], damping: 0.5 });
     const out = createCameraState();
     vec3.set(out.position, -50, 0, 0);
     body.primeFrom(out.position);
@@ -118,7 +123,7 @@ describe('FollowBody', () => {
     }
 
     function follow(target: Object3D, bindingMode?: BindingMode) {
-      const body = new FollowBody(target, [0, 1, 8], 0, bindingMode);
+      const body = new FollowBody(target, { offset: [0, 1, 8], damping: 0, bindingMode });
       const out = createCameraState();
       body.update(out, 0.1, false);
       return { body, out };

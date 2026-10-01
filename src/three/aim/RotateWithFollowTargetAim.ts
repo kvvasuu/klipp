@@ -5,26 +5,28 @@ import {
   createRotateWithFollowTargetState,
   primeRotateWithFollowTarget,
   updateRotateWithFollowTarget,
+  createRotateWithFollowTargetParams,
   type RotateWithFollowTargetParams,
 } from '../../core/aim/rotateWithFollowTarget.js';
 import { readTargetRotation } from '../readTargetPose.js';
 import type { Target } from '../resolve/Target.js';
 import type { TargetSlot } from '../resolve/TargetRegistry.js';
 
+export type RotateWithFollowTargetOptions = Partial<RotateWithFollowTargetParams>;
+
 /** Follows the target's rotation. */
 export class RotateWithFollowTargetAim implements RotateWithFollowTargetParams {
   target: Target;
   targetSlot: TargetSlot | null = null;
-  damping: DampingConstant;
-  maxSpeed: number;
+  declare damping: DampingConstant;
+  declare maxSpeed: number;
 
   readonly state = createRotateWithFollowTargetState();
   private readonly rotation: Quat = [0, 0, 0, 1];
 
-  constructor(target: Target, damping: DampingConstant = 0, maxSpeed = Infinity) {
+  constructor(target: Target, options?: RotateWithFollowTargetOptions) {
     this.target = target;
-    this.damping = damping;
-    this.maxSpeed = maxSpeed;
+    Object.assign(this, createRotateWithFollowTargetParams(options));
   }
 
   update = (out: CameraState, dt: number, justActivated: boolean): void => {

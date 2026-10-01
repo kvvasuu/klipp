@@ -10,20 +10,48 @@ import {
   type PredictorState,
 } from '../damping/predictor.js';
 import { projectTargetExtent, type TargetExtent } from '../TargetExtent.js';
+import { withDefaults } from '../params.js';
 
 export type RotationComposerParams = {
+  /** Where the target should land on screen: `[x, y]`, `0` = center, `±1` = edge. */
   screenPosition: [number, number];
+  /** Viewport width divided by height. */
   aspect: number;
+  /** Allowed target drift from `screenPosition` before the camera reacts. */
   deadZone: [number, number];
+  /** Response time when the target leaves the `deadZone`. */
   damping: DampingConstant;
+  /** Maximum damping speed, in radians/sec. */
   maxSpeed: number;
+  /** Maximum allowed target drift, enforced immediately. */
   hardLimit: [number, number];
   /** Offset from the target, in the target's local space. */
   targetOffset: Vec3;
+  /** Seconds to aim ahead of the target's current position. */
   lookaheadTime: number;
+  /** Smoothing time for the lookahead velocity estimate. */
   lookaheadSmoothing: number;
+  /** Whether lookahead ignores vertical movement. */
   lookaheadIgnoreY: boolean;
 };
+
+/** Every setting from `settings`, or its default. */
+export const createRotationComposerParams = (settings?: Partial<RotationComposerParams>): RotationComposerParams =>
+  withDefaults(
+    {
+      screenPosition: [0, 0],
+      aspect: 1,
+      deadZone: [0, 0],
+      damping: 0,
+      maxSpeed: Infinity,
+      hardLimit: [0, 0],
+      targetOffset: [0, 0, 0],
+      lookaheadTime: 0,
+      lookaheadSmoothing: 1,
+      lookaheadIgnoreY: false,
+    },
+    settings,
+  );
 
 export type RotationComposerState = {
   damper: DamperState;

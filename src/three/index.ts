@@ -15,13 +15,13 @@ export { Vector3Damper } from './damping/Vector3Damper.js';
 export { QuaternionDamper } from './damping/QuaternionDamper.js';
 export { Predictor } from './damping/Predictor.js';
 
-export { HardLockToTargetBody } from './body/HardLockToTargetBody.js';
-export { FollowBody } from './body/FollowBody.js';
+export { HardLockToTargetBody, type HardLockToTargetOptions } from './body/HardLockToTargetBody.js';
+export { FollowBody, type FollowOptions } from './body/FollowBody.js';
 export { PositionComposerBody, type PositionComposerOptions } from './body/PositionComposerBody.js';
 
 export { HardLookAtAim } from './aim/HardLookAtAim.js';
-export { RotateWithFollowTargetAim } from './aim/RotateWithFollowTargetAim.js';
-export { RotationComposerAim } from './aim/RotationComposerAim.js';
+export { RotateWithFollowTargetAim, type RotateWithFollowTargetOptions } from './aim/RotateWithFollowTargetAim.js';
+export { RotationComposerAim, type RotationComposerOptions } from './aim/RotationComposerAim.js';
 export { PanTiltAim } from './aim/PanTiltAim.js';
 
 export { TargetGroup, type TargetGroupMember, type TargetGroupPositionMode } from './extension/TargetGroup.js';

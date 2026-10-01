@@ -2,8 +2,19 @@ import type { Quat } from 'math';
 import type { CameraState } from '../CameraState.js';
 import { createDamperState, resetDamper, type DamperState, type DampingConstant } from '../damping/Damper.js';
 import { dampQuaternion } from '../damping/dampQuaternion.js';
+import { withDefaults } from '../params.js';
 
-export type RotateWithFollowTargetParams = { damping: DampingConstant; maxSpeed: number };
+export type RotateWithFollowTargetParams = {
+  /** Spring response time to the target's rotation (or `{into, from}` for asymmetric damping). */
+  damping: DampingConstant;
+  /** Caps how fast `damping` can close the gap, in radians/sec. */
+  maxSpeed: number;
+};
+
+/** Every setting from `settings`, or its default. */
+export const createRotateWithFollowTargetParams = (
+  settings?: Partial<RotateWithFollowTargetParams>,
+): RotateWithFollowTargetParams => withDefaults({ damping: 0, maxSpeed: Infinity }, settings);
 
 export type RotateWithFollowTargetState = { damper: DamperState; primed: boolean };
 

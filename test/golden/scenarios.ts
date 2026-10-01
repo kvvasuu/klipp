@@ -72,7 +72,7 @@ const aim = (name: string, make: (w: World) => Update, perFrame?: (w: World, dt:
 /** A full controller: Follow + HardLookAt, plus whatever `extra` registers. */
 function rig(w: World, extra?: (c: VirtualCameraController) => void, offset: Vec3 = [0, 3, 8]) {
   const controller = new VirtualCameraController('rig');
-  controller.registerBody(new FollowBody(w.target, offset, 0.4).update);
+  controller.registerBody(new FollowBody(w.target, { offset, damping: 0.4 }).update);
   controller.registerAim(new HardLookAtAim(w.target).update);
   extra?.(controller);
   const state = initialState();
@@ -96,8 +96,17 @@ function coreScenario(name: string, defaultBlend: BlendDefinition, hints: BlendH
       simulate((w) => {
         const a = rig(w);
         const b = new VirtualCameraController('b');
-        b.registerBody(new FollowBody(w.target, [6, 2, -4], 0.3, BindingModes.worldSpace).update);
-        b.registerAim(new RotationComposerAim(w.target, [0.1, 0], 16 / 9, [0.1, 0.1], 0.3).update);
+        b.registerBody(
+          new FollowBody(w.target, { offset: [6, 2, -4], damping: 0.3, bindingMode: BindingModes.worldSpace }).update,
+        );
+        b.registerAim(
+          new RotationComposerAim(w.target, {
+            screenPosition: [0.1, 0],
+            aspect: 16 / 9,
+            deadZone: [0.1, 0.1],
+            damping: 0.3,
+          }).update,
+        );
         const bState = initialState();
         const core = new KlippCore({ defaultBlend });
         core.registerCamera({ id: 'a', priority: 10, state: a.state, hints });
@@ -117,14 +126,26 @@ const bindingModes: BindingMode[] = Object.values(BindingModes);
 
 export const scenarios: Scenario[] = [
   // bodies
-  body('body.hardLockToTarget', (w) => new HardLockToTargetBody(w.target, 0.3).update),
-  body('body.hardLockToTarget.maxSpeed', (w) => new HardLockToTargetBody(w.target, 0.3, 15).update),
+  body('body.hardLockToTarget', (w) => new HardLockToTargetBody(w.target, { damping: 0.3 }).update),
+  body(
+    'body.hardLockToTarget.maxSpeed',
+    (w) => new HardLockToTargetBody(w.target, { damping: 0.3, maxSpeed: 15 }).update,
+  ),
   ...bindingModes.map((mode) =>
-    body(`body.follow.${mode}`, (w) => new FollowBody(w.target, [0, 3, 8], 0.4, mode).update),
+    body(
+      `body.follow.${mode}`,
+      (w) => new FollowBody(w.target, { offset: [0, 3, 8], damping: 0.4, bindingMode: mode }).update,
+    ),
   ),
   body(
     'body.follow.asymmetricDamping.maxSpeed',
-    (w) => new FollowBody(w.target, [1, 3, 8], { into: 0.2, from: 0.6 }, BindingModes.lockToTarget, 20).update,
+    (w) =>
+      new FollowBody(w.target, {
+        offset: [1, 3, 8],
+        damping: { into: 0.2, from: 0.6 },
+        bindingMode: BindingModes.lockToTarget,
+        maxSpeed: 20,
+      }).update,
   ),
   body(
     'body.positionComposer',
@@ -159,28 +180,35 @@ export const scenarios: Scenario[] = [
 
   // aims
   aim('aim.hardLookAt', (w) => new HardLookAtAim(w.target).update),
-  aim('aim.rotateWithFollowTarget', (w) => new RotateWithFollowTargetAim(w.target, 0.3).update),
+  aim('aim.rotateWithFollowTarget', (w) => new RotateWithFollowTargetAim(w.target, { damping: 0.3 }).update),
   aim(
     'aim.rotationComposer',
-    (w) => new RotationComposerAim(w.target, [0.1, -0.1], 16 / 9, [0.1, 0.1], 0.3, [0.4, 0.4], [0, 0.5, 0], 1).update,
+    (w) =>
+      new RotationComposerAim(w.target, {
+        screenPosition: [0.1, -0.1],
+        aspect: 16 / 9,
+        deadZone: [0.1, 0.1],
+        damping: 0.3,
+        hardLimit: [0.4, 0.4],
+        targetOffset: [0, 0.5, 0],
+        radius: 1,
+      }).update,
   ),
   aim(
     'aim.rotationComposer.lookahead',
     (w) =>
-      new RotationComposerAim(
-        w.target,
-        [0, 0],
-        16 / 9,
-        [0.05, 0.05],
-        0.2,
-        [0.3, 0.3],
-        [0, 0, 0],
-        1,
-        undefined,
-        0.8,
-        0.5,
-        true,
-      ).update,
+      new RotationComposerAim(w.target, {
+        screenPosition: [0, 0],
+        aspect: 16 / 9,
+        deadZone: [0.05, 0.05],
+        damping: 0.2,
+        hardLimit: [0.3, 0.3],
+        targetOffset: [0, 0, 0],
+        radius: 1,
+        lookaheadTime: 0.8,
+        lookaheadSmoothing: 0.5,
+        lookaheadIgnoreY: true,
+      }).update,
   ),
   (() => {
     let panTilt: PanTiltAim;

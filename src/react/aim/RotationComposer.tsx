@@ -1,108 +1,52 @@
-import type { Vector3 as Vector3Like } from '@react-three/fiber';
 import { useThree } from '@react-three/fiber';
 import { useEffect, useImperativeHandle, useState, type Ref } from 'react';
-import type { DampingConstant } from '../../core/damping/Damper.js';
+import { createRotationComposerParams } from '../../core/aim/rotationComposer.js';
 import { composerDebugZones } from '../../core/debug/debugZones.js';
 import { DebugZoneOverlay } from '../DebugZoneOverlay.js';
-import { resolveVec3 } from '../../three/resolve/resolveVector3.js';
+import { resolveVec3, type Vector3Like } from '../../three/resolve/resolveVector3.js';
 import type { Target } from '../../three/resolve/Target.js';
 import { useTargetSlot } from '../useTargetSlot.js';
 import { useVirtualCamera } from '../VirtualCameraContext.js';
-import { RotationComposerAim } from '../../three/aim/RotationComposerAim.js';
+import { RotationComposerAim, type RotationComposerOptions } from '../../three/aim/RotationComposerAim.js';
 
-export type RotationComposerProps = {
+export type RotationComposerProps = Omit<RotationComposerOptions, 'aspect' | 'targetOffset'> & {
   /** Target to compose at `screenPosition`. Unresolved targets are ignored. */
   target?: Target;
-  /** Where the target should land on screen: `[x, y]`, `0` = center, `±1` = edge. */
-  screenPosition?: [number, number];
-  /** Allowed target drift from `screenPosition` before the camera reacts. */
-  deadZone?: [number, number];
-  /** Response time when the target leaves the `deadZone`. */
-  damping?: DampingConstant;
-  /** Maximum damping speed, in radians/sec. */
-  maxSpeed?: number;
-  /** Maximum allowed target drift, enforced immediately. */
-  hardLimit?: [number, number];
   /** Offset applied in the target's local rotation space. */
   targetOffset?: Vector3Like;
-  /** Target radius used when composing its visible edge. Ignored when `size` is set. */
-  radius?: number;
-  /** Target dimensions used when composing its visible edges. */
-  size?: Vector3Like;
-  /** Seconds to aim ahead of the target's current position. */
-  lookaheadTime?: number;
-  /** Smoothing time for the lookahead velocity estimate. */
-  lookaheadSmoothing?: number;
-  /** Whether lookahead ignores vertical movement. */
-  lookaheadIgnoreY?: boolean;
   /** Draws the `deadZone` and `hardLimit` overlays. */
   debug?: boolean;
   ref?: Ref<RotationComposerAim>;
 };
 
-const defaultScreenPosition: [number, number] = [0, 0];
-const defaultDeadZone: [number, number] = [0, 0];
-const defaultHardLimit: [number, number] = [0, 0];
-const defaultTargetOffset: Vector3Like = [0, 0, 0];
-
 /** Keeps a target within a chosen screen region by rotating the camera. */
-export function RotationComposer({
-  target,
-  screenPosition = defaultScreenPosition,
-  deadZone = defaultDeadZone,
-  damping = 0,
-  maxSpeed = Infinity,
-  hardLimit = defaultHardLimit,
-  targetOffset = defaultTargetOffset,
-  radius,
-  size,
-  lookaheadTime = 0,
-  lookaheadSmoothing = 1,
-  lookaheadIgnoreY = false,
-  debug = false,
-  ref,
-}: RotationComposerProps) {
+export function RotationComposer({ target, targetOffset, debug = false, ref, ...settings }: RotationComposerProps) {
   const { controller, state: cameraState, initialState } = useVirtualCamera();
   const aspect = useThree((state) => state.viewport.aspect);
+  const params = createRotationComposerParams({
+    ...settings,
+    aspect,
+    targetOffset: targetOffset === undefined ? undefined : resolveVec3([0, 0, 0], targetOffset),
+  });
   const [aim] = useState(() => {
-    const instance = new RotationComposerAim(
-      target,
-      screenPosition,
-      aspect,
-      deadZone,
-      damping,
-      hardLimit,
-      [0, 0, 0],
-      radius,
-      size,
-      lookaheadTime,
-      lookaheadSmoothing,
-      lookaheadIgnoreY,
-      maxSpeed,
-    );
+    const instance = new RotationComposerAim(target, params);
     if (initialState?.quaternion) instance.primeFrom(cameraState.quaternion);
     return instance;
   });
   aim.target = target;
   aim.targetSlot = useTargetSlot(target);
-  aim.screenPosition = screenPosition;
-  aim.aspect = aspect;
-  aim.deadZone = deadZone;
-  aim.damping = damping;
-  aim.maxSpeed = maxSpeed;
-  aim.hardLimit = hardLimit;
-  aim.radius = radius;
-  aim.size = size;
-  aim.lookaheadTime = lookaheadTime;
-  aim.lookaheadSmoothing = lookaheadSmoothing;
-  aim.lookaheadIgnoreY = lookaheadIgnoreY;
-  resolveVec3(aim.targetOffset, targetOffset);
+  Object.assign(aim, params);
+  aim.radius = settings.radius;
+  aim.size = settings.size;
 
   useImperativeHandle(ref, () => aim, [aim]);
   useEffect(() => controller.registerAim(aim.update), [controller, aim]);
 
   if (!debug) return null;
   return (
-    <DebugZoneOverlay zones={composerDebugZones(screenPosition, deadZone, hardLimit)} crosshair={screenPosition} />
+    <DebugZoneOverlay
+      zones={composerDebugZones(aim.screenPosition, aim.deadZone, aim.hardLimit)}
+      crosshair={aim.screenPosition}
+    />
   );
 }

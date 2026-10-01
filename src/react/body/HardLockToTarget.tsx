@@ -1,28 +1,24 @@
 import { useEffect, useImperativeHandle, useState, type Ref } from 'react';
-import type { DampingConstant } from '../../core/damping/Damper.js';
+import { createHardLockToTargetParams } from '../../core/body/hardLockToTarget.js';
 import type { Target } from '../../three/resolve/Target.js';
 import { useTargetSlot } from '../useTargetSlot.js';
 import { useVirtualCamera } from '../VirtualCameraContext.js';
-import { HardLockToTargetBody } from '../../three/body/HardLockToTargetBody.js';
+import { HardLockToTargetBody, type HardLockToTargetOptions } from '../../three/body/HardLockToTargetBody.js';
 
-export type HardLockToTargetProps = {
+export type HardLockToTargetProps = HardLockToTargetOptions & {
   /** Target position to follow. Unresolved targets are ignored. */
   target?: Target;
-  /** Response time for following the target position. */
-  damping?: DampingConstant;
-  /** Maximum damping speed, in world units/sec. */
-  maxSpeed?: number;
   ref?: Ref<HardLockToTargetBody>;
 };
 
 /** Simple body that locks the camera to a target position, optionally with damping. */
-export function HardLockToTarget({ target, damping = 0, maxSpeed = Infinity, ref }: HardLockToTargetProps) {
+export function HardLockToTarget({ target, ref, ...settings }: HardLockToTargetProps) {
   const { controller } = useVirtualCamera();
-  const [body] = useState(() => new HardLockToTargetBody(target, damping));
+  const params = createHardLockToTargetParams(settings);
+  const [body] = useState(() => new HardLockToTargetBody(target, params));
   body.target = target;
   body.targetSlot = useTargetSlot(target);
-  body.damping = damping;
-  body.maxSpeed = maxSpeed;
+  Object.assign(body, params);
 
   useImperativeHandle(ref, () => body, [body]);
   useEffect(() => controller.registerBody(body.update), [controller, body]);
