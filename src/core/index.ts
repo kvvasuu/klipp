@@ -154,6 +154,18 @@ export {
   type RotationComposerState,
 } from './aim/rotationComposer.js';
 
+export { HardLockToTargetBodyCore, type HardLockToTargetOptions } from './body/HardLockToTargetBodyCore.js';
+export { FollowBodyCore, type FollowOptions } from './body/FollowBodyCore.js';
+export { PositionComposerBodyCore } from './body/PositionComposerBodyCore.js';
+export { HardLookAtAimCore } from './aim/HardLookAtAimCore.js';
+export {
+  RotateWithFollowTargetAimCore,
+  type RotateWithFollowTargetOptions,
+} from './aim/RotateWithFollowTargetAimCore.js';
+export { RotationComposerAimCore } from './aim/RotationComposerAimCore.js';
+export { PanTiltAimCore } from './aim/PanTiltAimCore.js';
+export { GroupFramingExtensionCore, type GroupFramingOptions } from './extension/GroupFramingExtensionCore.js';
+
 export { composerDebugZones, groupFramingPaddingBox, type DebugZone } from './debug/debugZones.js';
 export { LensExtension, type LensOptions } from './extension/LensExtension.js';
 export { updateLens, createLensState, createLensParams, type LensParams, type LensState } from './extension/lens.js';

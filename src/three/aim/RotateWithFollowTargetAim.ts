@@ -1,38 +1,21 @@
-import type { Quat } from 'math';
-import type { CameraState } from '../../core/CameraState.js';
-import type { DampingConstant } from '../../core/damping/Damper.js';
 import {
-  createRotateWithFollowTargetState,
-  primeRotateWithFollowTarget,
-  updateRotateWithFollowTarget,
-  createRotateWithFollowTargetParams,
-  type RotateWithFollowTargetParams,
-} from '../../core/aim/rotateWithFollowTarget.js';
+  RotateWithFollowTargetAimCore,
+  type RotateWithFollowTargetOptions,
+} from '../../core/aim/RotateWithFollowTargetAimCore.js';
+import { createTargetPose, type TargetPose } from '../../core/TargetPose.js';
 import { readTargetRotation } from '../readTargetPose.js';
 import type { Target } from '../resolve/Target.js';
 import type { TargetSlot } from '../resolve/TargetRegistry.js';
 
-export type RotateWithFollowTargetOptions = Partial<RotateWithFollowTargetParams>;
+export type { RotateWithFollowTargetOptions };
 
-/** Follows the target's rotation. */
-export class RotateWithFollowTargetAim implements RotateWithFollowTargetParams {
-  target: Target;
+/** Follows the rotation of an `Object3D` or ref. */
+export class RotateWithFollowTargetAim extends RotateWithFollowTargetAimCore<Target> {
   targetSlot: TargetSlot | null = null;
-  declare damping: DampingConstant;
-  declare maxSpeed: number;
+  private readonly pose = createTargetPose();
 
-  readonly state = createRotateWithFollowTargetState();
-  private readonly rotation: Quat = [0, 0, 0, 1];
-
-  constructor(target: Target, options?: RotateWithFollowTargetOptions) {
-    this.target = target;
-    Object.assign(this, createRotateWithFollowTargetParams(options));
+  protected override readTarget(): TargetPose {
+    this.pose.hasRotation = readTargetRotation(this.pose.rotation, this.target, this.targetSlot);
+    return this.pose;
   }
-
-  update = (out: CameraState, dt: number, justActivated: boolean): void => {
-    const resolved = readTargetRotation(this.rotation, this.target, this.targetSlot);
-    updateRotateWithFollowTarget(out, this.state, this, resolved ? this.rotation : null, dt, justActivated);
-  };
-
-  primeFrom = (rotation: Quat): void => primeRotateWithFollowTarget(this.state, this, rotation);
 }
