@@ -1,7 +1,7 @@
 import { PerspectiveCamera } from 'three';
 import { describe, expect, it } from 'vitest';
 import { BlendCurves } from '../../src/core/blend/BlendCurves';
-import { LensExtension } from '../../src/core/extension/LensExtension';
+import { LensExtensionCore } from '../../src/core/extension/LensExtensionCore';
 import { Klipp } from '../../src/three/Klipp';
 import { HardLookAtAim } from '../../src/three/aim/HardLookAtAim';
 import { HardLockToTargetBody } from '../../src/three/body/HardLockToTargetBody';
@@ -20,7 +20,7 @@ describe('Klipp', () => {
   it('drives a PerspectiveCamera from the winning shot, lens included, and blends to a new winner', () => {
     const { camera, klipp, right } = scene();
     right.aim = new HardLookAtAim([10, 0, -10]);
-    right.addExtension(new LensExtension({ fov: 30 }));
+    right.addExtension(new LensExtensionCore({ fov: 30 }));
     klipp.update(0.1);
     expect(camera.position.x).toBe(-10);
 

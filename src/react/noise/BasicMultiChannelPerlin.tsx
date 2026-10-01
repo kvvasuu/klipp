@@ -2,9 +2,9 @@ import { useEffect, useImperativeHandle, type Ref } from 'react';
 import type { Vector3Like } from '../../three/resolve/resolveVector3.js';
 import { useVirtualCamera } from '../VirtualCameraContext.js';
 import type {
-  BasicMultiChannelPerlinNoise,
+  BasicMultiChannelPerlinNoiseCore as BasicMultiChannelPerlinNoise,
   PerlinNoiseOptions,
-} from '../../core/noise/BasicMultiChannelPerlinNoise.js';
+} from '../../core/noise/BasicMultiChannelPerlinNoiseCore.js';
 import { useBasicMultiChannelPerlinNoise } from './useBasicMultiChannelPerlinNoise.js';
 
 export type BasicMultiChannelPerlinProps = Omit<

@@ -167,7 +167,7 @@ export { PanTiltAimCore } from './aim/PanTiltAimCore.js';
 export { GroupFramingExtensionCore, type GroupFramingOptions } from './extension/GroupFramingExtensionCore.js';
 
 export { composerDebugZones, groupFramingPaddingBox, type DebugZone } from './debug/debugZones.js';
-export { LensExtension, type LensOptions } from './extension/LensExtension.js';
+export { LensExtensionCore, type LensOptions } from './extension/LensExtensionCore.js';
 export { updateLens, createLensState, createLensParams, type LensParams, type LensState } from './extension/lens.js';
 export {
   updateGroupFraming,
@@ -203,7 +203,7 @@ export {
   type InputSourceMapping,
 } from './input/inputMapping.js';
 
-export { BasicMultiChannelPerlinNoise, type PerlinNoiseOptions } from './noise/BasicMultiChannelPerlinNoise.js';
+export { BasicMultiChannelPerlinNoiseCore, type PerlinNoiseOptions } from './noise/BasicMultiChannelPerlinNoiseCore.js';
 export {
   updatePerlinNoise,
   createPerlinNoiseState,
@@ -213,11 +213,11 @@ export {
 } from './noise/perlinNoise.js';
 export { ImpulseField, impulseField } from './impulse/ImpulseField.js';
 export {
-  ImpulseListenerNoise,
+  ImpulseListenerNoiseCore,
   createImpulseListenerParams,
   type ImpulseListenerOptions,
   type ImpulseListenerParams,
-} from './impulse/ImpulseListenerNoise.js';
+} from './impulse/ImpulseListenerNoiseCore.js';
 export {
   ImpulseShapes,
   generateImpulse,

@@ -3,10 +3,10 @@ import type { BasicMultiChannelPerlinProps } from '../noise/BasicMultiChannelPer
 import { useBasicMultiChannelPerlinNoise } from '../noise/useBasicMultiChannelPerlinNoise.js';
 import { useVirtualCamera } from '../VirtualCameraContext.js';
 import {
-  ImpulseListenerNoise,
+  ImpulseListenerNoiseCore as ImpulseListenerNoise,
   createImpulseListenerParams,
   type ImpulseListenerOptions,
-} from '../../core/impulse/ImpulseListenerNoise.js';
+} from '../../core/impulse/ImpulseListenerNoiseCore.js';
 
 /** Perlin shake options driven by the current impulse strength. */
 export type ImpulseShakeProps = Omit<BasicMultiChannelPerlinProps, 'amplitudeGain' | 'ref'>;

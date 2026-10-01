@@ -21,15 +21,15 @@ import { FollowBody } from '../../src/three/body/FollowBody';
 import { HardLockToTargetBody } from '../../src/three/body/HardLockToTargetBody';
 import { PositionComposerBody } from '../../src/three/body/PositionComposerBody';
 import { GroupFramingExtension } from '../../src/three/extension/GroupFramingExtension';
-import { LensExtension } from '../../src/core/extension/LensExtension';
+import { LensExtensionCore } from '../../src/core/extension/LensExtensionCore';
 import { TargetGroup } from '../../src/three/extension/TargetGroup';
 import { ClearShot } from '../../src/core/groups/ClearShot';
 import { MixingCamera } from '../../src/core/groups/MixingCamera';
 import { Sequencer } from '../../src/core/groups/Sequencer';
 import { StateDrivenCamera } from '../../src/core/groups/StateDrivenCamera';
 import { ImpulseField } from '../../src/core/impulse/ImpulseField';
-import { ImpulseListenerNoise } from '../../src/core/impulse/ImpulseListenerNoise';
-import { BasicMultiChannelPerlinNoise } from '../../src/core/noise/BasicMultiChannelPerlinNoise';
+import { ImpulseListenerNoiseCore } from '../../src/core/impulse/ImpulseListenerNoiseCore';
+import { BasicMultiChannelPerlinNoiseCore } from '../../src/core/noise/BasicMultiChannelPerlinNoiseCore';
 import { orbitCamera, simulate, type World } from './world';
 import { advance, register, setPriority } from '../../src/core/internal';
 
@@ -230,7 +230,7 @@ export const scenarios: Scenario[] = [
 
   // extensions
   controllerScenario('extension.lens', (c) => {
-    const lens = new LensExtension({
+    const lens = new LensExtensionCore({
       fov: 35,
       near: 0.2,
       far: 500,
@@ -295,7 +295,7 @@ export const scenarios: Scenario[] = [
   // noise
   controllerScenario('noise.perlin', (c) => {
     c.addNoise({
-      update: new BasicMultiChannelPerlinNoise({
+      update: new BasicMultiChannelPerlinNoiseCore({
         positionAmplitude: [0.2, 0.1, 0.2],
         positionFrequency: [1, 1.3, 0.7],
         rotationAmplitude: [2, 1, 0.5],
@@ -312,7 +312,7 @@ export const scenarios: Scenario[] = [
     run: () =>
       simulate((w) => {
         const field = new ImpulseField();
-        const listener = new ImpulseListenerNoise({ field, channelMask: 1, gain: 1 });
+        const listener = new ImpulseListenerNoiseCore({ field, channelMask: 1, gain: 1 });
         const { controller, state } = rig(w);
         return (dt, frame) => {
           const now = w.clock.time; // explicit clock: never performance.now() in golden tests

@@ -34,8 +34,11 @@ pnpm --filter examples dev
 
 Core modules follow one pattern: an `XParams` type for settings with `createXParams(settings)` for
 defaults, an `XState` type with `createXState()` for memory, and `updateX(out, state, params, ...)`.
-Classes are thin wrappers that take `(target, options)`, fill their fields from `createXParams` and pass
-themselves as params. React components read their defaults from the same factory. Hot paths don't allocate: reuse module-level scratch values instead.
+Core classes are thin wrappers that take `(target, options)`, fill their fields from `createXParams` and
+pass themselves as params. Their names end in `Core` (`KlippCore`, `FollowBodyCore`). A layer extends them
+or re-exports them without the suffix (`Klipp`, `FollowBody`, `LensExtension`), overriding only what it
+adapts, like `readTarget`. React components read their defaults from the same factory. Hot paths don't
+allocate: reuse module-level scratch values instead.
 
 ## Tests
 

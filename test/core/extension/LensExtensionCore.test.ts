@@ -1,30 +1,30 @@
 import { describe, expect, it } from 'vitest';
 import { createCameraState } from '../../../src/core/CameraState';
-import { LensExtension } from '../../../src/core/extension/LensExtension';
+import { LensExtensionCore } from '../../../src/core/extension/LensExtensionCore';
 
-describe('LensExtension', () => {
+describe('LensExtensionCore', () => {
   it('overrides only the fields that are set', () => {
     const out = createCameraState();
-    new LensExtension().update(out, 0.1, false);
+    new LensExtensionCore().update(out, 0.1, false);
     expect([out.fov, out.near, out.far]).toEqual([50, 0.1, 1000]);
 
-    new LensExtension({ fov: 75 }).update(out, 0.1, false);
+    new LensExtensionCore({ fov: 75 }).update(out, 0.1, false);
     expect([out.fov, out.near, out.far]).toEqual([75, 0.1, 1000]);
 
-    new LensExtension({ fov: 60, near: 1, far: 500 }).update(out, 0.1, false);
+    new LensExtensionCore({ fov: 60, near: 1, far: 500 }).update(out, 0.1, false);
     expect([out.fov, out.near, out.far]).toEqual([60, 1, 500]);
   });
 
   describe('damping', () => {
     it('is instant by default, and with damping snaps on the first update then eases', () => {
-      const instant = new LensExtension({ fov: 50 });
+      const instant = new LensExtensionCore({ fov: 50 });
       const instantOut = createCameraState();
       instant.update(instantOut, 0.1, false);
       instant.fov = 90;
       instant.update(instantOut, 0.1, false);
       expect(instantOut.fov).toBe(90);
 
-      const damped = new LensExtension({ fov: 50, fovDamping: 1 });
+      const damped = new LensExtensionCore({ fov: 50, fovDamping: 1 });
       const out = createCameraState();
       damped.update(out, 0.1, false);
       expect(out.fov).toBe(50);
@@ -36,7 +36,7 @@ describe('LensExtension', () => {
     });
 
     it('damps each field on its own', () => {
-      const extension = new LensExtension({ fov: 50, near: 1, fovDamping: 1 });
+      const extension = new LensExtensionCore({ fov: 50, near: 1, fovDamping: 1 });
       const out = createCameraState();
       extension.update(out, 0.1, false);
 
@@ -49,7 +49,7 @@ describe('LensExtension', () => {
     });
 
     it('keeps its own progress when something else resets out.fov every frame', () => {
-      const extension = new LensExtension({ fov: 50, fovDamping: 1 });
+      const extension = new LensExtensionCore({ fov: 50, fovDamping: 1 });
       const out = createCameraState();
       extension.update(out, 0.1, false);
 
@@ -64,7 +64,7 @@ describe('LensExtension', () => {
 
     it('each max speed caps its own field', () => {
       const step = (field: 'fov' | 'near' | 'far', maxSpeed: number) => {
-        const extension = new LensExtension({
+        const extension = new LensExtensionCore({
           fov: 50,
           near: 1,
           far: 10,
@@ -86,7 +86,7 @@ describe('LensExtension', () => {
     });
 
     it('reports whether it is still moving', () => {
-      const extension = new LensExtension({ fov: 50, fovDamping: 0.3 });
+      const extension = new LensExtensionCore({ fov: 50, fovDamping: 0.3 });
       const out = createCameraState();
       extension.update(out, 0.1, false);
       expect(extension.update(out, 0.1, false)).toBe(false);
@@ -96,12 +96,12 @@ describe('LensExtension', () => {
       for (let i = 0; i < 300; i++) extension.update(out, 0.1, false);
       expect(extension.update(out, 0.1, false)).toBe(false);
 
-      expect(new LensExtension().update(out, 0.1, false)).toBe(false);
+      expect(new LensExtensionCore().update(out, 0.1, false)).toBe(false);
     });
 
     it('justActivated snaps to a changed value, where a plain update would ease', () => {
       const run = (justActivated: boolean) => {
-        const extension = new LensExtension({ fov: 50, fovDamping: 0.5 });
+        const extension = new LensExtensionCore({ fov: 50, fovDamping: 0.5 });
         const out = createCameraState();
         extension.update(out, 0.1, true);
         extension.update(out, 0.1, false);

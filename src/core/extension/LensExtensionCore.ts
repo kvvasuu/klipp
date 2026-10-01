@@ -5,7 +5,7 @@ import { createLensParams, createLensState, updateLens, type LensParams } from '
 export type LensOptions = Partial<LensParams>;
 
 /** Overrides lens fields with independent damping. */
-export class LensExtension implements LensParams {
+export class LensExtensionCore implements LensParams {
   declare fov?: number;
   declare near?: number;
   declare far?: number;

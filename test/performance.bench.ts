@@ -14,10 +14,10 @@ import { PositionComposerBody } from '../src/three/body/PositionComposerBody';
 import { GroupFramingExtension } from '../src/three/extension/GroupFramingExtension';
 import { TargetGroup } from '../src/three/extension/TargetGroup';
 import { ImpulseField } from '../src/core/impulse/ImpulseField';
-import { ImpulseListenerNoise } from '../src/core/impulse/ImpulseListenerNoise';
+import { ImpulseListenerNoiseCore } from '../src/core/impulse/ImpulseListenerNoiseCore';
 import { createConsumedInput, type ConsumedInput } from '../src/core/input/consumedInput';
 import { InputSystem, MouseButton } from '../src/dom/InputSystem';
-import { BasicMultiChannelPerlinNoise } from '../src/core/noise/BasicMultiChannelPerlinNoise';
+import { BasicMultiChannelPerlinNoiseCore } from '../src/core/noise/BasicMultiChannelPerlinNoiseCore';
 import { TargetRegistry } from '../src/three/resolve/TargetRegistry';
 import { toQuaternion, toTuple } from './tuples';
 import { advance, register } from '../src/core/internal';
@@ -257,7 +257,7 @@ group('Aim.update @aim', () => {
 
 group('Noise/Extension.update @noise', () => {
   bench('BasicMultiChannelPerlin', function* () {
-    const perlin = new BasicMultiChannelPerlinNoise({
+    const perlin = new BasicMultiChannelPerlinNoiseCore({
       positionAmplitude: [0.4, 0.4, 0.4],
       positionFrequency: [1, 1, 1],
       rotationAmplitude: [4, 4, 4],
@@ -336,11 +336,11 @@ group('ImpulseField.sampleAt @impulse', () => {
   });
 });
 
-group('ImpulseListenerNoise.update @impulse', () => {
+group('ImpulseListenerNoiseCore.update @impulse', () => {
   bench('kick only', function* () {
     const field = new ImpulseField();
     field.generate({ position: [0, 0, 0], direction: [1, 0, 0], shape: always, duration: 1000 }, 0);
-    const listener = new ImpulseListenerNoise({ field });
+    const listener = new ImpulseListenerNoiseCore({ field });
     const out = createCameraState();
     let now = 0;
     yield () => {
@@ -354,11 +354,11 @@ group('ImpulseListenerNoise.update @impulse', () => {
   bench('kick + shake', function* () {
     const field = new ImpulseField();
     field.generate({ position: [0, 0, 0], direction: [1, 0, 0], shape: always, duration: 1000 }, 0);
-    const shake = new BasicMultiChannelPerlinNoise({
+    const shake = new BasicMultiChannelPerlinNoiseCore({
       positionAmplitude: [0.1, 0.1, 0.1],
       rotationAmplitude: [3, 3, 3],
     });
-    const listener = new ImpulseListenerNoise({ field, channelMask: 1, gain: 1, shake });
+    const listener = new ImpulseListenerNoiseCore({ field, channelMask: 1, gain: 1, shake });
     const out = createCameraState();
     let now = 0;
     yield () => {
@@ -372,7 +372,7 @@ group('ImpulseListenerNoise.update @impulse', () => {
   bench('kick + cameraSpace', function* () {
     const field = new ImpulseField();
     field.generate({ position: [0, 0, 0], direction: [1, 0, 0], shape: always, duration: 1000 }, 0);
-    const listener = new ImpulseListenerNoise({ field, channelMask: 1, gain: 1, cameraSpace: true });
+    const listener = new ImpulseListenerNoiseCore({ field, channelMask: 1, gain: 1, cameraSpace: true });
     const out = createCameraState();
     let now = 0;
     yield () => {
@@ -508,7 +508,7 @@ group('VirtualCameraCore.update @controller', () => {
       }).update,
     });
     controller.addNoise({
-      update: new BasicMultiChannelPerlinNoise({
+      update: new BasicMultiChannelPerlinNoiseCore({
         positionAmplitude: [0.1, 0.1, 0.1],
         positionFrequency: [1, 1, 1],
         rotationAmplitude: [2, 2, 2],

@@ -38,3 +38,7 @@ export {
   type GroupFramingFitMode,
   type GroupFramingMode,
 } from './extension/GroupFramingExtension.js';
+
+export { LensExtensionCore as LensExtension } from '../core/extension/LensExtensionCore.js';
+export { BasicMultiChannelPerlinNoiseCore as BasicMultiChannelPerlinNoise } from '../core/noise/BasicMultiChannelPerlinNoiseCore.js';
+export { ImpulseListenerNoiseCore as ImpulseListenerNoise } from '../core/impulse/ImpulseListenerNoiseCore.js';
