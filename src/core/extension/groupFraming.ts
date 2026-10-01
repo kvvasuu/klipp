@@ -4,14 +4,14 @@ import { createDamperState, damp, resetDamper, type DamperState, type DampingCon
 import { createTargetExtent, type TargetExtent } from '../TargetExtent.js';
 import { withDefaults } from '../params.js';
 
-/** A group member resolved for this frame. Unresolved members are skipped. */
+/** A group member. Set `resolved` to `false` to skip it, for example while it isn't loaded yet. */
 export type GroupMember = { position: Vec3; extent: TargetExtent; weight: number; resolved: boolean };
 
 export const createGroupMember = (): GroupMember => ({
   position: [0, 0, 0],
   extent: createTargetExtent(),
   weight: 1,
-  resolved: false,
+  resolved: true,
 });
 
 /** Strategy used to compute the group's position. */

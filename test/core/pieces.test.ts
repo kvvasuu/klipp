@@ -124,12 +124,11 @@ describe('core pieces', () => {
     );
   });
 
-  it('GroupFramingExtensionCore matches updateGroupFraming on members the caller updates', () => {
+  it('GroupFramingExtensionCore matches updateGroupFraming on new members the caller updates', () => {
     const members = [createGroupMember(), createGroupMember()];
     members.forEach((member, i) => {
       vec3.set(member.position, i * 4 - 2, 0, -10);
       member.extent.radius = 1;
-      member.resolved = true;
     });
     const options = { damping: 0.3, viewportWidth: 800, viewportHeight: 600 };
     const extension = new GroupFramingExtensionCore(members, 'groupAverage', options);
@@ -144,5 +143,6 @@ describe('core pieces', () => {
       updateGroupFraming(b, state, params, members, 'groupAverage', 1 / 60, i === 0);
       expect(a).toEqual(b);
     }
+    expect(a.position[2]).toBeGreaterThan(0);
   });
 });
