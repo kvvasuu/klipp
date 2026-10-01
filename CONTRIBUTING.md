@@ -18,6 +18,7 @@ pnpm --filter examples dev
 - `pnpm run build` - compiles `src/` to `dist/` via `tsc`.
 - `pnpm run test` - the unit suite (`vitest`), including the golden trajectory tests.
 - `pnpm run lint` - `oxlint`, which also enforces the layer boundaries below.
+- `pnpm run typecheck` - `tsc` over `src/` and, via `test/tsconfig.json`, the tests.
 - `pnpm run format` - `prettier`.
 - `pnpm run bench` - the performance benchmark suite (`@pmndrs/labs`).
 
