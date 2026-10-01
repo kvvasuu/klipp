@@ -180,6 +180,11 @@ export function updateGroupFraming(
   dt: number,
   justActivated: boolean,
 ): boolean {
+  if (justActivated) {
+    resetDamper(state.distanceDamper);
+    resetDamper(state.screenPositionXDamper);
+    resetDamper(state.screenPositionYDamper);
+  }
   const boundsRadius = computeGroupBounds(scratchGroupPosition, members, positionMode);
   if (boundsRadius <= 0) return false;
 
@@ -272,12 +277,6 @@ export function updateGroupFraming(
       : Math.max(vec3.distance(out.position, scratchGroupPosition), clampedRequiredDistance);
 
   const instant = typeof params.damping === 'number' && params.damping <= 0;
-
-  if (justActivated) {
-    resetDamper(state.distanceDamper);
-    resetDamper(state.screenPositionXDamper);
-    resetDamper(state.screenPositionYDamper);
-  }
 
   if (instant) state.currentDistance = distance;
   else {

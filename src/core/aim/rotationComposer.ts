@@ -66,6 +66,10 @@ export type RotationComposerState = {
   hasActiveDesiredRotation: boolean;
   predictor: PredictorState;
   primed: boolean;
+  /** Activation seen while the target was unresolved, applied on the first frame that has one. */
+  activationPending: boolean;
+  /** Whether that pending activation was primed. */
+  activationPrimed: boolean;
 };
 
 export const createRotationComposerState = (): RotationComposerState => ({
@@ -78,6 +82,8 @@ export const createRotationComposerState = (): RotationComposerState => ({
   hasActiveDesiredRotation: false,
   predictor: createPredictorState(),
   primed: false,
+  activationPending: false,
+  activationPrimed: false,
 });
 
 /** Only extents with a dead zone or hard limit are read, so callers can skip resolving them otherwise. */
@@ -162,13 +168,20 @@ export function updateRotationComposer(
   dt: number,
   justActivated: boolean,
 ): void {
-  const skipReset = justActivated && state.primed;
-  if (justActivated) state.primed = false;
+  // An activation without a target waits for the first frame that has one.
+  if (justActivated) {
+    state.activationPending = true;
+    state.activationPrimed = state.primed;
+    state.primed = false;
+  }
   if (!targetPose) return;
+  const activating = state.activationPending;
+  const skipReset = activating && state.activationPrimed;
+  state.activationPending = false;
 
   const { extent } = targetPose;
   const target = vec3.copy(scratchTarget, targetPose.position);
-  if (justActivated) resetPredictor(state.predictor);
+  if (activating) resetPredictor(state.predictor);
   addPredictorPosition(state.predictor, target, dt, params.lookaheadSmoothing);
   if (params.lookaheadTime > 0) {
     predictPositionDelta(scratchLookaheadDelta, state.predictor, params.lookaheadTime);
@@ -183,7 +196,7 @@ export function updateRotationComposer(
   const { position, referenceUp, quaternion: rotation } = out;
 
   // Publish the damped look-at point so blends do not jump to the raw target position.
-  if (justActivated) {
+  if (activating) {
     resetDamper(state.lookAtDirectionDamper);
     resetDamper(state.lookAtDistanceDamper);
   }
@@ -221,7 +234,7 @@ export function updateRotationComposer(
   let insideDeadZone = false;
 
   // A fresh activation has no meaningful previous orientation for a dead-zone check.
-  if (!justActivated && (deadZone[0] > 0 || deadZone[1] > 0)) {
+  if (!activating && (deadZone[0] > 0 || deadZone[1] > 0)) {
     // Measure the target using the orientation from before this update.
     const [screenX, screenY, depth] = computeScreenPoint(position, rotation, target, tanHalfFovH, tanHalfFovV);
 
@@ -271,7 +284,7 @@ export function updateRotationComposer(
     quat.copy(scratchDesiredRotation, rotation); // No previous target means no correction.
   }
 
-  if (justActivated && !skipReset) resetDamper(state.damper);
+  if (activating && !skipReset) resetDamper(state.damper);
   dampQuaternion(state.damper, rotation, scratchDesiredRotation, params.damping, dt, params.maxSpeed);
 
   if (hardLimit[0] <= 0 && hardLimit[1] <= 0) return;

@@ -272,6 +272,25 @@ describe('PositionComposerBody', () => {
     });
   });
 
+  it('a reactivation snaps even when the target only resolves a frame later (real bug: it eased from the old shot)', () => {
+    const ref: { current: Object3D | null } = { current: new Object3D() };
+    ref.current!.position.set(0, 0, -20);
+    const body = new PositionComposerBody(ref, { cameraDistance: 10, deadZone: [0.9, 0.9], damping: 0.5 });
+    const out = createCameraState();
+    body.update(out, 0.016, true);
+    ref.current!.position.set(5, 0, -20);
+    for (let i = 0; i < 5; i++) body.update(out, 0.016, false);
+
+    ref.current = null;
+    body.update(out, 0.016, true);
+    ref.current = new Object3D();
+    ref.current.position.set(40, -12, -30);
+    body.update(out, 0.016, false);
+
+    expect(projectToScreen(out, 1, ref.current.position).x).toBeCloseTo(0, 4);
+    expect(depthOf(out, ref.current.position)).toBeCloseTo(10, 4);
+  });
+
   it('maxSpeed caps how fast damping closes the gap', () => {
     const target = new Vector3(20, 0, -10);
     const run = (maxSpeed: number) => {
@@ -329,6 +348,20 @@ describe('PositionComposerBody', () => {
       body.target = new Vector3(0, 0, -20);
       body.update(out, 0.016, true);
       expect(out.position[2]).toBeCloseTo(-10, 5);
+    });
+
+    it('still eases from the primed position when the target only resolves a frame later', () => {
+      const body = new PositionComposerBody({ current: null }, { cameraDistance: 10, damping: 0.5 });
+      const out = createCameraState();
+      vec3.set(out.position, 0, 0, 50);
+      body.primeFrom(out.position);
+      body.update(out, 0.016, true);
+
+      body.target = new Vector3(0, 0, -20);
+      body.update(out, 0.016, false);
+
+      expect(out.position[2]).toBeLessThan(50);
+      expect(out.position[2]).toBeGreaterThan(-10);
     });
   });
 
