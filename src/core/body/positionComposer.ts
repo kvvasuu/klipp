@@ -14,21 +14,52 @@ import {
   resetPredictor,
   type PredictorState,
 } from '../damping/predictor.js';
+import { withDefaults } from '../params.js';
 import { projectTargetExtent, type TargetExtent } from '../TargetExtent.js';
 
 export type PositionComposerParams = {
+  /** Desired distance from the camera to the target. */
   cameraDistance: number;
+  /** Where the target should land on screen: `[x, y]`, `0` = center, `±1` = edge. */
   screenPosition: [number, number];
+  /** Viewport width divided by height. */
   aspect: number;
+  /** Allowed target drift from `screenPosition` before the camera shifts laterally. */
   deadZone: [number, number];
+  /** Response time for dolly and lateral composition. */
   damping: DampingConstant;
+  /** Maximum allowed target drift, enforced immediately. */
   hardLimit: [number, number];
+  /** Allowed target depth drift before the camera dollies. */
   depthDeadZone: number;
+  /** Maximum damping speed for both stages, in world units/sec. */
   maxSpeed: number;
+  /** Seconds to extrapolate the target's tracked position ahead by. */
   lookaheadTime: number;
+  /** Smooth-time budget (seconds) for the velocity estimate driving `lookaheadTime`. */
   lookaheadSmoothing: number;
+  /** Whether lookahead ignores vertical movement. */
   lookaheadIgnoreY: boolean;
 };
+
+/** Every setting from `settings`, or its default. */
+export const createPositionComposerParams = (settings?: Partial<PositionComposerParams>): PositionComposerParams =>
+  withDefaults(
+    {
+      cameraDistance: 10,
+      screenPosition: [0, 0],
+      aspect: 1,
+      deadZone: [0, 0],
+      damping: 0,
+      hardLimit: [0, 0],
+      depthDeadZone: 0,
+      maxSpeed: Infinity,
+      lookaheadTime: 0,
+      lookaheadSmoothing: 1,
+      lookaheadIgnoreY: false,
+    },
+    settings,
+  );
 
 export type PositionComposerState = {
   damper: Vector3DamperState;

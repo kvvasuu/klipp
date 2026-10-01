@@ -112,6 +112,7 @@ export {
   updatePositionComposer,
   primePositionComposer,
   createPositionComposerState,
+  createPositionComposerParams,
   type PositionComposerParams,
   type PositionComposerState,
 } from './body/positionComposer.js';

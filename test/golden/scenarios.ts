@@ -128,26 +128,33 @@ export const scenarios: Scenario[] = [
   ),
   body(
     'body.positionComposer',
-    (w) => new PositionComposerBody(w.target, 10, [0.1, 0], 16 / 9, [0.1, 0.1], 0.3, [0.4, 0.4], 1).update,
+    (w) =>
+      new PositionComposerBody(w.target, {
+        cameraDistance: 10,
+        screenPosition: [0.1, 0],
+        aspect: 16 / 9,
+        deadZone: [0.1, 0.1],
+        damping: 0.3,
+        hardLimit: [0.4, 0.4],
+        radius: 1,
+      }).update,
   ),
   body(
     'body.positionComposer.lookahead',
     (w) =>
-      new PositionComposerBody(
-        w.target,
-        12,
-        [0, 0.1],
-        16 / 9,
-        [0.05, 0.05],
-        0.2,
-        [0.3, 0.3],
-        1,
-        undefined,
-        1,
-        0.5,
-        0.5,
-        true,
-      ).update,
+      new PositionComposerBody(w.target, {
+        cameraDistance: 12,
+        screenPosition: [0, 0.1],
+        aspect: 16 / 9,
+        deadZone: [0.05, 0.05],
+        damping: 0.2,
+        hardLimit: [0.3, 0.3],
+        radius: 1,
+        depthDeadZone: 1,
+        lookaheadTime: 0.5,
+        lookaheadSmoothing: 0.5,
+        lookaheadIgnoreY: true,
+      }).update,
   ),
 
   // aims

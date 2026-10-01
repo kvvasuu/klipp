@@ -71,19 +71,16 @@ describe('stages read the same values from registry slots as from the scene grap
   it('PositionComposer with lookahead and a geometry-sized target', () => {
     const [direct, slotted] = runBothWays((w) => [
       single(
-        new PositionComposerBody(
-          w.mesh,
-          10,
-          [0.1, 0],
-          16 / 9,
-          [0.1, 0.1],
-          0.3,
-          [0.4, 0.4],
-          undefined,
-          undefined,
-          1,
-          0.5,
-        ),
+        new PositionComposerBody(w.mesh, {
+          cameraDistance: 10,
+          screenPosition: [0.1, 0],
+          aspect: 16 / 9,
+          deadZone: [0.1, 0.1],
+          damping: 0.3,
+          hardLimit: [0.4, 0.4],
+          depthDeadZone: 1,
+          lookaheadTime: 0.5,
+        }),
       ),
       single(new RotationComposerAim(w.mesh, [0.1, -0.1], 16 / 9, [0.1, 0.1], 0.3, [0.4, 0.4])),
     ]);

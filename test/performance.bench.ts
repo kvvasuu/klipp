@@ -82,7 +82,14 @@ group('Body.update @body', () => {
 
   bench('PositionComposer (deadZone + hardLimit)', function* () {
     const { object, step } = makeMovingTarget();
-    const body = new PositionComposerBody(object, 10, [0, 0], 16 / 9, [0.2, 0.2], 0.5, [0.4, 0.4]);
+    const body = new PositionComposerBody(object, {
+      cameraDistance: 10,
+      screenPosition: [0, 0],
+      aspect: 16 / 9,
+      deadZone: [0.2, 0.2],
+      damping: 0.5,
+      hardLimit: [0.4, 0.4],
+    });
     const out = createCameraState();
     yield () => {
       step();
@@ -95,20 +102,17 @@ group('Body.update @body', () => {
   // is identical except lookahead is off
   bench('PositionComposer (deadZone + hardLimit + lookahead)', function* () {
     const { object, step } = makeMovingTarget();
-    const body = new PositionComposerBody(
-      object,
-      10,
-      [0, 0],
-      16 / 9,
-      [0.2, 0.2],
-      0.5,
-      [0.4, 0.4],
-      undefined,
-      undefined,
-      0,
-      0.3,
-      1,
-    );
+    const body = new PositionComposerBody(object, {
+      cameraDistance: 10,
+      screenPosition: [0, 0],
+      aspect: 16 / 9,
+      deadZone: [0.2, 0.2],
+      damping: 0.5,
+      hardLimit: [0.4, 0.4],
+      depthDeadZone: 0,
+      lookaheadTime: 0.3,
+      lookaheadSmoothing: 1,
+    });
     const out = createCameraState();
     yield () => {
       step();
@@ -122,7 +126,15 @@ group('Body.update @body', () => {
   // frame instead; all three should still show ~0 bytes/iter, same as the plain point-target bench above
   bench('PositionComposer (radius extent)', function* () {
     const { object, step } = makeMovingTarget();
-    const body = new PositionComposerBody(object, 10, [0, 0], 16 / 9, [0.2, 0.2], 0.5, [0.4, 0.4], 1.5);
+    const body = new PositionComposerBody(object, {
+      cameraDistance: 10,
+      screenPosition: [0, 0],
+      aspect: 16 / 9,
+      deadZone: [0.2, 0.2],
+      damping: 0.5,
+      hardLimit: [0.4, 0.4],
+      radius: 1.5,
+    });
     const out = createCameraState();
     yield () => {
       step();
@@ -133,17 +145,15 @@ group('Body.update @body', () => {
 
   bench('PositionComposer (explicit size extent, rotating box)', function* () {
     const { object, step } = makeMovingTarget();
-    const body = new PositionComposerBody(
-      object,
-      10,
-      [0, 0],
-      16 / 9,
-      [0.2, 0.2],
-      0.5,
-      [0.4, 0.4],
-      undefined,
-      [2, 2, 2],
-    );
+    const body = new PositionComposerBody(object, {
+      cameraDistance: 10,
+      screenPosition: [0, 0],
+      aspect: 16 / 9,
+      deadZone: [0.2, 0.2],
+      damping: 0.5,
+      hardLimit: [0.4, 0.4],
+      size: [2, 2, 2],
+    });
     const out = createCameraState();
     yield () => {
       step();
@@ -154,7 +164,14 @@ group('Body.update @body', () => {
 
   bench('PositionComposer (auto-detected Mesh size extent, rotating box)', function* () {
     const { object, step } = makeMovingMeshTarget();
-    const body = new PositionComposerBody(object, 10, [0, 0], 16 / 9, [0.2, 0.2], 0.5, [0.4, 0.4]);
+    const body = new PositionComposerBody(object, {
+      cameraDistance: 10,
+      screenPosition: [0, 0],
+      aspect: 16 / 9,
+      deadZone: [0.2, 0.2],
+      damping: 0.5,
+      hardLimit: [0.4, 0.4],
+    });
     const out = createCameraState();
     yield () => {
       step();

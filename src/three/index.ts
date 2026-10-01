@@ -17,7 +17,7 @@ export { Predictor } from './damping/Predictor.js';
 
 export { HardLockToTargetBody } from './body/HardLockToTargetBody.js';
 export { FollowBody } from './body/FollowBody.js';
-export { PositionComposerBody } from './body/PositionComposerBody.js';
+export { PositionComposerBody, type PositionComposerOptions } from './body/PositionComposerBody.js';
 
 export { HardLookAtAim } from './aim/HardLookAtAim.js';
 export { RotateWithFollowTargetAim } from './aim/RotateWithFollowTargetAim.js';
