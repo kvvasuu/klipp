@@ -44,8 +44,9 @@ describe('ImpulseListener', () => {
     const ref = createRef<ImpulseListenerNoise>();
     const field = new ImpulseField();
     field.generate({ position: [0, 0, 0], shape: always, duration: 60 });
+    // A fixed seed: about one random seed in five samples exactly zero after these frames.
     const scene = (shake: boolean) => (
-      <ImpulseListener ref={ref} field={field} shake={shake ? { positionAmplitude: [5, 0, 0] } : undefined} />
+      <ImpulseListener ref={ref} field={field} shake={shake ? { positionAmplitude: [5, 0, 0], seed: 5 } : undefined} />
     );
 
     const mounted = await mountInCamera(scene(false));
