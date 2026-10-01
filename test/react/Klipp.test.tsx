@@ -1,7 +1,7 @@
 import { renderHook } from '@testing-library/react';
 import { create } from '@react-three/test-renderer';
 import { useThree } from '@react-three/fiber';
-import { PerspectiveCamera, Vector3 } from 'three';
+import { PerspectiveCamera } from 'three';
 import { describe, expect, it, vi } from 'vitest';
 import { Klipp } from '../../src/react/Klipp';
 import { useKlipp } from '../../src/react/KlippContext';
@@ -19,98 +19,30 @@ describe('Klipp / useKlipp', () => {
     expect(() => renderHook(() => useKlipp())).toThrow(/within a <Klipp> provider/);
   });
 
-  it('provides a KlippCore instance to consumers', async () => {
-    let core: KlippCore | undefined;
-    function Reader() {
-      core = useKlipp().core;
-      return null;
-    }
-
-    await create(
-      <Klipp>
-        <Reader />
-      </Klipp>,
-    );
-
-    expect(core).toBeInstanceOf(KlippCore);
-  });
-
-  it('the instance is stable across re-renders', async () => {
+  it('provides one stable KlippCore per tree', async () => {
     const seen: KlippCore[] = [];
-    function Reader() {
-      seen.push(useKlipp().core);
-      return null;
-    }
-
-    const renderer = await create(
+    let other: KlippCore | undefined;
+    const scene = () => (
       <Klipp>
-        <Reader />
-      </Klipp>,
-    );
-    await renderer.update(
-      <Klipp>
-        <Reader />
-      </Klipp>,
+        <Reader onRead={(c) => seen.push(c)} />
+      </Klipp>
     );
 
-    expect(seen).toHaveLength(2);
+    const renderer = await create(scene());
+    await renderer.update(scene());
+    await create(
+      <Klipp>
+        <Reader onRead={(c) => (other = c)} />
+      </Klipp>,
+    );
+
+    expect(seen[0]).toBeInstanceOf(KlippCore);
     expect(seen[1]).toBe(seen[0]);
+    expect(other).not.toBe(seen[0]);
   });
 
-  it('two separate <Klipp> trees get independent instances', async () => {
-    let coreA: KlippCore | undefined;
-    let coreB: KlippCore | undefined;
-
-    await create(
-      <Klipp>
-        <Reader onRead={(c) => (coreA = c)} />
-      </Klipp>,
-    );
-    await create(
-      <Klipp>
-        <Reader onRead={(c) => (coreB = c)} />
-      </Klipp>,
-    );
-
-    expect(coreA).toBeInstanceOf(KlippCore);
-    expect(coreB).toBeInstanceOf(KlippCore);
-    expect(coreA).not.toBe(coreB);
-  });
-
-  it('copies the composited CameraState onto the real r3f camera — the actual end of the chain', async () => {
+  it('writes position and fov/near/far onto the r3f camera', async () => {
     let camera: PerspectiveCamera | undefined;
-    function CameraReader() {
-      camera = useThree((state) => state.camera as PerspectiveCamera);
-      return null;
-    }
-
-    function Scene() {
-      const targetRef = useRef<Object3D>(null);
-      return (
-        <Klipp>
-          <CameraReader />
-          <object3D ref={targetRef} position={[3, 4, 5]} />
-          <VirtualCamera name="a" priority={10}>
-            <HardLockToTarget target={targetRef} />
-          </VirtualCamera>
-        </Klipp>
-      );
-    }
-
-    const renderer = await create(<Scene />);
-    await renderer.advanceFrames(1, 0.1);
-
-    expect(camera!.position.x).toBeCloseTo(3, 10);
-    expect(camera!.position.y).toBeCloseTo(4, 10);
-    expect(camera!.position.z).toBeCloseTo(5, 10);
-  });
-
-  it('writes fov/near/far onto the real r3f camera — the isPerspectiveCamera-gated path actually fires', async () => {
-    let camera: PerspectiveCamera | undefined;
-    function CameraReader() {
-      camera = useThree((state) => state.camera as PerspectiveCamera);
-      return null;
-    }
     function LensWriter() {
       const { controller } = useVirtualCamera();
       useEffect(
@@ -127,20 +59,21 @@ describe('Klipp / useKlipp', () => {
 
     const renderer = await create(
       <Klipp>
-        <CameraReader />
+        <CameraReader onRead={(c) => (camera = c)} />
         <VirtualCamera name="a" priority={10}>
+          <HardLockToTarget target={[3, 4, 5]} />
           <LensWriter />
         </VirtualCamera>
       </Klipp>,
     );
     await renderer.advanceFrames(1, 0.1);
 
-    expect(camera!.fov).toBe(35);
-    expect(camera!.near).toBe(1);
-    expect(camera!.far).toBe(200);
+    expect(camera!.position.toArray()).toEqual([3, 4, 5]);
+    expect([camera!.fov, camera!.near, camera!.far]).toEqual([35, 1, 200]);
   });
 
-  describe('viewOffset', () => {
+  it('sets viewOffset in canvas pixels (1280x800), skips it at zero and clears it when it returns to zero', async () => {
+    let camera: PerspectiveCamera | undefined;
     function ViewOffsetWriter({ x, y }: { x: number; y: number }) {
       const { controller } = useVirtualCamera();
       useEffect(
@@ -153,73 +86,26 @@ describe('Klipp / useKlipp', () => {
       );
       return null;
     }
+    const scene = (x: number, y: number) => (
+      <Klipp>
+        <CameraReader onRead={(c) => (camera = c)} />
+        <VirtualCamera name="a" priority={10}>
+          <ViewOffsetWriter x={x} y={y} />
+        </VirtualCamera>
+      </Klipp>
+    );
 
-    it('a nonzero viewOffset calls camera.setViewOffset scaled to canvas pixel size (test-renderer default 1280x800)', async () => {
-      let camera: PerspectiveCamera | undefined;
-      function CameraReader() {
-        camera = useThree((state) => state.camera as PerspectiveCamera);
-        return null;
-      }
+    const renderer = await create(scene(0, 0));
+    await renderer.advanceFrames(1, 0.1);
+    expect(camera!.view).toBeNull();
 
-      const renderer = await create(
-        <Klipp>
-          <CameraReader />
-          <VirtualCamera name="a" priority={10}>
-            <ViewOffsetWriter x={0.5} y={-0.3} />
-          </VirtualCamera>
-        </Klipp>,
-      );
-      await renderer.advanceFrames(1, 0.1);
+    await renderer.update(scene(0.5, -0.3));
+    await renderer.advanceFrames(1, 0.1);
+    expect(camera!.view).toMatchObject({ enabled: true, offsetX: -320, offsetY: -120 });
 
-      expect(camera!.view?.enabled).toBe(true);
-      expect(camera!.view?.offsetX).toBe(-320); // -0.5 * (1280 / 2) - negated, see CameraState.ts
-      expect(camera!.view?.offsetY).toBe(-120); // -0.3 * (800 / 2)
-    });
-
-    it('viewOffset = [0, 0] (default) never calls setViewOffset at all', async () => {
-      let camera: PerspectiveCamera | undefined;
-      function CameraReader() {
-        camera = useThree((state) => state.camera as PerspectiveCamera);
-        return null;
-      }
-
-      const renderer = await create(
-        <Klipp>
-          <CameraReader />
-          <VirtualCamera name="a" priority={10}>
-            <HardLockToTarget target={[1, 2, 3]} />
-          </VirtualCamera>
-        </Klipp>,
-      );
-      await renderer.advanceFrames(1, 0.1);
-
-      expect(camera!.view).toBeNull();
-    });
-
-    it('going back to 0 after a nonzero offset calls clearViewOffset', async () => {
-      let camera: PerspectiveCamera | undefined;
-      function CameraReader() {
-        camera = useThree((state) => state.camera as PerspectiveCamera);
-        return null;
-      }
-
-      const scene = (x: number) => (
-        <Klipp>
-          <CameraReader />
-          <VirtualCamera name="a" priority={10}>
-            <ViewOffsetWriter x={x} y={0} />
-          </VirtualCamera>
-        </Klipp>
-      );
-
-      const renderer = await create(scene(0.4));
-      await renderer.advanceFrames(1, 0.1);
-      expect(camera!.view?.enabled).toBe(true);
-
-      await renderer.update(scene(0));
-      await renderer.advanceFrames(1, 0.1);
-      expect(camera!.view?.enabled).toBe(false);
-    });
+    await renderer.update(scene(0, 0));
+    await renderer.advanceFrames(1, 0.1);
+    expect(camera!.view?.enabled).toBe(false);
   });
 
   it('drives an externally-supplied `camera` prop instead of the default r3f camera', async () => {
@@ -272,15 +158,10 @@ describe('Klipp / useKlipp', () => {
 
   it("a NEW <Klipp> mounted later (e.g. switching demo scenes under one <Canvas>) starts from the camera's ORIGINAL pristine config, not wherever a PREVIOUS <Klipp> using the same camera last left it (real bug: switching scenes carried position over)", async () => {
     let camera: PerspectiveCamera | undefined;
-    function CameraReader() {
-      camera = useThree((state) => state.camera as PerspectiveCamera);
-      return null;
-    }
-
     function SceneA() {
       return (
         <>
-          <CameraReader />
+          <CameraReader onRead={(c) => (camera = c)} />
           <Klipp>
             <VirtualCamera name="a" priority={10}>
               <HardLockToTarget target={[10, 20, 30]} />
@@ -292,7 +173,7 @@ describe('Klipp / useKlipp', () => {
     function SceneB() {
       return (
         <>
-          <CameraReader />
+          <CameraReader onRead={(c) => (camera = c)} />
           <Klipp>
             <VirtualCamera name="b" priority={10} />
           </Klipp>
@@ -313,46 +194,23 @@ describe('Klipp / useKlipp', () => {
     expect(camera!.position.equals(pristinePosition)).toBe(true);
   });
 
-  describe('dt clamp under frameloop="demand"', () => {
-    it('clamps a huge single-frame dt so a blend animates instead of snapping to completion', async () => {
+  it('clamps a large dt under frameloop="demand" only, so a blend animates after an idle gap', async () => {
+    const tickDt = async (frameloop: 'always' | 'demand') => {
       let core: KlippCore | undefined;
-      function Reader() {
-        core = useKlipp().core;
-        return null;
-      }
-
       const renderer = await create(
         <Klipp>
-          <Reader />
+          <Reader onRead={(c) => (core = c)} />
           <VirtualCamera name="a" priority={10} />
         </Klipp>,
-        { frameloop: 'demand' },
+        { frameloop },
       );
-      const tickSpy = vi.spyOn(core!, 'tick');
-
-      await renderer.advanceFrames(1, 2); // simulates waking up after a 2s idle gap
-      const calledDt = tickSpy.mock.calls[0]?.[0];
-      expect(calledDt).toBeLessThan(1 / 29); // clamped — nowhere near the raw 2s
-    });
-
-    it('does NOT clamp under the default frameloop="always" — dt stays accurate even when large', async () => {
-      let core: KlippCore | undefined;
-      function Reader() {
-        core = useKlipp().core;
-        return null;
-      }
-
-      const renderer = await create(
-        <Klipp>
-          <Reader />
-          <VirtualCamera name="a" priority={10} />
-        </Klipp>,
-      ); // default frameloop="always"
-      const tickSpy = vi.spyOn(core!, 'tick');
-
+      const tick = vi.spyOn(core!, 'tick');
       await renderer.advanceFrames(1, 2);
-      expect(tickSpy).toHaveBeenCalledWith(2);
-    });
+      return tick.mock.calls[0][0];
+    };
+
+    expect(await tickDt('demand')).toBeLessThan(1 / 29);
+    expect(await tickDt('always')).toBe(2);
   });
 
   describe('mode', () => {
@@ -444,49 +302,25 @@ describe('Klipp / useKlipp', () => {
   });
 
   describe('no active camera', () => {
-    it("does not touch the real camera until some VirtualCamera actually goes live (real bug: it snapped to tick()'s untouched default CameraState on frame 1)", async () => {
+    it("leaves the real camera alone until a VirtualCamera goes live (real bug: it snapped to tick()'s default CameraState on frame 1)", async () => {
       let camera: PerspectiveCamera | undefined;
-      let core: KlippCore | undefined;
+      const scene = (active: boolean) => (
+        <Klipp>
+          <CameraReader onRead={(c) => (camera = c)} />
+          <VirtualCamera name="a" priority={10} active={active}>
+            <HardLockToTarget target={[3, 4, 5]} />
+          </VirtualCamera>
+        </Klipp>
+      );
 
-      function Scene() {
-        camera = useThree((state) => state.camera as PerspectiveCamera);
-        return (
-          <Klipp>
-            <Reader onRead={(c) => (core = c)} />
-          </Klipp>
-        );
-      }
-
-      const renderer = await create(<Scene />);
-      // a deliberately non-origin position, as if the scene/user placed the camera themselves
-      camera!.position.set(3, 4, 5);
+      const renderer = await create(scene(false));
+      camera!.position.set(1, 2, 3);
       await renderer.advanceFrames(3, 0.1);
+      expect(camera!.position.toArray()).toEqual([1, 2, 3]);
 
-      expect(core!.liveCameraId).toBeNull();
-      expect(camera!.position.equals(new Vector3(3, 4, 5))).toBe(true);
-    });
-
-    it('starts writing to the real camera the instant a VirtualCamera goes live, same as before', async () => {
-      let camera: PerspectiveCamera | undefined;
-
-      function Scene({ active }: { active: boolean }) {
-        camera = useThree((state) => state.camera as PerspectiveCamera);
-        return (
-          <Klipp>
-            <VirtualCamera name="a" priority={10} active={active}>
-              <HardLockToTarget target={[3, 4, 5]} />
-            </VirtualCamera>
-          </Klipp>
-        );
-      }
-
-      const renderer = await create(<Scene active={false} />);
-      await renderer.advanceFrames(3, 0.1);
-      expect(camera!.position.equals(new Vector3(3, 4, 5))).toBe(false); // still untouched, nothing live
-
-      await renderer.update(<Scene active={true} />);
+      await renderer.update(scene(true));
       await renderer.advanceFrames(1, 0.1);
-      expect(camera!.position.equals(new Vector3(3, 4, 5))).toBe(true);
+      expect(camera!.position.toArray()).toEqual([3, 4, 5]);
     });
 
     it('a live camera swapping out for a higher-priority one in the same update keeps writing/blending, not frozen forever (real bug: liveCameraId briefly null from the forget(), indistinguishable from "never activated")', async () => {
@@ -520,43 +354,31 @@ describe('Klipp / useKlipp', () => {
   });
 });
 
-describe('Klipp — reactive defaultBlend/customBlends props', () => {
-  it('a defaultBlend prop change after mount reaches core.setDefaultBlend', async () => {
-    let core: KlippCore | undefined;
-    const scene = (time: number) => (
-      <Klipp defaultBlend={{ curve: BlendCurves.linear, time }}>
-        <Reader onRead={(c) => (core = c)} />
-      </Klipp>
-    );
+it('passes defaultBlend and customBlends changes after mount to the core', async () => {
+  let core: KlippCore | undefined;
+  const scene = (time: number, to: string) => (
+    <Klipp
+      defaultBlend={{ curve: BlendCurves.linear, time }}
+      customBlends={[{ from: 'a', to, blend: { curve: BlendCurves.cut, time: 0 } }]}>
+      <Reader onRead={(c) => (core = c)} />
+    </Klipp>
+  );
 
-    const renderer = await create(scene(1));
-    const setDefaultBlendSpy = vi.spyOn(core!, 'setDefaultBlend');
+  const renderer = await create(scene(1, 'b'));
+  const setDefaultBlend = vi.spyOn(core!, 'setDefaultBlend');
+  const setCustomBlends = vi.spyOn(core!, 'setCustomBlends');
+  await renderer.update(scene(5, 'c'));
 
-    await renderer.update(scene(5));
-
-    expect(setDefaultBlendSpy).toHaveBeenCalledWith({ curve: BlendCurves.linear, time: 5 });
-  });
-
-  it('a customBlends prop change after mount reaches core.setCustomBlends', async () => {
-    let core: KlippCore | undefined;
-    const scene = (to: string) => (
-      <Klipp customBlends={[{ from: 'a', to, blend: { curve: BlendCurves.cut, time: 0 } }]}>
-        <Reader onRead={(c) => (core = c)} />
-      </Klipp>
-    );
-
-    const renderer = await create(scene('b'));
-    const setCustomBlendsSpy = vi.spyOn(core!, 'setCustomBlends');
-
-    await renderer.update(scene('c'));
-
-    expect(setCustomBlendsSpy).toHaveBeenCalledWith([
-      { from: 'a', to: 'c', blend: { curve: BlendCurves.cut, time: 0 } },
-    ]);
-  });
+  expect(setDefaultBlend).toHaveBeenCalledWith({ curve: BlendCurves.linear, time: 5 });
+  expect(setCustomBlends).toHaveBeenCalledWith([{ from: 'a', to: 'c', blend: { curve: BlendCurves.cut, time: 0 } }]);
 });
 
 function Reader({ onRead }: { onRead: (core: KlippCore) => void }) {
   onRead(useKlipp().core);
+  return null;
+}
+
+function CameraReader({ onRead }: { onRead: (camera: PerspectiveCamera) => void }) {
+  onRead(useThree((state) => state.camera as PerspectiveCamera));
   return null;
 }
