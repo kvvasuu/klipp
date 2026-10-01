@@ -2,253 +2,116 @@ import { BoxGeometry, BufferGeometry, Line, Mesh, Object3D, Points, Quaternion, 
 import { describe, expect, it } from 'vitest';
 import { resolveTargetPosition, resolveTargetRotation, resolveTargetSize } from '../../../src/three/resolve/Target';
 
+const unresolved = [null, undefined, { current: null }];
+
 describe('resolveTargetPosition', () => {
-  it('copies a Vector3 target as-is (already world-space) and returns true', () => {
-    const out = new Vector3();
-    const resolved = resolveTargetPosition(out, new Vector3(1, 2, 3));
-
-    expect(resolved).toBe(true);
-    expect(out.equals(new Vector3(1, 2, 3))).toBe(true);
-  });
-
-  it('resolves a plain Object3D via its WORLD position, accounting for a parent transform', () => {
+  it('resolves every target form to a world position', () => {
     const parent = new Object3D();
     parent.position.set(10, 0, 0);
     const child = new Object3D();
     child.position.set(1, 2, 3);
     parent.add(child);
 
-    const out = new Vector3();
-    const resolved = resolveTargetPosition(out, child);
+    const cases = [
+      [new Vector3(1, 2, 3), [1, 2, 3]],
+      [child, [11, 2, 3]],
+      [{ current: child }, [11, 2, 3]],
+      [
+        [1, 2, 3],
+        [1, 2, 3],
+      ],
+      [5, [5, 5, 5]],
+    ] as const;
 
-    expect(resolved).toBe(true);
-    expect(out.equals(new Vector3(11, 2, 3))).toBe(true);
+    for (const [target, expected] of cases) {
+      const out = new Vector3();
+      expect(resolveTargetPosition(out, target)).toBe(true);
+      expect(out.toArray()).toEqual(expected);
+    }
   });
 
-  it('resolves a RefObject<Object3D> via .current', () => {
-    const object = new Object3D();
-    object.position.set(4, 5, 6);
-    const ref = { current: object };
-
-    const out = new Vector3();
-    const resolved = resolveTargetPosition(out, ref);
-
-    expect(resolved).toBe(true);
-    expect(out.equals(new Vector3(4, 5, 6))).toBe(true);
-  });
-
-  it('returns false and leaves "out" untouched for a ref whose .current is null', () => {
-    const out = new Vector3(9, 9, 9);
-    const resolved = resolveTargetPosition(out, { current: null });
-
-    expect(resolved).toBe(false);
-    expect(out.equals(new Vector3(9, 9, 9))).toBe(true);
-  });
-
-  it("resolves r3f's [x,y,z] shorthand", () => {
-    const out = new Vector3();
-    const resolved = resolveTargetPosition(out, [1, 2, 3]);
-
-    expect(resolved).toBe(true);
-    expect(out.equals(new Vector3(1, 2, 3))).toBe(true);
-  });
-
-  it("resolves r3f's plain-number shorthand (broadcast to all three axes)", () => {
-    const out = new Vector3();
-    const resolved = resolveTargetPosition(out, 5);
-
-    expect(resolved).toBe(true);
-    expect(out.equals(new Vector3(5, 5, 5))).toBe(true);
-  });
-
-  it('returns false and leaves "out" untouched for a null target', () => {
-    const out = new Vector3(9, 9, 9);
-    const resolved = resolveTargetPosition(out, null);
-
-    expect(resolved).toBe(false);
-    expect(out.equals(new Vector3(9, 9, 9))).toBe(true);
-  });
-
-  it('returns false and leaves "out" untouched for an undefined target', () => {
-    const out = new Vector3(9, 9, 9);
-    const resolved = resolveTargetPosition(out, undefined);
-
-    expect(resolved).toBe(false);
-    expect(out.equals(new Vector3(9, 9, 9))).toBe(true);
+  it('returns false and leaves "out" untouched for null, undefined or an empty ref', () => {
+    for (const target of unresolved) {
+      const out = new Vector3(9, 9, 9);
+      expect(resolveTargetPosition(out, target)).toBe(false);
+      expect(out.toArray()).toEqual([9, 9, 9]);
+    }
   });
 });
 
 describe('resolveTargetSize', () => {
-  it("auto-detects a Mesh geometry's bounding box size", () => {
-    const mesh = new Mesh(new BoxGeometry(2, 4, 6));
-    const out = new Vector3();
+  it('reads the world-scaled bounding box of a Mesh, SkinnedMesh, Line or Points (real gap: Line and Points have no isMesh)', () => {
+    const scaled = new Mesh(new BoxGeometry(2, 4, 6));
+    scaled.scale.set(2, 1, 0.5);
+    const lineGeometry = new BufferGeometry().setFromPoints([new Vector3(-1, 0, 0), new Vector3(1, 2, 3)]);
+    const cases = [
+      [new Mesh(new BoxGeometry(2, 4, 6)), [2, 4, 6]],
+      [scaled, [4, 4, 3]],
+      [new SkinnedMesh(new BoxGeometry(2, 4, 6)), [2, 4, 6]],
+      [new Line(lineGeometry), [2, 2, 3]],
+      [new Points(lineGeometry), [2, 2, 3]],
+    ] as const;
 
-    expect(resolveTargetSize(out, mesh)).toBe(true);
-    expect(out.x).toBeCloseTo(2, 5);
-    expect(out.y).toBeCloseTo(4, 5);
-    expect(out.z).toBeCloseTo(6, 5);
+    for (const [object, [x, y, z]] of cases) {
+      const out = new Vector3();
+      expect(resolveTargetSize(out, object)).toBe(true);
+      expect(out.x).toBeCloseTo(x, 5);
+      expect(out.y).toBeCloseTo(y, 5);
+      expect(out.z).toBeCloseTo(z, 5);
+    }
   });
 
-  it("auto-detects a SkinnedMesh too - it inherits Mesh's isMesh flag", () => {
-    const mesh = new SkinnedMesh(new BoxGeometry(2, 4, 6));
-    const out = new Vector3();
-
-    expect(resolveTargetSize(out, mesh)).toBe(true);
-    expect(out.x).toBeCloseTo(2, 5);
-  });
-
-  it('auto-detects a Line geometry (real gap: Line has no isMesh flag, only isLine)', () => {
-    const geometry = new BufferGeometry().setFromPoints([new Vector3(-1, 0, 0), new Vector3(1, 2, 3)]);
-    const line = new Line(geometry);
-    const out = new Vector3();
-
-    expect(resolveTargetSize(out, line)).toBe(true);
-    expect(out.x).toBeCloseTo(2, 5);
-    expect(out.y).toBeCloseTo(2, 5);
-    expect(out.z).toBeCloseTo(3, 5);
-  });
-
-  it('auto-detects a Points geometry (real gap: Points has no isMesh flag, only isPoints)', () => {
-    const geometry = new BufferGeometry().setFromPoints([new Vector3(-2, -1, -1), new Vector3(2, 1, 1)]);
-    const points = new Points(geometry);
-    const out = new Vector3();
-
-    expect(resolveTargetSize(out, points)).toBe(true);
-    expect(out.x).toBeCloseTo(4, 5);
-    expect(out.y).toBeCloseTo(2, 5);
-    expect(out.z).toBeCloseTo(2, 5);
-  });
-
-  it('returns false and leaves "out" untouched for a plain Object3D (no geometry)', () => {
+  it('prefers an explicit size, and returns false without geometry or when only a radius is given', () => {
+    const mesh = new Mesh(new BoxGeometry(2, 2, 2));
     const out = new Vector3(9, 9, 9);
 
     expect(resolveTargetSize(out, new Object3D())).toBe(false);
-    expect(out.equals(new Vector3(9, 9, 9))).toBe(true);
-  });
-
-  it('an explicit size wins over auto-detection', () => {
-    const mesh = new Mesh(new BoxGeometry(2, 2, 2));
-    const out = new Vector3();
+    expect(resolveTargetSize(out, mesh, undefined, 5)).toBe(false);
+    expect(out.toArray()).toEqual([9, 9, 9]);
 
     expect(resolveTargetSize(out, mesh, [10, 20, 30])).toBe(true);
-    expect(out.equals(new Vector3(10, 20, 30))).toBe(true);
+    expect(out.toArray()).toEqual([10, 20, 30]);
   });
 
-  it('radius without size means "sphere, not a box" - returns false even with a real Mesh', () => {
-    const mesh = new Mesh(new BoxGeometry(2, 2, 2));
-    const out = new Vector3(9, 9, 9);
-
-    expect(resolveTargetSize(out, mesh, undefined, 5)).toBe(false);
-    expect(out.equals(new Vector3(9, 9, 9))).toBe(true);
-  });
-
-  describe('dynamicSize', () => {
-    // a raw vertex edit (no .scale()/.applyMatrix4()) is the one case three.js itself never keeps
-    // boundingBox in sync for automatically - matches a SkinnedMesh's bind-pose-only limitation
-    function deformFirstVertex(mesh: Mesh): void {
+  it('caches the first bounding box, unless dynamicSize recomputes it every call', () => {
+    // a raw vertex edit is the one change three.js never syncs into boundingBox, like a SkinnedMesh pose
+    const deformedWidth = (dynamicSize: boolean) => {
+      const mesh = new Mesh(new BoxGeometry(2, 2, 2));
+      const out = new Vector3();
+      resolveTargetSize(out, mesh, undefined, undefined, dynamicSize);
       const position = mesh.geometry.attributes.position;
       position.setX(0, position.getX(0) * 10);
       position.needsUpdate = true;
-    }
+      resolveTargetSize(out, mesh, undefined, undefined, dynamicSize);
+      return out.x;
+    };
 
-    it('default (false): the FIRST computed bounding box is cached and reused - a later deformation goes unnoticed', () => {
-      const mesh = new Mesh(new BoxGeometry(2, 2, 2));
-      const out = new Vector3();
-      resolveTargetSize(out, mesh);
-
-      deformFirstVertex(mesh);
-      resolveTargetSize(out, mesh);
-
-      expect(out.x).toBeCloseTo(2, 5);
-    });
-
-    it('true: recomputes every call, picking up the same deformation', () => {
-      const mesh = new Mesh(new BoxGeometry(2, 2, 2));
-      const out = new Vector3();
-      resolveTargetSize(out, mesh, undefined, undefined, true);
-
-      deformFirstVertex(mesh);
-      resolveTargetSize(out, mesh, undefined, undefined, true);
-
-      expect(out.x).toBeGreaterThan(5);
-    });
+    expect(deformedWidth(false)).toBeCloseTo(2, 5);
+    expect(deformedWidth(true)).toBeGreaterThan(5);
   });
 });
 
 describe('resolveTargetRotation', () => {
-  it('returns false and leaves "out" untouched for a Vector3 target (no rotation to give)', () => {
-    const out = new Quaternion(1, 2, 3, 4);
-    const resolved = resolveTargetRotation(out, new Vector3(1, 2, 3));
-
-    expect(resolved).toBe(false);
-    expect(out.equals(new Quaternion(1, 2, 3, 4))).toBe(true);
-  });
-
-  it('resolves a plain Object3D via its WORLD rotation, accounting for a parent transform', () => {
+  it('resolves an Object3D or a ref to it to its world rotation', () => {
     const parent = new Object3D();
     parent.rotation.set(0, Math.PI / 2, 0);
     const child = new Object3D();
     child.rotation.set(0, Math.PI / 4, 0);
     parent.add(child);
-    parent.updateMatrixWorld(true);
-
-    const out = new Quaternion();
-    const resolved = resolveTargetRotation(out, child);
-
     const expected = new Quaternion().setFromEuler(child.rotation).premultiply(parent.quaternion);
-    expect(resolved).toBe(true);
-    expect(out.angleTo(expected)).toBeLessThan(1e-6);
+
+    for (const target of [child, { current: child }]) {
+      const out = new Quaternion();
+      expect(resolveTargetRotation(out, target)).toBe(true);
+      expect(out.angleTo(expected)).toBeLessThan(1e-6);
+    }
   });
 
-  it('resolves a RefObject<Object3D> via .current', () => {
-    const object = new Object3D();
-    object.rotation.set(0, Math.PI / 3, 0);
-    const ref = { current: object };
-
-    const out = new Quaternion();
-    const resolved = resolveTargetRotation(out, ref);
-
-    expect(resolved).toBe(true);
-    expect(out.angleTo(new Quaternion().setFromEuler(object.rotation))).toBeLessThan(1e-6);
-  });
-
-  it('returns false and leaves "out" untouched for a ref whose .current is null', () => {
-    const out = new Quaternion(1, 2, 3, 4);
-    const resolved = resolveTargetRotation(out, { current: null });
-
-    expect(resolved).toBe(false);
-    expect(out.equals(new Quaternion(1, 2, 3, 4))).toBe(true);
-  });
-
-  it("returns false for r3f's [x,y,z] shorthand (no rotation to give)", () => {
-    const out = new Quaternion(1, 2, 3, 4);
-    const resolved = resolveTargetRotation(out, [1, 2, 3]);
-
-    expect(resolved).toBe(false);
-    expect(out.equals(new Quaternion(1, 2, 3, 4))).toBe(true);
-  });
-
-  it("returns false for r3f's plain-number shorthand (no rotation to give)", () => {
-    const out = new Quaternion(1, 2, 3, 4);
-    const resolved = resolveTargetRotation(out, 5);
-
-    expect(resolved).toBe(false);
-    expect(out.equals(new Quaternion(1, 2, 3, 4))).toBe(true);
-  });
-
-  it('returns false and leaves "out" untouched for a null target', () => {
-    const out = new Quaternion(1, 2, 3, 4);
-    const resolved = resolveTargetRotation(out, null);
-
-    expect(resolved).toBe(false);
-    expect(out.equals(new Quaternion(1, 2, 3, 4))).toBe(true);
-  });
-
-  it('returns false and leaves "out" untouched for an undefined target', () => {
-    const out = new Quaternion(1, 2, 3, 4);
-    const resolved = resolveTargetRotation(out, undefined);
-
-    expect(resolved).toBe(false);
-    expect(out.equals(new Quaternion(1, 2, 3, 4))).toBe(true);
+  it('returns false and leaves "out" untouched for points, null, undefined or an empty ref', () => {
+    for (const target of [new Vector3(1, 2, 3), [1, 2, 3] as const, 5, ...unresolved]) {
+      const out = new Quaternion(1, 2, 3, 4);
+      expect(resolveTargetRotation(out, target)).toBe(false);
+      expect(out.toArray()).toEqual([1, 2, 3, 4]);
+    }
   });
 });
