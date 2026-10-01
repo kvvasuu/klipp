@@ -21,7 +21,7 @@ describe('BasicMultiChannelPerlinNoise', () => {
     silenced.amplitudeGain = 0;
     for (const noise of [new BasicMultiChannelPerlinNoise(), silenced]) {
       const out = createCameraState();
-      for (let i = 0; i < 10; i++) noise.update(out, 0.1);
+      for (let i = 0; i < 10; i++) noise.update(out, 0.1, false);
       expect(out.position).toEqual([0, 0, 0]);
       expect(out.quaternion).toEqual([0, 0, 0, 1]);
     }
@@ -34,7 +34,7 @@ describe('BasicMultiChannelPerlinNoise', () => {
 
     for (let i = 0; i < 200; i++) {
       vec3.set(out.position, 0, 0, 0);
-      noise.update(out, 0.05);
+      noise.update(out, 0.05, false);
       moved ||= vec3.length(out.position) > 1e-6;
       expect(Math.abs(out.position[0])).toBeLessThanOrEqual(3);
       expect(Math.abs(out.position[1])).toBeLessThanOrEqual(4.5);
@@ -48,8 +48,8 @@ describe('BasicMultiChannelPerlinNoise', () => {
     const yawed = createCameraState();
     quat.setAxisAngle(yawed.quaternion, [0, 1, 0], Math.PI / 2);
 
-    seeded([1, 0, 0], undefined, 7).update(identity, 0.5);
-    seeded([1, 0, 0], undefined, 7).update(yawed, 0.5);
+    seeded([1, 0, 0], undefined, 7).update(identity, 0.5, false);
+    seeded([1, 0, 0], undefined, 7).update(yawed, 0.5, false);
 
     expect(Math.abs(identity.position[0])).toBeGreaterThan(1e-4);
     expect(yawed.position[0]).toBeCloseTo(0, 5);
@@ -63,7 +63,7 @@ describe('BasicMultiChannelPerlinNoise', () => {
 
     for (let i = 0; i < 50; i++) {
       vec4.set(out.quaternion, 0, 0, 0, 1);
-      noise.update(out, 0.05);
+      noise.update(out, 0.05, false);
       const degrees = (angleBetween(out.quaternion, [0, 0, 0, 1]) * 180) / Math.PI;
       turned ||= degrees > 1e-4;
       expect(degrees).toBeLessThan(45);
@@ -94,12 +94,12 @@ describe('BasicMultiChannelPerlinNoise', () => {
 
     it('with it, eases toward a new amplitudeGain and gets there', () => {
       const noise = seeded([5, 5, 5], undefined, 3, 1, 0.2);
-      noise.update(createCameraState(), 0.05);
+      noise.update(createCameraState(), 0.05, false);
 
       noise.amplitudeGain = 0;
       expect(offset(noise, 0.016)).toBeGreaterThan(0);
 
-      for (let i = 0; i < 300; i++) noise.update(createCameraState(), 0.016);
+      for (let i = 0; i < 300; i++) noise.update(createCameraState(), 0.016, false);
       expect(offset(noise, 0.016)).toBeCloseTo(0, 5);
     });
 
@@ -111,7 +111,7 @@ describe('BasicMultiChannelPerlinNoise', () => {
         for (const noise of [reference, damped]) {
           noise.update(createCameraState(), 0.1, true);
           noise.amplitudeGain = 0;
-          noise.update(createCameraState(), 0.016);
+          noise.update(createCameraState(), 0.016, false);
           noise.amplitudeGain = 1;
         }
         return { full: offset(reference, 0.016, justActivated), damped: offset(damped, 0.016, justActivated) };

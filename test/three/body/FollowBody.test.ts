@@ -15,7 +15,7 @@ function expectVec3Close(actual: Vec3, expected: Vec3) {
 /** Runs one update so the next one damps instead of snapping, then moves the camera back to the origin. */
 function warmUp(body: FollowBody) {
   const out = createCameraState();
-  body.update(out, 0.016);
+  body.update(out, 0.016, false);
   vec3.set(out.position, 0, 0, 0);
   return out;
 }
@@ -23,7 +23,7 @@ function warmUp(body: FollowBody) {
 describe('FollowBody', () => {
   it('sits at the offset from the target and publishes the target as out.target', () => {
     const out = createCameraState();
-    new FollowBody(new Vector3(2, 3, 4), [1, 2, 3]).update(out, 0.1);
+    new FollowBody(new Vector3(2, 3, 4), [1, 2, 3]).update(out, 0.1, false);
 
     expect(out.position).toEqual([3, 5, 7]);
     expect(out.target).toEqual([2, 3, 4]);
@@ -32,7 +32,7 @@ describe('FollowBody', () => {
 
   it('leaves out untouched without a target', () => {
     const out = createCameraState();
-    new FollowBody(null).update(out, 0.1);
+    new FollowBody(null).update(out, 0.1, false);
     expect(out.position).toEqual([0, 0, 0]);
   });
 
@@ -40,15 +40,15 @@ describe('FollowBody', () => {
     it('snaps on the very first update, then eases toward the offset position and converges', () => {
       const body = new FollowBody(new Vector3(), [10, 5, -3], 0.3);
       const out = createCameraState();
-      body.update(out, 0.016);
+      body.update(out, 0.016, false);
       expect(out.position).toEqual([10, 5, -3]);
 
       vec3.set(out.position, 0, 0, 0);
-      body.update(out, 0.016);
+      body.update(out, 0.016, false);
       expect(out.position[0]).toBeGreaterThan(0);
       expect(out.position[0]).toBeLessThan(10);
 
-      for (let i = 0; i < 300; i++) body.update(out, 0.016);
+      for (let i = 0; i < 300; i++) body.update(out, 0.016, false);
       expectVec3Close(out.position, [10, 5, -3]);
     });
 
@@ -56,10 +56,10 @@ describe('FollowBody', () => {
       const target = new Vector3();
       const body = new FollowBody(target, [0, 0, 10], 0.5);
       const out = createCameraState();
-      body.update(out, 0.016);
+      body.update(out, 0.016, false);
 
       target.set(20, 0, 0);
-      body.update(out, 0.016);
+      body.update(out, 0.016, false);
 
       expect(out.position[0]).toBeLessThan(20);
       expectVec3Close(vec3.subtract(vec3.create(), out.position, out.target), [0, 0, 10]);
@@ -69,7 +69,7 @@ describe('FollowBody', () => {
       const run = (maxSpeed: number) => {
         const body = new FollowBody(new Vector3(), [100, 0, 0], 1, BindingModes.lockToTarget, maxSpeed);
         const out = warmUp(body);
-        body.update(out, 0.05);
+        body.update(out, 0.05, false);
         return out.position[0];
       };
 
@@ -82,7 +82,7 @@ describe('FollowBody', () => {
       const body = new FollowBody(new Vector3(10, 0, 0), [0, 0, 0], 0.5);
       const out = createCameraState();
       body.update(out, 0.016, true);
-      body.update(out, 0.016);
+      body.update(out, 0.016, false);
       body.target = new Vector3(-40, 12, 3);
       body.update(out, 0.016, justActivated);
       return out.position;
@@ -120,7 +120,7 @@ describe('FollowBody', () => {
     function follow(target: Object3D, bindingMode?: BindingMode) {
       const body = new FollowBody(target, [0, 1, 8], 0, bindingMode);
       const out = createCameraState();
-      body.update(out, 0.1);
+      body.update(out, 0.1, false);
       return { body, out };
     }
 
@@ -133,7 +133,7 @@ describe('FollowBody', () => {
 
     it('the default offset sits behind a -Z facing target', () => {
       const out = createCameraState();
-      new FollowBody(new Object3D()).update(out, 0.1);
+      new FollowBody(new Object3D()).update(out, 0.1, false);
       expect(out.position[2]).toBeGreaterThan(0);
     });
 
@@ -159,7 +159,7 @@ describe('FollowBody', () => {
       const up = vec3.clone(out.referenceUp);
 
       target.rotateZ(1.2);
-      body.update(out, 0.1);
+      body.update(out, 0.1, false);
 
       expectVec3Close(out.position, position);
       expectVec3Close(out.referenceUp, up);
@@ -172,14 +172,14 @@ describe('FollowBody', () => {
       const up = vec3.clone(out.referenceUp);
 
       target.rotation.set(0, 0, 0);
-      body.update(out, 0.1);
+      body.update(out, 0.1, false);
       expectVec3Close(out.position, position);
       expectVec3Close(out.referenceUp, up);
 
       const next = new Object3D();
       next.position.set(5, 0, 0);
       body.target = next;
-      body.update(out, 0.1);
+      body.update(out, 0.1, false);
       expectVec3Close(out.position, [5, 1, 8]);
     });
   });

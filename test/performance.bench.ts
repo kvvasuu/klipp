@@ -267,7 +267,7 @@ group('ImpulseField.sampleAt @impulse', () => {
     yield () => {
       now += 0.016;
       field.sampleAt(out, samplePosition, 1, 1, now);
-      return out.x;
+      return out[0];
     };
   });
 
@@ -279,7 +279,7 @@ group('ImpulseField.sampleAt @impulse', () => {
     yield () => {
       now += 0.016;
       field.sampleAt(out, samplePosition, 1, 1, now);
-      return out.x;
+      return out[0];
     };
   });
 
@@ -291,7 +291,7 @@ group('ImpulseField.sampleAt @impulse', () => {
     yield () => {
       now += 0.016;
       field.sampleAt(out, samplePosition, 1, 1, now);
-      return out.x;
+      return out[0];
     };
   });
 });
@@ -343,13 +343,13 @@ group('ImpulseListenerNoise.update @impulse', () => {
 // @pmndrs/labs runs in plain Node, no DOM - a real EventTarget.dispatchEvent() alone costs ~140 b/iter
 // here (measured separately), so these call the private handlers directly to isolate their own allocations.
 group('InputSystem event handlers @input', () => {
-  type Handlers = {
+  type Handlers = Pick<InputSystem, 'connect' | 'consume'> & {
     onPointerDown: (event: unknown) => void;
     onPointerMove: (event: unknown) => void;
     onWheel: (event: unknown) => void;
   };
 
-  function makeConnectedInputSystem(): { system: InputSystem & Handlers; element: object } {
+  function makeConnectedInputSystem(): { system: Handlers; element: object } {
     const fakeDocument = {
       pointerLockElement: null as object | null,
       addEventListener: () => {},
@@ -364,7 +364,7 @@ group('InputSystem event handlers @input', () => {
       setPointerCapture: () => {},
       releasePointerCapture: () => {},
     };
-    const system = new InputSystem() as InputSystem & Handlers;
+    const system = new InputSystem() as unknown as Handlers;
     system.connect(element as unknown as HTMLElement);
     return { system, element };
   }

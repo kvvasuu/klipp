@@ -52,7 +52,7 @@ describe('CameraControlsBody', () => {
     out.near = 0.5;
     out.far = 500;
 
-    body.update(out, 0.05);
+    body.update(out, 0.05, false);
 
     const camera = body.controls.camera as PerspectiveCamera;
     expect([camera.fov, camera.near, camera.far, camera.aspect]).toEqual([35, 0.5, 500, 2]);
@@ -61,7 +61,7 @@ describe('CameraControlsBody', () => {
   it('without a target runs as free controls that follow direct input', () => {
     const body = new CameraControlsBody(null);
     const out = createCameraState();
-    body.update(out, 0.05);
+    body.update(out, 0.05, false);
     expect(out.hasTarget).toBe(false);
     expect(out.hasLookAtTarget).toBe(false);
 
@@ -104,7 +104,7 @@ describe('CameraControlsBody', () => {
       const body = new CameraControlsBody(target, 1, start);
       const out = createCameraState();
 
-      body.update(out, 0.05);
+      body.update(out, 0.05, false);
       expect(vec3.distance(out.position, start.toArray())).toBeLessThan(1e-5);
       expect(lookingAt(out, target)).toBeGreaterThan(0.999);
 
@@ -125,7 +125,7 @@ describe('CameraControlsBody', () => {
 
       ref.current = new Object3D();
       ref.current.position.set(0, 0, -20);
-      body.update(out, 0.05);
+      body.update(out, 0.05, false);
       expect(vec3.distance(out.position, start.toArray())).toBeLessThan(1e-5);
       expect(lookingAt(out, ref.current.position)).toBeGreaterThan(0.999);
     });
@@ -173,7 +173,7 @@ describe('CameraControlsBody', () => {
 
       target.set(50, 0, 50);
       body.target = target;
-      body.update(out, 0.05);
+      body.update(out, 0.05, false);
       expect(vec3.distance(out.position, free)).toBeLessThan(1e-4);
 
       run(body, out, 60);
@@ -209,7 +209,7 @@ describe('CameraControlsBody', () => {
       let turned = 0;
       const previous = new Quaternion().fromArray(out.quaternion);
       for (let i = 0; i < 200; i++) {
-        body.update(out, 0.05);
+        body.update(out, 0.05, false);
         const current = new Quaternion().fromArray(out.quaternion);
         turned += current.angleTo(previous);
         previous.copy(current);
@@ -229,7 +229,7 @@ describe('CameraControlsBody', () => {
 
       target.set(3, 0, 3);
       body.target = target;
-      body.update(out, 0.05);
+      body.update(out, 0.05, false);
       expect(out.position).not.toEqual(free);
 
       run(body, out, 120);
@@ -241,13 +241,13 @@ describe('CameraControlsBody', () => {
     it('sphericalPosition arcs around the shared target (real bug: blends into CameraControls always went straight)', () => {
       const core = new KlippCore({ defaultBlend: { curve: BlendCurves.linear, time: 1 } });
       const a = createCameraState();
-      new FollowBody(new Vector3(), [10, 0, 0]).update(a, 0.016);
-      new HardLookAtAim(new Vector3()).update(a, 0.016);
+      new FollowBody(new Vector3(), [10, 0, 0]).update(a, 0.016, false);
+      new HardLookAtAim(new Vector3()).update(a);
       core.registerCamera({ id: 'a', priority: 10, state: a, hints: BlendHints.sphericalPosition });
       core.tick(0);
 
       const b = createCameraState();
-      new CameraControlsBody(new Vector3(), 1, new Vector3(0, 5, -10)).update(b, 0.016);
+      new CameraControlsBody(new Vector3(), 1, new Vector3(0, 5, -10)).update(b, 0.016, false);
       core.registerCamera({ id: 'b', priority: 20, state: b, hints: BlendHints.sphericalPosition });
 
       const mid = core.tick(0.5);
@@ -258,13 +258,13 @@ describe('CameraControlsBody', () => {
     it('a blend into it keeps looking at the moving look-at point (real bug: fell back to a plain slerp)', () => {
       const core = new KlippCore({ defaultBlend: { curve: BlendCurves.linear, time: 1 } });
       const a = createCameraState();
-      new HardLockToTargetBody(new Vector3(15, 2, -3)).update(a, 0.016);
-      new HardLookAtAim(new Vector3(5, 2, -3)).update(a, 0.016);
+      new HardLockToTargetBody(new Vector3(15, 2, -3)).update(a, 0.016, false);
+      new HardLookAtAim(new Vector3(5, 2, -3)).update(a);
       core.registerCamera({ id: 'a', priority: 10, state: a });
       core.tick(0);
 
       const b = createCameraState();
-      new CameraControlsBody(new Vector3(5, 2, 47), 1, new Vector3(5, 7, 37)).update(b, 0.016);
+      new CameraControlsBody(new Vector3(5, 2, 47), 1, new Vector3(5, 7, 37)).update(b, 0.016, false);
       core.registerCamera({ id: 'b', priority: 20, state: b });
 
       for (let i = 0; i < 3; i++) {
@@ -285,13 +285,13 @@ describe('CameraControlsBody', () => {
       body.controls.rotate(Math.PI, 0, false);
       body.controls.dollyTo(5, false);
 
-      body.update(state, 0.016);
+      body.update(state, 0.016, false);
       core.registerCamera({ id: 'follow', priority: 3, state });
       expect(vec3.distance(core.tick(0).position, intro.position)).toBeLessThan(1e-6);
 
       let out = intro;
       for (let i = 0; i < 80; i++) {
-        body.update(state, 0.016);
+        body.update(state, 0.016, false);
         out = core.tick(0.016);
       }
       expect(vec3.distance(out.position, state.position)).toBeLessThan(1e-4);

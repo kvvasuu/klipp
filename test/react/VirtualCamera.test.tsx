@@ -161,7 +161,13 @@ describe('VirtualCamera — Body/Aim/Noise wiring', () => {
     function Piece() {
       const camera = useVirtualCamera();
       state = camera.state;
-      useEffect(() => camera.controller.registerBody((out) => (out.position[0] = 42)), [camera.controller]);
+      useEffect(
+        () =>
+          camera.controller.registerBody((out) => {
+            out.position[0] = 42;
+          }),
+        [camera.controller],
+      );
       return null;
     }
 

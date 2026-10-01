@@ -29,7 +29,9 @@ describe('InputController (React wrapper)', () => {
         <VirtualCamera name="a" priority={10}>
           <InputAxisOwnerContext.Provider value={{ inputAxes: { pan: new InputAxis(), tilt: new InputAxis() } }}>
             <InputController
-              ref={(c) => (controller = c)}
+              ref={(c) => {
+                controller = c;
+              }}
               target={owner({ pan, tilt, radial })}
               mouseButtons={{ left: null, right: { axes: { x: 'pan', y } }, middle: null }}
             />
@@ -58,7 +60,9 @@ describe('InputController (React wrapper)', () => {
         <VirtualCamera name="a" priority={10}>
           <InputAxisOwnerContext.Provider value={{ inputAxes: { pan, tilt } }}>
             <InputController
-              ref={(c) => (controller = c)}
+              ref={(c) => {
+                controller = c;
+              }}
               mouseButtons={{ left: null, right: { axes: { x: 'pan', y: 'tilt' } }, middle: null }}
             />
           </InputAxisOwnerContext.Provider>
@@ -82,7 +86,9 @@ describe('InputController (React wrapper)', () => {
       <Klipp>
         <VirtualCamera name="a" priority={10}>
           <InputController
-            ref={(c) => (controller = c)}
+            ref={(c) => {
+              controller = c;
+            }}
             target={target}
             mouseButtons={{ left: null, right: { axes: { x: 'pan', y: 'nonexistent' } }, middle: null }}
           />
@@ -132,7 +138,9 @@ describe('InputController (React wrapper)', () => {
         <Klipp>
           <VirtualCamera name="orbital" priority={priority}>
             <InputController
-              ref={(c) => (controller = c)}
+              ref={(c) => {
+                controller = c;
+              }}
               target={owner({ pan: new InputAxis(), tilt: new InputAxis() })}
               waitForBlend={waitForBlend}
               mouseButtons={{ left: { axes: { x: 'pan', y: 'tilt' } }, right: null, middle: null }}
@@ -165,7 +173,9 @@ describe('InputController (React wrapper)', () => {
       <Klipp>
         <VirtualCamera name="a" priority={10}>
           <InputController
-            ref={(c) => (controller = c)}
+            ref={(c) => {
+              controller = c;
+            }}
             target={owner({ pan: new InputAxis(), tilt: new InputAxis() })}
             mouseButtons={{ left: { axes: { x: 'pan', y: 'tilt' } }, right: null, middle: null }}
             suppressContextMenu
@@ -202,7 +212,9 @@ describe('InputController (React wrapper)', () => {
         <DomElementReader onRead={(el) => (domElement = el)} />
         <VirtualCamera name="a" priority={10}>
           <InputController
-            ref={(c) => (controller = c)}
+            ref={(c) => {
+              controller = c;
+            }}
             target={target}
             mouseButtons={{ left: { axes: { x: 'pan', y: 'tilt' } }, right: null, middle: null }}
             enabled={false}

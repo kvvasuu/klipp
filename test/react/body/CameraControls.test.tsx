@@ -60,7 +60,13 @@ describe('CameraControls (React wrapper)', () => {
     const scene = (orbitalPriority: number) => (
       <Klipp>
         <VirtualCamera name="orbital" priority={orbitalPriority}>
-          <CameraControls target={target} waitForBlend={false} ref={(b) => (controlsBody = b)} />
+          <CameraControls
+            target={target}
+            waitForBlend={false}
+            ref={(b) => {
+              controlsBody = b;
+            }}
+          />
         </VirtualCamera>
         <VirtualCamera name="other" priority={5}>
           <HardLockToTarget target={[0, 0, 0]} />
@@ -92,7 +98,12 @@ describe('CameraControls (React wrapper)', () => {
     const scene = (orbitalPriority: number) => (
       <Klipp>
         <VirtualCamera name="orbital" priority={orbitalPriority}>
-          <CameraControls target={target} ref={(b) => (controlsBody = b)} />
+          <CameraControls
+            target={target}
+            ref={(b) => {
+              controlsBody = b;
+            }}
+          />
         </VirtualCamera>
         <VirtualCamera name="other" priority={5}>
           <HardLockToTarget target={[0, 0, 0]} />
@@ -119,7 +130,12 @@ describe('CameraControls (React wrapper)', () => {
     const scene = (followPriority: number) => (
       <Klipp>
         <VirtualCamera name="follow" priority={followPriority}>
-          <CameraControls target={new Vector3(0, 0, -10)} ref={(b) => (followBody = b)} />
+          <CameraControls
+            target={new Vector3(0, 0, -10)}
+            ref={(b) => {
+              followBody = b;
+            }}
+          />
         </VirtualCamera>
         <VirtualCamera name="free" priority={5}>
           <CameraControls waitForBlend={false} />
@@ -174,7 +190,9 @@ describe('CameraControls (React wrapper)', () => {
               target={new Vector3(0, 0, -10)}
               makeDefault
               waitForBlend={false}
-              ref={(b) => (controlsBody = b)}
+              ref={(b) => {
+                controlsBody = b;
+              }}
             />
           </VirtualCamera>
           <VirtualCamera name="other" priority={5}>
@@ -322,7 +340,12 @@ describe('CameraControls (React wrapper)', () => {
         <Klipp>
           <InvalidateReader />
           <VirtualCamera name="a" priority={10}>
-            <CameraControls target={new Vector3(0, 0, -10)} ref={(b) => (controlsBody = b)} />
+            <CameraControls
+              target={new Vector3(0, 0, -10)}
+              ref={(b) => {
+                controlsBody = b;
+              }}
+            />
           </VirtualCamera>
         </Klipp>
       );
@@ -361,7 +384,14 @@ describe('CameraControls (React wrapper)', () => {
         <Klipp>
           <InvalidateReader />
           <VirtualCamera name="a" priority={10}>
-            {mounted && <CameraControls target={new Vector3(0, 0, -10)} ref={(b) => (controlsBody = b)} />}
+            {mounted && (
+              <CameraControls
+                target={new Vector3(0, 0, -10)}
+                ref={(b) => {
+                  controlsBody = b;
+                }}
+              />
+            )}
           </VirtualCamera>
         </Klipp>
       );
@@ -391,7 +421,13 @@ describe('CameraControls (React wrapper)', () => {
         <Klipp>
           <RegressReader />
           <VirtualCamera name="a" priority={10}>
-            <CameraControls target={new Vector3(0, 0, -10)} regress ref={(b) => (controlsBody = b)} />
+            <CameraControls
+              target={new Vector3(0, 0, -10)}
+              regress
+              ref={(b) => {
+                controlsBody = b;
+              }}
+            />
           </VirtualCamera>
         </Klipp>
       );
@@ -427,7 +463,12 @@ describe('CameraControls (React wrapper)', () => {
         <Klipp>
           <RegressReader />
           <VirtualCamera name="a" priority={10}>
-            <CameraControls target={new Vector3(0, 0, -10)} ref={(b) => (controlsBody = b)} />
+            <CameraControls
+              target={new Vector3(0, 0, -10)}
+              ref={(b) => {
+                controlsBody = b;
+              }}
+            />
           </VirtualCamera>
         </Klipp>
       );
@@ -449,7 +490,9 @@ describe('CameraControls (React wrapper)', () => {
           <VirtualCamera name="a" priority={10}>
             <CameraControls
               target={new Vector3(0, 0, -10)}
-              ref={(b) => (controlsBody = b)}
+              ref={(b) => {
+                controlsBody = b;
+              }}
               onControlStart={() => calls.push('controlstart')}
               onControl={() => calls.push('control')}
               onControlEnd={() => calls.push('controlend')}
@@ -479,7 +522,13 @@ describe('CameraControls (React wrapper)', () => {
       const scene = (onUpdate: () => void) => (
         <Klipp>
           <VirtualCamera name="a" priority={10}>
-            <CameraControls target={new Vector3(0, 0, -10)} ref={(b) => (controlsBody = b)} onUpdate={onUpdate} />
+            <CameraControls
+              target={new Vector3(0, 0, -10)}
+              ref={(b) => {
+                controlsBody = b;
+              }}
+              onUpdate={onUpdate}
+            />
           </VirtualCamera>
         </Klipp>
       );

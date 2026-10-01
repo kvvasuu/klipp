@@ -10,10 +10,18 @@ describe('VirtualCameraController', () => {
     const out = createCameraState();
     controller.update(out, 0.1, false); // nothing registered yet
 
-    controller.registerBody((state, dt) => (state.fov = dt * 20));
-    controller.registerAim((state) => (state.fov *= 2));
-    controller.registerExtension((state) => (state.fov += 100));
-    controller.registerNoise((state) => (state.fov += 1));
+    controller.registerBody((state, dt) => {
+      state.fov = dt * 20;
+    });
+    controller.registerAim((state) => {
+      state.fov *= 2;
+    });
+    controller.registerExtension((state) => {
+      state.fov += 100;
+    });
+    controller.registerNoise((state) => {
+      state.fov += 1;
+    });
     controller.update(out, 0.5, false);
 
     expect(out.fov).toBe(121); // ((10 * 2) + 100) + 1
@@ -23,11 +31,21 @@ describe('VirtualCameraController', () => {
     const controller = new VirtualCameraController('a');
     const out = createCameraState();
     const stops = [
-      controller.registerBody((state) => (state.position[0] += 1)),
-      controller.registerExtension((state) => (state.position[0] += 10)),
-      controller.registerExtension((state) => (state.position[0] += 100)),
-      controller.registerNoise((state) => (state.position[0] += 1000)),
-      controller.registerNoise((state) => (state.position[0] += 10000)),
+      controller.registerBody((state) => {
+        state.position[0] += 1;
+      }),
+      controller.registerExtension((state) => {
+        state.position[0] += 10;
+      }),
+      controller.registerExtension((state) => {
+        state.position[0] += 100;
+      }),
+      controller.registerNoise((state) => {
+        state.position[0] += 1000;
+      }),
+      controller.registerNoise((state) => {
+        state.position[0] += 10000;
+      }),
     ];
 
     controller.update(out, 0.1, false);
@@ -40,8 +58,12 @@ describe('VirtualCameraController', () => {
 
   it('unregistering a STALE writer (already replaced by a newer one) does not remove the new one', () => {
     const controller = new VirtualCameraController('a');
-    const unregisterFirst = controller.registerBody((out) => (out.position[0] = 1));
-    controller.registerBody((out) => (out.position[0] = 2));
+    const unregisterFirst = controller.registerBody((out) => {
+      out.position[0] = 1;
+    });
+    controller.registerBody((out) => {
+      out.position[0] = 2;
+    });
 
     unregisterFirst(); // stale — the second registration already replaced it
 
@@ -57,7 +79,9 @@ describe('VirtualCameraController', () => {
       const controller = new VirtualCameraController('a');
       // deliberately the exact accidental shape this guards against: no braces, so the arrow's value IS
       // the assignment's result (a number), even though its declared type is `void`
-      controller.registerBody((out, dt) => (out.position[0] = dt));
+      controller.registerBody((out, dt) => {
+        out.position[0] = dt;
+      });
 
       const out = createCameraState();
       expect(controller.update(out, 0.1, false)).toBe(false);

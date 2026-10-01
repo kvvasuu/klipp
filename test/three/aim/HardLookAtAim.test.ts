@@ -11,7 +11,7 @@ describe('HardLookAtAim', () => {
     const out = createCameraState();
     vec3.set(out.position, 6.8, 3, 4.1);
 
-    new HardLookAtAim(target).update(out, 0.1);
+    new HardLookAtAim(target).update(out);
 
     const forward = new Vector3(0, 0, -1).applyQuaternion(new Quaternion().fromArray(out.quaternion));
     const toTarget = new Vector3(0, 0.5, 0).sub(new Vector3(6.8, 3, 4.1)).normalize();
@@ -27,7 +27,7 @@ describe('HardLookAtAim', () => {
     const out = createCameraState();
     vec3.set(out.position, 1, 2, 3);
 
-    new HardLookAtAim(target).update(out, 0.1);
+    new HardLookAtAim(target).update(out);
 
     const reference = new PerspectiveCamera();
     reference.position.set(1, 2, 3);
@@ -43,7 +43,7 @@ describe('HardLookAtAim', () => {
     const up = new Vector3(1, 1, 0).normalize();
     up.toArray(out.referenceUp);
 
-    new HardLookAtAim(new Vector3(5, -1, 0)).update(out, 0.1);
+    new HardLookAtAim(new Vector3(5, -1, 0)).update(out);
 
     const expected = new Quaternion().setFromRotationMatrix(
       new Matrix4().lookAt(new Vector3(1, 2, 3), new Vector3(5, -1, 0), up),
@@ -53,7 +53,7 @@ describe('HardLookAtAim', () => {
 
   it('leaves out untouched without a target', () => {
     const out = createCameraState();
-    new HardLookAtAim(null).update(out, 0.1);
+    new HardLookAtAim(null).update(out);
     expect(out.quaternion).toEqual([0, 0, 0, 1]);
   });
 });

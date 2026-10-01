@@ -24,7 +24,11 @@ describe('GroupFramingExtension', () => {
     for (const members of [[], [{ target: new Vector3(5, 5, 5) }]]) {
       const out = camera([1, 2, 3]);
       out.viewOffset[0] = 1;
-      const moving = new GroupFramingExtension(new TargetGroup(members), 0, 100, 100, 0.5, [0.8, 0]).update(out, 0.1);
+      const moving = new GroupFramingExtension(new TargetGroup(members), 0, 100, 100, 0.5, [0.8, 0]).update(
+        out,
+        0.1,
+        false,
+      );
       expect(out.position).toEqual([1, 2, 3]);
       expect(out.viewOffset[0]).toBe(1);
       expect(moving).toBe(false);
@@ -35,7 +39,7 @@ describe('GroupFramingExtension', () => {
     const out = camera();
     new Quaternion().setFromAxisAngle(new Vector3(0, 1, 0), Math.PI / 2).toArray(out.quaternion);
 
-    new GroupFramingExtension(new TargetGroup(unit()), 0, 100, 100).update(out, 0.1);
+    new GroupFramingExtension(new TargetGroup(unit()), 0, 100, 100).update(out, 0.1, false);
 
     expect(out.position[0]).toBeCloseTo(sphereFit(1), 10);
     expect(out.position[1]).toBeCloseTo(0, 10);
@@ -44,20 +48,21 @@ describe('GroupFramingExtension', () => {
 
   it('adds padding as a world-unit margin, for spheres and boxes', () => {
     const sphere = camera();
-    new GroupFramingExtension(new TargetGroup(unit()), 20, 100, 100).update(sphere, 0.1);
+    new GroupFramingExtension(new TargetGroup(unit()), 20, 100, 100).update(sphere, 0.1, false);
     expect(sphere.position[2]).toBeGreaterThan(sphereFit(1));
 
     const box = camera();
     new GroupFramingExtension(new TargetGroup([{ target: new Vector3(), size: [2, 2, 2] }]), 1, 100, 100).update(
       box,
       0.1,
+      false,
     );
     expect(box.position[2]).toBeCloseTo(2 / Math.tan(Math.PI / 4) + 1, 10);
   });
 
   it('uses the tighter axis of a non-square viewport', () => {
     const out = camera();
-    new GroupFramingExtension(new TargetGroup(unit()), 0, 1000, 100).update(out, 0.1);
+    new GroupFramingExtension(new TargetGroup(unit()), 0, 1000, 100).update(out, 0.1, false);
     expect(out.position[2]).toBeCloseTo(sphereFit(1), 5);
   });
 
@@ -68,7 +73,7 @@ describe('GroupFramingExtension', () => {
     ]);
     const out = camera();
 
-    new GroupFramingExtension(group, 0, 1000, 100).update(out, 0.1);
+    new GroupFramingExtension(group, 0, 1000, 100).update(out, 0.1, false);
 
     // (radius + 5 cos(h)) / sin(h), with h = atan(tan(45°) * 10)
     expect(out.position[2]).toBeCloseTo(1.5049875621120896, 10);
@@ -78,10 +83,10 @@ describe('GroupFramingExtension', () => {
     const group = new TargetGroup(unit());
     const extension = new GroupFramingExtension(group, 0, 100, 100);
     const out = camera();
-    extension.update(out, 0.1);
+    extension.update(out, 0.1, false);
 
     group.members[0].radius = 5;
-    extension.update(out, 0.1);
+    extension.update(out, 0.1, false);
 
     expect(out.position[2]).toBeCloseTo(sphereFit(5), 10);
   });
@@ -91,12 +96,12 @@ describe('GroupFramingExtension', () => {
       const extension = new GroupFramingExtension(new TargetGroup(unit()), 0, 100, 100);
 
       const close = camera([0, 0, 0.5]);
-      extension.update(close, 0.1);
+      extension.update(close, 0.1, false);
       expect(close.position[2]).toBeCloseTo(sphereFit(1), 10);
 
       for (const distance of [10, 25]) {
         const far = camera([0, 0, distance]);
-        extension.update(far, 0.1);
+        extension.update(far, 0.1, false);
         expect(far.position[2]).toBeCloseTo(distance, 10);
       }
     });
@@ -106,11 +111,11 @@ describe('GroupFramingExtension', () => {
       const extension = new GroupFramingExtension(group, 0, 100, 100, 0, [0, 0], 'rigid');
       const out = camera([0, 0, 50]);
 
-      extension.update(out, 0.1);
+      extension.update(out, 0.1, false);
       expect(out.position[2]).toBeCloseTo(sphereFit(10), 10);
 
       group.members[0].radius = 1;
-      extension.update(out, 0.1);
+      extension.update(out, 0.1, false);
       expect(out.position[2]).toBeCloseTo(sphereFit(1), 10);
     });
   });
@@ -121,6 +126,7 @@ describe('GroupFramingExtension', () => {
       new GroupFramingExtension(new TargetGroup(unit(radius)), 0, 100, 100, 0, [0, 0], fitMode, min, max).update(
         out,
         0.1,
+        false,
       );
       return out.position[2];
     };
@@ -137,7 +143,11 @@ describe('GroupFramingExtension', () => {
         { target: spread, radius: 1 },
       ]);
       const out = camera([0, 0, 0.5]);
-      new GroupFramingExtension(group, 0, 100, 100, 0, [0, 0], 'ceiling', 0, Infinity, framingMode).update(out, 0.1);
+      new GroupFramingExtension(group, 0, 100, 100, 0, [0, 0], 'ceiling', 0, Infinity, framingMode).update(
+        out,
+        0.1,
+        false,
+      );
       return out.position[2];
     };
 
@@ -153,6 +163,7 @@ describe('GroupFramingExtension', () => {
       new GroupFramingExtension(new TargetGroup([{ target: new Vector3(), size: [2, 2, 2] }]), 0, 100, 100).update(
         out,
         0.1,
+        false,
       );
       expect(out.position[2]).toBeCloseTo(boxFit(1), 10);
     });
@@ -165,6 +176,7 @@ describe('GroupFramingExtension', () => {
       new GroupFramingExtension(new TargetGroup([{ target: new Vector3(), size: [2, 2, 2] }]), 0, 100, 100).update(
         out,
         0.1,
+        false,
       );
 
       expect(vec3.length(out.position)).toBeCloseTo(1 / Math.tan(Math.PI / 4) + Math.sin(pitch) + Math.cos(pitch), 10);
@@ -174,14 +186,18 @@ describe('GroupFramingExtension', () => {
       const rotated = new Mesh(new BoxGeometry(2, 2, 2));
       rotated.quaternion.setFromAxisAngle(new Vector3(0, 1, 0), Math.PI / 4);
       const out = camera();
-      new GroupFramingExtension(new TargetGroup([{ target: rotated, size: [2, 2, 2] }]), 0, 100, 100).update(out, 0.1);
+      new GroupFramingExtension(new TargetGroup([{ target: rotated, size: [2, 2, 2] }]), 0, 100, 100).update(
+        out,
+        0.1,
+        false,
+      );
       expect(out.position[2]).toBeGreaterThan(boxFit(1));
     });
 
     it('a mixed group takes whichever member needs more room', () => {
       const group = new TargetGroup([...unit(), { target: new Vector3(), size: [1, 1, 1] }]);
       const out = camera();
-      new GroupFramingExtension(group, 0, 100, 100).update(out, 0.1);
+      new GroupFramingExtension(group, 0, 100, 100).update(out, 0.1, false);
       expect(out.position[2]).toBeCloseTo(sphereFit(1), 10);
     });
 
@@ -197,19 +213,19 @@ describe('GroupFramingExtension', () => {
         }
       };
 
-      extension.update(out, 0.1);
+      extension.update(out, 0.1, false);
       expect(out.position[2]).toBeCloseTo(boxFit(1), 10);
 
       grow();
-      extension.update(out, 0.1);
+      extension.update(out, 0.1, false);
       expect(out.position[2]).toBeCloseTo(boxFit(1), 10);
 
       extension.recalculateSize();
-      extension.update(out, 0.1);
+      extension.update(out, 0.1, false);
       expect(out.position[2]).toBeCloseTo(boxFit(3), 10);
 
       grow();
-      extension.update(out, 0.1);
+      extension.update(out, 0.1, false);
       expect(out.position[2]).toBeCloseTo(boxFit(3), 10);
     });
   });
@@ -217,13 +233,13 @@ describe('GroupFramingExtension', () => {
   describe('screenPosition', () => {
     it('writes straight into out.viewOffset', () => {
       const out = camera();
-      new GroupFramingExtension(new TargetGroup(unit()), 0, 100, 100, 0, [0.8, -0.3]).update(out, 0.1);
+      new GroupFramingExtension(new TargetGroup(unit()), 0, 100, 100, 0, [0.8, -0.3]).update(out, 0.1, false);
       expect(out.viewOffset).toEqual([0.8, -0.3]);
     });
 
     it('a positive x moves the group toward the right of the frame (real bug: was inverted)', () => {
       const out = camera();
-      new GroupFramingExtension(new TargetGroup(unit()), 0, 100, 100, 0, [0.5, 0]).update(out, 0.1);
+      new GroupFramingExtension(new TargetGroup(unit()), 0, 100, 100, 0, [0.5, 0]).update(out, 0.1, false);
 
       const view = new PerspectiveCamera(out.fov, 1, 0.1, 1000);
       applyCameraState(view, out, 100, 100);
@@ -238,21 +254,21 @@ describe('GroupFramingExtension', () => {
       const instantGroup = new TargetGroup(unit());
       const instant = new GroupFramingExtension(instantGroup, 0, 100, 100);
       const instantOut = camera();
-      instant.update(instantOut, 0.1);
+      instant.update(instantOut, 0.1, false);
       instantGroup.members[0].radius = 5;
-      instant.update(instantOut, 0.1);
+      instant.update(instantOut, 0.1, false);
       expect(instantOut.position[2]).toBeCloseTo(sphereFit(5), 10);
 
       const group = new TargetGroup(unit());
       const damped = new GroupFramingExtension(group, 0, 100, 100, 1, [1, 0]);
       const out = camera();
-      damped.update(out, 0.1);
+      damped.update(out, 0.1, false);
       expect(out.position[2]).toBeCloseTo(sphereFit(1), 10);
       expect(out.viewOffset[0]).toBe(1);
 
       group.members[0].radius = 5;
       damped.screenPosition = [0, 0];
-      damped.update(out, 0.1);
+      damped.update(out, 0.1, false);
       expect(out.position[2]).toBeGreaterThan(sphereFit(1));
       expect(out.position[2]).toBeLessThan(sphereFit(5));
       expect(out.viewOffset[0]).toBeGreaterThan(0);
@@ -263,13 +279,13 @@ describe('GroupFramingExtension', () => {
       const group = new TargetGroup(unit());
       const extension = new GroupFramingExtension(group, 0, 100, 100, 1);
       const out = camera([0, 2, 5]);
-      extension.update(out, 0.1);
+      extension.update(out, 0.1, false);
       const first = out.position[2];
 
       group.members[0].radius = 5;
       for (let i = 0; i < 5; i++) {
         vec3.set(out.position, 0, 2, 5);
-        extension.update(out, 0.1);
+        extension.update(out, 0.1, false);
       }
 
       expect(out.position[2]).toBeGreaterThan(first);
@@ -279,13 +295,13 @@ describe('GroupFramingExtension', () => {
       const group = new TargetGroup(unit());
       const extension = new GroupFramingExtension(group, 0, 100, 100, 1);
       const out = camera();
-      extension.update(out, 0.1);
+      extension.update(out, 0.1, false);
 
       group.members[0].radius = 5;
       for (let i = 1; i <= 5; i++) {
         const rotation = new Quaternion().setFromAxisAngle(new Vector3(0, 1, 0), i * 0.1);
         rotation.toArray(out.quaternion);
-        extension.update(out, 0.1);
+        extension.update(out, 0.1, false);
 
         const forward = new Vector3(0, 0, -1).applyQuaternion(rotation);
         const toGroup = new Vector3(...out.position).negate().normalize();
@@ -310,9 +326,9 @@ describe('GroupFramingExtension', () => {
           maxSpeed,
         );
         const out = camera();
-        extension.update(out, 0.1);
+        extension.update(out, 0.1, false);
         group.members[0].radius = 5;
-        extension.update(out, 0.1);
+        extension.update(out, 0.1, false);
         return out.position[2];
       };
 
@@ -323,19 +339,19 @@ describe('GroupFramingExtension', () => {
       const group = new TargetGroup(unit());
       const extension = new GroupFramingExtension(group, 0, 100, 100, 0.3, [1, 0]);
       const out = camera();
-      extension.update(out, 0.1);
-      expect(extension.update(out, 0.1)).toBe(false);
+      extension.update(out, 0.1, false);
+      expect(extension.update(out, 0.1, false)).toBe(false);
 
       group.members[0].radius = 5;
-      expect(extension.update(out, 0.1)).toBe(true);
-      for (let i = 0; i < 300; i++) extension.update(out, 0.1);
-      expect(extension.update(out, 0.1)).toBe(false);
+      expect(extension.update(out, 0.1, false)).toBe(true);
+      for (let i = 0; i < 300; i++) extension.update(out, 0.1, false);
+      expect(extension.update(out, 0.1, false)).toBe(false);
 
       extension.screenPosition = [0, 0];
-      expect(extension.update(out, 0.1)).toBe(true);
+      expect(extension.update(out, 0.1, false)).toBe(true);
 
       const instant = new GroupFramingExtension(new TargetGroup(unit()), 0, 100, 100);
-      expect(instant.update(camera(), 0.1)).toBe(false);
+      expect(instant.update(camera(), 0.1, false)).toBe(false);
     });
 
     it('justActivated snaps to a changed group, where a plain update would ease', () => {
@@ -344,7 +360,7 @@ describe('GroupFramingExtension', () => {
         const extension = new GroupFramingExtension(group, 0, 100, 100, 0.5);
         const out = camera();
         extension.update(out, 0.1, true);
-        extension.update(out, 0.1);
+        extension.update(out, 0.1, false);
         group.members[0].radius = 10;
         extension.update(out, 0.1, justActivated);
         return out.position[2];

@@ -2,7 +2,7 @@ import { vec3 } from 'math';
 import { create } from '@react-three/test-renderer';
 import { useEffect, type ReactNode } from 'react';
 import type { CameraHelper } from 'three';
-import { Color } from 'three';
+import { Color, type PerspectiveCamera } from 'three';
 import { describe, expect, it, vi } from 'vitest';
 import type { CameraState } from '../../src/core/CameraState';
 import { CameraFrustumHelper, type CameraFrustumHelperProps } from '../../src/react/CameraFrustumHelper';
@@ -30,13 +30,18 @@ async function mountHelper(
       <VirtualCamera name="other" priority={live ? 0 : 20} />
       <VirtualCamera name="a" priority={10}>
         {writer}
-        <CameraFrustumHelper {...props} ref={(h) => (helper = h)} />
+        <CameraFrustumHelper
+          {...props}
+          ref={(h) => {
+            helper = h;
+          }}
+        />
       </VirtualCamera>
     </Klipp>,
   );
   await renderer.advanceFrames(1, 0.1);
   await renderer.advanceFrames(1, 0.1);
-  return { helper: helper!, renderer };
+  return { helper: helper!, camera: helper!.camera as PerspectiveCamera, renderer };
 }
 
 describe('CameraFrustumHelper', () => {
@@ -45,7 +50,7 @@ describe('CameraFrustumHelper', () => {
   });
 
   it("follows its VirtualCamera's own state, even when that camera isn't live", async () => {
-    const { helper } = await mountHelper(
+    const { camera } = await mountHelper(
       {},
       {
         live: false,
@@ -60,8 +65,8 @@ describe('CameraFrustumHelper', () => {
       },
     );
 
-    expect(helper.camera.position.toArray()).toEqual([1, 2, 3]);
-    expect(helper.camera.fov).toBe(70);
+    expect(camera.position.toArray()).toEqual([1, 2, 3]);
+    expect(camera.fov).toBe(70);
   });
 
   it("applies color to all 5 line groups, and keeps CameraHelper's own colors without it", async () => {
@@ -79,9 +84,9 @@ describe('CameraFrustumHelper', () => {
   it('draws the frustum up to maxDistance (default 1), never past the real far plane', async () => {
     const far5 = <Writer onWrite={(out) => (out.far = 5)} />;
 
-    expect((await mountHelper()).helper.camera.far).toBe(1);
-    expect((await mountHelper({ maxDistance: 25 })).helper.camera.far).toBe(25);
-    expect((await mountHelper({ maxDistance: 1000 }, { writer: far5 })).helper.camera.far).toBe(5);
+    expect((await mountHelper()).camera.far).toBe(1);
+    expect((await mountHelper({ maxDistance: 25 })).camera.far).toBe(25);
+    expect((await mountHelper({ maxDistance: 1000 }, { writer: far5 })).camera.far).toBe(5);
   });
 
   it('hides while its camera is live, unless hideWhenLive is false', async () => {

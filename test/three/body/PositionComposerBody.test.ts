@@ -18,7 +18,7 @@ const depthOf = (out: CameraState, target: Vector3): number => out.position[2] -
 
 /** Runs one update on a throwaway state, so the next update damps instead of snapping. */
 function warmUp(body: PositionComposerBody): PositionComposerBody {
-  body.update(createCameraState(), 0.016);
+  body.update(createCameraState(), 0.016, false);
   return body;
 }
 
@@ -31,7 +31,7 @@ describe('PositionComposerBody', () => {
     vec4.normalize(out.quaternion, [0, 0.2, 0, 0.98]);
     const rotation = vec4.clone(out.quaternion);
 
-    body.update(out, 0.1);
+    body.update(out, 0.1, false);
 
     const projected = projectToScreen(out, 1.5, target);
     expect(projected.x).toBeCloseTo(0, 5);
@@ -49,7 +49,7 @@ describe('PositionComposerBody', () => {
     new Quaternion().setFromAxisAngle(new Vector3(0, 1, 0), Math.PI / 3).toArray(out.quaternion);
     out.fov = 90;
 
-    body.update(out, 0.1);
+    body.update(out, 0.1, false);
 
     const projected = projectToScreen(out, 2, target);
     expect(projected.x).toBeCloseTo(0.5, 4);
@@ -58,7 +58,7 @@ describe('PositionComposerBody', () => {
 
   it('leaves out untouched without a target', () => {
     const out = createCameraState();
-    new PositionComposerBody(null).update(out, 0.1);
+    new PositionComposerBody(null).update(out, 0.1, false);
     expect(out.position).toEqual([0, 0, 0]);
   });
 
@@ -67,11 +67,11 @@ describe('PositionComposerBody', () => {
       const target = new Vector3(0, 0, -20);
       const body = new PositionComposerBody(target, 10, [0, 0], 1, [0.4, 0.4], 0);
       const out = createCameraState();
-      body.update(out, 0.1);
+      body.update(out, 0.1, false);
       const before = vec3.clone(out.position);
 
       target.set(0.5, 0, -20);
-      body.update(out, 0.1);
+      body.update(out, 0.1, false);
 
       expect(out.position).toEqual(before);
     });
@@ -81,11 +81,11 @@ describe('PositionComposerBody', () => {
       const body = new PositionComposerBody(target, 10, [0, 0], 1, [0.1, 0.1], 0);
       const out = createCameraState();
 
-      body.update(out, 0.1);
+      body.update(out, 0.1, false);
       expect(projectToScreen(out, 1, target).x).toBeCloseTo(0.1, 4);
 
       const atEdge = vec3.clone(out.position);
-      body.update(out, 0.1); // the edge itself counts as inside
+      body.update(out, 0.1, false); // the edge itself counts as inside
       expect(out.position).toEqual(atEdge);
     });
 
@@ -94,10 +94,10 @@ describe('PositionComposerBody', () => {
       const body = warmUp(new PositionComposerBody(target, 10, [0, 0], 1, [0.1, 0.1], 0.3));
       const out = createCameraState();
 
-      body.update(out, 0.016);
+      body.update(out, 0.016, false);
       expect(projectToScreen(out, 1, target).x).toBeGreaterThan(0.2);
 
-      for (let i = 0; i < 300; i++) body.update(out, 0.016);
+      for (let i = 0; i < 300; i++) body.update(out, 0.016, false);
       expect(projectToScreen(out, 1, target).x).toBeCloseTo(0.1, 2);
     });
 
@@ -105,16 +105,16 @@ describe('PositionComposerBody', () => {
       const target = new Vector3(20, 0, -20);
       const body = new PositionComposerBody(target, 10, [0, 0], 1, [0.15, 0.15], 0.3);
       const out = createCameraState();
-      for (let i = 0; i < 5; i++) body.update(out, 0.016);
+      for (let i = 0; i < 5; i++) body.update(out, 0.016, false);
       const moving = vec3.clone(out.position);
 
       target.set(0, 0, -20);
-      body.update(out, 0.016);
+      body.update(out, 0.016, false);
       expect(out.position).not.toEqual(moving);
 
-      for (let i = 0; i < 300; i++) body.update(out, 0.016);
+      for (let i = 0; i < 300; i++) body.update(out, 0.016, false);
       const settled = vec3.clone(out.position);
-      body.update(out, 0.016);
+      body.update(out, 0.016, false);
       expect(out.position).toEqual(settled);
     });
 
@@ -124,14 +124,14 @@ describe('PositionComposerBody', () => {
       const out = createCameraState();
       for (let i = 0; i < 40; i++) {
         target.x += 0.3;
-        body.update(out, 0.016);
+        body.update(out, 0.016, false);
       }
-      for (let i = 0; i < 300; i++) body.update(out, 0.016);
+      for (let i = 0; i < 300; i++) body.update(out, 0.016, false);
 
       let previousX = out.position[0];
       for (let i = 0; i < 60; i++) {
         target.x -= 0.3;
-        body.update(out, 0.016);
+        body.update(out, 0.016, false);
         expect(out.position[0]).toBeLessThanOrEqual(previousX + 1e-9);
         previousX = out.position[0];
       }
@@ -145,7 +145,7 @@ describe('PositionComposerBody', () => {
       body.depthDeadZone = 3;
       const out = createCameraState();
 
-      body.update(out, 0.1);
+      body.update(out, 0.1, false);
 
       expect(depthOf(out, target)).toBeCloseTo(13, 4);
     });
@@ -155,12 +155,12 @@ describe('PositionComposerBody', () => {
       const body = new PositionComposerBody(target, 10, [0, 0], 1, [0, 0], 0.3);
       body.depthDeadZone = 20;
       const out = createCameraState();
-      body.update(out, 0.016);
+      body.update(out, 0.016, false);
       const before = vec3.clone(out.position);
 
       for (let i = 0; i < 20; i++) {
         target.z -= 0.3;
-        body.update(out, 0.016);
+        body.update(out, 0.016, false);
       }
 
       expect(out.position).toEqual(before);
@@ -171,10 +171,10 @@ describe('PositionComposerBody', () => {
       const body = warmUp(new PositionComposerBody(target, 10, [0, 0], 1, [0, 0], 0.3));
       const out = createCameraState();
 
-      body.update(out, 0.016);
+      body.update(out, 0.016, false);
       expect(depthOf(out, target)).toBeGreaterThan(11);
 
-      for (let i = 0; i < 300; i++) body.update(out, 0.016);
+      for (let i = 0; i < 300; i++) body.update(out, 0.016, false);
       expect(depthOf(out, target)).toBeCloseTo(10, 2);
     });
   });
@@ -186,7 +186,7 @@ describe('PositionComposerBody', () => {
         const body = new PositionComposerBody(target, 10, [0, 0], 1, [0, 0], 0.5);
         const out = createCameraState();
         body.update(out, 0.016, true);
-        body.update(out, 0.016);
+        body.update(out, 0.016, false);
         target.set(40, -12, -30);
         body.update(out, 0.016, justActivated);
         return projectToScreen(out, 1, target);
@@ -221,7 +221,7 @@ describe('PositionComposerBody', () => {
       body.maxSpeed = maxSpeed;
       warmUp(body);
       const out = createCameraState();
-      body.update(out, 0.05);
+      body.update(out, 0.05, false);
       return out.position[0];
     };
 
@@ -264,10 +264,10 @@ describe('PositionComposerBody', () => {
     function nudgeFromCenter(target: Object3D | Vector3, body: PositionComposerBody, x = 1.5) {
       const out = createCameraState();
       out.fov = 90;
-      body.update(out, 0.1);
+      body.update(out, 0.1, false);
       const position = target instanceof Vector3 ? target : target.position;
       position.set(x, 0, -20);
-      body.update(out, 0.1);
+      body.update(out, 0.1, false);
       return projectToScreen(out, 1, position.clone()).x;
     }
 
@@ -302,7 +302,7 @@ describe('PositionComposerBody', () => {
       const body = new PositionComposerBody(mesh, 10, [0, 0], 1, [0.6, 0.6], 0);
       const out = createCameraState();
       out.fov = 90;
-      body.update(out, 0.1);
+      body.update(out, 0.1, false);
       expect(projectToScreen(out, 1, mesh.position.clone()).x).toBeCloseTo(0.5, 4); // half-extent 1 detected
 
       // raw vertex edits are the one change three.js never syncs into a cached bounding box
@@ -313,16 +313,16 @@ describe('PositionComposerBody', () => {
         }
       };
       grow();
-      body.update(out, 0.1);
+      body.update(out, 0.1, false);
       expect(projectToScreen(out, 1, mesh.position.clone()).x).toBeCloseTo(0.5, 4); // still the cached size
 
       body.recalculateSize();
-      body.update(out, 0.1);
+      body.update(out, 0.1, false);
       const afterRecalc = vec3.clone(out.position);
       expect(projectToScreen(out, 1, mesh.position.clone()).x).toBeCloseTo(0.3, 4); // half-extent 3
 
       grow();
-      body.update(out, 0.1);
+      body.update(out, 0.1, false);
       expect(out.position).toEqual(afterRecalc); // recalculateSize() measured once, not every frame
     });
 
@@ -333,9 +333,9 @@ describe('PositionComposerBody', () => {
       body.update(out, 0.1, true);
 
       target.set(0.3, 0, -20);
-      body.update(out, 0.1);
+      body.update(out, 0.1, false);
       const first = out.position[0];
-      body.update(out, 0.1);
+      body.update(out, 0.1, false);
 
       expect(out.position[0]).toBeCloseTo(first, 8);
       expect(projectToScreen(out, 1, target).x).toBeCloseTo(0, 4);
@@ -346,9 +346,9 @@ describe('PositionComposerBody', () => {
       const body = warmUp(new PositionComposerBody(target, 10, [0, 0], 1, [0.1, 0.1], 5, [0.15, 0.15], 2));
       const out = createCameraState();
 
-      body.update(out, 0.1);
+      body.update(out, 0.1, false);
       const first = projectToScreen(out, 1, target).x;
-      body.update(out, 0.1);
+      body.update(out, 0.1, false);
 
       expect(projectToScreen(out, 1, target).x).toBeCloseTo(first, 4);
       expect(first).toBeCloseTo(0, 4);
@@ -360,14 +360,14 @@ describe('PositionComposerBody', () => {
       const pointTarget = new Vector3(20, 0, -10);
       const point = warmUp(new PositionComposerBody(pointTarget, 10, [0, 0], 1, [0.1, 0.1], 5, [0.15, 0.15]));
       const out = createCameraState();
-      point.update(out, 0.1);
+      point.update(out, 0.1, false);
       expect(projectToScreen(out, 1, pointTarget).x).toBeCloseTo(0.15, 4);
 
       const sphereTarget = new Vector3(20, 0, -10);
       const sphere = warmUp(new PositionComposerBody(sphereTarget, 10, [0, 0], 1, [0.1, 0.1], 5, [0.15, 0.15], 1));
       const sphereOut = createCameraState();
       sphereOut.fov = 90;
-      sphere.update(sphereOut, 0.1);
+      sphere.update(sphereOut, 0.1, false);
       expect(projectToScreen(sphereOut, 1, sphereTarget).x).toBeCloseTo(0.05, 4);
     });
 
@@ -375,11 +375,11 @@ describe('PositionComposerBody', () => {
       const target = new Vector3(0, 0, -20);
       const body = new PositionComposerBody(target, 10, [0, 0], 1, [0.4, 0.4], 0, [0.1, 0.1]);
       const out = createCameraState();
-      body.update(out, 0.1);
+      body.update(out, 0.1, false);
       const before = vec3.clone(out.position);
 
       target.set(0.5, 0, -20);
-      body.update(out, 0.1);
+      body.update(out, 0.1, false);
 
       expect(out.position).not.toEqual(before);
     });
@@ -388,7 +388,7 @@ describe('PositionComposerBody', () => {
       const target = new Vector3(20, 0, -20);
       const run = (hardLimit: [number, number]) => {
         const out = createCameraState();
-        new PositionComposerBody(target, 10, [0, 0], 1, [0.2, 0.2], 0.3, hardLimit).update(out, 0.016);
+        new PositionComposerBody(target, 10, [0, 0], 1, [0.2, 0.2], 0.3, hardLimit).update(out, 0.016, false);
         return out.position;
       };
       expect(run([1000, 1000])).toEqual(run([0, 0]));
@@ -413,12 +413,12 @@ describe('PositionComposerBody', () => {
       const { target, body, out } = moving(() => {});
       for (let i = 0; i < 120; i++) {
         target.x += 10 * dt;
-        body.update(out, dt);
+        body.update(out, dt, false);
       }
       expect(out.target[0] - target.x).toBeCloseTo(5, 1); // 0.5 s ahead at 10 units/s
 
       body.lookaheadTime = 0;
-      body.update(out, dt);
+      body.update(out, dt, false);
       expect(out.target).toEqual(target.toArray());
     });
 
@@ -426,18 +426,18 @@ describe('PositionComposerBody', () => {
       const { target, body, out } = moving(() => {});
       for (let i = 0; i < 60; i++) {
         target.x += 10 * dt;
-        body.update(out, dt);
+        body.update(out, dt, false);
       }
       body.update(out, dt, true);
       expect(out.target[0]).toBeCloseTo(target.x, 4);
 
       for (let i = 0; i < 60; i++) {
         target.x += 10 * dt;
-        body.update(out, dt);
+        body.update(out, dt, false);
       }
       const other = new Vector3(100, 0, -20);
       body.target = other;
-      body.update(out, dt);
+      body.update(out, dt, false);
       expect(out.target).toEqual(other.toArray());
     });
 
@@ -445,7 +445,7 @@ describe('PositionComposerBody', () => {
       const { target, body, out } = moving((body) => (body.lookaheadIgnoreY = true));
       for (let i = 0; i < 120; i++) {
         target.y += 10 * dt;
-        body.update(out, dt);
+        body.update(out, dt, false);
       }
       expect(out.target[1]).toBeCloseTo(target.y, 4);
     });

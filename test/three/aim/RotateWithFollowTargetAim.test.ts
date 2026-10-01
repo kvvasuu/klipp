@@ -13,7 +13,7 @@ function rotatedTarget(x: number, y: number, z: number) {
 
 /** Runs one update on a throwaway state, so the next update damps instead of snapping. */
 function warmUp(aim: RotateWithFollowTargetAim): RotateWithFollowTargetAim {
-  aim.update(createCameraState(), 0.016);
+  aim.update(createCameraState(), 0.016, false);
   return aim;
 }
 
@@ -25,7 +25,7 @@ describe('RotateWithFollowTargetAim', () => {
     parent.add(target);
     const out = createCameraState();
 
-    new RotateWithFollowTargetAim(target).update(out, 0.1);
+    new RotateWithFollowTargetAim(target).update(out, 0.1, false);
 
     expect(rotationOf(out).angleTo(target.getWorldQuaternion(new Quaternion()))).toBeLessThan(1e-9);
   });
@@ -33,7 +33,7 @@ describe('RotateWithFollowTargetAim', () => {
   it('leaves out untouched for a target without rotation or without a target', () => {
     for (const target of [new Vector3(1, 2, 3), null]) {
       const out = createCameraState();
-      new RotateWithFollowTargetAim(target).update(out, 0.1);
+      new RotateWithFollowTargetAim(target).update(out, 0.1, false);
       expect(out.quaternion).toEqual([0, 0, 0, 1]);
     }
   });
@@ -44,11 +44,11 @@ describe('RotateWithFollowTargetAim', () => {
       const aim = warmUp(new RotateWithFollowTargetAim(target, 0.3));
       const out = createCameraState();
 
-      aim.update(out, 0.016);
+      aim.update(out, 0.016, false);
       expect(rotationOf(out).angleTo(new Quaternion())).toBeGreaterThan(0);
       expect(rotationOf(out).angleTo(target.quaternion)).toBeGreaterThan(0.01);
 
-      for (let i = 0; i < 300; i++) aim.update(out, 0.016);
+      for (let i = 0; i < 300; i++) aim.update(out, 0.016, false);
       expect(rotationOf(out).angleTo(target.quaternion)).toBeLessThan(1e-3);
     });
 
@@ -63,7 +63,7 @@ describe('RotateWithFollowTargetAim', () => {
       for (let i = 1; i <= 600; i++) {
         target.rotation.set(0, 1.5 * dt * i, 0);
         const before = rotationOf(out);
-        aim.update(out, dt);
+        aim.update(out, dt, false);
         largestStep = Math.max(largestStep, before.angleTo(rotationOf(out)));
         if (i > 500) lags.push(rotationOf(out).angleTo(target.quaternion));
       }
@@ -77,7 +77,7 @@ describe('RotateWithFollowTargetAim', () => {
       const gap = (maxSpeed: number) => {
         const aim = warmUp(new RotateWithFollowTargetAim(target, 1, maxSpeed));
         const out = createCameraState();
-        aim.update(out, 0.05);
+        aim.update(out, 0.05, false);
         return rotationOf(out).angleTo(target.quaternion);
       };
 
@@ -91,7 +91,7 @@ describe('RotateWithFollowTargetAim', () => {
       const aim = new RotateWithFollowTargetAim(target, 0.5);
       const out = createCameraState();
       aim.update(out, 0.016, true);
-      aim.update(out, 0.016);
+      aim.update(out, 0.016, false);
       target.rotation.set(1.2, -0.5, 0.3);
       aim.update(out, 0.016, justActivated);
       return rotationOf(out).angleTo(target.quaternion);
