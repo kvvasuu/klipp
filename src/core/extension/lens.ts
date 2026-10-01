@@ -1,17 +1,44 @@
 import type { CameraState } from '../CameraState.js';
 import { createDamperState, damp, resetDamper, type DamperState, type DampingConstant } from '../damping/Damper.js';
+import { withDefaults } from '../params.js';
 
 export type LensParams = {
+  /** Overrides the camera's field of view, in degrees. `undefined` leaves the current value untouched. */
   fov?: number;
+  /** Overrides the near clip plane. `undefined` leaves the current value untouched. */
   near?: number;
+  /** Overrides the far clip plane. `undefined` leaves the current value untouched. */
   far?: number;
+  /** Spring response time to `fov` as it changes. `0` is instant. */
   fovDamping: DampingConstant;
+  /** Spring response time to `near` as it changes. `0` is instant. */
   nearDamping: DampingConstant;
+  /** Spring response time to `far` as it changes. `0` is instant. */
   farDamping: DampingConstant;
+  /** Caps how fast `fovDamping` can close the gap, in degrees/sec. `Infinity` means no cap. */
   fovMaxSpeed: number;
+  /** Caps how fast `nearDamping` can close the gap, in world units/sec. `Infinity` means no cap. */
   nearMaxSpeed: number;
+  /** Caps how fast `farDamping` can close the gap, in world units/sec. `Infinity` means no cap. */
   farMaxSpeed: number;
 };
+
+/** Every setting from `settings`, or its default. */
+export const createLensParams = (settings?: Partial<LensParams>): LensParams =>
+  withDefaults(
+    {
+      fov: undefined,
+      near: undefined,
+      far: undefined,
+      fovDamping: 0,
+      nearDamping: 0,
+      farDamping: 0,
+      fovMaxSpeed: Infinity,
+      nearMaxSpeed: Infinity,
+      farMaxSpeed: Infinity,
+    },
+    settings,
+  );
 
 export type LensState = {
   fovDamper: DamperState;

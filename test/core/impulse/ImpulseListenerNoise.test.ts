@@ -20,7 +20,7 @@ describe('ImpulseListenerNoise', () => {
     quat.normalize(out.quaternion, [0.1, 0.2, 0.3, 0.9]);
     const rotation = quat.clone(out.quaternion);
 
-    new ImpulseListenerNoise(kickX(3), 1, 2).update(out, 0.1, false, 0.5);
+    new ImpulseListenerNoise({ field: kickX(3), channelMask: 1, gain: 2 }).update(out, 0.1, false, 0.5);
 
     expect(out.position[0]).toBeCloseTo(11, 4);
     expect(out.quaternion).toEqual(rotation);
@@ -28,10 +28,15 @@ describe('ImpulseListenerNoise', () => {
 
   it('feels only its channels, at its own position', () => {
     const offCamera = createCameraState();
-    new ImpulseListenerNoise(kickX(3, { channel: 0b10 }), 0b01).update(offCamera, 0.1, false, 0.5);
+    new ImpulseListenerNoise({ field: kickX(3, { channel: 0b10 }), channelMask: 0b01 }).update(
+      offCamera,
+      0.1,
+      false,
+      0.5,
+    );
     expect(offCamera.position[0]).toBe(0);
 
-    const listener = new ImpulseListenerNoise(kickX(10, { dissipationDistance: 100 }));
+    const listener = new ImpulseListenerNoise({ field: kickX(10, { dissipationDistance: 100 }) });
     const near = createCameraState();
     const far = createCameraState();
     vec3.set(far.position, 90, 0, 0);
@@ -50,7 +55,7 @@ describe('ImpulseListenerNoise', () => {
   });
 
   it('reports in flight while the field has an event, even when the offset holds steady', () => {
-    const listener = new ImpulseListenerNoise(kickX(3, { duration: 1.2 }));
+    const listener = new ImpulseListenerNoise({ field: kickX(3, { duration: 1.2 }) });
     const out = createCameraState();
     expect(listener.update(out, 0.1, false, 0.4)).toBe(true);
     expect(listener.update(out, 0.1, false, 0.5)).toBe(true);
@@ -61,7 +66,7 @@ describe('ImpulseListenerNoise', () => {
     const run = (cameraSpace: boolean) => {
       const out = createCameraState();
       quat.setAxisAngle(out.quaternion, [0, 1, 0], Math.PI / 2);
-      new ImpulseListenerNoise(kickX(1), 1, 1, undefined, cameraSpace).update(out, 0.1, false, 0.5);
+      new ImpulseListenerNoise({ field: kickX(1), channelMask: 1, gain: 1, cameraSpace }).update(out, 0.1, false, 0.5);
       return out.position;
     };
 
@@ -77,8 +82,8 @@ describe('ImpulseListenerNoise', () => {
     it("follows the field's strength, and rests when the field is empty", () => {
       const field = new ImpulseField();
       field.generate({ position: [0, 0, 0], shape: () => 0.6, duration: 0.3 }, 0);
-      const shake = new BasicMultiChannelPerlinNoise([1, 0, 0]);
-      const listener = new ImpulseListenerNoise(field, 1, 1, shake);
+      const shake = new BasicMultiChannelPerlinNoise({ positionAmplitude: [1, 0, 0] });
+      const listener = new ImpulseListenerNoise({ field, channelMask: 1, gain: 1, shake });
       const out = createCameraState();
 
       listener.update(out, 0.1, false, 0.1);
@@ -91,8 +96,13 @@ describe('ImpulseListenerNoise', () => {
     it('adds rotation, which the kick alone never does', () => {
       const field = new ImpulseField();
       field.generate({ position: [0, 0, 0], shape: always, duration: 10 }, 0);
-      const shake = new BasicMultiChannelPerlinNoise(undefined, undefined, [20, 0, 0], undefined, 1, 1, 1);
-      const listener = new ImpulseListenerNoise(field, 1, 1, shake);
+      const shake = new BasicMultiChannelPerlinNoise({
+        rotationAmplitude: [20, 0, 0],
+        amplitudeGain: 1,
+        frequencyGain: 1,
+        seed: 1,
+      });
+      const listener = new ImpulseListenerNoise({ field, channelMask: 1, gain: 1, shake });
       const out = createCameraState();
 
       for (let i = 0; i < 10; i++) listener.update(out, 0.1, false, 0.5 + i * 0.1);

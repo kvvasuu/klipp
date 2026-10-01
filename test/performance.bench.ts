@@ -256,7 +256,16 @@ group('Aim.update @aim', () => {
 
 group('Noise/Extension.update @noise', () => {
   bench('BasicMultiChannelPerlin', function* () {
-    const perlin = new BasicMultiChannelPerlinNoise([0.4, 0.4, 0.4], [1, 1, 1], [4, 4, 4], [1, 1, 1], 1, 1, 42, 0.5);
+    const perlin = new BasicMultiChannelPerlinNoise({
+      positionAmplitude: [0.4, 0.4, 0.4],
+      positionFrequency: [1, 1, 1],
+      rotationAmplitude: [4, 4, 4],
+      rotationFrequency: [1, 1, 1],
+      amplitudeGain: 1,
+      frequencyGain: 1,
+      seed: 42,
+      amplitudeDamping: 0.5,
+    });
     const out = createCameraState();
     yield () => {
       perlin.update(out, 0.016, false);
@@ -325,7 +334,7 @@ group('ImpulseListenerNoise.update @impulse', () => {
   bench('kick only', function* () {
     const field = new ImpulseField();
     field.generate({ position: [0, 0, 0], direction: [1, 0, 0], shape: always, duration: 1000 }, 0);
-    const listener = new ImpulseListenerNoise(field);
+    const listener = new ImpulseListenerNoise({ field });
     const out = createCameraState();
     let now = 0;
     yield () => {
@@ -339,8 +348,11 @@ group('ImpulseListenerNoise.update @impulse', () => {
   bench('kick + shake', function* () {
     const field = new ImpulseField();
     field.generate({ position: [0, 0, 0], direction: [1, 0, 0], shape: always, duration: 1000 }, 0);
-    const shake = new BasicMultiChannelPerlinNoise([0.1, 0.1, 0.1], undefined, [3, 3, 3]);
-    const listener = new ImpulseListenerNoise(field, 1, 1, shake);
+    const shake = new BasicMultiChannelPerlinNoise({
+      positionAmplitude: [0.1, 0.1, 0.1],
+      rotationAmplitude: [3, 3, 3],
+    });
+    const listener = new ImpulseListenerNoise({ field, channelMask: 1, gain: 1, shake });
     const out = createCameraState();
     let now = 0;
     yield () => {
@@ -354,7 +366,7 @@ group('ImpulseListenerNoise.update @impulse', () => {
   bench('kick + cameraSpace', function* () {
     const field = new ImpulseField();
     field.generate({ position: [0, 0, 0], direction: [1, 0, 0], shape: always, duration: 1000 }, 0);
-    const listener = new ImpulseListenerNoise(field, 1, 1, undefined, true);
+    const listener = new ImpulseListenerNoise({ field, channelMask: 1, gain: 1, cameraSpace: true });
     const out = createCameraState();
     let now = 0;
     yield () => {
@@ -479,7 +491,16 @@ group('VirtualCameraController.update @controller', () => {
     );
     controller.registerExtension(new GroupFramingExtension(targetGroup, 40, 1920, 1080, 0.5).update);
     controller.registerNoise(
-      new BasicMultiChannelPerlinNoise([0.1, 0.1, 0.1], [1, 1, 1], [2, 2, 2], [1, 1, 1], 1, 1, 7, 0.5).update,
+      new BasicMultiChannelPerlinNoise({
+        positionAmplitude: [0.1, 0.1, 0.1],
+        positionFrequency: [1, 1, 1],
+        rotationAmplitude: [2, 2, 2],
+        rotationFrequency: [1, 1, 1],
+        amplitudeGain: 1,
+        frequencyGain: 1,
+        seed: 7,
+        amplitudeDamping: 0.5,
+      }).update,
     );
     const out = createCameraState();
     yield () => {

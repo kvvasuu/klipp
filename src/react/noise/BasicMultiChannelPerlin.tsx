@@ -1,11 +1,16 @@
-import type { Vector3 as Vector3Like } from '@react-three/fiber';
 import { useEffect, useImperativeHandle, type Ref } from 'react';
-import type { DampingConstant } from '../../core/damping/Damper.js';
+import type { Vector3Like } from '../../three/resolve/resolveVector3.js';
 import { useVirtualCamera } from '../VirtualCameraContext.js';
-import type { BasicMultiChannelPerlinNoise } from '../../core/noise/BasicMultiChannelPerlinNoise.js';
+import type {
+  BasicMultiChannelPerlinNoise,
+  PerlinNoiseOptions,
+} from '../../core/noise/BasicMultiChannelPerlinNoise.js';
 import { useBasicMultiChannelPerlinNoise } from './useBasicMultiChannelPerlinNoise.js';
 
-export type BasicMultiChannelPerlinProps = {
+export type BasicMultiChannelPerlinProps = Omit<
+  PerlinNoiseOptions,
+  'positionAmplitude' | 'positionFrequency' | 'rotationAmplitude' | 'rotationFrequency'
+> & {
   /** Per-axis positional shake amplitude in camera-local space. */
   positionAmplitude?: Vector3Like;
   /** Per-axis oscillation speed for position noise. */
@@ -14,14 +19,6 @@ export type BasicMultiChannelPerlinProps = {
   rotationAmplitude?: Vector3Like;
   /** Per-axis oscillation speed for rotation noise. */
   rotationFrequency?: Vector3Like;
-  /** Multiplies every amplitude at once. */
-  amplitudeGain?: number;
-  /** Multiplies every channel's frequency. */
-  frequencyGain?: number;
-  /** Seed for the six independent Perlin channels. It is fixed when the component mounts. */
-  seed?: number;
-  /** Response time for changes to `amplitudeGain`. */
-  amplitudeDamping?: DampingConstant;
   ref?: Ref<BasicMultiChannelPerlinNoise>;
 };
 

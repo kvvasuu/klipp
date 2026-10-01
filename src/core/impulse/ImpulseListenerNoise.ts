@@ -1,30 +1,42 @@
 import { vec3, type Vec3 } from 'math';
 import type { CameraState } from '../CameraState.js';
 import type { BasicMultiChannelPerlinNoise } from '../noise/BasicMultiChannelPerlinNoise.js';
+import { withDefaults } from '../params.js';
 import { impulseField, type ImpulseField } from './ImpulseField.js';
 
 const scratchOffset: Vec3 = [0, 0, 0];
 
-/** Applies impulse offsets and optional strength-driven Perlin shake. */
-export class ImpulseListenerNoise {
+export type ImpulseListenerParams = {
+  /** Impulse field to sample. */
   field: ImpulseField;
+  /** Only reacts to events where `(event.channel & channelMask) !== 0`. */
   channelMask: number;
+  /** Multiplies the sampled offset. `0` mutes this listener entirely. */
   gain: number;
-  shake?: BasicMultiChannelPerlinNoise;
+  /** Whether to apply the impulse direction in camera space. */
   cameraSpace: boolean;
+};
 
-  constructor(
-    field: ImpulseField = impulseField,
-    channelMask = 1,
-    gain = 1,
-    shake?: BasicMultiChannelPerlinNoise,
-    cameraSpace = false,
-  ) {
-    this.field = field;
-    this.channelMask = channelMask;
-    this.gain = gain;
-    this.shake = shake;
-    this.cameraSpace = cameraSpace;
+/** Every setting from `settings`, or its default. */
+export const createImpulseListenerParams = (settings?: Partial<ImpulseListenerParams>): ImpulseListenerParams =>
+  withDefaults({ field: impulseField, channelMask: 1, gain: 1, cameraSpace: false }, settings);
+
+export type ImpulseListenerOptions = Partial<ImpulseListenerParams> & {
+  /** Perlin shake driven by the impulse strength. */
+  shake?: BasicMultiChannelPerlinNoise;
+};
+
+/** Applies impulse offsets and optional strength-driven Perlin shake. */
+export class ImpulseListenerNoise implements ImpulseListenerParams {
+  declare field: ImpulseField;
+  declare channelMask: number;
+  declare gain: number;
+  declare cameraSpace: boolean;
+  shake?: BasicMultiChannelPerlinNoise;
+
+  constructor(options?: ImpulseListenerOptions) {
+    Object.assign(this, createImpulseListenerParams(options));
+    this.shake = options?.shake;
   }
 
   /** Apply the current impulse effect and report whether events remain active. */

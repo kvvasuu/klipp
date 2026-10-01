@@ -228,7 +228,14 @@ export const scenarios: Scenario[] = [
 
   // extensions
   controllerScenario('extension.lens', (c) => {
-    const lens = new LensExtension(35, 0.2, 500, 0.5, 0.3, 0.3);
+    const lens = new LensExtension({
+      fov: 35,
+      near: 0.2,
+      far: 500,
+      fovDamping: 0.5,
+      nearDamping: 0.3,
+      farDamping: 0.3,
+    });
     let frames = 0;
     c.registerExtension((out, dt, justActivated) => {
       if (++frames === 100) {
@@ -263,8 +270,16 @@ export const scenarios: Scenario[] = [
   // noise
   controllerScenario('noise.perlin', (c) => {
     c.registerNoise(
-      new BasicMultiChannelPerlinNoise([0.2, 0.1, 0.2], [1, 1.3, 0.7], [2, 1, 0.5], [0.8, 1.1, 1.6], 1, 1, 1234, 0.2)
-        .update,
+      new BasicMultiChannelPerlinNoise({
+        positionAmplitude: [0.2, 0.1, 0.2],
+        positionFrequency: [1, 1.3, 0.7],
+        rotationAmplitude: [2, 1, 0.5],
+        rotationFrequency: [0.8, 1.1, 1.6],
+        amplitudeGain: 1,
+        frequencyGain: 1,
+        seed: 1234,
+        amplitudeDamping: 0.2,
+      }).update,
     );
   }),
   {
@@ -272,7 +287,7 @@ export const scenarios: Scenario[] = [
     run: () =>
       simulate((w) => {
         const field = new ImpulseField();
-        const listener = new ImpulseListenerNoise(field, 1, 1);
+        const listener = new ImpulseListenerNoise({ field, channelMask: 1, gain: 1 });
         const { controller, state } = rig(w);
         return (dt, frame) => {
           const now = w.clock.time; // explicit clock: never performance.now() in golden tests

@@ -2,42 +2,33 @@ import type { Vec3 } from 'math';
 import type { CameraState } from '../CameraState.js';
 import type { DampingConstant } from '../damping/Damper.js';
 import {
+  createPerlinNoiseParams,
   createPerlinNoiseState,
   updatePerlinNoise,
   type PerlinNoiseParams,
   type PerlinNoiseState,
 } from './perlinNoise.js';
 
+export type PerlinNoiseOptions = Partial<PerlinNoiseParams> & {
+  /** Seed for the six independent Perlin channels. Random when omitted. */
+  seed?: number;
+};
+
 /** Adds Perlin position and rotation noise to a camera state. */
 export class BasicMultiChannelPerlinNoise implements PerlinNoiseParams {
-  positionAmplitude: Vec3;
-  positionFrequency: Vec3;
-  rotationAmplitude: Vec3;
-  rotationFrequency: Vec3;
-  amplitudeGain: number;
-  frequencyGain: number;
-  amplitudeDamping: DampingConstant;
+  declare positionAmplitude: Vec3;
+  declare positionFrequency: Vec3;
+  declare rotationAmplitude: Vec3;
+  declare rotationFrequency: Vec3;
+  declare amplitudeGain: number;
+  declare frequencyGain: number;
+  declare amplitudeDamping: DampingConstant;
 
   readonly state: PerlinNoiseState;
 
-  constructor(
-    positionAmplitude: Vec3 = [0, 0, 0],
-    positionFrequency: Vec3 = [1, 1, 1],
-    rotationAmplitude: Vec3 = [0, 0, 0],
-    rotationFrequency: Vec3 = [1, 1, 1],
-    amplitudeGain = 1,
-    frequencyGain = 1,
-    seed = Math.random() * 10000,
-    amplitudeDamping: DampingConstant = 0,
-  ) {
-    this.positionAmplitude = positionAmplitude;
-    this.positionFrequency = positionFrequency;
-    this.rotationAmplitude = rotationAmplitude;
-    this.rotationFrequency = rotationFrequency;
-    this.amplitudeGain = amplitudeGain;
-    this.frequencyGain = frequencyGain;
-    this.amplitudeDamping = amplitudeDamping;
-    this.state = createPerlinNoiseState(seed, amplitudeGain);
+  constructor(options?: PerlinNoiseOptions) {
+    Object.assign(this, createPerlinNoiseParams(options));
+    this.state = createPerlinNoiseState(options?.seed ?? Math.random() * 10000, this.amplitudeGain);
   }
 
   update = (out: CameraState, dt: number, justActivated: boolean): void =>

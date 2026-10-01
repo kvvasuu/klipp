@@ -139,8 +139,8 @@ export {
 } from './aim/rotationComposer.js';
 
 export { composerDebugZones, groupFramingPaddingBox, type DebugZone } from './debug/debugZones.js';
-export { LensExtension } from './extension/LensExtension.js';
-export { updateLens, createLensState, type LensParams, type LensState } from './extension/lens.js';
+export { LensExtension, type LensOptions } from './extension/LensExtension.js';
+export { updateLens, createLensState, createLensParams, type LensParams, type LensState } from './extension/lens.js';
 export {
   updateGroupFraming,
   horizontalHalfFov,
@@ -172,15 +172,21 @@ export {
   type InputSourceMapping,
 } from './input/inputMapping.js';
 
-export { BasicMultiChannelPerlinNoise } from './noise/BasicMultiChannelPerlinNoise.js';
+export { BasicMultiChannelPerlinNoise, type PerlinNoiseOptions } from './noise/BasicMultiChannelPerlinNoise.js';
 export {
   updatePerlinNoise,
   createPerlinNoiseState,
+  createPerlinNoiseParams,
   type PerlinNoiseParams,
   type PerlinNoiseState,
 } from './noise/perlinNoise.js';
 export { ImpulseField, impulseField } from './impulse/ImpulseField.js';
-export { ImpulseListenerNoise } from './impulse/ImpulseListenerNoise.js';
+export {
+  ImpulseListenerNoise,
+  createImpulseListenerParams,
+  type ImpulseListenerOptions,
+  type ImpulseListenerParams,
+} from './impulse/ImpulseListenerNoise.js';
 export {
   ImpulseShapes,
   generateImpulse,

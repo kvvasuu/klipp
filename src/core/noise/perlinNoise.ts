@@ -2,21 +2,43 @@ import { degreesToRadians, quat, vec3, type Euler, type Quat, type Vec3 } from '
 import { perlin2d } from 'math/noise';
 import type { CameraState } from '../CameraState.js';
 import { createDamperState, damp, resetDamper, type DamperState, type DampingConstant } from '../damping/Damper.js';
+import { withDefaults } from '../params.js';
 
 type Generator = ReturnType<typeof perlin2d.create>;
 /** Three position and three rotation noise channels. */
 type Channels = [Generator, Generator, Generator, Generator, Generator, Generator];
 
 export type PerlinNoiseParams = {
+  /** Per-axis positional shake amplitude in camera-local space. */
   positionAmplitude: Vec3;
+  /** Per-axis oscillation speed for position noise. */
   positionFrequency: Vec3;
-  /** Degrees per axis. */
+  /** Per-axis rotational shake amplitude in degrees. */
   rotationAmplitude: Vec3;
+  /** Per-axis oscillation speed for rotation noise. */
   rotationFrequency: Vec3;
+  /** Multiplies every amplitude at once. */
   amplitudeGain: number;
+  /** Multiplies every channel's frequency. */
   frequencyGain: number;
+  /** Response time for changes to `amplitudeGain`. */
   amplitudeDamping: DampingConstant;
 };
+
+/** Every setting from `settings`, or its default. */
+export const createPerlinNoiseParams = (settings?: Partial<PerlinNoiseParams>): PerlinNoiseParams =>
+  withDefaults(
+    {
+      positionAmplitude: [0, 0, 0],
+      positionFrequency: [1, 1, 1],
+      rotationAmplitude: [0, 0, 0],
+      rotationFrequency: [1, 1, 1],
+      amplitudeGain: 1,
+      frequencyGain: 1,
+      amplitudeDamping: 0,
+    },
+    settings,
+  );
 
 export type PerlinNoiseState = {
   channels: Channels;

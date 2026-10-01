@@ -2,41 +2,27 @@ import { useEffect, useImperativeHandle, useState, type Ref } from 'react';
 import type { BasicMultiChannelPerlinProps } from '../noise/BasicMultiChannelPerlin.js';
 import { useBasicMultiChannelPerlinNoise } from '../noise/useBasicMultiChannelPerlinNoise.js';
 import { useVirtualCamera } from '../VirtualCameraContext.js';
-import { impulseField, type ImpulseField } from '../../core/impulse/ImpulseField.js';
-import { ImpulseListenerNoise } from '../../core/impulse/ImpulseListenerNoise.js';
+import {
+  ImpulseListenerNoise,
+  createImpulseListenerParams,
+  type ImpulseListenerOptions,
+} from '../../core/impulse/ImpulseListenerNoise.js';
 
 /** Perlin shake options driven by the current impulse strength. */
 export type ImpulseShakeProps = Omit<BasicMultiChannelPerlinProps, 'amplitudeGain' | 'ref'>;
 
-export type ImpulseListenerProps = {
-  /** Impulse field to sample. */
-  field?: ImpulseField;
-  /** Only reacts to events where `(event.channel & channelMask) !== 0`. */
-  channelMask?: number;
-  /** Multiplies the sampled offset. `0` mutes this listener entirely. */
-  gain?: number;
+export type ImpulseListenerProps = Omit<ImpulseListenerOptions, 'shake'> & {
   /** Optional Perlin shake driven by the impulse strength. */
   shake?: ImpulseShakeProps;
-  /** Whether to apply the impulse direction in camera space. */
-  cameraSpace?: boolean;
   ref?: Ref<ImpulseListenerNoise>;
 };
 
 /** Adds impulse-driven camera shake and kick. */
-export function ImpulseListener({
-  field = impulseField,
-  channelMask = 1,
-  gain = 1,
-  shake,
-  cameraSpace = false,
-  ref,
-}: ImpulseListenerProps) {
+export function ImpulseListener({ shake, ref, ...settings }: ImpulseListenerProps) {
   const { controller } = useVirtualCamera();
-  const [listener] = useState(() => new ImpulseListenerNoise(field, channelMask, gain));
-  listener.field = field;
-  listener.channelMask = channelMask;
-  listener.gain = gain;
-  listener.cameraSpace = cameraSpace;
+  const params = createImpulseListenerParams(settings);
+  const [listener] = useState(() => new ImpulseListenerNoise(params));
+  Object.assign(listener, params);
 
   useImperativeHandle(ref, () => listener, [listener]);
   useEffect(() => controller.registerNoise(listener.update), [controller, listener]);
