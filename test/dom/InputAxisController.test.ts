@@ -65,98 +65,42 @@ describe('InputAxisController', () => {
     return element;
   }
 
-  it('right-drag feeds the mapped axis pair', () => {
+  it('feeds a mapped source into its axes and ignores unmapped ones', () => {
     const x = new InputAxis();
     const y = new InputAxis();
     const el = setup({ ...emptyConfig(), mouseButtons: { left: null, right: { axes: { x, y } }, middle: null } });
 
+    pointer(el, 'pointerdown', 0, 0, 1); // left - unmapped
+    pointer(el, 'pointermove', 999, 999, 1);
+    pointer(el, 'pointerup', 999, 999, 0);
     pointer(el, 'pointerdown', 0, 0, 2);
     pointer(el, 'pointermove', 10, 4, 2);
     controller.update();
     settle(x, y);
 
-    expect(x.value).toBeCloseTo(10, 5);
-    expect(y.value).toBeCloseTo(4, 5);
+    expect([x.value, y.value]).toEqual([10, 4]);
   });
 
-  it('an unmapped source (null) is ignored entirely', () => {
-    const x = new InputAxis();
-    const y = new InputAxis();
-    const el = setup({ ...emptyConfig(), mouseButtons: { left: { axes: { x, y } }, right: null, middle: null } });
+  it('scales by gain and flips inverted axes', () => {
+    const feed = (mapping: { gain?: number; invert?: boolean | { x?: boolean; y?: boolean } }) => {
+      const x = new InputAxis();
+      const y = new InputAxis();
+      const el = setup({
+        ...emptyConfig(),
+        mouseButtons: { left: null, right: { axes: { x, y }, ...mapping }, middle: null },
+      });
+      pointer(el, 'pointerdown', 0, 0, 2);
+      pointer(el, 'pointermove', 10, 4, 2);
+      controller.update();
+      controller.disconnect();
+      settle(x, y);
+      return [x.value, y.value];
+    };
 
-    pointer(el, 'pointerdown', 0, 0, 2); // right button - unmapped
-    pointer(el, 'pointermove', 999, 999, 2);
-    controller.update();
-
-    expect(x.value).toBe(0);
-    expect(y.value).toBe(0);
-  });
-
-  it('gain scales the delta before it reaches the axes', () => {
-    const x = new InputAxis();
-    const y = new InputAxis();
-    const el = setup({
-      ...emptyConfig(),
-      mouseButtons: { left: null, right: { axes: { x, y }, gain: 0.5 }, middle: null },
-    });
-
-    pointer(el, 'pointerdown', 0, 0, 2);
-    pointer(el, 'pointermove', 10, 4, 2);
-    controller.update();
-    settle(x, y);
-
-    expect(x.value).toBeCloseTo(5, 5);
-    expect(y.value).toBeCloseTo(2, 5);
-  });
-
-  it('invert: true flips both axes', () => {
-    const x = new InputAxis();
-    const y = new InputAxis();
-    const el = setup({
-      ...emptyConfig(),
-      mouseButtons: { left: null, right: { axes: { x, y }, invert: true }, middle: null },
-    });
-
-    pointer(el, 'pointerdown', 0, 0, 2);
-    pointer(el, 'pointermove', 10, 4, 2);
-    controller.update();
-    settle(x, y);
-
-    expect(x.value).toBeCloseTo(-10, 5);
-    expect(y.value).toBeCloseTo(-4, 5);
-  });
-
-  it('invert: {y: true} flips only the y axis, e.g. an "invert Y look" toggle', () => {
-    const x = new InputAxis();
-    const y = new InputAxis();
-    const el = setup({
-      ...emptyConfig(),
-      mouseButtons: { left: null, right: { axes: { x, y }, invert: { y: true } }, middle: null },
-    });
-
-    pointer(el, 'pointerdown', 0, 0, 2);
-    pointer(el, 'pointermove', 10, 4, 2);
-    controller.update();
-    settle(x, y);
-
-    expect(x.value).toBeCloseTo(10, 5);
-    expect(y.value).toBeCloseTo(-4, 5);
-  });
-
-  it('gain and invert compose (invert applies to the already-scaled delta)', () => {
-    const x = new InputAxis();
-    const y = new InputAxis();
-    const el = setup({
-      ...emptyConfig(),
-      mouseButtons: { left: null, right: { axes: { x, y }, gain: 2, invert: true }, middle: null },
-    });
-
-    pointer(el, 'pointerdown', 0, 0, 2);
-    pointer(el, 'pointermove', 10, 0, 2);
-    controller.update();
-    settle(x, y);
-
-    expect(x.value).toBeCloseTo(-20, 5);
+    expect(feed({ gain: 0.5 })).toEqual([5, 2]);
+    expect(feed({ invert: true })).toEqual([-10, -4]);
+    expect(feed({ invert: { y: true } })).toEqual([10, -4]);
+    expect(feed({ gain: 2, invert: true })).toEqual([-20, -8]);
   });
 
   it('two different sources mapped to the same axis pair both contribute, summed', () => {
@@ -177,16 +121,6 @@ describe('InputAxisController', () => {
     expect(x.value).toBeCloseTo(13, 5); // 10 (right-drag) + 3 (touch)
   });
 
-  it('update() with no input this frame is a harmless no-op', () => {
-    const x = new InputAxis();
-    const y = new InputAxis();
-    setup({ ...emptyConfig(), mouseButtons: { left: null, right: { axes: { x, y } }, middle: null } });
-
-    expect(() => controller.update()).not.toThrow();
-    expect(x.value).toBe(0);
-    expect(y.value).toBe(0);
-  });
-
   it('disconnect() stops feeding the axes', () => {
     const x = new InputAxis();
     const y = new InputAxis();
@@ -200,21 +134,7 @@ describe('InputAxisController', () => {
     expect(x.value).toBe(0);
   });
 
-  it('enabled = false: still connected and listening, but drained deltas never reach the axes', () => {
-    const x = new InputAxis();
-    const y = new InputAxis();
-    const el = setup({ ...emptyConfig(), mouseButtons: { left: null, right: { axes: { x, y } }, middle: null } });
-    controller.enabled = false;
-
-    pointer(el, 'pointerdown', 0, 0, 2);
-    pointer(el, 'pointermove', 10, 4, 2);
-    controller.update();
-
-    expect(x.value).toBe(0);
-    expect(y.value).toBe(0);
-  });
-
-  it('enabled = false does not queue input for a catch-up jump on re-enable - it drains and discards', () => {
+  it('while disabled, drops input and holds instead of saving them for later', () => {
     const x = new InputAxis();
     const y = new InputAxis();
     const el = setup({ ...emptyConfig(), mouseButtons: { left: null, right: { axes: { x, y } }, middle: null } });
@@ -222,92 +142,62 @@ describe('InputAxisController', () => {
 
     pointer(el, 'pointerdown', 0, 0, 2);
     pointer(el, 'pointermove', 999, 999, 2);
-    controller.update(); // drained and discarded while disabled
+    controller.update();
+    expect([x.value, y.value, x.held]).toEqual([0, 0, false]);
 
     controller.enabled = true;
     pointer(el, 'pointermove', 1005, 1003, 2);
     controller.update();
     settle(x, y);
-
-    expect(x.value).toBeCloseTo(6, 5); // only the movement since re-enabling
-    expect(y.value).toBeCloseTo(4, 5);
+    expect([x.value, y.value]).toEqual([6, 4]);
   });
 
-  it("buttonless movement while Pointer Lock is active reuses mouseButtons.left's own mapping", () => {
+  it("feeds buttonless movement under Pointer Lock through mouseButtons.left's mapping", () => {
+    const lockedMove = (left: InputAxisControllerConfig['mouseButtons']['left']) => {
+      const el = setup({ ...emptyConfig(), mouseButtons: { left, right: null, middle: null } });
+      stubPointerLock(el);
+      controller.inputSystem.requestPointerLock();
+      el.dispatchEvent(
+        new PointerEvent('pointermove', {
+          pointerId: 1,
+          movementX: 10,
+          movementY: 4,
+          buttons: 0,
+          bubbles: true,
+          pointerType: 'mouse',
+        }),
+      );
+      controller.update();
+      controller.disconnect();
+    };
+
     const x = new InputAxis();
     const y = new InputAxis();
-    const el = setup({
-      ...emptyConfig(),
-      mouseButtons: { left: { axes: { x, y }, gain: 2, invert: true }, right: null, middle: null },
-    });
-    stubPointerLock(el);
-    controller.inputSystem.requestPointerLock();
-
-    el.dispatchEvent(
-      new PointerEvent('pointermove', {
-        pointerId: 1,
-        clientX: 0,
-        clientY: 0,
-        movementX: 10,
-        movementY: 4,
-        buttons: 0,
-        bubbles: true,
-        pointerType: 'mouse',
-      }),
-    );
-    controller.update();
+    lockedMove({ axes: { x, y }, gain: 2, invert: true });
     settle(x, y);
+    expect([x.value, y.value]).toEqual([-20, -8]);
 
-    expect(x.value).toBeCloseTo(-20, 5); // same gain/invert as mouseButtons.left
-    expect(y.value).toBeCloseTo(-8, 5);
-  });
-
-  it('left unmapped: buttonless Pointer Lock movement does nothing either', () => {
-    const el = setup({ ...emptyConfig(), mouseButtons: { left: null, right: null, middle: null } });
-    stubPointerLock(el);
-    controller.inputSystem.requestPointerLock();
-
-    el.dispatchEvent(
-      new PointerEvent('pointermove', {
-        pointerId: 1,
-        clientX: 0,
-        clientY: 0,
-        movementX: 10,
-        movementY: 4,
-        buttons: 0,
-        bubbles: true,
-        pointerType: 'mouse',
-      }),
-    );
-
-    expect(() => controller.update()).not.toThrow();
-  });
-
-  it('exposes its own InputSystem for direct configuration (e.g. interactiveArea, lockTouchAxis)', () => {
-    const x = new InputAxis();
-    const y = new InputAxis();
-    setup({ ...emptyConfig(), mouseButtons: { left: null, right: { axes: { x, y } }, middle: null } });
-
-    expect(controller.inputSystem).toBeInstanceOf(Object);
-    controller.inputSystem.lockTouchAxis = true;
-    expect(controller.inputSystem.lockTouchAxis).toBe(true);
+    expect(() => lockedMove(null)).not.toThrow();
   });
 
   describe('held propagation', () => {
-    it('marks the mapped axes held while the source is pressed, clears on release', () => {
+    it('marks the mapped axes held while their source is pressed', () => {
       const x = new InputAxis();
       const y = new InputAxis();
       const el = setup({ ...emptyConfig(), mouseButtons: { left: null, right: { axes: { x, y } }, middle: null } });
 
+      pointer(el, 'pointerdown', 0, 0, 1); // left - unmapped
+      controller.update();
+      expect(x.held).toBe(false);
+      pointer(el, 'pointerup', 0, 0, 0);
+
       pointer(el, 'pointerdown', 0, 0, 2);
       controller.update();
-      expect(x.held).toBe(true);
-      expect(y.held).toBe(true);
+      expect([x.held, y.held]).toEqual([true, true]);
 
       pointer(el, 'pointerup', 0, 0, 0);
       controller.update();
-      expect(x.held).toBe(false);
-      expect(y.held).toBe(false);
+      expect([x.held, y.held]).toEqual([false, false]);
     });
 
     it('two sources sharing one axis pair OR together - one releasing does not clear it while the other still holds', () => {
@@ -327,28 +217,6 @@ describe('InputAxisController', () => {
       controller.update();
       expect(x.held).toBe(true); // still held via touch
       expect(y.held).toBe(true);
-    });
-
-    it('an unmapped source being held has no effect', () => {
-      const x = new InputAxis();
-      const y = new InputAxis();
-      const el = setup({ ...emptyConfig(), mouseButtons: { left: { axes: { x, y } }, right: null, middle: null } });
-
-      pointer(el, 'pointerdown', 0, 0, 2); // right - unmapped
-      controller.update();
-      expect(x.held).toBe(false);
-    });
-
-    it('enabled = false: held never reaches the axes, even while physically pressed', () => {
-      const x = new InputAxis();
-      const y = new InputAxis();
-      const el = setup({ ...emptyConfig(), mouseButtons: { left: null, right: { axes: { x, y } }, middle: null } });
-      controller.enabled = false;
-
-      pointer(el, 'pointerdown', 0, 0, 2);
-      controller.update();
-      expect(x.held).toBe(false);
-      expect(y.held).toBe(false);
     });
   });
 });

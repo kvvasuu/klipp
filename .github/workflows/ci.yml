@@ -23,7 +23,7 @@ jobs:
 
       - run: pnpm run format:check
 
-      - run: pnpm exec tsc --noEmit
+      - run: pnpm run typecheck
 
       - run: pnpm test
 

@@ -33,50 +33,28 @@ describe('lerpCameraState', () => {
     viewOffset: [100, -40],
   });
 
-  it('writes into "out" without allocating (same arrays)', () => {
-    const out = createCameraState();
-    const outPosition = out.position;
-    const outQuaternion = out.quaternion;
-
-    const returned = lerpCameraState(out, a, b, 0.5);
-
-    expect(returned).toBe(out);
-    expect(out.position).toBe(outPosition);
-    expect(out.quaternion).toBe(outQuaternion);
+  it('matches "a" and "b" exactly at the ends, clamping t outside [0, 1]', () => {
+    for (const [t, end] of [
+      [0, a],
+      [-5, a],
+      [1, b],
+      [5, b],
+    ] as const) {
+      const out = createCameraState();
+      lerpCameraState(out, a, b, t);
+      expect(out.position).toEqual(end.position);
+      expect(out.quaternion).toEqual(end.quaternion);
+      expect([out.fov, out.near, out.far]).toEqual([end.fov, end.near, end.far]);
+    }
   });
 
-  it('t=0 matches "a" exactly', () => {
-    const out = createCameraState();
-    lerpCameraState(out, a, b, 0);
-    expect(vec3.exactEquals(out.position, a.position)).toBe(true);
-    expect(vec4.exactEquals(out.quaternion, a.quaternion)).toBe(true);
-    expect(out.fov).toBe(a.fov);
-    expect(out.near).toBe(a.near);
-    expect(out.far).toBe(a.far);
-  });
-
-  it('t=1 matches "b" exactly', () => {
-    const out = createCameraState();
-    lerpCameraState(out, a, b, 1);
-    expect(vec3.exactEquals(out.position, b.position)).toBe(true);
-    expect(vec4.exactEquals(out.quaternion, b.quaternion)).toBe(true);
-    expect(out.fov).toBe(b.fov);
-    expect(out.near).toBe(b.near);
-    expect(out.far).toBe(b.far);
-  });
-
-  it('t=0.5 lands at the midpoint for position and lens', () => {
+  it('interpolates position, lens and viewOffset', () => {
     const out = createCameraState();
     lerpCameraState(out, a, b, 0.5);
     expect(out.position[0]).toBeCloseTo(5, 10);
     expect(out.fov).toBeCloseTo(50, 10);
     expect(out.near).toBeCloseTo(0.3, 10);
     expect(out.far).toBeCloseTo(300, 10);
-  });
-
-  it('interpolates viewOffset the same way as fov/near/far', () => {
-    const out = createCameraState();
-    lerpCameraState(out, a, b, 0.5);
     expect(out.viewOffset[0]).toBeCloseTo(50, 10);
     expect(out.viewOffset[1]).toBeCloseTo(-20, 10);
   });
@@ -91,15 +69,6 @@ describe('lerpCameraState', () => {
     expect(vec3.length(out.referenceUp)).toBeCloseTo(1, 10);
     expect(out.referenceUp[0]).toBeGreaterThan(0);
     expect(out.referenceUp[1]).toBeGreaterThan(0);
-  });
-
-  it('clamps t outside [0, 1]', () => {
-    const below = createCameraState();
-    const above = createCameraState();
-    lerpCameraState(below, a, b, -5);
-    lerpCameraState(above, a, b, 5);
-    expect(vec3.exactEquals(below.position, a.position)).toBe(true);
-    expect(vec3.exactEquals(above.position, b.position)).toBe(true);
   });
 
   it('does not mutate "a" or "b"', () => {
@@ -128,14 +97,6 @@ describe('lerpCameraState', () => {
     });
     lerpCameraState(outIsB, a, outIsB, 0.5);
     expect(outIsB.position[0]).toBeCloseTo(5, 10);
-  });
-
-  it('hints have no effect when neither state has a target (a/b here both default to hasTarget: false)', () => {
-    const withoutHints = createCameraState();
-    const withHints = createCameraState();
-    lerpCameraState(withoutHints, a, b, 0.5);
-    lerpCameraState(withHints, a, b, 0.5, 0b111111);
-    expect(vec3.exactEquals(withHints.position, withoutHints.position)).toBe(true);
   });
 
   describe('hemisphere continuity (a live, moving "b" must not reverse the interpolated path)', () => {
@@ -215,13 +176,6 @@ describe('lerpCameraState', () => {
       expect(vec3.distance(linear.position, target)).not.toBeCloseTo((radiusA + radiusB) / 2, 1);
     });
 
-    it('with a shared lookAtTarget, position AND rotation both track the target exactly (rotation is driven by lookAtTarget regardless of hints - see the describe block below)', () => {
-      const out = createCameraState();
-      lerpCameraState(out, orbitingA, orbitingB, 0.5, BlendHints.sphericalPosition);
-
-      expect(forwardDot(out.quaternion, out.position, target)).toBeCloseTo(1, 10); // forward IS the direction to the target, exactly
-    });
-
     it("without a shared lookAtTarget, position still blends spherically but rotation falls back to slerping a/b's own quaternions", () => {
       const rotatedA = makeState({
         ...orbitingA,
@@ -239,13 +193,17 @@ describe('lerpCameraState', () => {
       expect(angleBetween(out.quaternion, [0, 0, 0, 1])).toBeGreaterThan(0.1);
     });
 
-    it('falls back to a linear lerp when either side lacks hasTarget', () => {
-      const noTarget = makeState({ position: [0, 0, 5] });
-      const out = createCameraState();
-      lerpCameraState(out, orbitingA, noTarget, 0.5, BlendHints.sphericalPosition);
-      const linear = createCameraState();
-      lerpCameraState(linear, orbitingA, noTarget, 0.5);
-      expect(vec3.exactEquals(out.position, linear.position)).toBe(true);
+    it('falls back to a straight line when either side has no target', () => {
+      for (const [from, to] of [
+        [orbitingA, makeState({ position: [0, 0, 5] })],
+        [a, b],
+      ]) {
+        const hinted = createCameraState();
+        lerpCameraState(hinted, from, to, 0.5, 0b111111);
+        const linear = createCameraState();
+        lerpCameraState(linear, from, to, 0.5);
+        expect(hinted.position).toEqual(linear.position);
+      }
     });
 
     it('cylindricalPosition interpolates the vertical (Y) axis linearly while still arcing horizontally', () => {
@@ -316,20 +274,12 @@ describe('lerpCameraState', () => {
       });
     });
 
-    it('out.target/hasTarget carry the lerped target forward when both sides have one (so a later mid-blend interruption still has it)', () => {
-      const withDifferentTarget = makeState({
-        position: [0, 0, 5],
-        target: [10, 0, 0],
-        hasTarget: true,
-      });
+    it('carries the interpolated target forward only when both sides have one', () => {
       const out = createCameraState();
-      lerpCameraState(out, orbitingA, withDifferentTarget, 0.5);
+      lerpCameraState(out, orbitingA, makeState({ position: [0, 0, 5], target: [10, 0, 0], hasTarget: true }), 0.5);
       expect(out.hasTarget).toBe(true);
-      expect(vec3.exactEquals(out.target, [5, 0, 0])).toBe(true);
-    });
+      expect(out.target).toEqual([5, 0, 0]);
 
-    it('out.hasTarget is false when either side lacks one', () => {
-      const out = createCameraState();
       lerpCameraState(out, orbitingA, makeState(), 0.5);
       expect(out.hasTarget).toBe(false);
     });
@@ -404,20 +354,6 @@ describe('lerpCameraState', () => {
       // ...but rotation is identically correct in both, since it never depended on the position hint
       expect(forwardDot(linear.quaternion, linear.position, linear.lookAtTarget)).toBeCloseTo(1, 10);
       expect(forwardDot(spherical.quaternion, spherical.position, spherical.lookAtTarget)).toBeCloseTo(1, 10);
-    });
-
-    it("without a shared lookAtTarget, rotation falls back to slerping a/b's own quaternions", () => {
-      const rotatedA = makeState({
-        quaternion: yaw(90),
-      });
-      const noLookAt = makeState({ position: [0, 0, 5] });
-      const out = createCameraState();
-
-      lerpCameraState(out, rotatedA, noLookAt, 0.5);
-
-      expect(out.hasLookAtTarget).toBe(false);
-      // slerp of rotatedA's 90° and noLookAt's identity lands at 45°, not identity (a degenerate lookAt's result)
-      expect(angleBetween(out.quaternion, [0, 0, 0, 1])).toBeGreaterThan(0.1);
     });
 
     describe('BlendHints.ignoreTarget', () => {

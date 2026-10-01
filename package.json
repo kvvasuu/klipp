@@ -62,6 +62,7 @@
     "prebuild": "pnpm run clean",
     "build": "tsc",
     "lint": "oxlint",
+    "typecheck": "tsc --noEmit && tsc -p test",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "test": "vitest run",

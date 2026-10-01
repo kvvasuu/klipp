@@ -18,6 +18,7 @@ pnpm --filter examples dev
 - `pnpm run build` - compiles `src/` to `dist/` via `tsc`.
 - `pnpm run test` - the unit suite (`vitest`), including the golden trajectory tests.
 - `pnpm run lint` - `oxlint`, which also enforces the layer boundaries below.
+- `pnpm run typecheck` - `tsc` over `src/` and, via `test/tsconfig.json`, the tests.
 - `pnpm run format` - `prettier`.
 - `pnpm run bench` - the performance benchmark suite (`@pmndrs/labs`).
 
@@ -37,14 +38,12 @@ as params. Hot paths don't allocate: reuse module-level scratch values instead.
 
 ## Tests
 
-- `test/` mirrors `src/` (`src/core/CameraState.ts` → `test/core/CameraState.test.ts`), plus a few
-  scenario tests that span several modules.
-- `test/core/` follows the same rule as `src/core/`: it imports only `math`, with shared helpers in
-  `test/core/mathHelpers.ts`.
-- `test/golden/` runs every Body, Aim, Extension, Noise, blend and group through a fixed world and
-  compares each frame to recorded fixtures. A failure there means observable behavior changed. If that
-  is intended, re-record on Node 22 with `pnpm vitest run test/golden --mode golden-record` and commit
-  the fixtures separately.
+- `test/` mirrors `src/`. `test/core/` imports only `math`, like `src/core/`.
+- One test per behavior. Keep tests that guard a real bug and say so in the name.
+- React tests cover wiring only (registration, props, unmount). Behavior is tested on the class.
+- `test/golden/` compares every piece frame by frame to recorded fixtures. If a change there is intended,
+  re-record on Node 22 with `pnpm vitest run test/golden --mode golden-record` and commit the fixtures
+  separately.
 
 ## Project layout
 

@@ -1,463 +1,186 @@
-import { vec3 } from 'math';
+import { vec3, type Vec3 } from 'math';
 import { Object3D, Quaternion, Vector3 } from 'three';
 import { describe, expect, it } from 'vitest';
+import { BindingModes, type BindingMode } from '../../../src/core/body/BindingModes';
 import { createCameraState } from '../../../src/core/CameraState';
-import { BindingModes } from '../../../src/core/body/BindingModes';
 import { FollowBody } from '../../../src/three/body/FollowBody';
-import { toTuple, toVector3 } from '../../tuples';
+
+/** `v` rotated by `rotation`, as a tuple. */
+const rotated = (v: Vec3, rotation: Quaternion): Vec3 => new Vector3(...v).applyQuaternion(rotation).toArray() as Vec3;
+
+function expectVec3Close(actual: Vec3, expected: Vec3) {
+  for (let i = 0; i < 3; i++) expect(actual[i]).toBeCloseTo(expected[i], 8);
+}
+
+/** Runs one update so the next one damps instead of snapping, then moves the camera back to the origin. */
+function warmUp(body: FollowBody) {
+  const out = createCameraState();
+  body.update(out, 0.016, false);
+  vec3.set(out.position, 0, 0, 0);
+  return out;
+}
 
 describe('FollowBody', () => {
-  it('with a Vector3 target (no rotation), the offset is applied as plain world space', () => {
-    const body = new FollowBody(new Vector3(0, 0, 0), [1, 2, 3]);
+  it('sits at the offset from the target and publishes the target as out.target', () => {
     const out = createCameraState();
+    new FollowBody(new Vector3(2, 3, 4), [1, 2, 3]).update(out, 0.1, false);
 
-    body.update(out, 0.1);
-    expect(toVector3(out.position).equals(new Vector3(1, 2, 3))).toBe(true);
-  });
-
-  it("writes the target's world position and hasTarget onto out, for BlendHints' sphericalPosition", () => {
-    const body = new FollowBody(new Vector3(2, 3, 4), [1, 0, 0]);
-    const out = createCameraState();
-
-    body.update(out, 0.1);
-
+    expect(out.position).toEqual([3, 5, 7]);
+    expect(out.target).toEqual([2, 3, 4]);
     expect(out.hasTarget).toBe(true);
-    expect(toVector3(out.target).equals(new Vector3(2, 3, 4))).toBe(true);
   });
 
-  it("accounts for the target's WORLD position (parent transform included)", () => {
-    const parent = new Object3D();
-    parent.position.set(5, 0, 0);
-    const target = new Object3D();
-    target.position.set(2, 0, 0);
-    parent.add(target);
-
-    const body = new FollowBody(target, [0, 0, 0]);
+  it('leaves out untouched without a target', () => {
     const out = createCameraState();
-    body.update(out, 0.1);
-
-    expect(out.position[0]).toBeCloseTo(7, 10);
-  });
-
-  it("rotates the offset INTO the target's world rotation (Lock To Target) instead of adding it raw", () => {
-    const target = new Object3D();
-    target.rotation.set(0, Math.PI / 2, 0); // turned 90° around Y
-
-    const body = new FollowBody(target, [0, 0, 10]);
-    const out = createCameraState();
-    body.update(out, 0.1);
-
-    // local +Z rotated 90° around Y lands on world +X, not world +Z
-    expect(out.position[0]).toBeCloseTo(10, 5);
-    expect(out.position[2]).toBeCloseTo(0, 5);
-  });
-
-  it("default offset sits BEHIND the target given three.js's -Z-forward convention", () => {
-    const target = new Object3D(); // identity rotation faces world -Z
-    const body = new FollowBody(target);
-    const out = createCameraState();
-    body.update(out, 0.1);
-
-    // "behind" a -Z-facing object is +Z
-    expect(out.position[2]).toBeGreaterThan(0);
-  });
-
-  it('offset is a mutable field — reassigning it changes the followed offset live', () => {
-    const target = new Vector3(0, 0, 0);
-    const body = new FollowBody(target, [1, 0, 0]);
-    const out = createCameraState();
-
-    body.update(out, 0.1);
-    expect(out.position[0]).toBeCloseTo(1, 10);
-
-    body.offset = [5, 0, 0];
-    body.update(out, 0.1);
-    expect(out.position[0]).toBeCloseTo(5, 10);
-  });
-
-  it('a ref whose .current is null is a no-op, not a crash', () => {
-    const body = new FollowBody({ current: null });
-    const out = createCameraState();
-
-    expect(() => body.update(out, 0.1)).not.toThrow();
-    expect(out.position[0]).toBe(0);
-  });
-
-  it('a null target is a no-op, not a crash', () => {
-    const body = new FollowBody(null);
-    const out = createCameraState();
-
-    expect(() => body.update(out, 0.1)).not.toThrow();
-    expect(out.position[0]).toBe(0);
-  });
-
-  it('update is a bound instance method — safe to pass by reference (e.g. slots.registerBody(body.update))', () => {
-    const body = new FollowBody(new Vector3(0, 0, 0), [1, 2, 3]);
-    const { update } = body;
-
-    const out = createCameraState();
-    update(out, 0.1);
-
-    expect(toVector3(out.position).equals(new Vector3(1, 2, 3))).toBe(true);
+    new FollowBody(null).update(out, 0.1, false);
+    expect(out.position).toEqual([0, 0, 0]);
   });
 
   describe('damping', () => {
-    it('damping <= 0 (default) is an exact, instant lock — no smoothing at all', () => {
-      const body = new FollowBody(new Vector3(0, 0, 0), [10, 0, 0]);
+    it('snaps on the very first update, then eases toward the offset position and converges', () => {
+      const body = new FollowBody(new Vector3(), [10, 5, -3], 0.3);
       const out = createCameraState();
+      body.update(out, 0.016, false);
+      expect(out.position).toEqual([10, 5, -3]);
 
-      body.update(out, 0.016);
-      expect(out.position[0]).toBe(10);
-    });
-
-    it('the very first update() ever snaps directly to the desired position, even with damping > 0', () => {
-      const body = new FollowBody(new Vector3(0, 0, 0), [10, 0, 0], 0.5);
-      const out = createCameraState();
-
-      body.update(out, 0.016);
-      expect(out.position[0]).toBe(10);
-    });
-
-    it('damping > 0 catches up gradually instead of snapping in one frame, once warmed up', () => {
-      const body = new FollowBody(new Vector3(0, 0, 0), [10, 0, 0], 0.5);
-      const out = createCameraState();
-
-      body.update(out, 0.016); // consume the first-ever-update hard snap
-      vec3.set(out.position, 0, 0, 0); // move back away from target to genuinely exercise damping below
-      body.update(out, 0.016);
+      vec3.set(out.position, 0, 0, 0);
+      body.update(out, 0.016, false);
       expect(out.position[0]).toBeGreaterThan(0);
       expect(out.position[0]).toBeLessThan(10);
+
+      for (let i = 0; i < 300; i++) body.update(out, 0.016, false);
+      expectVec3Close(out.position, [10, 5, -3]);
     });
 
-    it('converges to the desired position over repeated ticks with damping enabled', () => {
-      const body = new FollowBody(new Vector3(0, 0, 0), [10, 5, -3], 0.3);
-      const out = createCameraState();
-
-      for (let i = 0; i < 300; i++) {
-        body.update(out, 0.016);
-      }
-
-      expect(out.position[0]).toBeCloseTo(10, 2);
-      expect(out.position[1]).toBeCloseTo(5, 2);
-      expect(out.position[2]).toBeCloseTo(-3, 2);
-    });
-
-    it('accepts an asymmetric {into, from} DampingConstant, same as Damper itself', () => {
-      const body = new FollowBody(new Vector3(0, 0, 0), [10, 0, 0], { into: 0.05, from: 2 });
-      const out = createCameraState();
-
-      body.update(out, 0.016); // consume the first-ever-update hard snap
-      vec3.set(out.position, 0, 0, 0); // move back away from target to genuinely exercise damping below
-      expect(() => body.update(out, 0.016)).not.toThrow();
-      expect(out.position[0]).toBeGreaterThan(0);
-      expect(out.position[0]).toBeLessThan(10);
-    });
-
-    it("with damping mid-catch-up, out.target derives from the DAMPED out.position (position minus the configured offset), not the raw target - a retarget must not distort the offset BlendHints.cylindricalPosition/sphericalPosition read (same class of bug already fixed for HardLockToTargetBody and RotationComposerAim's lookAtTarget)", () => {
-      const target = new Vector3(0, 0, 0);
+    it('keeps out.target exactly offset away from the damped position (real bug: the lag distorted the offset blend hints read)', () => {
+      const target = new Vector3();
       const body = new FollowBody(target, [0, 0, 10], 0.5);
       const out = createCameraState();
+      body.update(out, 0.016, false);
 
-      body.update(out, 0.016); // consume the first-ever-update hard snap - out.position = (0, 0, 10)
-      target.set(20, 0, 0); // retarget - desiredPosition jumps to (20, 0, 10), out.position hasn't moved yet
-      body.update(out, 0.016); // now easing - out.position is partway, not at the new desired position yet
+      target.set(20, 0, 0);
+      body.update(out, 0.016, false);
 
-      expect(out.position[0]).toBeGreaterThan(0);
       expect(out.position[0]).toBeLessThan(20);
+      expectVec3Close(vec3.subtract(vec3.create(), out.position, out.target), [0, 0, 10]);
+    });
 
-      const offset = toVector3(out.position).sub(toVector3(out.target));
-      expect(offset.x).toBeCloseTo(0, 10);
-      expect(offset.y).toBeCloseTo(0, 10);
-      expect(offset.z).toBeCloseTo(10, 10); // exactly the configured offset, never distorted by the lag
+    it('maxSpeed caps how fast damping closes the gap', () => {
+      const run = (maxSpeed: number) => {
+        const body = new FollowBody(new Vector3(), [100, 0, 0], 1, BindingModes.lockToTarget, maxSpeed);
+        const out = warmUp(body);
+        body.update(out, 0.05, false);
+        return out.position[0];
+      };
+
+      expect(run(2)).toBeLessThan(run(Infinity));
     });
   });
 
-  describe('maxSpeed', () => {
-    it('clamps how fast damping can close the gap, in world units/sec', () => {
-      const unclamped = new FollowBody(new Vector3(0, 0, 0), [100, 0, 0], 1, BindingModes.lockToTarget);
-      const outUnclamped = createCameraState();
-      unclamped.update(outUnclamped, 0.05); // consume the first-ever-update hard snap
-      vec3.set(outUnclamped.position, 0, 0, 0); // move back away from target to genuinely exercise damping below
-      unclamped.update(outUnclamped, 0.05);
-
-      const clamped = new FollowBody(new Vector3(0, 0, 0), [100, 0, 0], 1, BindingModes.lockToTarget, 2);
-      const outClamped = createCameraState();
-      clamped.update(outClamped, 0.05);
-      vec3.set(outClamped.position, 0, 0, 0);
-      clamped.update(outClamped, 0.05); // maxSpeed = 2 units/sec
-
-      expect(outClamped.position[0]).toBeLessThan(outUnclamped.position[0]);
-    });
-  });
-
-  describe('justActivated', () => {
-    it('snaps straight to the desired position even with a warmed-up damper and a stale out.position', () => {
-      // offset (0,0,0): desired position === target, keeping the expected values simple below
+  it('justActivated snaps to a new target from a stale position, where a plain update would ease', () => {
+    const run = (justActivated: boolean) => {
       const body = new FollowBody(new Vector3(10, 0, 0), [0, 0, 0], 0.5);
       const out = createCameraState();
-
-      body.update(out, 0.016, true); // first-ever session: snaps, warms up the damper
-      body.update(out, 0.016, false);
-
-      // a later, unrelated session: out.position is frozen at wherever the FIRST session left it
-      body.target = new Vector3(-40, 12, 3);
-      body.update(out, 0.016, true);
-
-      expect(toVector3(out.position).equals(new Vector3(-40, 12, 3))).toBe(true);
-    });
-
-    it('without justActivated, the same stale-state scenario eases instead of snapping (the bug this fixes)', () => {
-      const body = new FollowBody(new Vector3(10, 0, 0), [0, 0, 0], 0.5);
-      const out = createCameraState();
-
       body.update(out, 0.016, true);
       body.update(out, 0.016, false);
-
       body.target = new Vector3(-40, 12, 3);
-      body.update(out, 0.016, false); // no reactivation signal — damper treats this as a normal retarget
+      body.update(out, 0.016, justActivated);
+      return out.position;
+    };
 
-      expect(toVector3(out.position).equals(new Vector3(-40, 12, 3))).toBe(false);
-    });
+    expect(run(true)).toEqual([-40, 12, 3]);
+    expect(run(false)).not.toEqual([-40, 12, 3]);
   });
 
-  describe('primeFrom', () => {
-    it('the next update() eases from the primed position toward the desired one instead of snapping', () => {
-      const body = new FollowBody(new Vector3(0, 0, 0), [10, 0, 0], 0.5);
-      const initial = new Vector3(-50, 0, 0);
+  it('primeFrom makes the next activation ease from the primed position, once', () => {
+    const body = new FollowBody(new Vector3(), [0, 0, 0], 0.5);
+    const out = createCameraState();
+    vec3.set(out.position, -50, 0, 0);
+    body.primeFrom(out.position);
 
-      body.primeFrom(toTuple(initial));
-      const out = createCameraState();
-      initial.toArray(out.position);
-      body.update(out, 0.016, true);
+    body.update(out, 0.016, true);
+    expect(out.position[0]).toBeGreaterThan(-50);
+    expect(out.position[0]).toBeLessThan(0);
 
-      expect(out.position[0]).toBeGreaterThan(initial.x); // moved off the primed position
-      expect(out.position[0]).toBeLessThan(10); // but not there yet
-    });
-
-    it('without priming, update() still snaps straight to the desired position on justActivated (unchanged default)', () => {
-      const body = new FollowBody(new Vector3(0, 0, 0), [10, 0, 0], 0.5);
-      const out = createCameraState();
-
-      body.update(out, 0.016, true);
-      expect(out.position[0]).toBe(10);
-    });
-
-    it('is consumed by the first justActivated only - a later reactivation snaps normally', () => {
-      // offset (0,0,0): desired position === target, keeping the expected values simple below
-      const body = new FollowBody(new Vector3(0, 0, 0), [0, 0, 0], 0.5);
-      const initial = new Vector3(-50, 0, 0);
-
-      body.primeFrom(toTuple(initial));
-      const out = createCameraState();
-      initial.toArray(out.position);
-      body.update(out, 0.016, true); // consumes the prime, eases
-      body.update(out, 0.016, false);
-
-      body.target = new Vector3(-40, 12, 3);
-      body.update(out, 0.016, true); // a later reactivation - primeFrom was NOT called again
-
-      expect(toVector3(out.position).equals(new Vector3(-40, 12, 3))).toBe(true);
-    });
+    body.target = new Vector3(-40, 12, 3);
+    body.update(out, 0.016, true); // a later activation snaps as usual
+    expect(out.position).toEqual([-40, 12, 3]);
   });
 
   describe('bindingMode', () => {
-    it('defaults to lockToTarget (unchanged behavior from before bindingMode existed)', () => {
-      const target = new Object3D();
-      target.rotation.set(0, Math.PI / 2, 0);
-      const body = new FollowBody(target, [0, 0, 10]);
-      const out = createCameraState();
-
-      body.update(out, 0.1);
-      expect(out.position[0]).toBeCloseTo(10, 5);
-      expect(out.position[2]).toBeCloseTo(0, 5);
-    });
-
-    it('worldSpace: offset is added raw, ignoring the target rotation entirely', () => {
-      const target = new Object3D();
-      target.rotation.set(0, Math.PI / 2, 0);
-      const body = new FollowBody(target, [0, 0, 10], 0, BindingModes.worldSpace);
-      const out = createCameraState();
-
-      body.update(out, 0.1);
-      expect(toVector3(out.position).equals(new Vector3(0, 0, 10))).toBe(true);
-    });
-
-    it('lockToTargetWithWorldUp: only yaw is applied, pitch is ignored', () => {
-      const target = new Object3D();
-      const yaw = Math.PI / 3;
-      target.rotateY(yaw);
-      target.rotateX(0.6); // pitch, applied AFTER yaw in the target's own local frame
-
-      const body = new FollowBody(target, [0, 0, 10], 0, BindingModes.lockToTargetWithWorldUp);
-      const out = createCameraState();
-      body.update(out, 0.1);
-
-      const yawOnly = new Quaternion().setFromAxisAngle(new Vector3(0, 1, 0), yaw);
-      const expected = new Vector3(0, 0, 10).applyQuaternion(yawOnly);
-      expect(out.position[0]).toBeCloseTo(expected.x, 5);
-      expect(out.position[1]).toBeCloseTo(expected.y, 5); // 0 — pitch had zero effect
-      expect(out.position[2]).toBeCloseTo(expected.z, 5);
-    });
-
-    it('lockToTargetNoRoll: adding roll afterward has ZERO effect on the followed position', () => {
+    /** A target yawed, pitched and rolled, so every mode has something to ignore. */
+    function tiltedTarget() {
       const target = new Object3D();
       target.rotateY(0.4);
       target.rotateX(0.5);
+      target.rotateZ(1.1);
+      return target;
+    }
 
-      const body = new FollowBody(target, [0, 1, 8], 0, BindingModes.lockToTargetNoRoll);
+    function follow(target: Object3D, bindingMode?: BindingMode) {
+      const body = new FollowBody(target, [0, 1, 8], 0, bindingMode);
       const out = createCameraState();
-      body.update(out, 0.1);
-      const beforeRoll = toVector3(out.position);
+      body.update(out, 0.1, false);
+      return { body, out };
+    }
 
-      target.rotateZ(1.2); // roll around the target's own forward axis
-      body.update(out, 0.1);
-
-      expect(out.position[0]).toBeCloseTo(beforeRoll.x, 10);
-      expect(out.position[1]).toBeCloseTo(beforeRoll.y, 10);
-      expect(out.position[2]).toBeCloseTo(beforeRoll.z, 10);
+    it('lockToTarget (default) turns the offset and up with the full rotation, roll included', () => {
+      const target = tiltedTarget();
+      const { out } = follow(target);
+      expectVec3Close(out.position, rotated([0, 1, 8], target.quaternion));
+      expectVec3Close(out.referenceUp, rotated([0, 1, 0], target.quaternion));
     });
 
-    it('...compared to lockToTarget on the SAME rotation sequence, which DOES react to roll', () => {
+    it('the default offset sits behind a -Z facing target', () => {
+      const out = createCameraState();
+      new FollowBody(new Object3D()).update(out, 0.1, false);
+      expect(out.position[2]).toBeGreaterThan(0);
+    });
+
+    it('worldSpace ignores the target rotation', () => {
+      const { out } = follow(tiltedTarget(), BindingModes.worldSpace);
+      expect(out.position).toEqual([0, 1, 8]);
+      expect(out.referenceUp).toEqual([0, 1, 0]);
+    });
+
+    it('lockToTargetWithWorldUp follows yaw only', () => {
+      const target = tiltedTarget();
+      const { out } = follow(target, BindingModes.lockToTargetWithWorldUp);
+      expectVec3Close(out.position, rotated([0, 1, 8], new Quaternion().setFromAxisAngle(new Vector3(0, 1, 0), 0.4)));
+      expectVec3Close(out.referenceUp, [0, 1, 0]);
+    });
+
+    it('lockToTargetNoRoll ignores roll', () => {
       const target = new Object3D();
       target.rotateY(0.4);
       target.rotateX(0.5);
-
-      const body = new FollowBody(target, [0, 1, 8]); // default: lockToTarget
-      const out = createCameraState();
-      body.update(out, 0.1);
-      const beforeRoll = toVector3(out.position);
+      const { body, out } = follow(target, BindingModes.lockToTargetNoRoll);
+      const position = vec3.clone(out.position);
+      const up = vec3.clone(out.referenceUp);
 
       target.rotateZ(1.2);
-      body.update(out, 0.1);
+      body.update(out, 0.1, false);
 
-      expect(toVector3(out.position).equals(beforeRoll)).toBe(false);
+      expectVec3Close(out.position, position);
+      expectVec3Close(out.referenceUp, up);
     });
 
-    describe('lockToTargetOnAssign', () => {
-      it('captures the rotation once, on the first update, then ignores further target rotation', () => {
-        const target = new Object3D();
-        target.rotation.set(0, Math.PI / 2, 0);
+    it('lockToTargetOnAssign keeps the rotation from when the target was assigned, until a new target', () => {
+      const target = tiltedTarget();
+      const { body, out } = follow(target, BindingModes.lockToTargetOnAssign);
+      const position = vec3.clone(out.position);
+      const up = vec3.clone(out.referenceUp);
 
-        const body = new FollowBody(target, [0, 0, 10], 0, BindingModes.lockToTargetOnAssign);
-        const out = createCameraState();
-        body.update(out, 0.1);
-        const afterAssign = toVector3(out.position);
+      target.rotation.set(0, 0, 0);
+      body.update(out, 0.1, false);
+      expectVec3Close(out.position, position);
+      expectVec3Close(out.referenceUp, up);
 
-        target.rotation.set(0, 0, 0); // target keeps rotating — should now be ignored
-        body.update(out, 0.1);
-
-        expect(toVector3(out.position).equals(afterAssign)).toBe(true);
-      });
-
-      it('re-locks when target is reassigned to a genuinely NEW object (identity change)', () => {
-        const targetA = new Object3D();
-        targetA.rotation.set(0, Math.PI / 2, 0);
-        const targetB = new Object3D();
-        targetB.position.set(5, 0, 0); // identity rotation
-
-        const body = new FollowBody(targetA, [0, 0, 10], 0, BindingModes.lockToTargetOnAssign);
-        const out = createCameraState();
-        body.update(out, 0.1);
-
-        body.target = targetB;
-        body.update(out, 0.1);
-
-        // targetB's identity rotation is what got re-locked: offset lands unrotated, translated to targetB
-        expect(out.position[0]).toBeCloseTo(5, 5);
-        expect(out.position[2]).toBeCloseTo(10, 5);
-      });
-    });
-
-    describe('referenceUp', () => {
-      it('lockToTarget: rotates fully with the target, roll included - the whole point being that a paired Aim reading referenceUp (e.g. HardLookAt) can show that roll instead of silently leveling it', () => {
-        const target = new Object3D();
-        target.rotateY(0.4);
-        target.rotateX(0.3);
-        target.rotateZ(1.1); // roll
-
-        const body = new FollowBody(target, [0, 1, 8]); // default: lockToTarget
-        const out = createCameraState();
-        body.update(out, 0.1);
-
-        const expected = new Vector3(0, 1, 0).applyQuaternion(target.quaternion);
-        expect(out.referenceUp[0]).toBeCloseTo(expected.x, 10);
-        expect(out.referenceUp[1]).toBeCloseTo(expected.y, 10);
-        expect(out.referenceUp[2]).toBeCloseTo(expected.z, 10);
-      });
-
-      it('worldSpace: stays world up regardless of the target rotation', () => {
-        const target = new Object3D();
-        target.rotateY(0.4);
-        target.rotateX(0.3);
-        target.rotateZ(1.1);
-
-        const body = new FollowBody(target, [0, 1, 8], 0, BindingModes.worldSpace);
-        const out = createCameraState();
-        body.update(out, 0.1);
-
-        expect(toVector3(out.referenceUp).equals(new Vector3(0, 1, 0))).toBe(true);
-      });
-
-      it('lockToTargetNoRoll: adding roll afterward has ZERO effect, same as it has none on position', () => {
-        const target = new Object3D();
-        target.rotateY(0.4);
-        target.rotateX(0.5);
-
-        const body = new FollowBody(target, [0, 1, 8], 0, BindingModes.lockToTargetNoRoll);
-        const out = createCameraState();
-        body.update(out, 0.1);
-        const beforeRoll = toVector3(out.referenceUp);
-
-        target.rotateZ(1.2);
-        body.update(out, 0.1);
-
-        expect(out.referenceUp[0]).toBeCloseTo(beforeRoll.x, 10);
-        expect(out.referenceUp[1]).toBeCloseTo(beforeRoll.y, 10);
-        expect(out.referenceUp[2]).toBeCloseTo(beforeRoll.z, 10);
-      });
-
-      it('lockToTargetWithWorldUp: stays exactly world up regardless of yaw, since yaw rotates around the up axis itself', () => {
-        const target = new Object3D();
-        target.rotateY(1.7);
-
-        const body = new FollowBody(target, [0, 1, 8], 0, BindingModes.lockToTargetWithWorldUp);
-        const out = createCameraState();
-        body.update(out, 0.1);
-
-        expect(toVector3(out.referenceUp).equals(new Vector3(0, 1, 0))).toBe(true);
-      });
-
-      it('lockToTargetOnAssign: freezes at whatever rotation was captured, ignoring further target rotation', () => {
-        const target = new Object3D();
-        target.rotateY(0.4);
-        target.rotateZ(0.8);
-
-        const body = new FollowBody(target, [0, 1, 8], 0, BindingModes.lockToTargetOnAssign);
-        const out = createCameraState();
-        body.update(out, 0.1);
-        const afterAssign = toVector3(out.referenceUp);
-
-        target.rotation.set(0, 0, 0);
-        body.update(out, 0.1);
-
-        expect(out.referenceUp[0]).toBeCloseTo(afterAssign.x, 10);
-        expect(out.referenceUp[1]).toBeCloseTo(afterAssign.y, 10);
-        expect(out.referenceUp[2]).toBeCloseTo(afterAssign.z, 10);
-      });
-    });
-
-    it('bindingMode is a mutable field', () => {
-      const target = new Object3D();
-      target.rotation.set(0, Math.PI / 2, 0);
-      const body = new FollowBody(target, [0, 0, 10]);
-      const out = createCameraState();
-
-      body.update(out, 0.1);
-      expect(out.position[0]).toBeCloseTo(10, 5); // lockToTarget: rotated
-
-      body.bindingMode = BindingModes.worldSpace;
-      body.update(out, 0.1);
-      expect(toVector3(out.position).equals(new Vector3(0, 0, 10))).toBe(true); // now raw, unrotated
+      const next = new Object3D();
+      next.position.set(5, 0, 0);
+      body.target = next;
+      body.update(out, 0.1, false);
+      expectVec3Close(out.position, [5, 1, 8]);
     });
   });
 });

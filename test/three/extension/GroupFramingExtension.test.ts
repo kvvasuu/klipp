@@ -1,748 +1,373 @@
-import { vec3, vec4 } from 'math';
-import { BoxGeometry, Mesh, PerspectiveCamera, Vector3 } from 'three';
+import { vec3 } from 'math';
+import { BoxGeometry, Mesh, PerspectiveCamera, Quaternion, Vector3 } from 'three';
 import { describe, expect, it } from 'vitest';
-import { createCameraState } from '../../../src/core/CameraState';
+import { createCameraState, type CameraState } from '../../../src/core/CameraState';
 import { applyCameraState } from '../../../src/three/camera';
 import { GroupFramingExtension } from '../../../src/three/extension/GroupFramingExtension';
-import { TargetGroup } from '../../../src/three/extension/TargetGroup';
-import { toQuaternion, toVector3 } from '../../tuples';
+import { TargetGroup, type TargetGroupMember } from '../../../src/three/extension/TargetGroup';
+
+/** Distance that fits a sphere of `radius` in a 90° field of view. */
+const sphereFit = (radius: number) => radius / Math.sin(Math.PI / 4);
+
+/** A camera state with a 90° field of view, looking down -Z from `position`. */
+function camera(position: [number, number, number] = [0, 0, 0]): CameraState {
+  const out = createCameraState();
+  out.fov = 90;
+  vec3.copy(out.position, position);
+  return out;
+}
+
+const unit = (radius = 1): TargetGroupMember[] => [{ target: new Vector3(), radius }];
 
 describe('GroupFramingExtension', () => {
-  it('no-op (out untouched) when the group has nothing to resolve', () => {
-    const group = new TargetGroup([]);
-    const extension = new GroupFramingExtension(group, 0, 800, 600);
-    const out = createCameraState();
-    vec3.set(out.position, 1, 2, 3);
-
-    extension.update(out, 0.1);
-
-    expect(toVector3(out.position).equals(new Vector3(1, 2, 3))).toBe(true);
+  it('leaves out untouched when nothing resolves or the group has no size', () => {
+    for (const members of [[], [{ target: new Vector3(5, 5, 5) }]]) {
+      const out = camera([1, 2, 3]);
+      out.viewOffset[0] = 1;
+      const moving = new GroupFramingExtension(new TargetGroup(members), 0, 100, 100, 0.5, [0.8, 0]).update(
+        out,
+        0.1,
+        false,
+      );
+      expect(out.position).toEqual([1, 2, 3]);
+      expect(out.viewOffset[0]).toBe(1);
+      expect(moving).toBe(false);
+    }
   });
 
-  it('no-op when the group resolves to a dimensionless point (radius 0)', () => {
-    const group = new TargetGroup([{ target: new Vector3(5, 5, 5) }]); // no radius given, defaults to 0
-    const extension = new GroupFramingExtension(group, 0, 800, 600);
-    const out = createCameraState();
-    vec3.set(out.position, 1, 2, 3);
+  it("backs away along the camera's own view axis until the group fits", () => {
+    const out = camera();
+    new Quaternion().setFromAxisAngle(new Vector3(0, 1, 0), Math.PI / 2).toArray(out.quaternion);
 
-    extension.update(out, 0.1);
+    new GroupFramingExtension(new TargetGroup(unit()), 0, 100, 100).update(out, 0.1, false);
 
-    expect(toVector3(out.position).equals(new Vector3(1, 2, 3))).toBe(true);
-  });
-
-  it('90° vertical FOV, square viewport, no padding: distance = radius / sin(45°)', () => {
-    const group = new TargetGroup([{ target: new Vector3(0, 0, 0), radius: 1 }]);
-    const extension = new GroupFramingExtension(group, 0, 100, 100);
-    const out = createCameraState();
-    out.fov = 90;
-    vec4.set(out.quaternion, 0, 0, 0, 1); // default THREE orientation: looks down -Z, so backward = +Z
-
-    extension.update(out, 0.1);
-
-    const expectedDistance = 1 / Math.sin(Math.PI / 4);
-    expect(out.position[0]).toBeCloseTo(0, 10);
-    expect(out.position[1]).toBeCloseTo(0, 10);
-    expect(out.position[2]).toBeCloseTo(expectedDistance, 10);
-  });
-
-  it("dollies along the camera's OWN current backward direction, not a fixed world axis", () => {
-    const group = new TargetGroup([{ target: new Vector3(0, 0, 0), radius: 1 }]);
-    const extension = new GroupFramingExtension(group, 0, 100, 100);
-    const out = createCameraState();
-    out.fov = 90;
-    toQuaternion(out.quaternion)
-      .setFromAxisAngle(new Vector3(0, 1, 0), Math.PI / 2)
-      .toArray(out.quaternion); // now looking down -X instead
-
-    extension.update(out, 0.1);
-
-    const expectedDistance = 1 / Math.sin(Math.PI / 4);
-    // world +Z rotated +90° around Y lands on +X — backward follows the rotation, not a hardcoded axis
-    expect(out.position[0]).toBeCloseTo(expectedDistance, 10);
+    expect(out.position[0]).toBeCloseTo(sphereFit(1), 10);
     expect(out.position[1]).toBeCloseTo(0, 10);
     expect(out.position[2]).toBeCloseTo(0, 10);
   });
 
-  it('more padding pushes the camera farther away', () => {
-    const group = new TargetGroup([{ target: new Vector3(0, 0, 0), radius: 1 }]);
+  it('adds padding as a world-unit margin, for spheres and boxes', () => {
+    const sphere = camera();
+    new GroupFramingExtension(new TargetGroup(unit()), 20, 100, 100).update(sphere, 0.1, false);
+    expect(sphere.position[2]).toBeGreaterThan(sphereFit(1));
 
-    const noPadding = createCameraState();
-    noPadding.fov = 90;
-    new GroupFramingExtension(group, 0, 100, 100).update(noPadding, 0.1);
-
-    const withPadding = createCameraState();
-    withPadding.fov = 90;
-    new GroupFramingExtension(group, 20, 100, 100).update(withPadding, 0.1);
-
-    expect(withPadding.position[2]).toBeGreaterThan(noPadding.position[2]);
+    const box = camera();
+    new GroupFramingExtension(new TargetGroup([{ target: new Vector3(), size: [2, 2, 2] }]), 1, 100, 100).update(
+      box,
+      0.1,
+      false,
+    );
+    expect(box.position[2]).toBeCloseTo(2 / Math.tan(Math.PI / 4) + 1, 10);
   });
 
-  it('an off-axis sphere member needs the exact per-axis distance, not an isotropic offset.length() (real bug: a member offset mostly along the WIDER axis was penalized as if it could be along the narrower one)', () => {
-    // symmetric about the origin, so groupCenter's AABB midpoint is (0,0,0) and each member's offset is
-    // purely lateral (right axis), zero up/forward - the exact case the old isotropic formula got wrong
+  it('uses the tighter axis of a non-square viewport', () => {
+    const out = camera();
+    new GroupFramingExtension(new TargetGroup(unit()), 0, 1000, 100).update(out, 0.1, false);
+    expect(out.position[2]).toBeCloseTo(sphereFit(1), 5);
+  });
+
+  it('fits an off-axis member per axis, not by its full offset (real bug: overshot along the wider axis)', () => {
     const group = new TargetGroup([
       { target: new Vector3(-5, 0, 0), radius: 1 },
       { target: new Vector3(5, 0, 0), radius: 1 },
     ]);
-    const extension = new GroupFramingExtension(group, 0, 1000, 100); // wide viewport: vertical stays tight
-    const out = createCameraState();
-    out.fov = 90;
+    const out = camera();
 
-    extension.update(out, 0.1);
+    new GroupFramingExtension(group, 0, 1000, 100).update(out, 0.1, false);
 
-    // exact: horizontal = (radius + 5*cos(hHalf)) / sin(hHalf), with hHalf = atan(tan(45°) * 10)
+    // (radius + 5 cos(h)) / sin(h), with h = atan(tan(45°) * 10)
     expect(out.position[2]).toBeCloseTo(1.5049875621120896, 10);
-    // the old isotropic formula (offset.length() + radius = 6, divided by sin of the tighter axis) gave
-    // ~8.49 here - almost 6x farther back than needed for a member that isn't along that axis at all
-    expect(out.position[2]).toBeLessThan(2);
   });
 
-  describe('ceiling behavior (does not override Body/Aim unless the padded group would not fit)', () => {
-    it('leaves out.position untouched in DISTANCE when Body already placed the camera farther than required', () => {
-      const group = new TargetGroup([{ target: new Vector3(0, 0, 0), radius: 1 }]);
-      const extension = new GroupFramingExtension(group, 0, 100, 100);
-      const out = createCameraState();
-      out.fov = 90;
-      vec4.set(out.quaternion, 0, 0, 0, 1);
-      vec3.set(out.position, 0, 0, 50); // Body already put the camera way farther than the fit requires
-
-      extension.update(out, 0.1);
-
-      // required fit distance for radius 1 at 90° vertical FOV is ~1.41 — Body's own 50 must win
-      expect(out.position[2]).toBeCloseTo(50, 10);
-    });
-
-    it('dollies back to the required distance when Body placed the camera CLOSER than the padded group needs', () => {
-      const group = new TargetGroup([{ target: new Vector3(0, 0, 0), radius: 1 }]);
-      const extension = new GroupFramingExtension(group, 0, 100, 100);
-      const out = createCameraState();
-      out.fov = 90;
-      vec4.set(out.quaternion, 0, 0, 0, 1);
-      vec3.set(out.position, 0, 0, 0.5); // Body put the camera too close for the group to fit in frame
-
-      extension.update(out, 0.1);
-
-      const expectedDistance = 1 / Math.sin(Math.PI / 4);
-      expect(out.position[2]).toBeCloseTo(expectedDistance, 10);
-    });
-
-    it("tracks Body's own distance 1:1 once it exceeds the required fit distance (real bug this fixes: used to always snap to the rigid fit distance, ignoring Body entirely)", () => {
-      const group = new TargetGroup([{ target: new Vector3(0, 0, 0), radius: 1 }]);
-      const extension = new GroupFramingExtension(group, 0, 100, 100);
-      const out = createCameraState();
-      out.fov = 90;
-      vec4.set(out.quaternion, 0, 0, 0, 1);
-
-      vec3.set(out.position, 0, 0, 10);
-      extension.update(out, 0.1);
-      expect(out.position[2]).toBeCloseTo(10, 10);
-
-      vec3.set(out.position, 0, 0, 25);
-      extension.update(out, 0.1);
-      expect(out.position[2]).toBeCloseTo(25, 10);
-    });
-  });
-
-  describe("fitMode: 'rigid' (always sits exactly at the fit distance, unlike the default 'ceiling')", () => {
-    it('dollies IN when Body placed the camera farther than the fit requires (ceiling would leave it untouched)', () => {
-      const group = new TargetGroup([{ target: new Vector3(0, 0, 0), radius: 1 }]);
-      const extension = new GroupFramingExtension(group, 0, 100, 100, 0, [0, 0], 'rigid');
-      const out = createCameraState();
-      out.fov = 90;
-      vec4.set(out.quaternion, 0, 0, 0, 1);
-      vec3.set(out.position, 0, 0, 50); // Body placed the camera way farther than the fit requires
-
-      extension.update(out, 0.1);
-
-      const expectedDistance = 1 / Math.sin(Math.PI / 4);
-      expect(out.position[2]).toBeCloseTo(expectedDistance, 10);
-    });
-
-    it('tracks a shrinking group back in, instead of staying at whatever distance it last reached', () => {
-      const group = new TargetGroup([{ target: new Vector3(0, 0, 0), radius: 10 }]);
-      const extension = new GroupFramingExtension(group, 0, 100, 100, 0, [0, 0], 'rigid');
-      const out = createCameraState();
-      out.fov = 90;
-      vec4.set(out.quaternion, 0, 0, 0, 1);
-
-      extension.update(out, 0.1);
-      const farDistance = out.position[2];
-
-      group.members[0].radius = 1; // group shrinks
-      extension.update(out, 0.1);
-
-      const nearDistance = 1 / Math.sin(Math.PI / 4);
-      expect(out.position[2]).toBeCloseTo(nearDistance, 10);
-      expect(out.position[2]).toBeLessThan(farDistance);
-    });
-  });
-
-  describe('minDistance/maxDistance', () => {
-    it('maxDistance clamps the fit distance in rigid mode', () => {
-      const group = new TargetGroup([{ target: new Vector3(0, 0, 0), radius: 100 }]);
-      const extension = new GroupFramingExtension(group, 0, 100, 100, 0, [0, 0], 'rigid', 0, 5);
-      const out = createCameraState();
-      out.fov = 90;
-      vec4.set(out.quaternion, 0, 0, 0, 1);
-
-      extension.update(out, 0.1);
-
-      expect(out.position[2]).toBeCloseTo(5, 10);
-    });
-
-    it('minDistance forces a floor on the fit distance, even for a tiny group', () => {
-      const group = new TargetGroup([{ target: new Vector3(0, 0, 0), radius: 0.01 }]);
-      const extension = new GroupFramingExtension(group, 0, 100, 100, 0, [0, 0], 'rigid', 10);
-      const out = createCameraState();
-      out.fov = 90;
-      vec4.set(out.quaternion, 0, 0, 0, 1);
-
-      extension.update(out, 0.1);
-
-      expect(out.position[2]).toBeCloseTo(10, 10);
-    });
-
-    it("maxDistance clamps only this extension's own fit, not Body/Aim's placement in 'ceiling' mode", () => {
-      const group = new TargetGroup([{ target: new Vector3(0, 0, 0), radius: 1 }]);
-      const extension = new GroupFramingExtension(group, 0, 100, 100, 0, [0, 0], 'ceiling', 0, 5);
-      const out = createCameraState();
-      out.fov = 90;
-      vec4.set(out.quaternion, 0, 0, 0, 1);
-      vec3.set(out.position, 0, 0, 50); // Body placed the camera much farther than maxDistance
-
-      extension.update(out, 0.1);
-
-      expect(out.position[2]).toBeCloseTo(50, 10);
-    });
-  });
-
-  describe('framingMode', () => {
-    it("'horizontal' ignores an offset that's purely vertical", () => {
-      const group = new TargetGroup([
-        { target: new Vector3(0, -1000, 0), radius: 1 },
-        { target: new Vector3(0, 1000, 0), radius: 1 },
-      ]);
-      const extension = new GroupFramingExtension(group, 0, 100, 100, 0, [0, 0], 'ceiling', 0, Infinity, 'horizontal');
-      const out = createCameraState();
-      out.fov = 90;
-      vec4.set(out.quaternion, 0, 0, 0, 1);
-      vec3.set(out.position, 0, 0, 0.5);
-
-      extension.update(out, 0.1);
-
-      const expectedDistance = 1 / Math.sin(Math.PI / 4);
-      expect(out.position[2]).toBeCloseTo(expectedDistance, 10);
-    });
-
-    it("'vertical' ignores an offset that's purely horizontal", () => {
-      const group = new TargetGroup([
-        { target: new Vector3(-1000, 0, 0), radius: 1 },
-        { target: new Vector3(1000, 0, 0), radius: 1 },
-      ]);
-      const extension = new GroupFramingExtension(group, 0, 100, 100, 0, [0, 0], 'ceiling', 0, Infinity, 'vertical');
-      const out = createCameraState();
-      out.fov = 90;
-      vec4.set(out.quaternion, 0, 0, 0, 1);
-      vec3.set(out.position, 0, 0, 0.5);
-
-      extension.update(out, 0.1);
-
-      const expectedDistance = 1 / Math.sin(Math.PI / 4);
-      expect(out.position[2]).toBeCloseTo(expectedDistance, 10);
-    });
-  });
-
-  describe('box members (size)', () => {
-    it('fits a face-on box to its actual width/height, not the corner-to-corner sphere (real bug this fixes)', () => {
-      const group = new TargetGroup([{ target: new Vector3(0, 0, 0), size: [2, 2, 2] }]);
-      const out = createCameraState();
-      out.fov = 90;
-      vec4.set(out.quaternion, 0, 0, 0, 1);
-
-      new GroupFramingExtension(group, 0, 100, 100).update(out, 0.1);
-
-      // face-on, a 2x2x2 box needs half-width 1 to fit, plus half its own depth (1) so the NEAR face —
-      // not the center — lands at the fit distance (matches camera-controls' own `+ depth * 0.5`)
-      const expectedDistance = 1 / Math.tan(Math.PI / 4) + 1;
-      expect(out.position[2]).toBeCloseTo(expectedDistance, 10);
-
-      // the OLD sphere-based (half-diagonal) fit would have required sqrt(3)/sin(45°) ≈ 2.45 — farther still
-      const oldSphereDistance = Math.sqrt(3) / Math.sin(Math.PI / 4);
-      expect(out.position[2]).toBeLessThan(oldSphereDistance);
-    });
-
-    it('a box seen from a pitched camera needs less distance than naively summing half-height and half-depth (real bug this fixes: the tallest corner and the nearest corner are not always the same one)', () => {
-      const theta = Math.PI / 6;
-      const group = new TargetGroup([{ target: new Vector3(0, 0, 0), size: [2, 2, 2] }]);
-      const out = createCameraState();
-      out.fov = 90;
-      toQuaternion(out.quaternion)
-        .setFromAxisAngle(new Vector3(1, 0, 0), theta)
-        .toArray(out.quaternion);
-
-      new GroupFramingExtension(group, 0, 100, 100).update(out, 0.1);
-      const actualDistance = toVector3(out.position).length();
-
-      const tanHalf = Math.tan(Math.PI / 4);
-      const cos = Math.cos(theta);
-      const sin = Math.sin(theta);
-      // old (buggy) formula: treats the box's full projected half-height and half-depth as if the SAME
-      // corner were simultaneously tallest AND nearest — it isn't, so this over-estimates the distance
-      const oldOverConservativeDistance = (cos + sin) / tanHalf + (sin + cos);
-      // exact per-corner distance: here the width axis (half-extent 1, unaffected by pitch) combined
-      // with the nearest corner's depth is the true binding constraint
-      const exactDistance = 1 / tanHalf + (sin + cos);
-
-      expect(actualDistance).toBeCloseTo(exactDistance, 10);
-      expect(actualDistance).toBeLessThan(oldOverConservativeDistance);
-    });
-
-    it('a box rotated 45° needs MORE distance than face-on (more of its silhouette is exposed)', () => {
-      const faceOnGroup = new TargetGroup([{ target: new Vector3(0, 0, 0), size: [2, 2, 2] }]);
-      const faceOnOut = createCameraState();
-      faceOnOut.fov = 90;
-      vec4.set(faceOnOut.quaternion, 0, 0, 0, 1);
-      new GroupFramingExtension(faceOnGroup, 0, 100, 100).update(faceOnOut, 0.1);
-
-      const rotatedBox = new Mesh(new BoxGeometry(2, 2, 2));
-      rotatedBox.quaternion.setFromAxisAngle(new Vector3(0, 1, 0), Math.PI / 4);
-      const rotatedGroup = new TargetGroup([{ target: rotatedBox, size: [2, 2, 2] }]);
-      const rotatedOut = createCameraState();
-      rotatedOut.fov = 90;
-      vec4.set(rotatedOut.quaternion, 0, 0, 0, 1);
-      new GroupFramingExtension(rotatedGroup, 0, 100, 100).update(rotatedOut, 0.1);
-
-      expect(rotatedOut.position[2]).toBeGreaterThan(faceOnOut.position[2]);
-    });
-
-    it('auto-detects size from a Mesh target end-to-end (no explicit size/radius)', () => {
-      const mesh = new Mesh(new BoxGeometry(2, 2, 2));
-      const group = new TargetGroup([{ target: mesh }]);
-      const out = createCameraState();
-      out.fov = 90;
-      vec4.set(out.quaternion, 0, 0, 0, 1);
-
-      new GroupFramingExtension(group, 0, 100, 100).update(out, 0.1);
-
-      const expectedDistance = 1 / Math.tan(Math.PI / 4) + 1;
-      expect(out.position[2]).toBeCloseTo(expectedDistance, 10);
-    });
-
-    // raw vertex mutation, not .scale()/.applyMatrix4() - the one case three.js never keeps a cached
-    // boundingBox in sync for automatically
-    function growMeshGeometryThreefold(mesh: Mesh): void {
-      const position = mesh.geometry.attributes.position;
-      for (let i = 0; i < position.count; i++) {
-        position.setXYZ(i, position.getX(i) * 3, position.getY(i) * 3, position.getZ(i) * 3);
-      }
-      position.needsUpdate = true;
-    }
-
-    it("without recalculateSize(), keeps reacting to the mesh's ORIGINAL size after it grows", () => {
-      const mesh = new Mesh(new BoxGeometry(2, 2, 2));
-      const group = new TargetGroup([{ target: mesh }]);
-      const extension = new GroupFramingExtension(group, 0, 100, 100);
-      const out = createCameraState();
-      out.fov = 90;
-      vec4.set(out.quaternion, 0, 0, 0, 1);
-      extension.update(out, 0.1); // caches the original half-extent (1)
-
-      growMeshGeometryThreefold(mesh); // now half-extent 3, but the cache doesn't know that
-      extension.update(out, 0.1);
-
-      const expectedDistance = 1 / Math.tan(Math.PI / 4) + 1; // same as the un-grown mesh
-      expect(out.position[2]).toBeCloseTo(expectedDistance, 10);
-    });
-
-    it('recalculateSize() reacts to the GROWN size on the very next update() call', () => {
-      const mesh = new Mesh(new BoxGeometry(2, 2, 2));
-      const group = new TargetGroup([{ target: mesh }]);
-      const extension = new GroupFramingExtension(group, 0, 100, 100);
-      const out = createCameraState();
-      out.fov = 90;
-      vec4.set(out.quaternion, 0, 0, 0, 1);
-      extension.update(out, 0.1);
-
-      growMeshGeometryThreefold(mesh); // half-extent now 3
-      extension.recalculateSize();
-      extension.update(out, 0.1);
-
-      const expectedDistance = 3 / Math.tan(Math.PI / 4) + 3; // matches the GROWN half-extent
-      expect(out.position[2]).toBeCloseTo(expectedDistance, 10);
-    });
-
-    it('recalculateSize() only forces ONE recompute - a LATER deformation goes stale again', () => {
-      const mesh = new Mesh(new BoxGeometry(2, 2, 2));
-      const group = new TargetGroup([{ target: mesh }]);
-      const extension = new GroupFramingExtension(group, 0, 100, 100);
-      const out = createCameraState();
-      out.fov = 90;
-      vec4.set(out.quaternion, 0, 0, 0, 1);
-      extension.update(out, 0.1);
-
-      growMeshGeometryThreefold(mesh); // half-extent 1 -> 3
-      extension.recalculateSize();
-      extension.update(out, 0.1);
-      const afterFirstRecalc = toVector3(out.position);
-
-      growMeshGeometryThreefold(mesh); // half-extent 3 -> 9, but NOT recalculated again
-      extension.update(out, 0.1);
-
-      expect(toVector3(out.position).equals(afterFirstRecalc)).toBe(true); // still reacting to the 3x measurement
-    });
-
-    it('a mixed group (sphere + box) takes whichever member actually requires more distance', () => {
-      const group = new TargetGroup([
-        { target: new Vector3(0, 0, 0), radius: 1 }, // needs 1/sin(45°) ≈ 1.41
-        { target: new Vector3(0, 0, 0), size: [1, 1, 1] }, // needs 0.5/tan(45°) = 0.5 — much less
-      ]);
-      const out = createCameraState();
-      out.fov = 90;
-      vec4.set(out.quaternion, 0, 0, 0, 1);
-
-      new GroupFramingExtension(group, 0, 100, 100).update(out, 0.1);
-
-      const expectedFromSphere = 1 / Math.sin(Math.PI / 4);
-      expect(out.position[2]).toBeCloseTo(expectedFromSphere, 10);
-    });
-
-    it('padding adds a flat world-unit margin to a box, same as it does for a sphere', () => {
-      const group = new TargetGroup([{ target: new Vector3(0, 0, 0), size: [2, 2, 2] }]);
-
-      const noPadding = createCameraState();
-      noPadding.fov = 90;
-      vec4.set(noPadding.quaternion, 0, 0, 0, 1);
-      new GroupFramingExtension(group, 0, 100, 100).update(noPadding, 0.1);
-
-      const withPadding = createCameraState();
-      withPadding.fov = 90;
-      vec4.set(withPadding.quaternion, 0, 0, 0, 1);
-      new GroupFramingExtension(group, 1, 100, 100).update(withPadding, 0.1);
-
-      const expectedWithPadding = (1 + 1) / Math.tan(Math.PI / 4) + 1; // half-width 1 + padding 1, plus depth
-      expect(withPadding.position[2]).toBeCloseTo(expectedWithPadding, 10);
-      expect(withPadding.position[2]).toBeGreaterThan(noPadding.position[2]);
-    });
-  });
-
-  it('a non-square viewport picks the more restrictive of the two axes', () => {
-    // very wide viewport: horizontal FOV ends up huge, so vertical stays the binding constraint
-    const group = new TargetGroup([{ target: new Vector3(0, 0, 0), radius: 1 }]);
-    const out = createCameraState();
-    out.fov = 90;
-
-    new GroupFramingExtension(group, 0, 1000, 100).update(out, 0.1);
-
-    const expectedDistance = 1 / Math.sin(Math.PI / 4); // the (aspect-independent) vertical requirement
-    expect(out.position[2]).toBeCloseTo(expectedDistance, 5);
-  });
-
-  it('reads group/padding/viewport LIVE off its own fields, not a snapshot taken at construction', () => {
-    const group = new TargetGroup([{ target: new Vector3(0, 0, 0), radius: 1 }]);
+  it('reads the group live, not a snapshot from construction', () => {
+    const group = new TargetGroup(unit());
     const extension = new GroupFramingExtension(group, 0, 100, 100);
-    const out = createCameraState();
-    out.fov = 90;
+    const out = camera();
+    extension.update(out, 0.1, false);
 
-    extension.update(out, 0.1);
-    const distanceForRadius1 = out.position[2];
+    group.members[0].radius = 5;
+    extension.update(out, 0.1, false);
 
-    group.members[0].radius = 2; // grow the framed box after construction
-    extension.update(out, 0.1);
-
-    expect(out.position[2]).toBeGreaterThan(distanceForRadius1);
+    expect(out.position[2]).toBeCloseTo(sphereFit(5), 10);
   });
 
-  describe('damping', () => {
-    it('damping=0 (default) stays perfectly instant, even across repeated changes', () => {
-      const group = new TargetGroup([{ target: new Vector3(0, 0, 0), radius: 1 }]);
-      const extension = new GroupFramingExtension(group, 0, 100, 100); // damping defaults to 0
-      const out = createCameraState();
-      out.fov = 90;
+  describe('fitMode', () => {
+    it("'ceiling' (default) only backs away when the Body placed the camera too close (real bug: always snapped to the fit)", () => {
+      const extension = new GroupFramingExtension(new TargetGroup(unit()), 0, 100, 100);
 
-      extension.update(out, 0.1);
-      group.members[0].radius = 5;
-      extension.update(out, 0.1);
+      const close = camera([0, 0, 0.5]);
+      extension.update(close, 0.1, false);
+      expect(close.position[2]).toBeCloseTo(sphereFit(1), 10);
 
-      const expectedDistance = 5 / Math.sin(Math.PI / 4);
-      expect(out.position[2]).toBeCloseTo(expectedDistance, 10); // fully caught up in a single step
+      for (const distance of [10, 25]) {
+        const far = camera([0, 0, distance]);
+        extension.update(far, 0.1, false);
+        expect(far.position[2]).toBeCloseTo(distance, 10);
+      }
     });
 
-    it("the first-ever update still snaps hard, matching the rest of klipp's damping convention", () => {
-      const group = new TargetGroup([{ target: new Vector3(0, 0, 0), radius: 1 }]);
-      const extension = new GroupFramingExtension(group, 0, 100, 100, 1); // damping = 1s
-      const out = createCameraState();
-      out.fov = 90;
+    it("'rigid' always sits at the fit distance, following a shrinking group back in", () => {
+      const group = new TargetGroup(unit(10));
+      const extension = new GroupFramingExtension(group, 0, 100, 100, 0, [0, 0], 'rigid');
+      const out = camera([0, 0, 50]);
 
-      extension.update(out, 0.1);
+      extension.update(out, 0.1, false);
+      expect(out.position[2]).toBeCloseTo(sphereFit(10), 10);
 
-      const expectedDistance = 1 / Math.sin(Math.PI / 4);
-      expect(out.position[2]).toBeCloseTo(expectedDistance, 10); // no lag on the very first frame
+      group.members[0].radius = 1;
+      extension.update(out, 0.1, false);
+      expect(out.position[2]).toBeCloseTo(sphereFit(1), 10);
     });
-
-    it('a SUBSEQUENT change eases in over time instead of snapping instantly', () => {
-      const group = new TargetGroup([{ target: new Vector3(0, 0, 0), radius: 1 }]);
-      const extension = new GroupFramingExtension(group, 0, 100, 100, 1); // damping = 1s
-      const out = createCameraState();
-      out.fov = 90;
-
-      extension.update(out, 0.1); // first-ever call snaps
-      const initialDistance = out.position[2];
-
-      group.members[0].radius = 5; // grow the box a lot
-      extension.update(out, 0.1); // one small step toward the new, much farther distance
-
-      const distanceIfInstant = 5 / Math.sin(Math.PI / 4);
-      expect(out.position[2]).toBeGreaterThan(initialDistance); // moved...
-      expect(out.position[2]).toBeLessThan(distanceIfInstant); // ...but not all the way there yet
-    });
-
-    it(
-      'keeps making progress even when something ELSE resets out.position every frame before it runs ' +
-        '(e.g. an undamped Body.Follow, which recomputes a fixed position from scratch each tick)',
-      () => {
-        const group = new TargetGroup([{ target: new Vector3(0, 0, 0), radius: 1 }]);
-        const extension = new GroupFramingExtension(group, 0, 100, 100, 1); // damping = 1s
-        const out = createCameraState();
-        out.fov = 90;
-        const bodyWrittenPosition = new Vector3(0, 2, 5); // stand-in for Body.Follow's damping=0 output
-
-        bodyWrittenPosition.toArray(out.position);
-        extension.update(out, 0.1); // first-ever call snaps to the desired distance regardless
-        const afterFirst = out.position[2];
-
-        group.members[0].radius = 5; // grow the box — new desired distance is much farther
-        for (let i = 0; i < 5; i++) {
-          bodyWrittenPosition.toArray(out.position); // simulates Body resetting the shared CameraState
-          extension.update(out, 0.1);
-        }
-
-        // if damping incorrectly read its "current" value FROM out.position (which Body keeps stomping
-        // back to bodyWrittenPosition), every step would restart from the same spot and net progress
-        // would be ~0 — a persistent internal memory keeps advancing regardless
-        expect(out.position[2]).toBeGreaterThan(afterFirst);
-      },
-    );
-
-    it(
-      'stays PERFECTLY aligned with the CURRENT rotation every frame, even while distance is still ' +
-        'damping and rotation is ALSO changing frame to frame (e.g. an OrbitalFollow azimuth transition)',
-      () => {
-        const group = new TargetGroup([{ target: new Vector3(0, 0, 0), radius: 1 }]);
-        const extension = new GroupFramingExtension(group, 0, 100, 100, 1); // damping = 1s
-        const out = createCameraState();
-        out.fov = 90;
-        vec4.set(out.quaternion, 0, 0, 0, 1);
-        extension.update(out, 0.1); // first-ever call snaps
-
-        group.members[0].radius = 5; // distance target changes...
-        for (let i = 1; i <= 5; i++) {
-          toQuaternion(out.quaternion)
-            .setFromAxisAngle(new Vector3(0, 1, 0), i * 0.1)
-            .toArray(out.quaternion); // ...AND rotation sweeps too
-          extension.update(out, 0.1);
-
-          // damping the full position (instead of just the scalar distance) would let this drift off the
-          // "look straight at the group" ray whenever rotation changes mid-damp — direction-to-group must
-          // exactly match the camera's forward axis on EVERY frame, not just once distance settles
-          const forward = new Vector3(0, 0, -1).applyQuaternion(toQuaternion(out.quaternion));
-          const toGroup = new Vector3().subVectors(new Vector3(0, 0, 0), toVector3(out.position)).normalize();
-          expect(forward.dot(toGroup)).toBeCloseTo(1, 10);
-        }
-      },
-    );
   });
 
-  describe('maxSpeed', () => {
-    it('clamps how fast damping can close the distance-ceiling gap, in world units/sec', () => {
-      const unclampedGroup = new TargetGroup([{ target: new Vector3(0, 0, 0), radius: 1 }]);
-      const unclamped = new GroupFramingExtension(unclampedGroup, 0, 100, 100, 1); // damping = 1s
-      const outUnclamped = createCameraState();
-      outUnclamped.fov = 90;
-      unclamped.update(outUnclamped, 0.1); // first-ever call snaps
-      unclampedGroup.members[0].radius = 5; // grow the box a lot
-      unclamped.update(outUnclamped, 0.1);
-
-      const clampedGroup = new TargetGroup([{ target: new Vector3(0, 0, 0), radius: 1 }]);
-      const clamped = new GroupFramingExtension(
-        clampedGroup,
-        0,
-        100,
-        100,
-        1,
-        [0, 0],
-        'ceiling',
-        0,
-        Infinity,
-        'horizontalAndVertical',
-        2, // maxSpeed = 2 units/sec
+  it("minDistance and maxDistance bound the fit, not the Body's own placement", () => {
+    const fit = (radius: number, fitMode: 'rigid' | 'ceiling', min: number, max: number, from = 0) => {
+      const out = camera([0, 0, from]);
+      new GroupFramingExtension(new TargetGroup(unit(radius)), 0, 100, 100, 0, [0, 0], fitMode, min, max).update(
+        out,
+        0.1,
+        false,
       );
-      const outClamped = createCameraState();
-      outClamped.fov = 90;
-      clamped.update(outClamped, 0.1);
-      clampedGroup.members[0].radius = 5;
-      clamped.update(outClamped, 0.1);
+      return out.position[2];
+    };
 
-      expect(outClamped.position[2]).toBeLessThan(outUnclamped.position[2]);
+    expect(fit(100, 'rigid', 0, 5)).toBeCloseTo(5, 10);
+    expect(fit(0.01, 'rigid', 10, Infinity)).toBeCloseTo(10, 10);
+    expect(fit(1, 'ceiling', 0, 5, 50)).toBeCloseTo(50, 10);
+  });
+
+  it('framingMode ignores the axis it leaves out', () => {
+    const fit = (framingMode: 'horizontal' | 'vertical', spread: Vector3) => {
+      const group = new TargetGroup([
+        { target: spread.clone().negate(), radius: 1 },
+        { target: spread, radius: 1 },
+      ]);
+      const out = camera([0, 0, 0.5]);
+      new GroupFramingExtension(group, 0, 100, 100, 0, [0, 0], 'ceiling', 0, Infinity, framingMode).update(
+        out,
+        0.1,
+        false,
+      );
+      return out.position[2];
+    };
+
+    expect(fit('horizontal', new Vector3(0, 1000, 0))).toBeCloseTo(sphereFit(1), 10);
+    expect(fit('vertical', new Vector3(1000, 0, 0))).toBeCloseTo(sphereFit(1), 10);
+  });
+
+  describe('box members', () => {
+    const boxFit = (halfSize: number) => halfSize / Math.tan(Math.PI / 4) + halfSize;
+
+    it('fits a face-on box to its width and height, with its near face at the fit distance (real bug: used the corner-to-corner sphere)', () => {
+      const out = camera();
+      new GroupFramingExtension(new TargetGroup([{ target: new Vector3(), size: [2, 2, 2] }]), 0, 100, 100).update(
+        out,
+        0.1,
+        false,
+      );
+      expect(out.position[2]).toBeCloseTo(boxFit(1), 10);
+    });
+
+    it('from a pitched camera, takes the tallest and nearest corners separately (real bug: summed them as one corner)', () => {
+      const pitch = Math.PI / 6;
+      const out = camera();
+      new Quaternion().setFromAxisAngle(new Vector3(1, 0, 0), pitch).toArray(out.quaternion);
+
+      new GroupFramingExtension(new TargetGroup([{ target: new Vector3(), size: [2, 2, 2] }]), 0, 100, 100).update(
+        out,
+        0.1,
+        false,
+      );
+
+      expect(vec3.length(out.position)).toBeCloseTo(1 / Math.tan(Math.PI / 4) + Math.sin(pitch) + Math.cos(pitch), 10);
+    });
+
+    it('a rotated box needs more room than face-on', () => {
+      const rotated = new Mesh(new BoxGeometry(2, 2, 2));
+      rotated.quaternion.setFromAxisAngle(new Vector3(0, 1, 0), Math.PI / 4);
+      const out = camera();
+      new GroupFramingExtension(new TargetGroup([{ target: rotated, size: [2, 2, 2] }]), 0, 100, 100).update(
+        out,
+        0.1,
+        false,
+      );
+      expect(out.position[2]).toBeGreaterThan(boxFit(1));
+    });
+
+    it('a mixed group takes whichever member needs more room', () => {
+      const group = new TargetGroup([...unit(), { target: new Vector3(), size: [1, 1, 1] }]);
+      const out = camera();
+      new GroupFramingExtension(group, 0, 100, 100).update(out, 0.1, false);
+      expect(out.position[2]).toBeCloseTo(sphereFit(1), 10);
+    });
+
+    it('measures a mesh on its own, and again only after recalculateSize()', () => {
+      const mesh = new Mesh(new BoxGeometry(2, 2, 2));
+      const extension = new GroupFramingExtension(new TargetGroup([{ target: mesh }]), 0, 100, 100);
+      const out = camera();
+      // raw vertex edits are the one change three.js never syncs into a cached bounding box
+      const grow = () => {
+        const position = mesh.geometry.attributes.position;
+        for (let i = 0; i < position.count; i++) {
+          position.setXYZ(i, position.getX(i) * 3, position.getY(i) * 3, position.getZ(i) * 3);
+        }
+      };
+
+      extension.update(out, 0.1, false);
+      expect(out.position[2]).toBeCloseTo(boxFit(1), 10);
+
+      grow();
+      extension.update(out, 0.1, false);
+      expect(out.position[2]).toBeCloseTo(boxFit(1), 10);
+
+      extension.recalculateSize();
+      extension.update(out, 0.1, false);
+      expect(out.position[2]).toBeCloseTo(boxFit(3), 10);
+
+      grow();
+      extension.update(out, 0.1, false);
+      expect(out.position[2]).toBeCloseTo(boxFit(3), 10);
     });
   });
 
-  describe("screenPosition (normalized 0 = center, ±1 = frame edge - same convention/shape as PositionComposer's screenPosition, not pixels)", () => {
-    it('writes screenPosition straight into out.viewOffset - both normalized, no pixel conversion here', () => {
-      const group = new TargetGroup([{ target: new Vector3(0, 0, 0), radius: 1 }]);
-      const extension = new GroupFramingExtension(group, 0, 100, 100, 0, [0.8, -0.3]);
-      const out = createCameraState();
-      out.fov = 90;
-
-      extension.update(out, 0.1);
-
+  describe('screenPosition', () => {
+    it('writes straight into out.viewOffset', () => {
+      const out = camera();
+      new GroupFramingExtension(new TargetGroup(unit()), 0, 100, 100, 0, [0.8, -0.3]).update(out, 0.1, false);
       expect(out.viewOffset).toEqual([0.8, -0.3]);
     });
 
-    it('is a no-op (out.viewOffset untouched) when the group has nothing to resolve, same as position', () => {
-      const group = new TargetGroup([]);
-      const extension = new GroupFramingExtension(group, 0, 100, 100, 0, [0.8, -0.3]);
-      const out = createCameraState();
-      out.viewOffset[0] = 1;
-      out.viewOffset[1] = 2;
+    it('a positive x moves the group toward the right of the frame (real bug: was inverted)', () => {
+      const out = camera();
+      new GroupFramingExtension(new TargetGroup(unit()), 0, 100, 100, 0, [0.5, 0]).update(out, 0.1, false);
 
-      extension.update(out, 0.1);
+      const view = new PerspectiveCamera(out.fov, 1, 0.1, 1000);
+      applyCameraState(view, out, 100, 100);
+      view.updateMatrixWorld(true);
 
-      expect(out.viewOffset[0]).toBe(1);
-      expect(out.viewOffset[1]).toBe(2);
-    });
-
-    it('damps toward screenPosition using the SAME damping field as the distance fit', () => {
-      const group = new TargetGroup([{ target: new Vector3(0, 0, 0), radius: 1 }]);
-      const extension = new GroupFramingExtension(group, 0, 100, 100, 1, [1, 0]); // damping = 1s
-      const out = createCameraState();
-      out.fov = 90;
-
-      extension.update(out, 0.1); // first-ever call snaps
-      expect(out.viewOffset[0]).toBe(1);
-
-      extension.screenPosition = [0, 0]; // big change
-      extension.update(out, 0.1); // one small step back toward 0
-
-      expect(out.viewOffset[0]).toBeLessThan(1);
-      expect(out.viewOffset[0]).toBeGreaterThan(0);
-    });
-
-    it('damping=0 (default) snaps screenPosition instantly, same as the distance fit', () => {
-      const group = new TargetGroup([{ target: new Vector3(0, 0, 0), radius: 1 }]);
-      const extension = new GroupFramingExtension(group, 0, 100, 100); // damping defaults to 0
-      const out = createCameraState();
-      out.fov = 90;
-
-      extension.update(out, 0.1);
-      extension.screenPosition = [0.5, 0];
-      extension.update(out, 0.1);
-
-      expect(out.viewOffset[0]).toBe(0.5);
-    });
-
-    it("a positive screenPosition[0] moves the target toward the RIGHT of the frame end-to-end, matching PositionComposer's own convention (real bug: was inverted through camera.setViewOffset)", () => {
-      const target = new Vector3(0, 0, 0);
-      const group = new TargetGroup([{ target, radius: 1 }]);
-      const extension = new GroupFramingExtension(group, 0, 100, 100, 0, [0.5, 0]);
-      const out = createCameraState();
-      out.fov = 90;
-      vec4.set(out.quaternion, 0, 0, 0, 1); // looking down -Z, target dead ahead
-
-      extension.update(out, 0.1);
-
-      const camera = new PerspectiveCamera(out.fov, 1, 0.1, 1000);
-      applyCameraState(camera, out, 100, 100);
-      camera.updateMatrixWorld(true);
-
-      const projected = target.clone().project(camera);
-      expect(projected.x).toBeGreaterThan(0);
+      expect(new Vector3().project(view).x).toBeGreaterThan(0);
     });
   });
 
-  describe('return value (stillInFlight, frameloop="demand" plateau safety / settle detection)', () => {
-    it('damping <= 0 (default): always false — an instant snap is never "in flight"', () => {
-      const group = new TargetGroup([{ target: new Vector3(0, 0, 0), radius: 1 }]);
-      const extension = new GroupFramingExtension(group, 0, 100, 100);
-      const out = createCameraState();
-      out.fov = 90;
+  describe('damping', () => {
+    it('is instant by default, and with damping snaps on the first update then eases distance and screenPosition', () => {
+      const instantGroup = new TargetGroup(unit());
+      const instant = new GroupFramingExtension(instantGroup, 0, 100, 100);
+      const instantOut = camera();
+      instant.update(instantOut, 0.1, false);
+      instantGroup.members[0].radius = 5;
+      instant.update(instantOut, 0.1, false);
+      expect(instantOut.position[2]).toBeCloseTo(sphereFit(5), 10);
 
-      expect(extension.update(out, 0.1)).toBe(false);
+      const group = new TargetGroup(unit());
+      const damped = new GroupFramingExtension(group, 0, 100, 100, 1, [1, 0]);
+      const out = camera();
+      damped.update(out, 0.1, false);
+      expect(out.position[2]).toBeCloseTo(sphereFit(1), 10);
+      expect(out.viewOffset[0]).toBe(1);
+
       group.members[0].radius = 5;
-      expect(extension.update(out, 0.1)).toBe(false);
+      damped.screenPosition = [0, 0];
+      damped.update(out, 0.1, false);
+      expect(out.position[2]).toBeGreaterThan(sphereFit(1));
+      expect(out.position[2]).toBeLessThan(sphereFit(5));
+      expect(out.viewOffset[0]).toBeGreaterThan(0);
+      expect(out.viewOffset[0]).toBeLessThan(1);
     });
 
-    it('damping > 0: true while distance is still catching up, false once converged', () => {
-      const group = new TargetGroup([{ target: new Vector3(0, 0, 0), radius: 1 }]);
-      const extension = new GroupFramingExtension(group, 0, 100, 100, 0.3);
-      const out = createCameraState();
-      out.fov = 90;
+    it('keeps its own progress when the Body resets out.position every frame', () => {
+      const group = new TargetGroup(unit());
+      const extension = new GroupFramingExtension(group, 0, 100, 100, 1);
+      const out = camera([0, 2, 5]);
+      extension.update(out, 0.1, false);
+      const first = out.position[2];
 
-      extension.update(out, 0.1); // first-ever call snaps exactly
-      expect(extension.update(out, 0.1)).toBe(false);
+      group.members[0].radius = 5;
+      for (let i = 0; i < 5; i++) {
+        vec3.set(out.position, 0, 2, 5);
+        extension.update(out, 0.1, false);
+      }
 
-      group.members[0].radius = 5; // real ground to cover now
-      expect(extension.update(out, 0.1)).toBe(true);
-
-      for (let i = 0; i < 300; i++) extension.update(out, 0.1); // run it out to convergence
-      expect(extension.update(out, 0.1)).toBe(false);
+      expect(out.position[2]).toBeGreaterThan(first);
     });
 
-    it('true while ONLY screenPosition is still catching up, even if distance already converged', () => {
-      const group = new TargetGroup([{ target: new Vector3(0, 0, 0), radius: 1 }]);
+    it('stays on the view axis every frame while the camera turns mid-ease', () => {
+      const group = new TargetGroup(unit());
+      const extension = new GroupFramingExtension(group, 0, 100, 100, 1);
+      const out = camera();
+      extension.update(out, 0.1, false);
+
+      group.members[0].radius = 5;
+      for (let i = 1; i <= 5; i++) {
+        const rotation = new Quaternion().setFromAxisAngle(new Vector3(0, 1, 0), i * 0.1);
+        rotation.toArray(out.quaternion);
+        extension.update(out, 0.1, false);
+
+        const forward = new Vector3(0, 0, -1).applyQuaternion(rotation);
+        const toGroup = new Vector3(...out.position).negate().normalize();
+        expect(forward.dot(toGroup)).toBeCloseTo(1, 10);
+      }
+    });
+
+    it('maxSpeed caps how fast damping closes the gap', () => {
+      const run = (maxSpeed: number) => {
+        const group = new TargetGroup(unit());
+        const extension = new GroupFramingExtension(
+          group,
+          0,
+          100,
+          100,
+          1,
+          [0, 0],
+          'ceiling',
+          0,
+          Infinity,
+          'horizontalAndVertical',
+          maxSpeed,
+        );
+        const out = camera();
+        extension.update(out, 0.1, false);
+        group.members[0].radius = 5;
+        extension.update(out, 0.1, false);
+        return out.position[2];
+      };
+
+      expect(run(2)).toBeLessThan(run(Infinity));
+    });
+
+    it('reports whether distance or screenPosition is still moving', () => {
+      const group = new TargetGroup(unit());
       const extension = new GroupFramingExtension(group, 0, 100, 100, 0.3, [1, 0]);
-      const out = createCameraState();
-      out.fov = 90;
-
-      extension.update(out, 0.1); // first-ever call snaps both distance and screenPosition exactly
-      expect(extension.update(out, 0.1)).toBe(false);
-
-      extension.screenPosition = [0, 0]; // distance's target hasn't changed, only screenPosition's has
-      expect(extension.update(out, 0.1)).toBe(true);
-    });
-
-    it('false when the group has nothing to resolve — nothing is animating', () => {
-      const group = new TargetGroup([]);
-      const extension = new GroupFramingExtension(group, 0, 100, 100, 0.5);
-      const out = createCameraState();
-
-      expect(extension.update(out, 0.1)).toBe(false);
-    });
-  });
-
-  describe('justActivated', () => {
-    it('snaps distance straight to the correct value even with a warmed-up damper', () => {
-      const group = new TargetGroup([{ target: new Vector3(0, 0, 0), radius: 1 }]);
-      const extension = new GroupFramingExtension(group, 0, 100, 100, 0.5);
-      const out = createCameraState();
-      out.fov = 90;
-      vec4.set(out.quaternion, 0, 0, 0, 1);
-
-      extension.update(out, 0.1, true); // first-ever session: snaps, warms up the damper
+      const out = camera();
       extension.update(out, 0.1, false);
+      expect(extension.update(out, 0.1, false)).toBe(false);
 
-      // a later, unrelated session: the group's bounds changed drastically while inactive
-      group.members[0].radius = 10;
-      extension.update(out, 0.1, true);
+      group.members[0].radius = 5;
+      expect(extension.update(out, 0.1, false)).toBe(true);
+      for (let i = 0; i < 300; i++) extension.update(out, 0.1, false);
+      expect(extension.update(out, 0.1, false)).toBe(false);
 
-      const expectedDistance = 10 / Math.sin(Math.PI / 4);
-      expect(out.position[2]).toBeCloseTo(expectedDistance, 8); // backward = +Z from an identity quaternion
+      extension.screenPosition = [0, 0];
+      expect(extension.update(out, 0.1, false)).toBe(true);
+
+      const instant = new GroupFramingExtension(new TargetGroup(unit()), 0, 100, 100);
+      expect(instant.update(camera(), 0.1, false)).toBe(false);
     });
 
-    it('without justActivated, the same scenario eases instead of snapping (the bug this fixes)', () => {
-      const group = new TargetGroup([{ target: new Vector3(0, 0, 0), radius: 1 }]);
-      const extension = new GroupFramingExtension(group, 0, 100, 100, 0.5);
-      const out = createCameraState();
-      out.fov = 90;
-      vec4.set(out.quaternion, 0, 0, 0, 1);
+    it('justActivated snaps to a changed group, where a plain update would ease', () => {
+      const run = (justActivated: boolean) => {
+        const group = new TargetGroup(unit());
+        const extension = new GroupFramingExtension(group, 0, 100, 100, 0.5);
+        const out = camera();
+        extension.update(out, 0.1, true);
+        extension.update(out, 0.1, false);
+        group.members[0].radius = 10;
+        extension.update(out, 0.1, justActivated);
+        return out.position[2];
+      };
 
-      extension.update(out, 0.1, true);
-      extension.update(out, 0.1, false);
-
-      group.members[0].radius = 10;
-      extension.update(out, 0.1, false); // no reactivation signal — damper treats this as a normal retarget
-
-      const expectedDistance = 10 / Math.sin(Math.PI / 4);
-      expect(out.position[2]).not.toBeCloseTo(expectedDistance, 1);
+      expect(run(true)).toBeCloseTo(sphereFit(10), 8);
+      expect(run(false)).not.toBeCloseTo(sphereFit(10), 1);
     });
   });
 });

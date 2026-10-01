@@ -14,57 +14,46 @@ const cut = { curve: BlendCurves.linear, time: 0 };
 const linear2s = { curve: BlendCurves.linear, time: 2 };
 
 describe('BlendDriver', () => {
-  it('the very first setTarget snaps immediately — no blend, isBlending stays false', () => {
+  it('starts empty, and snaps to its first target without blending', () => {
     const states = { a: stateAt(5) };
     const driver = new BlendDriver<'a'>((id) => states[id]);
+    expect([driver.liveId, driver.blendTargetId, driver.isBlending, driver.hasEverActivated]).toEqual([
+      null,
+      null,
+      false,
+      false,
+    ]);
 
     driver.setTarget('a', linear2s);
 
-    expect(driver.isBlending).toBe(false);
-    expect(driver.liveId).toBe('a');
+    expect([driver.liveId, driver.isBlending, driver.hasEverActivated]).toEqual(['a', false, true]);
     expect(driver.tick(0).position[0]).toBe(5);
   });
 
-  it('setTarget is a no-op when toId already matches blendTargetId', () => {
+  it('ignores a repeated target and keeps writing into the same output', () => {
     const states = { a: stateAt(5) };
     const driver = new BlendDriver<'a'>((id) => states[id]);
     driver.setTarget('a', linear2s);
-    const before = driver.tick(0);
+    const output = driver.tick(0);
 
-    driver.setTarget('a', linear2s); // same id again
+    driver.setTarget('a', linear2s);
+
     expect(driver.isBlending).toBe(false);
-    expect(driver.tick(0)).toBe(before); // same scratch instance, untouched
+    expect(driver.tick(0.1)).toBe(output);
   });
 
-  it('a SECOND setTarget call starts a real blend, not a snap', () => {
+  it('blends to a later target, keeping the old one live until the blend completes', () => {
     const states = { a: stateAt(0), b: stateAt(10) };
     const driver = new BlendDriver<'a' | 'b'>((id) => states[id]);
     driver.setTarget('a', linear2s);
     driver.tick(0);
 
     driver.setTarget('b', linear2s);
-    expect(driver.isBlending).toBe(true);
-    expect(driver.blendTargetId).toBe('b');
-    expect(driver.liveId).toBe('a'); // still 'a' until the blend finishes
+    expect([driver.isBlending, driver.blendTargetId, driver.liveId]).toEqual([true, 'b', 'a']);
+    expect(driver.tick(1).position[0]).toBeCloseTo(5, 5);
 
-    const out = driver.tick(1); // halfway through a 2s linear blend
-    expect(out.position[0]).toBeCloseTo(5, 5);
-  });
-
-  it('commits liveId and clears isBlending once the blend reaches t >= 1', () => {
-    const states = { a: stateAt(0), b: stateAt(10) };
-    const driver = new BlendDriver<'a' | 'b'>((id) => states[id]);
-    driver.setTarget('a', linear2s);
-    driver.tick(0);
-    driver.setTarget('b', linear2s);
-
-    driver.tick(1);
-    expect(driver.isBlending).toBe(true);
-    const out = driver.tick(1); // total elapsed 2s — exactly at the 2s duration
-
-    expect(driver.isBlending).toBe(false);
-    expect(driver.liveId).toBe('b');
-    expect(out.position[0]).toBeCloseTo(10, 5);
+    expect(driver.tick(1).position[0]).toBeCloseTo(10, 5);
+    expect([driver.isBlending, driver.liveId]).toEqual([false, 'b']);
   });
 
   it('a `time: 0` (cut) definition resolves to the destination on the very next tick', () => {
@@ -111,34 +100,24 @@ describe('BlendDriver', () => {
     expect(out.position[0]).toBe(42);
   });
 
-  it('a vanished-then-replaced candidate blends from the frozen output, not a fresh snap (real scenario KlippCore relies on)', () => {
-    const states: Record<string, CameraState> = { a: stateAt(0) };
-    const driver = new BlendDriver<string>((id) => states[id]);
-    driver.setTarget('a', linear2s);
-    driver.tick(0);
-
-    // 'a' "vanishes" — a caller like KlippCore would null out its own liveId bookkeeping here, but the
-    // driver's own `output` (and `hasEverActivated`) stay exactly as they were — nothing resets them
-    states.b = stateAt(20);
-    driver.setTarget('b', linear2s); // a NEW candidate takes over
-
-    expect(driver.isBlending).toBe(true); // blends, doesn't snap — hasEverActivated was already true
-    const out = driver.tick(1); // halfway through
-    expect(out.position[0]).toBeCloseTo(10, 5); // from 0 (frozen output) toward 20, not a snap to 20
-  });
-
   describe('forget', () => {
-    it('forgetting the live (settled, not blending) id clears liveId, keeping the frozen output', () => {
-      const states = { a: stateAt(5) };
-      const driver = new BlendDriver<'a'>((id) => states[id]);
+    it('forgetting the live id keeps the output and hasEverActivated, and the next target blends from there', () => {
+      const states: Record<string, CameraState> = { a: stateAt(0) };
+      const driver = new BlendDriver<string>((id) => states[id]);
       driver.setTarget('a', linear2s);
-      const beforeForget = driver.tick(0);
+      const output = driver.tick(0);
+
+      driver.forget('unknown');
+      expect(driver.liveId).toBe('a');
 
       driver.forget('a');
+      expect([driver.liveId, driver.blendTargetId, driver.hasEverActivated]).toEqual([null, null, true]);
+      expect(driver.tick(0)).toBe(output);
 
-      expect(driver.liveId).toBeNull();
-      expect(driver.blendTargetId).toBeNull();
-      expect(driver.tick(0)).toBe(beforeForget); // output itself untouched — just no longer "live"
+      states.b = stateAt(20);
+      driver.setTarget('b', linear2s);
+      expect(driver.isBlending).toBe(true);
+      expect(driver.tick(1).position[0]).toBeCloseTo(10, 5); // from the frozen 0, not a snap to 20
     });
 
     it('forgetting the in-progress blend target cancels the blend AND clears liveId', () => {
@@ -154,116 +133,28 @@ describe('BlendDriver', () => {
       expect(driver.isBlending).toBe(false);
       expect(driver.liveId).toBeNull();
     });
-
-    it('a later setTarget after forget blends from the frozen output, not a fresh snap — hasEverActivated survives', () => {
-      const states: Record<string, ReturnType<typeof stateAt>> = { a: stateAt(0) };
-      const driver = new BlendDriver<string>((id) => states[id]);
-      driver.setTarget('a', linear2s);
-      driver.tick(0);
-      driver.forget('a');
-
-      states.b = stateAt(20);
-      driver.setTarget('b', linear2s);
-
-      expect(driver.isBlending).toBe(true); // not a snap
-      const out = driver.tick(1); // halfway through 2s
-      expect(out.position[0]).toBeCloseTo(10, 5); // from the frozen 0, not a snap to 20
-    });
-
-    it('forgetting the live id does NOT clear hasEverActivated — unlike liveId, it stays true (the whole point: a caller can tell "momentarily orphaned" from "arbitration never picked anyone")', () => {
-      const states = { a: stateAt(5) };
-      const driver = new BlendDriver<'a'>((id) => states[id]);
-      driver.setTarget('a', linear2s);
-      driver.tick(0);
-
-      driver.forget('a');
-
-      expect(driver.liveId).toBeNull();
-      expect(driver.hasEverActivated).toBe(true);
-    });
-
-    it('forgetting an id that is neither live nor the blend target is a no-op', () => {
-      const states = { a: stateAt(0), b: stateAt(10) };
-      const driver = new BlendDriver<'a' | 'b'>((id) => states[id]);
-      driver.setTarget('a', linear2s);
-      driver.tick(0);
-
-      expect(() => driver.forget('b')).not.toThrow();
-      expect(driver.liveId).toBe('a');
-    });
-  });
-
-  it('tick() returns the same scratch CameraState instance every call', () => {
-    const states = { a: stateAt(1) };
-    const driver = new BlendDriver<'a'>((id) => states[id]);
-    driver.setTarget('a', linear2s);
-
-    const first = driver.tick(0);
-    const second = driver.tick(0.1);
-    expect(first).toBe(second);
-  });
-
-  it('liveId/blendTargetId are both null before the first setTarget call', () => {
-    const driver = new BlendDriver<string>(() => stateAt(0));
-    expect(driver.liveId).toBeNull();
-    expect(driver.blendTargetId).toBeNull();
-    expect(driver.isBlending).toBe(false);
-  });
-
-  it('hasEverActivated is false until the first setTarget call, then stays true forever', () => {
-    const states = { a: stateAt(5) };
-    const driver = new BlendDriver<'a'>((id) => states[id]);
-    expect(driver.hasEverActivated).toBe(false);
-
-    driver.setTarget('a', linear2s);
-    expect(driver.hasEverActivated).toBe(true);
   });
 
   describe('damping-based blend', () => {
     const damped = { damping: 0.3 };
 
-    it('a damping definition starts a real blend (not a snap), progress moving monotonically toward the target', () => {
+    it('eases toward the target, never overshooting, and settles', () => {
       const states = { a: stateAt(0), b: stateAt(10) };
       const driver = new BlendDriver<'a' | 'b'>((id) => states[id]);
       driver.setTarget('a', damped);
       driver.tick(0);
-
       driver.setTarget('b', damped);
       expect(driver.isBlending).toBe(true);
 
-      const first = driver.tick(0.05).position[0];
-      expect(first).toBeGreaterThan(0);
-      expect(first).toBeLessThan(10);
-
-      const second = driver.tick(0.05).position[0];
-      expect(second).toBeGreaterThan(first);
-      expect(second).toBeLessThan(10);
-    });
-
-    it('a damping blend eventually settles on the destination — asymptotic convergence, not a fixed duration', () => {
-      const states = { a: stateAt(0), b: stateAt(10) };
-      const driver = new BlendDriver<'a' | 'b'>((id) => states[id]);
-      driver.setTarget('a', damped);
-      driver.tick(0);
-      driver.setTarget('b', damped);
-
-      for (let i = 0; i < 500 && driver.isBlending; i++) driver.tick(0.016);
-
-      expect(driver.isBlending).toBe(false);
-      expect(driver.liveId).toBe('b');
-    });
-
-    it('a damping blend never overshoots past the destination', () => {
-      const states = { a: stateAt(0), b: stateAt(10) };
-      const driver = new BlendDriver<'a' | 'b'>((id) => states[id]);
-      driver.setTarget('a', damped);
-      driver.tick(0);
-      driver.setTarget('b', damped);
-
+      let previous = 0;
       for (let i = 0; i < 500 && driver.isBlending; i++) {
-        const out = driver.tick(0.016);
-        expect(out.position[0]).toBeLessThanOrEqual(10 + 1e-6);
+        const x = driver.tick(0.016).position[0];
+        expect(x).toBeGreaterThanOrEqual(previous);
+        expect(x).toBeLessThanOrEqual(10 + 1e-6);
+        previous = x;
       }
+
+      expect([driver.isBlending, driver.liveId]).toEqual([false, 'b']);
     });
 
     it('maxSpeed clamps how fast damping can advance progress, in progress/sec (a floor on total blend duration)', () => {

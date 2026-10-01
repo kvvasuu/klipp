@@ -33,18 +33,16 @@ describe('StateDrivenCamera', () => {
     expect(out.position[0]).toBe(1);
   });
 
-  it('several candidates mapping to the same state: highest priority wins', () => {
-    const sdc = new StateDrivenCamera([candidateAt('low', 0, 10, 'idle'), candidateAt('high', 0, 20, 'idle')]);
-    sdc.setState('idle');
-    sdc.tick(0);
-    expect(sdc.liveCameraId).toBe('high');
-  });
+  it('picks the highest priority among candidates for a state, breaking ties by list order', () => {
+    const live = (...candidates: StateDrivenCandidate[]) => {
+      const sdc = new StateDrivenCamera(candidates);
+      sdc.setState('idle');
+      sdc.tick(0);
+      return sdc.liveCameraId;
+    };
 
-  it('a priority tie is broken by LIST ORDER, not activation order', () => {
-    const sdc = new StateDrivenCamera([candidateAt('first', 0, 10, 'idle'), candidateAt('second', 0, 10, 'idle')]);
-    sdc.setState('idle');
-    sdc.tick(0);
-    expect(sdc.liveCameraId).toBe('first');
+    expect(live(candidateAt('low', 0, 10, 'idle'), candidateAt('high', 0, 20, 'idle'))).toBe('high');
+    expect(live(candidateAt('first', 0, 10, 'idle'), candidateAt('second', 0, 10, 'idle'))).toBe('first');
   });
 
   it('a state with no matching candidate holds whatever was live before', () => {

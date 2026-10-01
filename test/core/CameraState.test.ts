@@ -76,86 +76,43 @@ describe('copyCameraState', () => {
 });
 
 describe('mergeCameraState', () => {
-  it('overwrites only the fields present in "partial", leaving the rest untouched', () => {
+  it('overwrites exactly the fields present in the partial', () => {
     const out = createCameraState();
-    out.fov = 50;
-    out.near = 0.1;
+    expect(mergeCameraState(out, {})).toEqual(createCameraState());
 
-    const returned = mergeCameraState(out, { position: [5, 20, 5], fov: 90 });
-
-    expect(returned).toBe(out);
-    expect(vec3.exactEquals(out.position, [5, 20, 5])).toBe(true);
-    expect(out.fov).toBe(90);
-    expect(out.near).toBe(0.1); // untouched
-  });
-
-  it('overwrites referenceUp when present in "partial"', () => {
-    const out = createCameraState();
-
-    mergeCameraState(out, { referenceUp: [1, 0, 0] });
-
-    expect(vec3.exactEquals(out.referenceUp, [1, 0, 0])).toBe(true);
-  });
-
-  it("copies vector fields instead of aliasing the caller's own arrays", () => {
-    const out = createCameraState();
-    const outPosition = out.position;
-    const callerPosition: [number, number, number] = [1, 2, 3];
-
-    mergeCameraState(out, { position: callerPosition });
-
-    expect(out.position).toBe(outPosition); // same array, mutated in place
-    expect(out.position).not.toBe(callerPosition);
-
-    callerPosition[0] = 99;
-    expect(out.position).toEqual([1, 2, 3]); // unaffected by the caller's own mutation
-  });
-
-  it('merges quaternion, lens, targets and their flags', () => {
-    const out = createCameraState();
-
-    mergeCameraState(out, {
-      quaternion: [0, 1, 0, 0],
+    const partial = {
+      position: [5, 20, 5] as [number, number, number],
+      quaternion: [0, 1, 0, 0] as [number, number, number, number],
+      fov: 90,
       near: 0.5,
       far: 200,
-      target: [1, 2, 3],
+      target: [1, 2, 3] as [number, number, number],
       hasTarget: true,
-      lookAtTarget: [4, 5, 6],
+      lookAtTarget: [4, 5, 6] as [number, number, number],
       hasLookAtTarget: true,
-    });
+      referenceUp: [1, 0, 0] as [number, number, number],
+    };
+    expect(mergeCameraState(out, partial)).toBe(out);
 
-    expect(out.quaternion).toEqual([0, 1, 0, 0]);
-    expect(out.near).toBe(0.5);
-    expect(out.far).toBe(200);
-    expect(out.target).toEqual([1, 2, 3]);
-    expect(out.hasTarget).toBe(true);
-    expect(out.lookAtTarget).toEqual([4, 5, 6]);
-    expect(out.hasLookAtTarget).toBe(true);
+    expect(out).toMatchObject(partial);
+    expect(out.viewOffset).toEqual([0, 0]);
   });
 
-  it("copies viewOffset element-wise instead of aliasing the caller's own array", () => {
+  it("copies into its own arrays, never keeping the caller's", () => {
     const out = createCameraState();
-    const outViewOffset = out.viewOffset;
-    const callerViewOffset: [number, number] = [40, -20];
+    const own = [out.position, out.viewOffset];
+    const position: [number, number, number] = [1, 2, 3];
+    const viewOffset: [number, number] = [40, -20];
 
-    mergeCameraState(out, { viewOffset: callerViewOffset });
+    mergeCameraState(out, { position, viewOffset });
+    position[0] = 99;
+    viewOffset[0] = 999;
 
-    expect(out.viewOffset).toBe(outViewOffset); // same array, mutated in place
-    expect(out.viewOffset).not.toBe(callerViewOffset);
-    expect(out.viewOffset).toEqual([40, -20]);
-
-    callerViewOffset[0] = 999;
-    expect(out.viewOffset[0]).toBe(40); // unaffected by the caller's own mutation
-  });
-
-  it('an empty partial changes nothing', () => {
-    const out = createCameraState();
-    vec3.set(out.position, 1, 2, 3);
-    out.fov = 70;
-
-    mergeCameraState(out, {});
-
-    expect(vec3.exactEquals(out.position, [1, 2, 3])).toBe(true);
-    expect(out.fov).toBe(70);
+    expect([out.position, out.viewOffset]).toEqual([
+      [1, 2, 3],
+      [40, -20],
+    ]);
+    expect(out.position).toBe(own[0]);
+    expect(out.viewOffset).toBe(own[1]);
   });
 });

@@ -1,117 +1,56 @@
-import { create } from '@react-three/test-renderer';
+import { vec3 } from 'math';
 import { describe, expect, it } from 'vitest';
-import { BasicMultiChannelPerlin } from '../../../src/react/noise/BasicMultiChannelPerlin';
-import { Klipp } from '../../../src/react/Klipp';
-import { useKlipp } from '../../../src/react/KlippContext';
-import type { KlippCore } from '../../../src/core/KlippCore';
-import { VirtualCamera } from '../../../src/react/VirtualCamera';
-import { toVector3 } from '../../tuples';
+import type { BasicMultiChannelPerlinNoise } from '../../../src/core/noise/BasicMultiChannelPerlinNoise';
+import type { BasicMultiChannelPerlinProps } from '../../../src/react/noise/BasicMultiChannelPerlin';
+import { Noise } from '../../../src/react/noise/Noise';
+import { expectPropsReachInstance, mountInCamera } from '../wiring';
 
-function CoreReader({ onRead }: { onRead: (core: KlippCore) => void }) {
-  onRead(useKlipp().core);
-  return null;
-}
-
-describe('BasicMultiChannelPerlin (React wrapper)', () => {
-  it('registers a BasicMultiChannelPerlinNoise that actually runs every frame', async () => {
-    let core: KlippCore | undefined;
-
-    const scene = (
-      <Klipp>
-        <CoreReader onRead={(c) => (core = c)} />
-        <VirtualCamera name="a" priority={10}>
-          <BasicMultiChannelPerlin positionAmplitude={[5, 5, 5]} seed={1} />
-        </VirtualCamera>
-      </Klipp>
+describe('Noise.BasicMultiChannelPerlin', () => {
+  it('registers a noise that runs every frame, stacking with other noise', async () => {
+    const mounted = await mountInCamera(
+      <>
+        <Noise.BasicMultiChannelPerlin positionAmplitude={[3, 0, 0]} seed={1} />
+        <Noise.BasicMultiChannelPerlin positionAmplitude={[0, 3, 0]} seed={2} />
+      </>,
     );
-
-    const renderer = await create(scene);
-    await renderer.advanceFrames(1, 0.1);
-
-    expect(toVector3(core!.activeState!.position).length()).toBeGreaterThan(0);
+    await mounted.frame();
+    expect(mounted.state.position[0]).not.toBe(0);
+    expect(mounted.state.position[1]).not.toBe(0);
   });
 
-  it('a positionAmplitude prop change is picked up on the next frame (field mutation, not re-registration)', async () => {
-    let core: KlippCore | undefined;
-
-    const scene = (amplitude: [number, number, number]) => (
-      <Klipp>
-        <CoreReader onRead={(c) => (core = c)} />
-        <VirtualCamera name="a" priority={10}>
-          <BasicMultiChannelPerlin positionAmplitude={amplitude} seed={1} />
-        </VirtualCamera>
-      </Klipp>
+  it('passes every prop to the same noise, on mount and when props change', async () => {
+    await expectPropsReachInstance<BasicMultiChannelPerlinProps, BasicMultiChannelPerlinNoise>(
+      (props, ref) => <Noise.BasicMultiChannelPerlin ref={ref} {...props} />,
+      {
+        positionAmplitude: [1, 2, 3],
+        positionFrequency: [2, 2, 2],
+        rotationAmplitude: [4, 5, 6],
+        rotationFrequency: [3, 3, 3],
+        amplitudeGain: 0.5,
+        frequencyGain: 2,
+        amplitudeDamping: 0.3,
+      },
+      {
+        positionAmplitude: [3, 2, 1],
+        positionFrequency: [1, 1, 1],
+        rotationAmplitude: [6, 5, 4],
+        rotationFrequency: [1, 2, 3],
+        amplitudeGain: 1,
+        frequencyGain: 0.5,
+        amplitudeDamping: { into: 0.2, from: 1 },
+      },
     );
-
-    const renderer = await create(scene([0, 0, 0]));
-    await renderer.advanceFrames(1, 0.1);
-    const quietPosition = toVector3(core!.activeState!.position);
-
-    await renderer.update(scene([5, 5, 5]));
-    await renderer.advanceFrames(1, 0.1);
-    expect(toVector3(core!.activeState!.position).equals(quietPosition)).toBe(false);
   });
 
-  it('unmounting stops the noise from running', async () => {
-    const scene = (mounted: boolean) => (
-      <Klipp>
-        <VirtualCamera name="a" priority={10}>
-          {mounted && <BasicMultiChannelPerlin positionAmplitude={[5, 5, 5]} />}
-        </VirtualCamera>
-      </Klipp>
-    );
+  it('stops shaking the camera once unmounted', async () => {
+    const mounted = await mountInCamera(<Noise.BasicMultiChannelPerlin positionAmplitude={[5, 5, 5]} seed={1} />);
+    await mounted.frame();
+    await mounted.update(null);
+    await mounted.frame();
+    const before = vec3.clone(mounted.state.position);
 
-    const renderer = await create(scene(true));
-    await renderer.advanceFrames(1, 0.1);
+    await mounted.frame();
 
-    await renderer.update(scene(false));
-    await expect(renderer.advanceFrames(1, 0.1)).resolves.not.toThrow();
-  });
-
-  it('two instances stack additively, unlike Body/Aim which would replace each other', async () => {
-    let core: KlippCore | undefined;
-
-    const scene = (
-      <Klipp>
-        <CoreReader onRead={(c) => (core = c)} />
-        <VirtualCamera name="a" priority={10}>
-          <BasicMultiChannelPerlin positionAmplitude={[3, 0, 0]} seed={1} />
-          <BasicMultiChannelPerlin positionAmplitude={[3, 0, 0]} seed={2} />
-        </VirtualCamera>
-      </Klipp>
-    );
-
-    const renderer = await create(scene);
-    await renderer.advanceFrames(1, 0.1);
-
-    // two independent, seeded, nonzero contributions should (almost certainly) not cancel to exactly 0
-    expect(toVector3(core!.activeState!.position).length()).toBeGreaterThan(0);
-  });
-
-  it('an amplitudeDamping prop change is picked up on the next frame — eases instead of cutting instantly', async () => {
-    let core: KlippCore | undefined;
-
-    const scene = (amplitudeGain: number) => (
-      <Klipp>
-        <CoreReader onRead={(c) => (core = c)} />
-        <VirtualCamera name="a" priority={10}>
-          <BasicMultiChannelPerlin
-            positionAmplitude={[5, 5, 5]}
-            amplitudeGain={amplitudeGain}
-            amplitudeDamping={0.5}
-            seed={1}
-          />
-        </VirtualCamera>
-      </Klipp>
-    );
-
-    const renderer = await create(scene(1));
-    await renderer.advanceFrames(1, 0.1);
-
-    await renderer.update(scene(0));
-    await renderer.advanceFrames(1, 0.016);
-
-    // damped: one small step after amplitudeGain drops to 0 should NOT have cut the shake dead yet
-    expect(toVector3(core!.activeState!.position).length()).toBeGreaterThan(0);
+    expect(mounted.state.position).toEqual(before);
   });
 });

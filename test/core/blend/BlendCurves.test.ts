@@ -2,33 +2,21 @@ import { describe, expect, it } from 'vitest';
 import { BlendCurves } from '../../../src/core/blend/BlendCurves';
 
 describe('BlendCurves', () => {
-  it('every curve starts at 0 and ends at 1', () => {
+  it('every curve rises from 0 to 1 without going back', () => {
     for (const [name, ease] of Object.entries(BlendCurves)) {
       expect(ease(0), `${name}(0)`).toBe(0);
       expect(ease(1), `${name}(1)`).toBe(1);
-    }
-  });
-
-  it('every curve is monotonically non-decreasing on [0, 1]', () => {
-    for (const [name, ease] of Object.entries(BlendCurves)) {
-      let previous = ease(0);
+      let previous = 0;
       for (let t = 0.05; t <= 1; t += 0.05) {
-        const value = ease(t);
-        expect(value, `${name}(${t.toFixed(2)}) vs previous`).toBeGreaterThanOrEqual(previous);
-        previous = value;
+        expect(ease(t), `${name}(${t.toFixed(2)})`).toBeGreaterThanOrEqual(previous);
+        previous = ease(t);
       }
     }
   });
 
-  it('linear is exactly identity', () => {
-    expect(BlendCurves.linear(0.37)).toBeCloseTo(0.37, 10);
-  });
-
-  it('cut stays at 0 until the very last instant', () => {
-    expect(BlendCurves.cut(0)).toBe(0);
-    expect(BlendCurves.cut(0.5)).toBe(0);
-    expect(BlendCurves.cut(0.999)).toBe(0);
-    expect(BlendCurves.cut(1)).toBe(1);
+  it('linear is the identity, and cut holds 0 until the end', () => {
+    expect(BlendCurves.linear(0.37)).toBe(0.37);
+    expect([BlendCurves.cut(0.5), BlendCurves.cut(0.999)]).toEqual([0, 0]);
   });
 
   it('easeInOut is a symmetric S-curve (matches the midpoint of a plain lerp exactly)', () => {
@@ -37,19 +25,10 @@ describe('BlendCurves', () => {
     expect(BlendCurves.easeInOut(0.9)).toBeGreaterThan(0.9); // slow finish
   });
 
-  it('easeIn departs at full rate (ahead of linear early), eases into the arrival', () => {
-    expect(BlendCurves.easeIn(0.1)).toBeGreaterThan(BlendCurves.linear(0.1));
-  });
-
-  it('easeOut eases out of the departure (behind linear early), arrives at full rate', () => {
-    expect(BlendCurves.easeOut(0.1)).toBeLessThan(BlendCurves.linear(0.1));
-  });
-
-  it('cubicOut is an even more abrupt departure than easeIn (both: fast start, eased arrival)', () => {
-    expect(BlendCurves.cubicOut(0.1)).toBeGreaterThan(BlendCurves.easeIn(0.1));
-  });
-
-  it('cubicIn is an even more eased departure than easeOut (both: slow start, hard arrival)', () => {
-    expect(BlendCurves.cubicIn(0.1)).toBeLessThan(BlendCurves.easeOut(0.1));
+  it('orders the one-sided curves by how fast they leave: cubicOut, easeIn, linear, easeOut, cubicIn', () => {
+    const order = ['cubicOut', 'easeIn', 'linear', 'easeOut', 'cubicIn'] as const;
+    const early = order.map((name) => BlendCurves[name](0.1));
+    expect(early).toEqual([...early].sort((a, b) => b - a));
+    expect(new Set(early).size).toBe(order.length);
   });
 });

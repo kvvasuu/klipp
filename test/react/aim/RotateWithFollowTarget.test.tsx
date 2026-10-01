@@ -1,136 +1,55 @@
-import { create } from '@react-three/test-renderer';
+import { createRef } from 'react';
 import { Object3D, Quaternion } from 'three';
 import { describe, expect, it } from 'vitest';
-import { RotateWithFollowTarget } from '../../../src/react/aim/RotateWithFollowTarget';
-import { Klipp } from '../../../src/react/Klipp';
-import { useKlipp } from '../../../src/react/KlippContext';
-import type { KlippCore } from '../../../src/core/KlippCore';
-import { VirtualCamera } from '../../../src/react/VirtualCamera';
-import { toQuaternion } from '../../tuples';
+import { Aim } from '../../../src/react/aim/Aim';
+import type { RotateWithFollowTargetAim } from '../../../src/three/aim/RotateWithFollowTargetAim';
+import { expectPropsReachInstance, mountInCamera } from '../wiring';
 
-function CoreReader({ onRead }: { onRead: (core: KlippCore) => void }) {
-  onRead(useKlipp().core);
-  return null;
+function rotatedTarget(y: number) {
+  const target = new Object3D();
+  target.rotation.set(0, y, 0);
+  target.updateMatrixWorld();
+  return target;
 }
 
-function expectQuaternionsClose(actual: Quaternion, expected: Quaternion, precision = 9) {
-  expect(actual.angleTo(expected)).toBeLessThan(10 ** -precision);
-}
-
-describe('RotateWithFollowTarget (React wrapper)', () => {
-  it('registers a RotateWithFollowTargetAim that actually runs every frame', async () => {
-    let core: KlippCore | undefined;
-    const target = new Object3D();
-    target.rotation.set(0, Math.PI / 2, 0);
-
-    const scene = (
-      <Klipp>
-        <CoreReader onRead={(c) => (core = c)} />
-        <VirtualCamera name="a" priority={10}>
-          <RotateWithFollowTarget target={target} />
-        </VirtualCamera>
-      </Klipp>
-    );
-
-    const renderer = await create(scene);
-    await renderer.advanceFrames(1, 0.1);
-
-    expectQuaternionsClose(toQuaternion(core!.activeState!.quaternion), new Quaternion().setFromEuler(target.rotation));
+describe('Aim.RotateWithFollowTarget', () => {
+  it('registers an aim that runs every frame', async () => {
+    const target = rotatedTarget(1);
+    const mounted = await mountInCamera(<Aim.RotateWithFollowTarget target={target} />);
+    await mounted.frame();
+    expect(new Quaternion().fromArray(mounted.state.quaternion).angleTo(target.quaternion)).toBeLessThan(1e-9);
   });
 
-  it('a target prop change is picked up on the next frame (field mutation, not re-registration)', async () => {
-    let core: KlippCore | undefined;
-    const targetA = new Object3D();
-    targetA.rotation.set(0, 1, 0);
-    const targetB = new Object3D();
-    targetB.rotation.set(0, -1, 0.5);
-
-    const scene = (target: Object3D) => (
-      <Klipp>
-        <CoreReader onRead={(c) => (core = c)} />
-        <VirtualCamera name="a" priority={10}>
-          <RotateWithFollowTarget target={target} />
-        </VirtualCamera>
-      </Klipp>
-    );
-
-    const renderer = await create(scene(targetA));
-    await renderer.advanceFrames(1, 0.1);
-    expectQuaternionsClose(
-      toQuaternion(core!.activeState!.quaternion),
-      new Quaternion().setFromEuler(targetA.rotation),
-    );
-
-    await renderer.update(scene(targetB));
-    await renderer.advanceFrames(1, 0.1);
-    expectQuaternionsClose(
-      toQuaternion(core!.activeState!.quaternion),
-      new Quaternion().setFromEuler(targetB.rotation),
+  it('passes every prop to the same aim, on mount and when props change', async () => {
+    await expectPropsReachInstance<object, RotateWithFollowTargetAim>(
+      (props, ref) => <Aim.RotateWithFollowTarget ref={ref} {...props} />,
+      { target: new Object3D(), damping: 0.5, maxSpeed: 4 },
+      { target: new Object3D(), damping: { into: 0.2, from: 1 }, maxSpeed: 8 },
     );
   });
 
-  it('unmounting stops the aim from running', async () => {
-    const scene = (mounted: boolean) => (
-      <Klipp>
-        <VirtualCamera name="a" priority={10}>
-          {mounted && <RotateWithFollowTarget target={new Object3D()} />}
-        </VirtualCamera>
-      </Klipp>
-    );
+  it('stops turning the camera once unmounted', async () => {
+    const target = rotatedTarget(1);
+    const mounted = await mountInCamera(<Aim.RotateWithFollowTarget ref={createRef()} target={target} />);
+    await mounted.frame();
+    await mounted.update(null);
+    const before = [...mounted.state.quaternion];
 
-    const renderer = await create(scene(true));
-    await renderer.advanceFrames(1, 0.1);
+    target.rotation.set(0, -1, 0);
+    target.updateMatrixWorld();
+    await mounted.frame();
 
-    await renderer.update(scene(false));
-    await expect(renderer.advanceFrames(1, 0.1)).resolves.not.toThrow();
+    expect(mounted.state.quaternion).toEqual(before);
   });
 
-  it('a damping prop change is picked up on the next frame, without losing the underlying Aim', async () => {
-    let core: KlippCore | undefined;
-    const target = new Object3D();
-    target.rotation.set(0, 1.5, 0);
-
-    const scene = (damping: number) => (
-      <Klipp>
-        <CoreReader onRead={(c) => (core = c)} />
-        <VirtualCamera name="a" priority={10}>
-          <RotateWithFollowTarget target={target} damping={damping} />
-        </VirtualCamera>
-      </Klipp>
-    );
-
-    const renderer = await create(scene(0.5));
-    await renderer.advanceFrames(1, 0.05); // consume the first-ever-update hard snap
-    target.rotation.set(0, -1.5, 0); // rotate the target so there's a genuine gap for damping to close
-    const newTargetQuaternion = new Quaternion().setFromEuler(target.rotation);
-    await renderer.advanceFrames(1, 0.05);
-    expect(toQuaternion(core!.activeState!.quaternion).angleTo(newTargetQuaternion)).toBeGreaterThan(0.01); // still catching up
-
-    await renderer.update(scene(0));
-    await renderer.advanceFrames(1, 0.05);
-    expectQuaternionsClose(toQuaternion(core!.activeState!.quaternion), newTargetQuaternion); // damping off: snaps instantly
-  });
-
-  it("VirtualCamera's initialState.quaternion seeds the damper - the first frame eases from there, not a snap", async () => {
-    let core: KlippCore | undefined;
-    const target = new Object3D();
-    target.rotation.set(0, Math.PI / 2, 0);
-    const initialQuaternion = new Quaternion(); // identity - far from the target
-    const targetQuaternion = new Quaternion().setFromEuler(target.rotation);
-
-    const scene = (
-      <Klipp>
-        <CoreReader onRead={(c) => (core = c)} />
-        <VirtualCamera name="a" priority={10} initialState={{ quaternion: initialQuaternion }}>
-          <RotateWithFollowTarget target={target} damping={0.5} />
-        </VirtualCamera>
-      </Klipp>
-    );
-
-    const renderer = await create(scene);
-    await renderer.advanceFrames(1, 0.016);
-
-    expect(toQuaternion(core!.activeState!.quaternion).angleTo(initialQuaternion)).toBeGreaterThan(0); // moved off initialState
-    expect(toQuaternion(core!.activeState!.quaternion).angleTo(targetQuaternion)).toBeGreaterThan(0.01); // but not snapped there
+  it("eases in from VirtualCamera's initialState.quaternion instead of snapping", async () => {
+    const target = rotatedTarget(Math.PI / 2);
+    const mounted = await mountInCamera(<Aim.RotateWithFollowTarget target={target} damping={0.5} />, {
+      quaternion: [0, 0, 0, 1],
+    });
+    await mounted.frame(0.016);
+    const rotation = new Quaternion().fromArray(mounted.state.quaternion);
+    expect(rotation.angleTo(new Quaternion())).toBeGreaterThan(0);
+    expect(rotation.angleTo(target.quaternion)).toBeGreaterThan(0.01);
   });
 });
