@@ -1,11 +1,11 @@
 ---
 title: Introduction
-description: Declarative virtual cameras for React Three Fiber, inspired by Unity Cinemachine.
+description: A camera toolkit for the web, inspired by Unity Cinemachine.
 nav: 0
 ---
 
 <Intro>
-  Describe the shots you want as components. **klipp** picks the right one and smoothly blends between them.
+  Describe the shots you want. **klipp** picks the right one and smoothly blends between them.
 </Intro>
 
 ```bash
@@ -18,46 +18,83 @@ npm install @kvvasuu/klipp
 > [!TIP]
 > See it in action on the [examples site](https://kvvasuu.github.io/klipp/examples/).
 
-## What does it look like?
+## Why klipp?
+
+Cameras are a core part of 3D, yet most projects end up rebuilding the same pieces: an offset that follows the player, damping so it doesn't jitter, a dead zone, a cutscene camera and a smooth way back. Written by hand, all of that ends up tangled in one update loop.
+
+Engines like Unity and Unreal solved this years ago with virtual cameras. klipp brings that model to the web: each shot is described on its own, the one with the highest priority is on screen, and switching between shots is a blend instead of a jump.
+
+## One system, any renderer
+
+The core of klipp is a complete camera system: virtual cameras, priority, blending, framing, shake and input. It knows nothing about renderers or frameworks, so it runs anywhere. Integrations are thin layers on top of it:
+
+| Entry point | For |
+| ----------- | --- |
+| `@kvvasuu/klipp` | The core. Use it with any renderer or engine, or build your own integration on it. |
+| `@kvvasuu/klipp/react` | React Three Fiber components. |
+| `@kvvasuu/klipp/three` | three.js classes, the layer the React components are built on. |
+| `@kvvasuu/klipp/dom` | Mouse, touch and wheel input, and debug overlays. |
+
+Under its classes, the core is plain data and functions on [`math`](https://github.com/pmndrs/math). They are there for when you want full control, for example from an ECS.
+
+These docs show every piece with the core first, then as a React Three Fiber component.
+
+## What it looks like
+
+A follow camera and a cutscene camera, written to your own camera:
+
+```ts
+import { vec3 } from 'math';
+import {
+  KlippCore,
+  FollowBodyCore,
+  HardLockToTargetBodyCore,
+  HardLookAtAimCore,
+  createTargetPose,
+} from '@kvvasuu/klipp';
+
+const klipp = new KlippCore();
+const player = createTargetPose(); // keep player.position up to date
+const spot = createTargetPose();
+vec3.set(spot.position, 10, 2, 0);
+
+const follow = klipp.addCamera('follow', { priority: 10 });
+follow.body = new FollowBodyCore(player, { offset: [0, 3, 8], damping: 0.5 });
+follow.aim = new HardLookAtAimCore(player);
+
+const cutscene = klipp.addCamera('cutscene', { priority: 20, active: false });
+cutscene.body = new HardLockToTargetBodyCore(spot);
+cutscene.aim = new HardLookAtAimCore(player);
+
+// every frame
+klipp.update(dt);
+engineCamera.setPosition(klipp.shot.position);
+engineCamera.setRotation(klipp.shot.quaternion);
+```
+
+`cutscene.active = true` blends over to the cutscene camera.
+
+The same with React Three Fiber, where `active={isCutscene}` does the switch:
 
 ```tsx
 import { Klipp, VirtualCamera, Body, Aim } from '@kvvasuu/klipp/react';
 
-function Cameras({ playerRef, isCutscene }) {
-  return (
-    <Klipp>
-      <VirtualCamera name="follow" priority={10}>
-        <Body.Follow target={playerRef} offset={[0, 3, 8]} damping={0.5} />
-        <Aim.HardLookAt target={playerRef} />
-      </VirtualCamera>
+<Klipp>
+  <VirtualCamera name="follow" priority={10}>
+    <Body.Follow target={playerRef} offset={[0, 3, 8]} damping={0.5} />
+    <Aim.HardLookAt target={playerRef} />
+  </VirtualCamera>
 
-      <VirtualCamera name="cutscene" priority={20} active={isCutscene}>
-        <Body.HardLockToTarget target={[10, 2, 0]} />
-        <Aim.HardLookAt target={playerRef} />
-      </VirtualCamera>
-    </Klipp>
-  );
-}
+  <VirtualCamera name="cutscene" priority={20} active={isCutscene}>
+    <Body.HardLockToTarget target={[10, 2, 0]} />
+    <Aim.HardLookAt target={playerRef} />
+  </VirtualCamera>
+</Klipp>
 ```
-
-Every `<VirtualCamera>` is a shot. The one with the highest `priority` is on screen. When `isCutscene` turns on, klipp blends over to the cutscene camera, and back again when it turns off.
-
-## Why not just `useFrame`?
-
-You can, and for a single static shot you should. But camera code grows fast: an offset that follows the player, damping so it doesn't jitter, a dead zone, a cutscene camera and a smooth way back. In one `useFrame` all of that ends up tangled together. In klipp each piece is a small component you can swap, reuse and combine.
-
-## Can I still control the camera myself?
-
-Yes. A camera can be driven by the user's mouse or touch and still blend with the rest like any other. Every component also exposes a `ref` for imperative changes.
-
-## Is it fast?
-
-Yes. Nothing allocates per frame, so you can run many cameras at once without generating garbage.
 
 ## Next steps
 
-You should already know the basics of React Three Fiber. From here:
-
 1. [Installation](/getting-started/installation)
 2. [Core concepts](/getting-started/core-concepts)
-3. [Your first camera](/getting-started/your-first-camera), a short step-by-step guide
+3. [Your first camera](/getting-started/your-first-camera), and the same [with React Three Fiber](/getting-started/your-first-camera-react)
+4. [Building on the core](/getting-started/building-on-the-core), for your own integration or for data and functions

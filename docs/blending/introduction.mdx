@@ -4,7 +4,22 @@ description: Control how klipp moves from one camera to the next.
 nav: 70
 ---
 
-When a different camera wins, klipp blends from the old shot to the new one. By default that takes 2 seconds with an ease-in-out curve. Change it with `defaultBlend` on `<Klipp>`:
+When a different camera wins, klipp blends from the old shot to the new one. By default that takes 2 seconds with an ease-in-out curve.
+
+## Core
+
+Pass it when creating klipp, or change it later:
+
+```ts
+import { BlendCurves, KlippCore } from '@kvvasuu/klipp';
+
+const klipp = new KlippCore({ defaultBlend: { curve: BlendCurves.easeInOut, time: 1 } });
+klipp.setDefaultBlend({ curve: BlendCurves.linear, time: 0.5 });
+```
+
+## React Three Fiber
+
+Set `defaultBlend` on `<Klipp>`:
 
 ```tsx
 import { BlendCurves } from '@kvvasuu/klipp';
@@ -16,7 +31,7 @@ import { BlendCurves } from '@kvvasuu/klipp';
 
 A blend is one of two kinds:
 
-```tsx
+```ts
 { curve: BlendCurves.easeInOut, time: 1 } // takes exactly `time` seconds
 { damping: 0.5, maxSpeed: 20 }           // eases in like a spring, see Damping
 ```
@@ -31,24 +46,31 @@ Set `time: 0` for an instant cut.
 | ----- | ---------- |
 | `BlendCurves.linear` | Constant speed. |
 | `BlendCurves.easeInOut` | Starts and ends gently. |
-| `BlendCurves.easeIn` | Leaves quickly, arrives gently. |
-| `BlendCurves.easeOut` | Leaves gently, arrives quickly. |
+| `BlendCurves.easeIn` | Leaves gently, arrives quickly. |
+| `BlendCurves.easeOut` | Leaves quickly, arrives gently. |
 | `BlendCurves.cubicIn` | Leaves gently, arrives abruptly. |
 | `BlendCurves.cubicOut` | Leaves abruptly, arrives gently. |
 | `BlendCurves.cut` | Holds the old shot, then jumps at the end of `time`. |
 
-> [!WARNING]
-> `easeIn` means easing *into* the new shot, a gentle arrival. That's the opposite of CSS's `ease-in`, which is a gentle start.
-
 Any `(t) => number` function works as a curve too:
 
-```tsx
-<Klipp defaultBlend={{ curve: (t) => t * t * t, time: 1 }}>
+```ts
+{ curve: (t) => t * t * t, time: 1 }
 ```
 
 ## Custom blends
 
 Use `customBlends` to give specific camera pairs their own blend. `from` and `to` are camera `name`s; leave one out to match any camera.
+
+```ts
+const klipp = new KlippCore({
+  defaultBlend: { curve: BlendCurves.easeInOut, time: 1 },
+  customBlends: [
+    { to: 'closeup', blend: { curve: BlendCurves.linear, time: 0 } },
+    { from: 'intro', to: 'gameplay', blend: { damping: 0.8 } },
+  ],
+});
+```
 
 ```tsx
 <Klipp
@@ -60,15 +82,20 @@ Use `customBlends` to give specific camera pairs their own blend. `from` and `to
 >
 ```
 
-When several entries match, the most specific one wins: `from` and `to` together, then `to` only, then `from` only, then `defaultBlend`.
+When several entries match, the most specific one wins: `from` and `to` together, then `to` only, then `from` only, then `defaultBlend`. Change them later with `klipp.setCustomBlends()`.
 
 ## Blend hints
 
-By default the camera moves in a straight line between the two shots. If both shots follow the same target from different sides, that line can pass right through it. Blend hints change the path:
+By default the camera moves in a straight line between the two shots. If both shots follow the same target from different sides, that line can pass right through it. Blend hints change the path. A hint is an option of the camera, and a field you can change later:
 
-```tsx
+```ts
 import { BlendHints } from '@kvvasuu/klipp';
 
+const orbit = klipp.addCamera('orbit', { priority: 10, hints: BlendHints.sphericalPosition });
+orbit.hints = BlendHints.none;
+```
+
+```tsx
 <VirtualCamera name="orbit" priority={10} hints={BlendHints.sphericalPosition}>
 ```
 
@@ -80,6 +107,6 @@ import { BlendHints } from '@kvvasuu/klipp';
 
 A hint applies to every blend into or out of its camera. Combine hints with `|`:
 
-```tsx
-hints={BlendHints.sphericalPosition | BlendHints.ignoreTarget}
+```ts
+orbit.hints = BlendHints.sphericalPosition | BlendHints.ignoreTarget;
 ```

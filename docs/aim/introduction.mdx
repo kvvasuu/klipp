@@ -4,7 +4,20 @@ description: Decides where the camera looks.
 nav: 30
 ---
 
-An Aim rotates the camera. It never moves it, that's the [Body](/body/introduction)'s job. Each `<VirtualCamera>` has at most one Aim, and it always runs after the Body.
+An Aim rotates the camera. It never moves it, that's the [Body](/body/introduction)'s job. Each virtual camera has at most one Aim, and it always runs after the Body.
+
+## Core
+
+```ts
+import { FollowBodyCore, HardLookAtAimCore } from '@kvvasuu/klipp';
+
+camera.body = new FollowBodyCore(player, { offset: [0, 3, 8] });
+camera.aim = new HardLookAtAimCore(player);
+```
+
+Setting `camera.aim` replaces any previous Aim.
+
+## React Three Fiber
 
 ```tsx
 import { VirtualCamera, Body, Aim } from '@kvvasuu/klipp/react';
@@ -24,4 +37,4 @@ import { VirtualCamera, Body, Aim } from '@kvvasuu/klipp/react';
 | [`RotateWithFollowTarget`](/aim/rotate-with-follow-target) | Copying a target's rotation: first person, mounted cameras. |
 | [`PanTilt`](/aim/pan-tilt) | Letting the user look around with the mouse or touch. |
 
-Without an Aim the camera keeps its [`initialState`](/api/virtual-camera#initialstate) rotation.
+Without an Aim the camera keeps its starting rotation, [`initialState`](/api/virtual-camera#initialstate).

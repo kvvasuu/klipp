@@ -5,13 +5,11 @@
 [![Docs](https://img.shields.io/static/v1?message=Docs&style=flat&colorA=000000&colorB=000000&label=&logo=googledocs&logoColor=ffffff)](https://kvvasuu.github.io/klipp/docs/)
 [![license](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-Declarative virtual cameras for [React Three Fiber](https://github.com/pmndrs/react-three-fiber), inspired by Unity Cinemachine.
+A camera toolkit for the web, inspired by Unity Cinemachine. Describe the shots you want, and klipp picks the right one and blends between them.
 
-Describe the shots you want as components. Klipp picks the right one and smoothly blends between them.
+The core is a complete camera system that runs anywhere: virtual cameras, priority, blending, framing, shake and input, with no renderer or framework attached. React Three Fiber and three.js are built on top of it, and so can be your engine. Underneath, every piece is also plain data and functions for when you want full control.
 
 ### 👉 [See it in action on the examples site](https://kvvasuu.github.io/klipp/examples/)
-
-Every feature has a live, interactive example. The source for all of them is in [`examples/`](examples).
 
 ```bash
 npm install @kvvasuu/klipp
@@ -19,41 +17,70 @@ npm install @kvvasuu/klipp
 
 ⚠️ Early-stage, experimental - API may change in future releases.
 
-## What does it look like?
+## Core
+
+A follow camera with no framework, for any renderer. Keep the targets up to date, and put `klipp.shot` on your camera after every update:
+
+```ts
+import { vec3 } from 'math';
+import { KlippCore, FollowBodyCore, HardLookAtAimCore, createTargetPose } from '@kvvasuu/klipp';
+
+const klipp = new KlippCore();
+const player = createTargetPose();
+
+const follow = klipp.addCamera('follow', { priority: 10 });
+follow.body = new FollowBodyCore(player, { offset: [0, 3, 8], damping: 0.5 });
+follow.aim = new HardLookAtAimCore(player);
+
+// every frame
+vec3.copy(player.position, engine.playerPosition);
+klipp.update(dt);
+engineCamera.setPosition(klipp.shot.position);
+engineCamera.setRotation(klipp.shot.quaternion);
+```
+
+## React Three Fiber
 
 ```tsx
 import { Klipp, VirtualCamera, Body, Aim } from '@kvvasuu/klipp/react';
 
-function Cameras({ playerRef, isCutscene }) {
-  return (
-    <Klipp>
-      <VirtualCamera name="follow" priority={10}>
-        <Body.Follow target={playerRef} offset={[0, 3, 8]} damping={0.5} />
-        <Aim.HardLookAt target={playerRef} />
-      </VirtualCamera>
+<Klipp>
+  <VirtualCamera name="follow" priority={10}>
+    <Body.Follow target={playerRef} offset={[0, 3, 8]} damping={0.5} />
+    <Aim.HardLookAt target={playerRef} />
+  </VirtualCamera>
 
-      <VirtualCamera name="cutscene" priority={20} active={isCutscene}>
-        <Body.HardLockToTarget target={[10, 2, 0]} />
-        <Aim.HardLookAt target={playerRef} />
-      </VirtualCamera>
-    </Klipp>
-  );
-}
+  <VirtualCamera name="cutscene" priority={20} active={isCutscene}>
+    <Body.HardLockToTarget target={[10, 2, 0]} />
+    <Aim.HardLookAt target={playerRef} />
+  </VirtualCamera>
+</Klipp>;
 ```
 
-Every `<VirtualCamera>` is a shot. The one with the highest `priority` is on screen. When `isCutscene` turns on, Klipp blends over to the cutscene camera, and back again when it turns off.
+Every `<VirtualCamera>` is a shot. The one with the highest `priority` is on screen. When `isCutscene` turns on, klipp blends over to the cutscene camera, and back again when it turns off.
 
 ## What's inside
 
-- **Body** decides where the camera is: follow a target, lock onto it, or keep it at a spot on screen.
+- **Virtual cameras**: any number of shots, the one with the highest priority is on screen.
+- **Body** decides where the camera is: follow a target, lock onto it, keep it at a spot on screen, or orbit.
 - **Aim** decides where it looks: at a target, with a dead zone, or wherever the user drags.
-- **Noise** and **Impulse** add camera shake, continuous or from events like explosions.
 - **Extension** adjusts the shot: keep a group in view, change the lens.
-- **Blending** between cameras with curves, damping and per-camera rules.
+- **Noise** and **Impulse** add camera shake, continuous or from events like explosions.
+- **Blending** between cameras with curves, damping, per-camera rules and blend hints.
+- **Debugging**: framing zones on screen and camera frustums in the scene.
+
+## Packages
+
+| Entry point            | For                                                                                                                                 |
+| ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| `@kvvasuu/klipp`       | The core: the whole camera system, plus the data and functions it is built from. Built on [`math`](https://github.com/pmndrs/math). |
+| `@kvvasuu/klipp/react` | React Three Fiber components.                                                                                                       |
+| `@kvvasuu/klipp/three` | three.js: the core classes reading `Object3D` targets and driving a `PerspectiveCamera`.                                            |
+| `@kvvasuu/klipp/dom`   | Mouse, touch and wheel input, and debug overlays.                                                                                   |
 
 ## Documentation
 
-Start with the [documentation](https://kvvasuu.github.io/klipp/docs/) for a short introduction, a step-by-step first camera, and the full API.
+The [documentation](https://kvvasuu.github.io/klipp/docs/) shows every piece with the core, and as a React Three Fiber component.
 
 ## Support
 

@@ -6,6 +6,17 @@ nav: 21
 
 Moves the camera to the target's position, with no offset. Good for first-person cameras, cameras attached to a moving object, or a camera at a fixed point.
 
+## Core
+
+```ts
+import { HardLockToTargetBodyCore, RotateWithFollowTargetAimCore } from '@kvvasuu/klipp';
+
+camera.body = new HardLockToTargetBodyCore(head);
+camera.aim = new RotateWithFollowTargetAimCore(head);
+```
+
+## React Three Fiber
+
 ```tsx
 <VirtualCamera name="first-person" priority={10}>
   <Body.HardLockToTarget target={headRef} />
@@ -13,12 +24,12 @@ Moves the camera to the target's position, with no offset. Good for first-person
 </VirtualCamera>
 ```
 
-## Props
+`ref` gives you the `HardLockToTargetBody`.
 
-| Prop | Description | Default |
-| ---- | ----------- | ------- |
+## Settings
+
+| Setting | Description | Default |
+| ------- | ----------- | ------- |
 | `target` | What to lock onto. See [Targets](/getting-started/core-concepts#targets). | |
 | `damping` | Seconds to catch up with the target. `0` is instant. See [Damping](/getting-started/core-concepts#damping). | `0` |
 | `maxSpeed` | Maximum catch-up speed, in units per second. | `Infinity` |
-
-`ref` gives you the `HardLockToTargetBody`.

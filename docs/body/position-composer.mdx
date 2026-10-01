@@ -6,7 +6,20 @@ nav: 23
 
 Moves the camera, without rotating it, so the target stays at `screenPosition` and `cameraDistance` away. With a `deadZone` the target can move freely inside it before the camera reacts.
 
-It's made for cameras that keep a fixed rotation, like top-down or side-scrolling games, so it's usually used without an Aim. The rotation then comes from the real camera, or from [`initialState`](/api/virtual-camera#initialstate):
+It's made for cameras that keep a fixed rotation, like top-down or side-scrolling games, so it's usually used without an Aim. The rotation then comes from the camera's [`initialState`](/api/virtual-camera#initialstate).
+
+## Core
+
+```ts
+import { PositionComposerBodyCore } from '@kvvasuu/klipp';
+
+player.extent.radius = 0.5; // so the zones react to its edge
+camera.body = new PositionComposerBodyCore(player, { cameraDistance: 12, deadZone: [0.3, 0.2], damping: 0.3 });
+```
+
+The target's size comes from `player.extent`: a `radius`, or a box `size` with `hasSize` set. `klipp.setSize` keeps `aspect` in sync with your viewport.
+
+## React Three Fiber
 
 ```tsx
 <VirtualCamera name="platformer" priority={10}>
@@ -14,10 +27,12 @@ It's made for cameras that keep a fixed rotation, like top-down or side-scrollin
 </VirtualCamera>
 ```
 
-## Props
+For meshes, the target's size is measured from its geometry. `ref` gives you the `PositionComposerBody`: if the shape changes (an animated skinned mesh, for example), call `recalculateSize()` to measure it again.
 
-| Prop | Description | Default |
-| ---- | ----------- | ------- |
+## Settings
+
+| Setting | Description | Default |
+| ------- | ----------- | ------- |
 | `target` | What to frame. See [Targets](/getting-started/core-concepts#targets). | |
 | `cameraDistance` | Distance from the camera to the target, along the view direction. | `10` |
 | `screenPosition` | Where the target should be on screen. `[0, 0]` is the center, `±1` the edges. | `[0, 0]` |
@@ -26,16 +41,20 @@ It's made for cameras that keep a fixed rotation, like top-down or side-scrollin
 | `depthDeadZone` | How far the target can move toward or away from the camera before it reacts, in world units. | `0` |
 | `damping` | Seconds to catch up once the target leaves the dead zone. See [Damping](/getting-started/core-concepts#damping). | `0` |
 | `maxSpeed` | Maximum catch-up speed, in units per second. | `Infinity` |
-| `radius` | The target's radius, so zones react to its edge instead of its center. | |
-| `size` | The target's box size, used instead of `radius`. Measured automatically for meshes. | |
 | `lookaheadTime` | Seconds to look ahead of a moving target. See below. | `0` |
 | `lookaheadSmoothing` | Seconds used to smooth the target's measured speed for lookahead. | `1` |
 | `lookaheadIgnoreY` | Only look ahead horizontally, handy for jumping characters. | `false` |
-| `debug` | Draws the zones on screen. See [Debugging](/debugging/introduction). | `false` |
+| `radius` | React only. The target's radius, so zones react to its edge instead of its center. | |
+| `size` | React only. The target's box size, used instead of `radius`. | measured for meshes |
+| `debug` | React only. Draws the zones on screen. See [Debugging](/debugging/introduction). | `false` |
 
 ## Lookahead
 
 With `lookaheadTime`, the camera frames where the target is going to be instead of where it is, so fast targets get room in front of them.
+
+```ts
+camera.body = new PositionComposerBodyCore(player, { lookaheadTime: 0.4, lookaheadIgnoreY: true });
+```
 
 ```tsx
 <Body.PositionComposer target={playerRef} lookaheadTime={0.4} lookaheadIgnoreY />
@@ -47,8 +66,4 @@ Avoid Aims that recenter the target every frame, like `HardLookAt`: they cancel 
 
 - no Aim, for a fixed rotation,
 - [`RotateWithFollowTarget`](/aim/rotate-with-follow-target),
-- [`RotationComposer`](/aim/rotation-composer) with the same `screenPosition`, and a non-zero `deadZone` on both components.
-
-## `ref`
-
-`ref` gives you the `PositionComposerBody`. If the target's shape changes (an animated skinned mesh, for example), call `recalculateSize()` to measure it again.
+- [`RotationComposer`](/aim/rotation-composer) with the same `screenPosition`, and a non-zero `deadZone` on both.

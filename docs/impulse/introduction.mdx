@@ -4,12 +4,12 @@ description: One-off camera shakes from events like explosions and hits.
 nav: 55
 ---
 
-Fire an impulse from anywhere in your game, and every camera with an `<ImpulseListener>` reacts to it.
+Fire an impulse from anywhere in your game, and every camera listening to it reacts. Impulses live in an `ImpulseField`. The shared `impulseField` is enough unless you want separate event streams.
 
-```tsx
+```ts
 import { impulseField, ImpulseShapes } from '@kvvasuu/klipp';
 
-function onExplosion(position) {
+function onExplosion(position: [number, number, number]) {
   impulseField.generate({
     position,
     direction: [0, 0.5, 0],
@@ -19,6 +19,18 @@ function onExplosion(position) {
   });
 }
 ```
+
+## Core
+
+```ts
+import { ImpulseListenerNoiseCore } from '@kvvasuu/klipp';
+
+camera.addNoise(new ImpulseListenerNoiseCore());
+```
+
+It listens to the shared `impulseField` unless you pass another as `field`.
+
+## React Three Fiber
 
 ```tsx
 import { ImpulseListener } from '@kvvasuu/klipp/react';
@@ -30,7 +42,12 @@ import { ImpulseListener } from '@kvvasuu/klipp/react';
 </VirtualCamera>
 ```
 
-## `impulseField.generate`
+> [!NOTE]
+> With `frameloop="demand"`, call `invalidate()` after `generate()`. See [On-demand rendering](/advanced/on-demand-rendering).
+
+`ref` gives you the `ImpulseListenerNoise`.
+
+## Generating an impulse
 
 | Option | Description | Default |
 | ------ | ----------- | ------- |
@@ -43,13 +60,10 @@ import { ImpulseListener } from '@kvvasuu/klipp/react';
 | `propagationSpeed` | How fast it travels, in units per second, so faraway cameras feel it later. | `Infinity` |
 | `channel` | Bitmask to target specific listeners. See `channelMask` below. | `1` |
 
-> [!NOTE]
-> With `frameloop="demand"`, call `invalidate()` after `generate()`. See [On-demand rendering](/advanced/on-demand-rendering).
+## Listener settings
 
-## `<ImpulseListener>` props
-
-| Prop | Description | Default |
-| ---- | ----------- | ------- |
+| Setting | Description | Default |
+| ------- | ----------- | ------- |
 | `gain` | Multiplies the impulse strength. `0` mutes this listener. | `1` |
 | `shake` | Adds a rattle on top of the push. See below. | |
 | `cameraSpace` | Treat `direction` relative to the camera instead of the world. See below. | `false` |
@@ -58,7 +72,12 @@ import { ImpulseListener } from '@kvvasuu/klipp/react';
 
 ## Adding a rattle
 
-An impulse on its own only pushes the camera. `shake` adds rotation and jitter that grows and fades with it. It takes the same props as [`BasicMultiChannelPerlin`](/noise/basic-multi-channel-perlin), except `amplitudeGain`:
+An impulse on its own only pushes the camera. `shake` adds rotation and jitter that grows and fades with it. It's a [`BasicMultiChannelPerlin`](/noise/basic-multi-channel-perlin) whose `amplitudeGain` follows the impulse strength. React takes its settings instead of the noise itself:
+
+```ts
+const shake = new BasicMultiChannelPerlinNoiseCore({ positionAmplitude: [0.1, 0.1, 0.1], rotationAmplitude: [4, 4, 4] });
+camera.addNoise(new ImpulseListenerNoiseCore({ shake }));
+```
 
 ```tsx
 <ImpulseListener shake={{ positionAmplitude: [0.1, 0.1, 0.1], rotationAmplitude: [4, 4, 4] }} />
@@ -68,10 +87,12 @@ An impulse on its own only pushes the camera. `shake` adds rotation and jitter t
 
 By default `direction` is in world space, which suits explosions: the camera gets pushed away from where it happened. For recoil or a landing thump, use `cameraSpace` so the same `direction` always kicks the same way on screen:
 
-```tsx
+```ts
 impulseField.generate({ position: [0, 0, 0], direction: [0, 0.3, 0.1], shape: ImpulseShapes.recoil });
 
-<ImpulseListener cameraSpace />;
+camera.addNoise(new ImpulseListenerNoiseCore({ cameraSpace: true }));
 ```
 
-`ref` gives you the `ImpulseListenerNoise`.
+```tsx
+<ImpulseListener cameraSpace />
+```

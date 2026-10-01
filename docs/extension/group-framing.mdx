@@ -4,9 +4,31 @@ description: Moves the camera closer or farther to keep several targets in view.
 nav: 41
 ---
 
-Keeps every member on screen. It places the camera in line with the group's center, along the camera's current view direction, at the distance where every member fits. By default it never moves the camera closer than the Body placed it; with `fitMode="rigid"` it always sits at exactly that distance, so it also moves in as the group gets smaller.
+Keeps every member on screen. It places the camera in line with the group's center, along the camera's current view direction, at the distance where every member fits. By default it never moves the camera closer than the Body placed it; with `fitMode: 'rigid'` it always sits at exactly that distance, so it also moves in as the group gets smaller.
 
 It doesn't rotate the camera, so pair it with an Aim that already looks at the group.
+
+## Core
+
+Members are plain data you keep up to date:
+
+```ts
+import { vec3 } from 'math';
+import { GroupFramingExtensionCore, createGroupMember } from '@kvvasuu/klipp';
+
+const a = createGroupMember();
+const b = createGroupMember();
+b.extent.radius = 2;
+camera.addExtension(new GroupFramingExtensionCore([a, b], 'groupCenter', { padding: 1, damping: 0.5 }));
+
+// every frame, before klipp.update
+vec3.copy(a.position, aPosition);
+vec3.copy(b.position, bPosition);
+```
+
+A member is `{ position, extent, weight, resolved }`. Set `resolved` to `false` to skip one, for example while it isn't loaded yet. `klipp.setSize` keeps the viewport size in sync.
+
+## React Three Fiber
 
 ```tsx
 <VirtualCamera name="party" priority={10}>
@@ -20,11 +42,14 @@ It doesn't rotate the camera, so pair it with an Aim that already looks at the g
 </VirtualCamera>
 ```
 
-## Props
+For meshes, member sizes are measured from their geometry. `ref` gives you the `GroupFramingExtension`: if a member's shape changes, call `recalculateSize()` to measure it again.
 
-| Prop | Description | Default |
-| ---- | ----------- | ------- |
+## Settings
+
+| Setting | Description | Default |
+| ------- | ----------- | ------- |
 | `members` | The targets to keep in view. See below. | |
+| `positionMode` | How the group's center, which the camera lines up with, is computed: `'groupCenter'` (center of the bounds) or `'groupAverage'` (weighted average of positions). | `'groupCenter'` |
 | `padding` | Extra space around the members, in world units. | `0` |
 | `fitMode` | `'ceiling'` never moves the camera closer than the Body placed it. `'rigid'` always sits at exactly the distance that fits the group. | `'ceiling'` |
 | `framingMode` | Which screen dimensions to fit: `'horizontal'`, `'vertical'` or `'horizontalAndVertical'`. | `'horizontalAndVertical'` |
@@ -33,18 +58,15 @@ It doesn't rotate the camera, so pair it with an Aim that already looks at the g
 | `damping` | Seconds to catch up with the right distance. See [Damping](/getting-started/core-concepts#damping). | `0` |
 | `maxSpeed` | Maximum catch-up speed, in units per second. | `Infinity` |
 | `screenPosition` | Shifts the view without moving the camera, for example to leave room for UI. `[0, 0]` is centered. | `[0, 0]` |
-| `positionMode` | How the group's center, which the camera lines up with, is computed: `'groupCenter'` (center of the bounds) or `'groupAverage'` (weighted average of positions). | `'groupCenter'` |
-| `debug` | Draws the padding on screen. See [Debugging](/debugging/introduction). | `false` |
+| `debug` | React only. Draws the padding on screen. See [Debugging](/debugging/introduction). | `false` |
 
 ## Members
+
+In React, each member is:
 
 | Field | Description | Default |
 | ----- | ----------- | ------- |
 | `target` | The member. See [Targets](/getting-started/core-concepts#targets). | |
 | `weight` | Influence on the center in `'groupAverage'` mode. | `1` |
 | `radius` | The member's radius, so its edge stays in view instead of its center. | `0` |
-| `size` | The member's box size, used instead of `radius`. Measured automatically for meshes. | |
-
-## `ref`
-
-`ref` gives you the `GroupFramingExtension`. If a member's shape changes, call `recalculateSize()` to measure it again.
+| `size` | The member's box size, used instead of `radius`. | measured for meshes |

@@ -4,7 +4,20 @@ description: Looks at a target with a dead zone, off-center framing and damping.
 nav: 32
 ---
 
-Rotates the camera to keep the target at `screenPosition`. With a `deadZone` the target can move freely inside it before the camera turns, and `damping` makes the turn smooth.
+Rotates the camera to keep the target at `screenPosition`. With a `deadZone` the target can move freely inside it before the camera turns, and `damping` makes the turn smooth. With the default settings it behaves like [`HardLookAt`](/aim/hard-look-at).
+
+## Core
+
+```ts
+import { RotationComposerAimCore } from '@kvvasuu/klipp';
+
+player.extent.radius = 0.5; // so the zones react to its edge
+camera.aim = new RotationComposerAimCore(player, { deadZone: [0.2, 0.2], damping: 0.3 });
+```
+
+The target's size comes from `player.extent`, and its rotation is only used for `targetOffset`. `klipp.setSize` keeps `aspect` in sync with your viewport.
+
+## React Three Fiber
 
 ```tsx
 <VirtualCamera name="follow" priority={10}>
@@ -13,12 +26,12 @@ Rotates the camera to keep the target at `screenPosition`. With a `deadZone` the
 </VirtualCamera>
 ```
 
-With the default settings it behaves like [`HardLookAt`](/aim/hard-look-at).
+For meshes, the target's size is measured from its geometry. `ref` gives you the `RotationComposerAim`: if the shape changes (an animated skinned mesh, for example), call `recalculateSize()` to measure it again.
 
-## Props
+## Settings
 
-| Prop | Description | Default |
-| ---- | ----------- | ------- |
+| Setting | Description | Default |
+| ------- | ----------- | ------- |
 | `target` | What to look at. See [Targets](/getting-started/core-concepts#targets). | |
 | `targetOffset` | Offset from the target, in the target's own space. Use it to look at a head instead of the feet. | `[0, 0, 0]` |
 | `screenPosition` | Where the target should be on screen. `[0, 0]` is the center, `±1` the edges. | `[0, 0]` |
@@ -26,17 +39,13 @@ With the default settings it behaves like [`HardLookAt`](/aim/hard-look-at).
 | `hardLimit` | Area the target can never leave, even while `damping` is catching up. `[0, 0]` turns it off. | `[0, 0]` |
 | `damping` | Seconds to catch up once the target leaves the dead zone. See [Damping](/getting-started/core-concepts#damping). | `0` |
 | `maxSpeed` | Maximum turn speed, in radians per second. | `Infinity` |
-| `radius` | The target's radius, so zones react to its edge instead of its center. | |
-| `size` | The target's box size, used instead of `radius`. Measured automatically for meshes. | |
 | `lookaheadTime` | Seconds to look ahead of a moving target. | `0` |
 | `lookaheadSmoothing` | Seconds used to smooth the target's measured speed for lookahead. | `1` |
 | `lookaheadIgnoreY` | Only look ahead horizontally, handy for jumping characters. | `false` |
-| `debug` | Draws the zones on screen. See [Debugging](/debugging/introduction). | `false` |
+| `radius` | React only. The target's radius, so zones react to its edge instead of its center. | |
+| `size` | React only. The target's box size, used instead of `radius`. | measured for meshes |
+| `debug` | React only. Draws the zones on screen. See [Debugging](/debugging/introduction). | `false` |
 
 ## Combining with `PositionComposer`
 
 When pairing it with [`PositionComposer`](/body/position-composer), use the same `screenPosition` on both, and give both a non-zero `deadZone`. Without a dead zone on each side they cancel each other out.
-
-## `ref`
-
-`ref` gives you the `RotationComposerAim`. If the target's shape changes (an animated skinned mesh, for example), call `recalculateSize()` to measure it again.

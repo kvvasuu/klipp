@@ -4,7 +4,31 @@ description: Lets the user look around with the mouse or touch.
 nav: 34
 ---
 
-Free look-around. `pan` turns the camera left and right, `tilt` up and down, both in degrees. Add an [`<InputController>`](/input/input-controller) inside it to drive them with the mouse or touch.
+Free look-around. `pan` turns the camera left and right, `tilt` up and down, both in degrees. Each one is an [`InputAxis`](/input/input-axis), so it can be driven by the mouse and touch, or from code.
+
+## Core
+
+```ts
+import { PanTiltAimCore } from '@kvvasuu/klipp';
+import { InputAxisController } from '@kvvasuu/klipp/dom';
+
+const aim = new PanTiltAimCore();
+aim.tilt.range = [-60, 60];
+camera.aim = aim;
+
+const input = new InputAxisController({
+  mouseButtons: { left: { axes: { x: aim.pan, y: aim.tilt }, gain: 0.15 }, right: null, middle: null },
+  touches: { one: { axes: { x: aim.pan, y: aim.tilt }, gain: 0.15 }, two: null, three: null },
+});
+input.connect(canvas);
+klipp.registerUpdate(() => input.update()); // reads input before the cameras run
+```
+
+Pass a target to make `pan` and `tilt` relative to its rotation: `new PanTiltAimCore(vehicle)`.
+
+## React Three Fiber
+
+Add an [`<InputController>`](/input/input-controller) inside it to drive it with the mouse or touch:
 
 ```tsx
 import { Aim, Body, InputController } from '@kvvasuu/klipp/react';
@@ -20,29 +44,31 @@ import { Aim, Body, InputController } from '@kvvasuu/klipp/react';
 </VirtualCamera>
 ```
 
-## Props
+`ref` gives you the `PanTiltAim`.
 
-| Prop | Description | Default |
-| ---- | ----------- | ------- |
-| `target` | Makes `pan` and `tilt` relative to this object's rotation, for example a vehicle's cockpit. Omit for world space. | |
-| `panRange` | Pan limits, in degrees. | `[-180, 180]` |
-| `tiltRange` | Tilt limits, in degrees. | `[-90, 90]` |
-| `panWrap` | Loop around at the edges of `panRange` instead of stopping. | `true` |
-| `tiltWrap` | Loop around at the edges of `tiltRange` instead of stopping. | `false` |
+## Settings
+
+| Setting | Description | Default |
+| ------- | ----------- | ------- |
+| `target` | Makes `pan` and `tilt` relative to this target's rotation, for example a vehicle's cockpit. Omit for world space. | |
+| `panRange` | Pan limits, in degrees. `pan.range` on the core. | `[-180, 180]` |
+| `tiltRange` | Tilt limits, in degrees. `tilt.range` on the core. | `[-90, 90]` |
+| `panWrap` | Loop around at the edges of `panRange` instead of stopping. `pan.wrap` on the core. | `true` |
+| `tiltWrap` | Loop around at the edges of `tiltRange` instead of stopping. `tilt.wrap` on the core. | `false` |
 | `damping` | Seconds to catch up with the input. See [Damping](/getting-started/core-concepts#damping). | `0` |
 | `maxSpeed` | Maximum turn speed, in degrees per second. | `Infinity` |
-| `recentering` | Return to the center after a while without input. See [Input Axis](/input/input-axis#recentering). | off |
+| `recentering` | Return to the center after a while without input. See [InputAxis](/input/input-axis#recentering). | off |
 | `autoNormalize` | Keep `pan` inside `panRange` after each drag while `panWrap` is on. | `false` |
+
+On the core, `damping`, `maxSpeed`, `recentering` and `autoNormalize` are set on each axis.
 
 To start facing a specific direction, pass a `quaternion` to the camera's [`initialState`](/api/virtual-camera#initialstate).
 
 ## Driving it from code
 
-`ref` gives you the `PanTiltAim`. Its `pan` and `tilt` are [`InputAxis`](/input/input-axis) instances you can drive directly:
+`pan` and `tilt` are [`InputAxis`](/input/input-axis) instances you can drive directly, for example in a cutscene:
 
-```tsx
-const aim = useRef<PanTiltAim>(null);
-
-aim.current.pan.applyDelta(5); // turn right by 5°
-aim.current.tilt.value;        // current tilt
+```ts
+aim.pan.applyDelta(5); // turn right by 5°
+aim.tilt.value;        // current tilt
 ```

@@ -4,7 +4,35 @@ description: A single shot that competes for the screen.
 nav: 11
 ---
 
-A `<VirtualCamera>` describes one shot. Its children decide where the camera is and where it looks, and its `priority` decides when it's on screen.
+A virtual camera describes one shot. Its pieces decide where the camera is and where it looks, and its `priority` decides when it's on screen.
+
+## Choosing the winner
+
+- The active camera with the highest `priority` wins.
+- On a tie, the camera that was added, or set active, most recently wins.
+- To switch shots, change `priority`, or turn a camera on or off. Either one triggers a blend.
+
+## Core
+
+```ts
+import { FollowBodyCore, HardLookAtAimCore } from '@kvvasuu/klipp';
+
+const follow = klipp.addCamera('follow', { priority: 10 });
+follow.body = new FollowBodyCore(player, { offset: [0, 3, 8] });
+follow.aim = new HardLookAtAimCore(player);
+
+const map = klipp.addCamera('map', { priority: 20, active: false });
+map.active = mapOpen;
+```
+
+| Member | Description |
+| ------ | ----------- |
+| `body`, `aim` | The Body and Aim. Setting one replaces the previous. |
+| `addExtension(piece)`, `addNoise(piece)` | Adds an Extension or Noise. They stack, in the order added. Each returns a function that removes it. |
+| `name`, `priority`, `active`, `hints` | The settings below, changeable at any time. |
+| `state` | The camera's own shot, written by its pieces every frame. |
+
+## React Three Fiber
 
 ```tsx
 import { VirtualCamera, Body, Aim } from '@kvvasuu/klipp/react';
@@ -15,31 +43,30 @@ import { VirtualCamera, Body, Aim } from '@kvvasuu/klipp/react';
 </VirtualCamera>
 ```
 
-## Props
-
-| Prop | Description | Default |
-| ---- | ----------- | ------- |
-| `name` | Unique name. Used by [custom blends](/blending/introduction#custom-blends) and [events](/api/events). | required |
-| `priority` | The active camera with the highest priority is on screen. | required |
-| `active` | Whether this camera takes part at all. `false` also stops its Body, Aim and so on from running. | `true` |
-| `hints` | Changes the shape of blends in and out of this camera. See [Blend hints](/blending/introduction#blend-hints). | `BlendHints.none` |
-| `initialState` | Starting pose, applied once on mount. See below. | the real camera's pose |
-| `ref` | The underlying three.js `VirtualCamera`. | |
-
-## Choosing the winner
-
-- The active camera with the highest `priority` wins.
-- On a tie, the camera that was mounted or set `active` most recently wins.
-- To switch shots, toggle `active` or change `priority`. Either one triggers a blend.
-
 ```tsx
 <VirtualCamera name="gameplay" priority={10}>...</VirtualCamera>
 <VirtualCamera name="map" priority={20} active={mapOpen}>...</VirtualCamera>
 ```
 
+`ref` gives you the camera, with the members above.
+
+## Settings
+
+| Setting | Description | Default |
+| ------- | ----------- | ------- |
+| `name` | Unique name. Used by [custom blends](/blending/introduction#custom-blends) and [events](/api/events). | required |
+| `priority` | The active camera with the highest priority is on screen. | React: required, core: `0` |
+| `active` | Whether this camera takes part at all. `false` also stops its pieces from running. Turning it back on starts it fresh. | `true` |
+| `hints` | Changes the shape of blends in and out of this camera. See [Blend hints](/blending/introduction#blend-hints). | `BlendHints.none` |
+| `initialState` | Starting pose, applied once. See below. | the real camera's pose |
+
 ## `initialState`
 
 Sets where the camera starts. Useful for a camera without a Body or Aim, since whatever you set here simply stays put:
+
+```ts
+klipp.addCamera('fixed', { priority: 10, initialState: { position: [0, 10, 10], fov: 35 } });
+```
 
 ```tsx
 <VirtualCamera name="fixed" priority={10} initialState={{ position: [0, 10, 10], fov: 35 }}>
@@ -47,7 +74,7 @@ Sets where the camera starts. Useful for a camera without a Body or Aim, since w
 </VirtualCamera>
 ```
 
-It takes any camera state field, most commonly `position`, `quaternion` and `fov`. `position` accepts the same shorthand as `<mesh position>`.
+It takes any camera state field, most commonly `position`, `quaternion` and `fov`. Pieces with damping ease in from it on the camera's first activation instead of snapping. In React, `position` accepts the same shorthand as `<mesh position>`.
 
 ## `<VirtualCamera.Events>`
 

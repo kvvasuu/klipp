@@ -4,7 +4,30 @@ description: Mouse, touch and pointer lock input for cameras.
 nav: 60
 ---
 
-Some components can be controlled by the user, like [`PanTilt`](/aim/pan-tilt). They expose named **axes** (`pan`, `tilt`), and an [`<InputController>`](/input/input-controller) placed inside them maps mouse and touch drags onto those axes.
+Some pieces can be controlled by the user, like [`PanTilt`](/aim/pan-tilt). They expose **axes** (`pan`, `tilt`), and an input controller maps mouse and touch drags onto those axes.
+
+Each axis is an [`InputAxis`](/input/input-axis), a value with limits, wrapping, damping and optional recentering. You can also drive an axis from your own code, for example in a cutscene.
+
+## Core
+
+`InputAxisController` from `@kvvasuu/klipp/dom` reads the mouse and touch, and takes the axes themselves:
+
+```ts
+import { InputAxisController } from '@kvvasuu/klipp/dom';
+
+const input = new InputAxisController({
+  mouseButtons: { left: null, right: { axes: { x: aim.pan, y: aim.tilt } }, middle: null },
+  touches: { one: { axes: { x: aim.pan, y: aim.tilt } }, two: null, three: null },
+});
+input.connect(canvas);
+klipp.registerUpdate(() => input.update()); // reads input before the cameras run
+```
+
+Without a DOM, feed the axes from any source with `axis.applyDelta(delta)`.
+
+## React Three Fiber
+
+An [`<InputController>`](/input/input-controller) placed inside the piece finds its axes by name:
 
 ```tsx
 import { Aim, InputController } from '@kvvasuu/klipp/react';
@@ -20,5 +43,3 @@ import { Aim, InputController } from '@kvvasuu/klipp/react';
 ```
 
 This reads as: dragging with the right mouse button, or with one finger, moves `pan` horizontally and `tilt` vertically.
-
-Each axis is an [`InputAxis`](/input/input-axis), a value with limits, wrapping, damping and optional recentering. You can also drive an axis from your own code, for example in a cutscene.

@@ -4,7 +4,19 @@ description: Adds camera shake on top of the shot.
 nav: 50
 ---
 
-Noise shakes the camera on top of everything else, so the shot stays framed correctly underneath. You can add as many as you like to one `<VirtualCamera>`.
+Noise shakes the camera on top of everything else, so the shot stays framed correctly underneath. You can add as many as you like to one virtual camera.
+
+## Core
+
+```ts
+import { BasicMultiChannelPerlinNoiseCore } from '@kvvasuu/klipp';
+
+camera.addNoise(new BasicMultiChannelPerlinNoiseCore({ positionAmplitude: [0.1, 0.1, 0], rotationAmplitude: [0.5, 0.5, 0] }));
+```
+
+Noise runs after every Extension. `addNoise` returns a function that removes it.
+
+## React Three Fiber
 
 ```tsx
 import { Noise } from '@kvvasuu/klipp/react';
@@ -15,6 +27,8 @@ import { Noise } from '@kvvasuu/klipp/react';
   <Noise.BasicMultiChannelPerlin positionAmplitude={[0.1, 0.1, 0]} rotationAmplitude={[0.5, 0.5, 0]} />
 </VirtualCamera>
 ```
+
+## Which one?
 
 | Noise | Use it for |
 | ----- | ---------- |

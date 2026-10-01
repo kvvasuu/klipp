@@ -1,19 +1,22 @@
 ---
-title: Custom components
+title: Custom pieces
 description: Write your own Body, Aim, Extension or Noise.
 nav: 91
 ---
 
-You can add your own logic to a `<VirtualCamera>`. A piece is any object with an `update` function that runs every frame. Get the camera with [`useVirtualCamera()`](/api/hooks#usevirtualcamera) and add it:
+A piece is any object with an `update` function that runs every frame. Add your own to a camera and it runs alongside the built-in ones:
 
 ```ts
-camera.setBody({ update });      // replaces any other Body
-camera.setAim({ update });       // replaces any other Aim
+camera.body = { update };        // replaces any other Body
+camera.aim = { update };         // replaces any other Aim
 camera.addExtension({ update }); // stacks
 camera.addNoise({ update });     // stacks
 ```
 
-Each returns a function that removes the piece, so it fits right into `useEffect`.
+`addExtension` and `addNoise` return a function that removes the piece. For a Body or Aim, `setBody` and `setAim` do the same, and warn if the camera already has one.
+
+- **Core:** add it to the camera from `klipp.addCamera`. A class with an `update` field works just as well as an object.
+- **React Three Fiber:** get the camera with [`useVirtualCamera()`](/api/hooks#usevirtualcamera) and add the piece in `useEffect`. The returned function is its cleanup.
 
 ## The update function
 
@@ -23,34 +26,28 @@ Each returns a function that removes the piece, so it fits right into `useEffect
 
 - `out` is the camera's state. Change it in place.
 - `dt` is the frame time in seconds.
-- `justActivated` is `true` on the first frame after mounting, or after `active` turns back on. Reset any smoothing here so the camera starts from the right place.
-- Return `true` while your component is still moving, so [on-demand rendering](/advanced/on-demand-rendering) keeps going.
+- `justActivated` is `true` on the camera's first frame, and again when it turns back on. Reset any smoothing here so the camera starts from the right place.
+- Return `true` while your piece is still moving, so [on-demand rendering](/advanced/on-demand-rendering) keeps going.
 
 ## Example: drift toward the pointer
 
-An Extension that turns the shot slightly toward the mouse, on top of any Body and Aim:
+An Extension that turns the shot slightly toward the pointer, on top of any Body and Aim. `pointer` is `{ x, y }` from `-1` to `1`, kept up to date by your input code:
 
-```tsx
-import { useEffect, useState } from 'react';
-import { useThree } from '@react-three/fiber';
+```ts
 import { quat, type Euler, type Quat } from 'math';
-import { Damper } from '@kvvasuu/klipp';
-import { useVirtualCamera } from '@kvvasuu/klipp/react';
+import { Damper, type CameraPiece } from '@kvvasuu/klipp';
 
 const euler: Euler = [0, 0, 0, 'xyz'];
 const rotation: Quat = [0, 0, 0, 1];
 
-export function PointerDrift({ strength = 0.1, damping = 0.4 }) {
-  const camera = useVirtualCamera();
-  const pointer = useThree((state) => state.pointer);
-  const [yawDamper] = useState(() => new Damper());
-  const [pitchDamper] = useState(() => new Damper());
+export function pointerDrift(pointer: { x: number; y: number }, strength = 0.1, damping = 0.4): CameraPiece {
+  const yawDamper = new Damper();
+  const pitchDamper = new Damper();
+  let yaw = 0;
+  let pitch = 0;
 
-  useEffect(() => {
-    let yaw = 0;
-    let pitch = 0;
-
-    return camera.addExtension({ update: (out, dt, justActivated) => {
+  return {
+    update: (out, dt, justActivated) => {
       if (justActivated) {
         yawDamper.reset();
         pitchDamper.reset();
@@ -65,19 +62,34 @@ export function PointerDrift({ strength = 0.1, damping = 0.4 }) {
       euler[1] = yaw;
       quat.multiply(out.quaternion, out.quaternion, quat.fromEuler(rotation, euler));
       return yaw !== targetYaw || pitch !== targetPitch;
-    } });
-  }, [camera, pointer, strength, damping, yawDamper, pitchDamper]);
+    },
+  };
+}
+
+camera.addExtension(pointerDrift(pointer));
+```
+
+In React, wrap it in a component. r3f's `state.pointer` already has the right shape:
+
+```tsx
+import { useEffect } from 'react';
+import { useThree } from '@react-three/fiber';
+import { useVirtualCamera } from '@kvvasuu/klipp/react';
+
+export function PointerDrift({ strength = 0.1, damping = 0.4 }) {
+  const camera = useVirtualCamera();
+  const pointer = useThree((state) => state.pointer);
+
+  useEffect(() => camera.addExtension(pointerDrift(pointer, strength, damping)), [camera, pointer, strength, damping]);
 
   return null;
 }
-```
 
-```tsx
 <VirtualCamera name="menu" priority={10}>
   <Body.HardLockToTarget target={[0, 2, 8]} />
   <Aim.HardLookAt target={[0, 1, 0]} />
   <PointerDrift />
-</VirtualCamera>
+</VirtualCamera>;
 ```
 
 > [!TIP]
@@ -99,7 +111,7 @@ Vectors are plain arrays (`[x, y, z]`, quaternions `[x, y, z, w]`) from [`math`]
 
 ## Helpers
 
-These let your components behave like the built-in ones. From `@kvvasuu/klipp`:
+These let your pieces behave like the built-in ones. From `@kvvasuu/klipp`:
 
 | Helper | What it does |
 | ------ | ------------ |

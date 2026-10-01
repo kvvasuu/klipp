@@ -1,14 +1,15 @@
 {
   "name": "@kvvasuu/klipp",
   "version": "0.12.0",
-  "description": "Declarative virtual camera library for react-three-fiber, inspired by Unity Cinemachine.",
+  "description": "A camera toolkit for the web: a complete virtual camera system for any renderer, with React Three Fiber and three.js built on top. Inspired by Unity Cinemachine.",
   "keywords": [
-    "react-three-fiber",
-    "r3f",
-    "three.js",
     "camera",
     "virtual-camera",
     "cinemachine",
+    "three.js",
+    "react-three-fiber",
+    "r3f",
+    "ecs",
     "webgl"
   ],
   "license": "MIT",
