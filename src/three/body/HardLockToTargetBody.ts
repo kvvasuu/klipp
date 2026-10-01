@@ -29,7 +29,7 @@ export class HardLockToTargetBody implements HardLockToTargetParams {
   }
 
   update = (out: CameraState, dt: number, justActivated: boolean): void => {
-    if (!readTargetPose(this.pose, this.target, this.targetSlot, false)) return;
-    updateHardLockToTarget(out, this.state, this, this.pose.position, dt, justActivated);
+    const resolved = readTargetPose(this.pose, this.target, this.targetSlot, false);
+    updateHardLockToTarget(out, this.state, this, resolved ? this.pose.position : null, dt, justActivated);
   };
 }

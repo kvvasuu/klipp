@@ -4,12 +4,12 @@ import type { DampingConstant } from '../../core/damping/Damper.js';
 import {
   createRotationComposerState,
   primeRotationComposer,
+  retargetRotationComposer,
   rotationComposerNeedsExtent,
   updateRotationComposer,
   createRotationComposerParams,
   type RotationComposerParams,
 } from '../../core/aim/rotationComposer.js';
-import { createTargetExtent } from '../../core/TargetExtent.js';
 import { createTargetPose } from '../../core/TargetPose.js';
 import { readTargetExtent } from '../readTargetExtent.js';
 import { readTargetPose } from '../readTargetPose.js';
@@ -43,7 +43,6 @@ export class RotationComposerAim implements RotationComposerParams {
 
   readonly state = createRotationComposerState();
   private readonly pose = createTargetPose();
-  private readonly extent = createTargetExtent();
   private lastTarget: Target = undefined;
   private forceSizeRecalculation = false;
 
@@ -63,12 +62,12 @@ export class RotationComposerAim implements RotationComposerParams {
 
   update = (out: CameraState, dt: number, justActivated: boolean): void => {
     const resolved = readTargetPose(this.pose, this.target, this.targetSlot, true);
-    const retarget = resolved && this.target !== this.lastTarget;
     if (resolved) {
+      if (this.target !== this.lastTarget) retargetRotationComposer(this.state);
       this.lastTarget = this.target;
       if (rotationComposerNeedsExtent(this)) {
         readTargetExtent(
-          this.extent,
+          this.pose.extent,
           this.target,
           this.size,
           this.radius,
@@ -78,8 +77,6 @@ export class RotationComposerAim implements RotationComposerParams {
       }
       this.forceSizeRecalculation = false;
     }
-    const position = resolved ? this.pose.position : null;
-    const rotation = resolved && this.pose.hasRotation ? this.pose.rotation : null;
-    updateRotationComposer(out, this.state, this, position, rotation, this.extent, dt, justActivated, retarget);
+    updateRotationComposer(out, this.state, this, resolved ? this.pose : null, dt, justActivated);
   };
 }

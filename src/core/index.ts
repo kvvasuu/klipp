@@ -113,6 +113,7 @@ export {
 export {
   updatePositionComposer,
   primePositionComposer,
+  retargetPositionComposer,
   createPositionComposerState,
   createPositionComposerParams,
   type PositionComposerParams,
@@ -131,6 +132,7 @@ export { updatePanTilt, seedPanTilt, createPanTiltState, type PanTiltState } fro
 export {
   updateRotationComposer,
   primeRotationComposer,
+  retargetRotationComposer,
   createRotationComposerState,
   createRotationComposerParams,
   rotationComposerNeedsExtent,

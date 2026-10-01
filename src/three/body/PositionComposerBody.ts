@@ -5,10 +5,10 @@ import {
   createPositionComposerParams,
   createPositionComposerState,
   primePositionComposer,
+  retargetPositionComposer,
   updatePositionComposer,
   type PositionComposerParams,
 } from '../../core/body/positionComposer.js';
-import { createTargetExtent } from '../../core/TargetExtent.js';
 import { createTargetPose } from '../../core/TargetPose.js';
 import { readTargetExtent } from '../readTargetExtent.js';
 import { readTargetPose } from '../readTargetPose.js';
@@ -43,7 +43,6 @@ export class PositionComposerBody implements PositionComposerParams {
 
   readonly state = createPositionComposerState();
   private readonly pose = createTargetPose();
-  private readonly extent = createTargetExtent();
   private lastTarget: Target = undefined;
   private forceSizeRecalculation = false;
 
@@ -63,13 +62,19 @@ export class PositionComposerBody implements PositionComposerParams {
 
   update = (out: CameraState, dt: number, justActivated: boolean): void => {
     const resolved = readTargetPose(this.pose, this.target, this.targetSlot, false);
-    const retarget = resolved && this.target !== this.lastTarget;
     if (resolved) {
+      if (this.target !== this.lastTarget) retargetPositionComposer(this.state);
       this.lastTarget = this.target;
-      readTargetExtent(this.extent, this.target, this.size, this.radius, this.forceSizeRecalculation, this.targetSlot);
+      readTargetExtent(
+        this.pose.extent,
+        this.target,
+        this.size,
+        this.radius,
+        this.forceSizeRecalculation,
+        this.targetSlot,
+      );
       this.forceSizeRecalculation = false;
     }
-    const targetPosition = resolved ? this.pose.position : null;
-    updatePositionComposer(out, this.state, this, targetPosition, this.extent, dt, justActivated, retarget);
+    updatePositionComposer(out, this.state, this, resolved ? this.pose : null, dt, justActivated);
   };
 }

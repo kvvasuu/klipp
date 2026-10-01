@@ -16,6 +16,6 @@ export class HardLookAtAim {
   }
 
   update = (out: CameraState): void => {
-    if (readTargetPose(this.pose, this.target, this.targetSlot, false)) updateHardLookAt(out, this.pose.position);
+    updateHardLookAt(out, readTargetPose(this.pose, this.target, this.targetSlot, false) ? this.pose.position : null);
   };
 }
