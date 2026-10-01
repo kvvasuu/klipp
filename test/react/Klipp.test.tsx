@@ -44,7 +44,7 @@ describe('Klipp / useKlipp', () => {
   it('writes position and fov/near/far onto the r3f camera', async () => {
     let camera: PerspectiveCamera | undefined;
     function LensWriter() {
-      const { controller } = useVirtualCamera();
+      const controller = useVirtualCamera();
       useEffect(
         () =>
           controller.registerAim((out) => {
@@ -75,7 +75,7 @@ describe('Klipp / useKlipp', () => {
   it('sets viewOffset in canvas pixels (1280x800), skips it at zero and clears it when it returns to zero', async () => {
     let camera: PerspectiveCamera | undefined;
     function ViewOffsetWriter({ x, y }: { x: number; y: number }) {
-      const { controller } = useVirtualCamera();
+      const controller = useVirtualCamera();
       useEffect(
         () =>
           controller.registerAim((out) => {
@@ -374,7 +374,7 @@ it('passes defaultBlend and customBlends changes after mount to the core', async
 });
 
 function Reader({ onRead }: { onRead: (core: KlippCore) => void }) {
-  onRead(useKlipp().core);
+  onRead(useKlipp());
   return null;
 }
 

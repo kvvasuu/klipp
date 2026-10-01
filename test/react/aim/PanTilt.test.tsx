@@ -15,7 +15,7 @@ import { mountInCamera } from '../wiring';
 
 function SceneReader({ onRead }: { onRead: (core: KlippCore, element: HTMLElement) => void }) {
   const element = useThree((state) => state.gl.domElement);
-  onRead(useKlipp().core, element);
+  onRead(useKlipp(), element);
   return null;
 }
 

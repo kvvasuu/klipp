@@ -25,6 +25,13 @@ export class PanTiltAim {
     seedPanTilt(this.state, this.readTargetRotation(), rotation, referenceUp);
   };
 
+  /** Start facing `rotation`, with both axes settled there instead of easing in. */
+  primeFrom = (rotation: Quat, referenceUp: Vec3): void => {
+    this.setFromRotation(rotation, referenceUp);
+    this.pan.reset();
+    this.tilt.reset();
+  };
+
   private readTargetRotation(): Quat | null {
     return readTargetRotation(this.targetRotation, this.target, this.targetSlot) ? this.targetRotation : null;
   }

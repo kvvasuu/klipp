@@ -24,7 +24,7 @@ function warnDoubleRegistration(slot: 'Body' | 'Aim', name: string): void {
 
 /** Combines Body, Aim, Extension and Noise writers into a single camera update. */
 export class VirtualCameraController extends EventDispatcher<CameraTransitionEventMap> implements VirtualCameraSlots {
-  name: string;
+  private _name: string;
 
   private bodyWriter: CameraStateWriter | null = null;
   private aimWriter: CameraStateWriter | null = null;
@@ -33,7 +33,15 @@ export class VirtualCameraController extends EventDispatcher<CameraTransitionEve
 
   constructor(name: string) {
     super();
-    this.name = name;
+    this._name = name;
+  }
+
+  get name(): string {
+    return this._name;
+  }
+
+  set name(name: string) {
+    this._name = name;
   }
 
   registerBody = (writer: CameraStateWriter): (() => void) => {

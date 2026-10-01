@@ -19,13 +19,13 @@ export type ImpulseListenerProps = Omit<ImpulseListenerOptions, 'shake'> & {
 
 /** Adds impulse-driven camera shake and kick. */
 export function ImpulseListener({ shake, ref, ...settings }: ImpulseListenerProps) {
-  const { controller } = useVirtualCamera();
+  const camera = useVirtualCamera();
   const params = createImpulseListenerParams(settings);
   const [listener] = useState(() => new ImpulseListenerNoise(params));
   Object.assign(listener, params);
 
   useImperativeHandle(ref, () => listener, [listener]);
-  useEffect(() => controller.registerNoise(listener.update), [controller, listener]);
+  useEffect(() => camera.addNoise(listener), [camera, listener]);
 
   return shake ? <ImpulseListenerShake listener={listener} {...shake} /> : null;
 }

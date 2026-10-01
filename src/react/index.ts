@@ -1,17 +1,12 @@
 export { Klipp, KlippEvents, type KlippProps, type KlippMode, type KlippEventsProps } from './Klipp.js';
-export { useKlipp, type FrameUpdate, type KlippContextValue } from './KlippContext.js';
+export { useKlipp, type FrameUpdate } from './KlippContext.js';
 export {
   VirtualCamera,
   VirtualCameraEvents,
   type VirtualCameraProps,
   type VirtualCameraEventsProps,
 } from './VirtualCamera.js';
-export {
-  useVirtualCamera,
-  useIsActiveVirtualCamera,
-  useIsLiveVirtualCamera,
-  type VirtualCameraContextValue,
-} from './VirtualCameraContext.js';
+export { useVirtualCamera, useIsActiveVirtualCamera, useIsLiveVirtualCamera } from './VirtualCameraContext.js';
 export { CameraFrustumHelper, type CameraFrustumHelperProps } from './CameraFrustumHelper.js';
 
 export { InputController, type InputControllerProps, type InputSourceConfig } from './input/InputController.js';

@@ -13,13 +13,13 @@ import {
   useIsLiveVirtualCamera,
   useVirtualCamera,
 } from '../../src/react/VirtualCameraContext';
-import type { VirtualCameraController } from '../../src/core/VirtualCameraController';
+import type { VirtualCamera as VirtualCameraRig } from '../../src/three/VirtualCamera';
 import { BlendCurves } from '../../src/core/blend/BlendCurves';
 import { BlendHints } from '../../src/core/blend/BlendHints';
 import { toQuaternion } from '../tuples';
 
 function CoreReader({ onRead }: { onRead: (core: KlippCore) => void }) {
-  onRead(useKlipp().core);
+  onRead(useKlipp());
   return null;
 }
 
@@ -163,10 +163,10 @@ describe('VirtualCamera — Body/Aim/Noise wiring', () => {
       state = camera.state;
       useEffect(
         () =>
-          camera.controller.registerBody((out) => {
+          camera.registerBody((out) => {
             out.position[0] = 42;
           }),
-        [camera.controller],
+        [camera],
       );
       return null;
     }
@@ -262,7 +262,7 @@ describe('VirtualCamera — active prop', () => {
   it("an inactive camera's Body/Aim/Noise do not run — no wasted work for a non-candidate", async () => {
     let runs = 0;
     function CountingWriter() {
-      const { controller } = useVirtualCamera();
+      const controller = useVirtualCamera();
       useEffect(
         () =>
           controller.registerBody(() => {
@@ -294,7 +294,7 @@ describe('VirtualCamera — active prop', () => {
     const seen: boolean[] = [];
     const record = (justActivated: boolean) => void seen.push(justActivated);
     function Writer({ onCall }: { onCall: (justActivated: boolean) => void }) {
-      const { controller } = useVirtualCamera();
+      const controller = useVirtualCamera();
       useEffect(
         () => controller.registerBody((_out, _dt, justActivated) => onCall(justActivated)),
         [controller, onCall],
@@ -432,8 +432,8 @@ describe('VirtualCameraEvents', () => {
 });
 
 describe('VirtualCamera ref', () => {
-  it('is the camera controller, whose events work without <VirtualCamera.Events>', async () => {
-    const ref = createRef<VirtualCameraController>();
+  it('is the three.js VirtualCamera, whose events work without <VirtualCamera.Events>', async () => {
+    const ref = createRef<VirtualCameraRig>();
     const onDeactivated = vi.fn();
     const scene = (bPriority: number) => (
       <Klipp defaultBlend={{ curve: BlendCurves.linear, time: 0 }}>

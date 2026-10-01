@@ -45,7 +45,7 @@ A cut happens for the first camera ever shown, and for any blend with `time: 0`.
 A `<VirtualCamera>`'s `ref` is an event target with the same filtering:
 
 ```tsx
-const camera = useRef<VirtualCameraController>(null);
+const camera = useRef<VirtualCamera>(null); // the class from @kvvasuu/klipp/three
 
 useEffect(() => {
   const controller = camera.current;

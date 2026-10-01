@@ -1,3 +1,10 @@
+export { Klipp, type KlippMode, type KlippOptions, type FrameUpdate } from './Klipp.js';
+export {
+  VirtualCamera,
+  type VirtualCameraOptions,
+  type InitialCameraState,
+  type CameraPiece,
+} from './VirtualCamera.js';
 export { copyCameraStateFromCamera, applyCameraState, writeCameraTransform, writeCameraLens } from './camera.js';
 export { readTargetPose, readTargetRotation } from './readTargetPose.js';
 export { readTargetExtent } from './readTargetExtent.js';

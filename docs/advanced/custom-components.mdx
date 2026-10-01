@@ -4,13 +4,13 @@ description: Write your own Body, Aim, Extension or Noise.
 nav: 91
 ---
 
-You can add your own logic to a `<VirtualCamera>`. Get its `controller` with [`useVirtualCamera()`](/api/hooks#usevirtualcamera) and register a function that runs every frame:
+You can add your own logic to a `<VirtualCamera>`. Get the camera with [`useVirtualCamera()`](/api/hooks#usevirtualcamera) and register a function that runs every frame:
 
 ```ts
-controller.registerBody(update);      // replaces any other Body
-controller.registerAim(update);       // replaces any other Aim
-controller.registerExtension(update); // stacks
-controller.registerNoise(update);     // stacks
+camera.registerBody(update);      // replaces any other Body
+camera.registerAim(update);       // replaces any other Aim
+camera.registerExtension(update); // stacks
+camera.registerNoise(update);     // stacks
 ```
 
 Each returns an unregister function, so it fits right into `useEffect`.
@@ -41,7 +41,7 @@ const euler: Euler = [0, 0, 0, 'xyz'];
 const rotation: Quat = [0, 0, 0, 1];
 
 export function PointerDrift({ strength = 0.1, damping = 0.4 }) {
-  const { controller } = useVirtualCamera();
+  const camera = useVirtualCamera();
   const pointer = useThree((state) => state.pointer);
   const [yawDamper] = useState(() => new Damper());
   const [pitchDamper] = useState(() => new Damper());
@@ -50,7 +50,7 @@ export function PointerDrift({ strength = 0.1, damping = 0.4 }) {
     let yaw = 0;
     let pitch = 0;
 
-    return controller.registerExtension((out, dt, justActivated) => {
+    return camera.registerExtension((out, dt, justActivated) => {
       if (justActivated) {
         yawDamper.reset();
         pitchDamper.reset();
@@ -66,7 +66,7 @@ export function PointerDrift({ strength = 0.1, damping = 0.4 }) {
       quat.multiply(out.quaternion, out.quaternion, quat.fromEuler(rotation, euler));
       return yaw !== targetYaw || pitch !== targetPitch;
     });
-  }, [controller, pointer, strength, damping, yawDamper, pitchDamper]);
+  }, [camera, pointer, strength, damping, yawDamper, pitchDamper]);
 
   return null;
 }

@@ -96,7 +96,7 @@ export function InputController(props: InputControllerProps) {
     ref,
   } = props;
   const contextOwner = use(InputAxisOwnerContext);
-  const { registerUpdate } = useKlipp();
+  const klipp = useKlipp();
   const isActive = useIsActiveVirtualCamera();
   const isLive = useIsLiveVirtualCamera();
   const shouldConnect = isActive && (waitForBlend ? isLive : true);
@@ -115,7 +115,7 @@ export function InputController(props: InputControllerProps) {
     if (owner) controller.config = buildConfig(owner, props);
   });
 
-  useEffect(() => registerUpdate(() => controller.update()), [registerUpdate, controller]);
+  useEffect(() => klipp.registerUpdate(() => controller.update()), [klipp, controller]);
 
   useEffect(() => {
     if (!shouldConnect) return;

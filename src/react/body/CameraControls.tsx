@@ -5,7 +5,6 @@ import { useEffect, useEffectEvent, useImperativeHandle, useState, type Ref } fr
 import { EventDispatcher as ThreeEventDispatcher, Vector3 } from 'three';
 import { resolveVector3 } from '../../three/resolve/resolveVector3.js';
 import type { Target } from '../../three/resolve/Target.js';
-import { useTargetSlot } from '../useTargetSlot.js';
 import { useIsActiveVirtualCamera, useIsLiveVirtualCamera, useVirtualCamera } from '../VirtualCameraContext.js';
 import { CameraControlsBody } from '../../three/body/CameraControlsBody.js';
 
@@ -63,7 +62,7 @@ export function CameraControls({
   onSleep,
   ...controlsProps
 }: CameraControlsProps) {
-  const { controller } = useVirtualCamera();
+  const camera = useVirtualCamera();
   const isActive = useIsActiveVirtualCamera();
   const isLive = useIsLiveVirtualCamera();
   const shouldConnect = isActive && (waitForBlend ? isLive : true);
@@ -83,12 +82,11 @@ export function CameraControls({
       }),
   );
   body.target = target;
-  body.targetSlot = useTargetSlot(target);
   body.aspect = aspect;
   body.enableTransition = enableTransition;
 
   useImperativeHandle(ref, () => body, [body]);
-  useEffect(() => controller.registerBody(body.update), [controller, body]);
+  useEffect(() => camera.setBody(body), [camera, body]);
   useEffect(() => {
     // gated on the same condition as input listening below - other tools reading state.controls
     // shouldn't see an instance that isn't actually accepting input yet

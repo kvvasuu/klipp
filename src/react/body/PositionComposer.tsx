@@ -4,7 +4,6 @@ import { createPositionComposerParams } from '../../core/body/positionComposer.j
 import { composerDebugZones } from '../../core/debug/debugZones.js';
 import { DebugZoneOverlay } from '../DebugZoneOverlay.js';
 import type { Target } from '../../three/resolve/Target.js';
-import { useTargetSlot } from '../useTargetSlot.js';
 import { useVirtualCamera } from '../VirtualCameraContext.js';
 import { PositionComposerBody, type PositionComposerOptions } from '../../three/body/PositionComposerBody.js';
 
@@ -18,22 +17,17 @@ export type PositionComposerProps = Omit<PositionComposerOptions, 'aspect'> & {
 
 /** Positions the camera around a target while maintaining screen composition. */
 export function PositionComposer({ target, debug = false, ref, ...settings }: PositionComposerProps) {
-  const { controller, state: cameraState, initialState } = useVirtualCamera();
+  const camera = useVirtualCamera();
   const aspect = useThree((state) => state.viewport.aspect);
   const params = createPositionComposerParams({ ...settings, aspect });
-  const [body] = useState(() => {
-    const instance = new PositionComposerBody(target, params);
-    if (initialState?.position) instance.primeFrom(cameraState.position);
-    return instance;
-  });
+  const [body] = useState(() => new PositionComposerBody(target, params));
   body.target = target;
-  body.targetSlot = useTargetSlot(target);
   Object.assign(body, params);
   body.radius = settings.radius;
   body.size = settings.size;
 
   useImperativeHandle(ref, () => body, [body]);
-  useEffect(() => controller.registerBody(body.update), [controller, body]);
+  useEffect(() => camera.setBody(body), [camera, body]);
 
   if (!debug) return null;
   return (

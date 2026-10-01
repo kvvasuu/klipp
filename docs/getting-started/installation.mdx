@@ -31,26 +31,20 @@ import { BlendCurves, BindingModes } from '@kvvasuu/klipp';
 
 ## Vanilla three.js
 
-Use the core with the three.js layer. The React components are thin wrappers around these classes:
+`Klipp` from the three.js layer is what `<Klipp>` uses under the hood. Each virtual camera takes a Body and an Aim, and `update` drives the real camera:
 
 ```ts
-import { KlippCore, VirtualCameraController, createCameraState } from '@kvvasuu/klipp';
-import { FollowBody, HardLookAtAim, applyCameraState } from '@kvvasuu/klipp/three';
+import { Klipp, FollowBody, HardLookAtAim } from '@kvvasuu/klipp/three';
 
-const core = new KlippCore();
+const klipp = new Klipp(camera);
+klipp.setSize(width, height);
 
-const state = createCameraState();
-const follow = new VirtualCameraController('follow');
-follow.registerBody(new FollowBody(player, [0, 3, 8], 0.5).update);
-follow.registerAim(new HardLookAtAim(player).update);
-core.registerCamera({ id: 'follow', priority: 10, state });
-
-let justActivated = true;
+const follow = klipp.addCamera('follow', { priority: 10 });
+follow.body = new FollowBody(player, { offset: [0, 3, 8], damping: 0.5 });
+follow.aim = new HardLookAtAim(player);
 
 function onFrame(dt) {
-  follow.update(state, dt, justActivated);
-  justActivated = false;
-  applyCameraState(camera, core.tick(dt), width, height);
+  klipp.update(dt);
 }
 ```
 
