@@ -92,6 +92,11 @@ export class KlippCore extends EventDispatcher<CameraTransitionEventMap> {
     return () => this.activeIdListeners.delete(listener);
   };
 
+  /** The last shot `update` wrote. Read it after `update` to put it on your camera. */
+  get shot(): CameraState {
+    return this.previousResult;
+  }
+
   /** The active camera's raw state. */
   get activeState(): CameraState | null {
     return this.state.activeId !== null ? this.state.cameras.get(this.state.activeId)!.state : null;

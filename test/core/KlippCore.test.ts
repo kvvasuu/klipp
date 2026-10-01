@@ -644,6 +644,15 @@ describe('KlippCore — update(dt): the frame loop', () => {
     expect(klipp.writes.map((w) => w.position[0])).toEqual([-10, 0, 10]);
   });
 
+  it('shot holds the last written shot', () => {
+    const { klipp, right } = twoShots();
+    klipp.update(0.1);
+    right.priority = 20;
+    klipp.update(0.5);
+    expect(klipp.shot).toEqual(klipp.writes.at(-1));
+    expect(klipp.shot.position[0]).toBe(0);
+  });
+
   it('returns true only while something moves or the output changed', () => {
     const { klipp, right } = twoShots();
     expect(klipp.update(0.1)).toBe(true);
