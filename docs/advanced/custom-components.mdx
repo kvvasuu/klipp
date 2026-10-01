@@ -4,16 +4,16 @@ description: Write your own Body, Aim, Extension or Noise.
 nav: 91
 ---
 
-You can add your own logic to a `<VirtualCamera>`. Get the camera with [`useVirtualCamera()`](/api/hooks#usevirtualcamera) and register a function that runs every frame:
+You can add your own logic to a `<VirtualCamera>`. A piece is any object with an `update` function that runs every frame. Get the camera with [`useVirtualCamera()`](/api/hooks#usevirtualcamera) and add it:
 
 ```ts
-camera.registerBody(update);      // replaces any other Body
-camera.registerAim(update);       // replaces any other Aim
-camera.registerExtension(update); // stacks
-camera.registerNoise(update);     // stacks
+camera.setBody({ update });      // replaces any other Body
+camera.setAim({ update });       // replaces any other Aim
+camera.addExtension({ update }); // stacks
+camera.addNoise({ update });     // stacks
 ```
 
-Each returns an unregister function, so it fits right into `useEffect`.
+Each returns a function that removes the piece, so it fits right into `useEffect`.
 
 ## The update function
 
@@ -50,7 +50,7 @@ export function PointerDrift({ strength = 0.1, damping = 0.4 }) {
     let yaw = 0;
     let pitch = 0;
 
-    return camera.registerExtension((out, dt, justActivated) => {
+    return camera.addExtension({ update: (out, dt, justActivated) => {
       if (justActivated) {
         yawDamper.reset();
         pitchDamper.reset();
@@ -65,7 +65,7 @@ export function PointerDrift({ strength = 0.1, damping = 0.4 }) {
       euler[1] = yaw;
       quat.multiply(out.quaternion, out.quaternion, quat.fromEuler(rotation, euler));
       return yaw !== targetYaw || pitch !== targetPitch;
-    });
+    } });
   }, [camera, pointer, strength, damping, yawDamper, pitchDamper]);
 
   return null;

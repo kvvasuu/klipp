@@ -476,8 +476,8 @@ group('VirtualCameraCore.update @controller', () => {
   bench('minimal: HardLockToTarget + HardLookAt', function* () {
     const { object, step } = makeMovingTarget();
     const controller = new VirtualCameraCore('minimal');
-    controller.registerBody(new HardLockToTargetBody(object, { damping: 0.5 }).update);
-    controller.registerAim(new HardLookAtAim(object).update);
+    controller.setBody(new HardLockToTargetBody(object, { damping: 0.5 }));
+    controller.setAim(new HardLookAtAim(object));
     const out = createCameraState();
     yield () => {
       step();
@@ -490,17 +490,25 @@ group('VirtualCameraCore.update @controller', () => {
     const { object, step } = makeMovingTarget();
     const controller = new VirtualCameraCore('full');
     const targetGroup = new TargetGroup([{ target: object, radius: 1.5 }]);
-    controller.registerBody(new FollowBody(object, { offset: [0, 3, 12], damping: 0.5 }).update);
-    controller.registerAim(
-      new RotationComposerAim(object, { screenPosition: [0, 0], aspect: 16 / 9, deadZone: [0.15, 0.15], damping: 0.5 })
-        .update,
-    );
-    controller.registerExtension(
-      new GroupFramingExtension(targetGroup, { padding: 40, viewportWidth: 1920, viewportHeight: 1080, damping: 0.5 })
-        .update,
-    );
-    controller.registerNoise(
-      new BasicMultiChannelPerlinNoise({
+    controller.setBody(new FollowBody(object, { offset: [0, 3, 12], damping: 0.5 }));
+    controller.setAim({
+      update: new RotationComposerAim(object, {
+        screenPosition: [0, 0],
+        aspect: 16 / 9,
+        deadZone: [0.15, 0.15],
+        damping: 0.5,
+      }).update,
+    });
+    controller.addExtension({
+      update: new GroupFramingExtension(targetGroup, {
+        padding: 40,
+        viewportWidth: 1920,
+        viewportHeight: 1080,
+        damping: 0.5,
+      }).update,
+    });
+    controller.addNoise({
+      update: new BasicMultiChannelPerlinNoise({
         positionAmplitude: [0.1, 0.1, 0.1],
         positionFrequency: [1, 1, 1],
         rotationAmplitude: [2, 2, 2],
@@ -510,7 +518,7 @@ group('VirtualCameraCore.update @controller', () => {
         seed: 7,
         amplitudeDamping: 0.5,
       }).update,
-    );
+    });
     const out = createCameraState();
     yield () => {
       step();

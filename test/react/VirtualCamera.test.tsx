@@ -161,8 +161,10 @@ describe('VirtualCamera — Body/Aim/Noise wiring', () => {
       state = camera.state;
       useEffect(
         () =>
-          camera.registerBody((out) => {
-            out.position[0] = 42;
+          camera.setBody({
+            update: (out) => {
+              out.position[0] = 42;
+            },
           }),
         [camera],
       );
@@ -263,8 +265,10 @@ describe('VirtualCamera — active prop', () => {
       const controller = useVirtualCamera();
       useEffect(
         () =>
-          controller.registerBody(() => {
-            runs += 1;
+          controller.setBody({
+            update: () => {
+              runs += 1;
+            },
           }),
         [controller],
       );
@@ -294,7 +298,7 @@ describe('VirtualCamera — active prop', () => {
     function Writer({ onCall }: { onCall: (justActivated: boolean) => void }) {
       const controller = useVirtualCamera();
       useEffect(
-        () => controller.registerBody((_out, _dt, justActivated) => onCall(justActivated)),
+        () => controller.setBody({ update: (_out, _dt, justActivated) => onCall(justActivated) }),
         [controller, onCall],
       );
       return null;

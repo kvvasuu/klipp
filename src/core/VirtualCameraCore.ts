@@ -5,7 +5,7 @@ import { EventDispatcher } from './EventDispatcher.js';
 import { attachTo, checkName, prepare, register, run, setHints, setPriority } from './internal.js';
 import type { CameraTransitionEventMap, KlippCore } from './KlippCore.js';
 
-/** A writer mutates `out` or adds to it. Return `true` when more work remains for a later frame. */
+/** Writes `out` for one frame. Return `true` when more work remains for a later frame. */
 export type CameraStateWriter = (out: CameraState, dt: number, justActivated: boolean) => boolean | void;
 
 /** A Body, Aim, Extension or Noise: anything with an `update` that writes the camera state. */
@@ -38,10 +38,11 @@ const noop = (): void => {};
 export class VirtualCameraCore extends EventDispatcher<CameraTransitionEventMap> {
   /** This camera's own state, written by its pieces every frame. */
   readonly state: CameraState;
-  readonly initialState: Partial<CameraState> | undefined;
 
+  /** Every piece, in no particular order. */
   protected readonly pieces = new Set<CameraPiece>();
 
+  private readonly initialState: Partial<CameraState> | undefined;
   private _name: string;
   private _priority: number;
   private _hints: BlendHints;
@@ -56,10 +57,8 @@ export class VirtualCameraCore extends EventDispatcher<CameraTransitionEventMap>
   private _aim: CameraPiece | null = null;
   private removeBody: () => void = noop;
   private removeAim: () => void = noop;
-  private bodyWriter: CameraStateWriter | null = null;
-  private aimWriter: CameraStateWriter | null = null;
-  private readonly extensionWriters = new Set<CameraStateWriter>();
-  private readonly noiseWriters = new Set<CameraStateWriter>();
+  private readonly extensions = new Set<CameraPiece>();
+  private readonly noises = new Set<CameraPiece>();
 
   constructor(name: string, options: VirtualCameraCoreOptions = {}) {
     super();
@@ -142,7 +141,10 @@ export class VirtualCameraCore extends EventDispatcher<CameraTransitionEventMap>
 
   /** Add the Body. A second one replaces it with a warning. Returns a function that removes it, unless replaced. */
   setBody(body: CameraPiece | null): () => void {
-    if (this._body) this.removePiece(this._body);
+    if (this._body) {
+      if (body) warnDoubleRegistration('Body', this._name);
+      this.removePiece(this._body);
+    }
     this._body = body;
     if (!body) return (this.removeBody = noop);
     this.pieces.add(body);
@@ -150,10 +152,8 @@ export class VirtualCameraCore extends EventDispatcher<CameraTransitionEventMap>
     if (!this.hasRun && this.initialState?.position && 'primeFrom' in body) {
       (body as PositionPrimed).primeFrom(this.state.position);
     }
-    const unregister = this.registerBody(body.update);
     return (this.removeBody = () => {
       if (this._body !== body) return;
-      unregister();
       this.removePiece(body);
       this._body = null;
       this.removeBody = noop;
@@ -162,17 +162,18 @@ export class VirtualCameraCore extends EventDispatcher<CameraTransitionEventMap>
 
   /** Add the Aim. Like `setBody`, a second one replaces it with a warning. */
   setAim(aim: CameraPiece | null): () => void {
-    if (this._aim) this.removePiece(this._aim);
+    if (this._aim) {
+      if (aim) warnDoubleRegistration('Aim', this._name);
+      this.removePiece(this._aim);
+    }
     this._aim = aim;
     if (!aim) return (this.removeAim = noop);
     this.pieces.add(aim);
     if (!this.hasRun && this.initialState?.quaternion && 'primeFrom' in aim) {
       (aim as RotationPrimed).primeFrom(this.state.quaternion, this.state.referenceUp);
     }
-    const unregister = this.registerAim(aim.update);
     return (this.removeAim = () => {
       if (this._aim !== aim) return;
-      unregister();
       this.removePiece(aim);
       this._aim = null;
       this.removeAim = noop;
@@ -182,52 +183,16 @@ export class VirtualCameraCore extends EventDispatcher<CameraTransitionEventMap>
   /** Add an Extension. They run in the order added. Returns a function that removes it. */
   addExtension(extension: CameraPiece): () => void {
     this.pieces.add(extension);
-    const unregister = this.registerExtension(extension.update);
-    return () => {
-      unregister();
-      this.removePiece(extension);
-    };
+    this.extensions.add(extension);
+    return () => this.removePiece(extension);
   }
 
   /** Add a Noise. They run in the order added, after every Extension. Returns a function that removes it. */
   addNoise(noise: CameraPiece): () => void {
     this.pieces.add(noise);
-    const unregister = this.registerNoise(noise.update);
-    return () => {
-      unregister();
-      this.removePiece(noise);
-    };
+    this.noises.add(noise);
+    return () => this.removePiece(noise);
   }
-
-  /** Set the Body as a bare writer function, for custom pieces. Same rules as `setBody`. */
-  registerBody = (writer: CameraStateWriter): (() => void) => {
-    if (this.bodyWriter !== null) warnDoubleRegistration('Body', this._name);
-    this.bodyWriter = writer;
-    return () => {
-      if (this.bodyWriter === writer) this.bodyWriter = null;
-    };
-  };
-
-  /** Set the Aim as a bare writer function, for custom pieces. Same rules as `setAim`. */
-  registerAim = (writer: CameraStateWriter): (() => void) => {
-    if (this.aimWriter !== null) warnDoubleRegistration('Aim', this._name);
-    this.aimWriter = writer;
-    return () => {
-      if (this.aimWriter === writer) this.aimWriter = null;
-    };
-  };
-
-  /** Add an Extension as a bare writer function, for custom pieces. */
-  registerExtension = (writer: CameraStateWriter): (() => void) => {
-    this.extensionWriters.add(writer);
-    return () => this.extensionWriters.delete(writer);
-  };
-
-  /** Add a Noise as a bare writer function, for custom pieces. */
-  registerNoise = (writer: CameraStateWriter): (() => void) => {
-    this.noiseWriters.add(writer);
-    return () => this.noiseWriters.delete(writer);
-  };
 
   /** Join `klipp`'s arbitration, or leave it with `null`. Only `KlippCore.add` and `remove` call this. */
   [attachTo](klipp: KlippCore | null): void {
@@ -269,6 +234,8 @@ export class VirtualCameraCore extends EventDispatcher<CameraTransitionEventMap>
   /** Called when a piece is removed, for layers that hold per-piece resources. */
   protected removePiece(piece: CameraPiece): void {
     this.pieces.delete(piece);
+    this.extensions.delete(piece);
+    this.noises.delete(piece);
   }
 
   private registration() {
@@ -323,15 +290,15 @@ export class VirtualCameraCore extends EventDispatcher<CameraTransitionEventMap>
 
   /** Run every piece against `out` once, in order. Each frame runs it with the camera's own state. */
   update = (out: CameraState, dt: number, justActivated: boolean): boolean => {
-    // Keep `=== true` semantics: some writers return a real boolean even when typed as void.
+    // Keep `=== true` semantics: some pieces return a real boolean even when typed as void.
     let stillInFlight = false;
-    if (this.bodyWriter?.(out, dt, justActivated) === true) stillInFlight = true;
-    if (this.aimWriter?.(out, dt, justActivated) === true) stillInFlight = true;
-    for (const writer of this.extensionWriters) {
-      if (writer(out, dt, justActivated) === true) stillInFlight = true;
+    if (this._body?.update(out, dt, justActivated) === true) stillInFlight = true;
+    if (this._aim?.update(out, dt, justActivated) === true) stillInFlight = true;
+    for (const extension of this.extensions) {
+      if (extension.update(out, dt, justActivated) === true) stillInFlight = true;
     }
-    for (const writer of this.noiseWriters) {
-      if (writer(out, dt, justActivated) === true) stillInFlight = true;
+    for (const noise of this.noises) {
+      if (noise.update(out, dt, justActivated) === true) stillInFlight = true;
     }
     return stillInFlight;
   };

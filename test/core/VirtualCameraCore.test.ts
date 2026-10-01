@@ -1,10 +1,10 @@
 import { quat, vec3 } from 'math';
 import { describe, expect, it, vi } from 'vitest';
-import { createCameraState } from '../../src/core/CameraState';
+import { createCameraState, type CameraState } from '../../src/core/CameraState';
 import { BlendCurves } from '../../src/core/blend/BlendCurves';
 import { BlendHints } from '../../src/core/blend/BlendHints';
 import { KlippCore } from '../../src/core/KlippCore';
-import { VirtualCameraCore, type CameraPiece } from '../../src/core/VirtualCameraCore';
+import { VirtualCameraCore, type CameraPiece, type CameraStateWriter } from '../../src/core/VirtualCameraCore';
 import { register } from '../../src/core/internal';
 
 describe('VirtualCameraCore', () => {
@@ -13,112 +13,67 @@ describe('VirtualCameraCore', () => {
     const out = createCameraState();
     controller.update(out, 0.1, false); // nothing registered yet
 
-    controller.registerBody((state, dt) => {
-      state.fov = dt * 20;
+    controller.setBody({
+      update: (state, dt) => {
+        state.fov = dt * 20;
+      },
     });
-    controller.registerAim((state) => {
-      state.fov *= 2;
+    controller.setAim({
+      update: (state) => {
+        state.fov *= 2;
+      },
     });
-    controller.registerExtension((state) => {
-      state.fov += 100;
+    controller.addExtension({
+      update: (state) => {
+        state.fov += 100;
+      },
     });
-    controller.registerNoise((state) => {
-      state.fov += 1;
+    controller.addNoise({
+      update: (state) => {
+        state.fov += 1;
+      },
     });
     controller.update(out, 0.5, false);
 
     expect(out.fov).toBe(121); // ((10 * 2) + 100) + 1
   });
 
-  it('stacks Extensions and Noise, and each unregister stops its writer', () => {
-    const controller = new VirtualCameraCore('a');
-    const out = createCameraState();
-    const stops = [
-      controller.registerBody((state) => {
-        state.position[0] += 1;
-      }),
-      controller.registerExtension((state) => {
-        state.position[0] += 10;
-      }),
-      controller.registerExtension((state) => {
-        state.position[0] += 100;
-      }),
-      controller.registerNoise((state) => {
-        state.position[0] += 1000;
-      }),
-      controller.registerNoise((state) => {
-        state.position[0] += 10000;
-      }),
-    ];
-
-    controller.update(out, 0.1, false);
-    expect(out.position[0]).toBe(11111);
-
-    for (const stop of stops) stop();
-    controller.update(out, 0.1, false);
-    expect(out.position[0]).toBe(11111);
+  it('only a literal `true` counts as still moving, not a truthy value a JavaScript piece leaks', () => {
+    const camera = new VirtualCameraCore('a');
+    // An expression-bodied arrow returns the assigned number.
+    const leaky = (out: CameraState, dt: number) => (out.position[0] = dt);
+    camera.setBody({ update: leaky as unknown as CameraStateWriter });
+    expect(camera.update(createCameraState(), 0.1, false)).toBe(false);
   });
 
-  it('unregistering a STALE writer (already replaced by a newer one) does not remove the new one', () => {
-    const controller = new VirtualCameraCore('a');
-    const unregisterFirst = controller.registerBody((out) => {
-      out.position[0] = 1;
-    });
-    controller.registerBody((out) => {
-      out.position[0] = 2;
-    });
-
-    unregisterFirst(); // stale — the second registration already replaced it
-
-    const out = createCameraState();
-    controller.update(out, 0.1, false);
-    expect(out.position[0]).toBe(2);
-  });
-
-  it(
-    'a writer that leaks a non-boolean truthy return (e.g. an expression-bodied assignment arrow like ' +
-      '`(out) => (out.position.x = dt)`) is NOT read as "still active" — only a literal `true` counts',
-    () => {
-      const controller = new VirtualCameraCore('a');
-      // deliberately the exact accidental shape this guards against: no braces, so the arrow's value IS
-      // the assignment's result (a number), even though its declared type is `void`
-      controller.registerBody((out, dt) => {
-        out.position[0] = dt;
-      });
-
-      const out = createCameraState();
-      expect(controller.update(out, 0.1, false)).toBe(false);
-    },
-  );
-
-  it('true if the Body, the Aim, or ANY stacked Extension/Noise writer reports still being active', () => {
+  it('reports still moving when the Body, the Aim, or any Extension or Noise does', () => {
     const bodyActive = new VirtualCameraCore('body');
-    bodyActive.registerBody(() => true);
+    bodyActive.setBody({ update: () => true });
     expect(bodyActive.update(createCameraState(), 0.1, false)).toBe(true);
 
     const aimActive = new VirtualCameraCore('aim');
-    aimActive.registerAim(() => true);
+    aimActive.setAim({ update: () => true });
     expect(aimActive.update(createCameraState(), 0.1, false)).toBe(true);
 
     const extensionActive = new VirtualCameraCore('extension');
-    extensionActive.registerExtension(() => false);
-    extensionActive.registerExtension(() => true); // second one active — must not be short-circuited away
+    extensionActive.addExtension({ update: () => false });
+    extensionActive.addExtension({ update: () => true }); // second one active — must not be short-circuited away
     expect(extensionActive.update(createCameraState(), 0.1, false)).toBe(true);
 
     const noiseActive = new VirtualCameraCore('noise');
-    noiseActive.registerNoise(() => false);
-    noiseActive.registerNoise(() => true); // second one reports active — must not be short-circuited away
+    noiseActive.addNoise({ update: () => false });
+    noiseActive.addNoise({ update: () => true }); // second one reports active — must not be short-circuited away
     expect(noiseActive.update(createCameraState(), 0.1, false)).toBe(true);
   });
 
   describe('justActivated', () => {
-    it('is forwarded unchanged to Body, Aim, every Extension, and every Noise writer', () => {
+    it('is forwarded unchanged to every piece', () => {
       const controller = new VirtualCameraCore('a');
       const seen: boolean[] = [];
-      controller.registerBody((_out, _dt, justActivated) => void seen.push(justActivated));
-      controller.registerAim((_out, _dt, justActivated) => void seen.push(justActivated));
-      controller.registerExtension((_out, _dt, justActivated) => void seen.push(justActivated));
-      controller.registerNoise((_out, _dt, justActivated) => void seen.push(justActivated));
+      controller.setBody({ update: (_out, _dt, justActivated) => void seen.push(justActivated) });
+      controller.setAim({ update: (_out, _dt, justActivated) => void seen.push(justActivated) });
+      controller.addExtension({ update: (_out, _dt, justActivated) => void seen.push(justActivated) });
+      controller.addNoise({ update: (_out, _dt, justActivated) => void seen.push(justActivated) });
 
       controller.update(createCameraState(), 0.1, true);
       controller.update(createCameraState(), 0.1, false);
@@ -127,16 +82,16 @@ describe('VirtualCameraCore', () => {
     });
   });
 
-  describe('double-registration dev warning', () => {
+  describe('double-registration warning', () => {
     it('warns when a second Body or Aim replaces the first', () => {
-      for (const [register, message] of [
-        ['registerBody', /a second Body replaced the first/],
-        ['registerAim', /a second Aim replaced the first/],
+      for (const [add, message] of [
+        ['setBody', /a second Body replaced the first/],
+        ['setAim', /a second Aim replaced the first/],
       ] as const) {
         const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
-        const controller = new VirtualCameraCore('cam');
-        controller[register](() => {});
-        controller[register](() => {});
+        const camera = new VirtualCameraCore('cam');
+        camera[add]({ update: () => {} });
+        camera[add]({ update: () => {} });
 
         expect(warn).toHaveBeenCalledTimes(1);
         expect(warn).toHaveBeenCalledWith(expect.stringMatching(message));
@@ -148,13 +103,13 @@ describe('VirtualCameraCore', () => {
       const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
       const controller = new VirtualCameraCore('a');
 
-      controller.registerBody(() => {});
-      controller.registerAim(() => {});
-      controller.registerExtension(() => {});
-      controller.registerExtension(() => {});
-      controller.registerNoise(() => {});
-      controller.registerNoise(() => {});
-      controller.registerNoise(() => {});
+      controller.setBody({ update: () => {} });
+      controller.setAim({ update: () => {} });
+      controller.addExtension({ update: () => {} });
+      controller.addExtension({ update: () => {} });
+      controller.addNoise({ update: () => {} });
+      controller.addNoise({ update: () => {} });
+      controller.addNoise({ update: () => {} });
 
       expect(warn).not.toHaveBeenCalled();
       warn.mockRestore();
@@ -165,8 +120,8 @@ describe('VirtualCameraCore', () => {
       const controller = new VirtualCameraCore('original');
       controller.name = 'renamed';
 
-      controller.registerBody(() => {});
-      controller.registerBody(() => {});
+      controller.setBody({ update: () => {} });
+      controller.setBody({ update: () => {} });
 
       expect(warn).toHaveBeenCalledWith(expect.stringContaining('"renamed"'));
       warn.mockRestore();
@@ -292,6 +247,14 @@ describe('VirtualCameraCore — pieces and registration', () => {
 
     removeFirst();
     expect(camera.body).toBeNull();
+    klipp.update(0.1);
+    expect(camera.state.position).toEqual([0, 0, 0]);
+  });
+
+  it('setBody(null) stops the current Body (real bug: it kept running)', () => {
+    const { klipp, camera } = setup();
+    camera.setBody(lock(1));
+    camera.setBody(null);
     klipp.update(0.1);
     expect(camera.state.position).toEqual([0, 0, 0]);
   });

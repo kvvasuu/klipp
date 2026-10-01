@@ -47,10 +47,12 @@ describe('Klipp / useKlipp', () => {
       const controller = useVirtualCamera();
       useEffect(
         () =>
-          controller.registerAim((out) => {
-            out.fov = 35;
-            out.near = 1;
-            out.far = 200;
+          controller.setAim({
+            update: (out) => {
+              out.fov = 35;
+              out.near = 1;
+              out.far = 200;
+            },
           }),
         [controller],
       );
@@ -78,9 +80,11 @@ describe('Klipp / useKlipp', () => {
       const controller = useVirtualCamera();
       useEffect(
         () =>
-          controller.registerAim((out) => {
-            out.viewOffset[0] = x;
-            out.viewOffset[1] = y;
+          controller.setAim({
+            update: (out) => {
+              out.viewOffset[0] = x;
+              out.viewOffset[1] = y;
+            },
           }),
         [controller, x, y],
       );

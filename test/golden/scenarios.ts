@@ -73,8 +73,8 @@ const aim = (name: string, make: (w: World) => Update, perFrame?: (w: World, dt:
 /** A full controller: Follow + HardLookAt, plus whatever `extra` registers. */
 function rig(w: World, extra?: (c: VirtualCameraCore) => void, offset: Vec3 = [0, 3, 8]) {
   const controller = new VirtualCameraCore('rig');
-  controller.registerBody(new FollowBody(w.target, { offset, damping: 0.4 }).update);
-  controller.registerAim(new HardLookAtAim(w.target).update);
+  controller.setBody(new FollowBody(w.target, { offset, damping: 0.4 }));
+  controller.setAim(new HardLookAtAim(w.target));
   extra?.(controller);
   const state = initialState();
   return { controller, state };
@@ -97,17 +97,18 @@ function coreScenario(name: string, defaultBlend: BlendDefinition, hints: BlendH
       simulate((w) => {
         const a = rig(w);
         const b = new VirtualCameraCore('b');
-        b.registerBody(
-          new FollowBody(w.target, { offset: [6, 2, -4], damping: 0.3, bindingMode: BindingModes.worldSpace }).update,
-        );
-        b.registerAim(
-          new RotationComposerAim(w.target, {
+        b.setBody({
+          update: new FollowBody(w.target, { offset: [6, 2, -4], damping: 0.3, bindingMode: BindingModes.worldSpace })
+            .update,
+        });
+        b.setAim({
+          update: new RotationComposerAim(w.target, {
             screenPosition: [0.1, 0],
             aspect: 16 / 9,
             deadZone: [0.1, 0.1],
             damping: 0.3,
           }).update,
-        );
+        });
         const bState = initialState();
         const core = new KlippCore({ defaultBlend });
         core[register]({ id: 'a', priority: 10, state: a.state, hints });
@@ -238,12 +239,14 @@ export const scenarios: Scenario[] = [
       farDamping: 0.3,
     });
     let frames = 0;
-    c.registerExtension((out, dt, justActivated) => {
-      if (++frames === 100) {
-        lens.fov = 70;
-        lens.far = 200;
-      }
-      return lens.update(out, dt, justActivated);
+    c.addExtension({
+      update: (out, dt, justActivated) => {
+        if (++frames === 100) {
+          lens.fov = 70;
+          lens.far = 200;
+        }
+        return lens.update(out, dt, justActivated);
+      },
     });
   }),
   controllerScenario('extension.groupFraming', (c, w) => {
@@ -252,8 +255,8 @@ export const scenarios: Scenario[] = [
       { target: w.memberA, radius: 0.5, weight: 2 },
       { target: w.memberB, radius: 2 },
     ]);
-    c.registerExtension(
-      new GroupFramingExtension(group, {
+    c.addExtension({
+      update: new GroupFramingExtension(group, {
         padding: 0.1,
         viewportWidth: 1920,
         viewportHeight: 1080,
@@ -263,7 +266,7 @@ export const scenarios: Scenario[] = [
         minDistance: 5,
         maxDistance: 40,
       }).update,
-    );
+    });
   }),
   controllerScenario('extension.groupFraming.rigid.horizontal.average', (c, w) => {
     const group = new TargetGroup(
@@ -274,8 +277,8 @@ export const scenarios: Scenario[] = [
       ],
       'groupAverage',
     );
-    c.registerExtension(
-      new GroupFramingExtension(group, {
+    c.addExtension({
+      update: new GroupFramingExtension(group, {
         padding: 0.2,
         viewportWidth: 1280,
         viewportHeight: 720,
@@ -286,13 +289,13 @@ export const scenarios: Scenario[] = [
         maxDistance: 60,
         framingMode: 'horizontal',
       }).update,
-    );
+    });
   }),
 
   // noise
   controllerScenario('noise.perlin', (c) => {
-    c.registerNoise(
-      new BasicMultiChannelPerlinNoise({
+    c.addNoise({
+      update: new BasicMultiChannelPerlinNoise({
         positionAmplitude: [0.2, 0.1, 0.2],
         positionFrequency: [1, 1.3, 0.7],
         rotationAmplitude: [2, 1, 0.5],
@@ -302,7 +305,7 @@ export const scenarios: Scenario[] = [
         seed: 1234,
         amplitudeDamping: 0.2,
       }).update,
-    );
+    });
   }),
   {
     name: 'noise.impulse',

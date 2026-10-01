@@ -52,6 +52,9 @@ export class Klipp extends KlippCore {
 
   protected override write(result: CameraState, transformChanged: boolean, lensChanged: boolean): void {
     if (transformChanged) writeCameraTransform(this.camera, result);
-    if (lensChanged && isPerspectiveCamera(this.camera)) writeCameraLens(this.camera, result, this.width, this.height);
+    if (lensChanged && isPerspectiveCamera(this.camera)) {
+      // The view offset is a ratio of the viewport, so any size works until setSize.
+      writeCameraLens(this.camera, result, this.width || 1, this.height || 1);
+    }
   }
 }

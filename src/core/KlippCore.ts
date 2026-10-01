@@ -48,16 +48,13 @@ export class KlippCore extends EventDispatcher<CameraTransitionEventMap> {
   /** The pose and lens new virtual cameras start from. */
   readonly initialCameraState: CameraState;
   mode: KlippMode;
-  /** Viewport width in pixels, passed on to pieces that frame by screen size. */
-  width = 1;
-  /** Viewport height in pixels. */
-  height = 1;
 
   protected readonly cameras = new Set<VirtualCameraCore>();
   private readonly updates = new Set<FrameUpdate>();
   private readonly previousResult = createCameraState();
   private settled = false;
-  private sized = false;
+  private _width = 0;
+  private _height = 0;
   private readonly params: KlippParams;
   private readonly activeIdListeners = new Set<() => void>();
   private readonly liveIdListeners = new Set<() => void>();
@@ -150,10 +147,20 @@ export class KlippCore extends EventDispatcher<CameraTransitionEventMap> {
     setKlippHints(this.state, id, hints);
   }
 
+  /** Viewport width in pixels, `0` until `setSize`. */
+  get width(): number {
+    return this._width;
+  }
+
+  /** Viewport height in pixels, `0` until `setSize`. */
+  get height(): number {
+    return this._height;
+  }
+
+  /** Set the viewport size in pixels. Pieces that frame by screen size get it every frame from then on. */
   setSize(width: number, height: number): void {
-    this.width = width;
-    this.height = height;
-    this.sized = true;
+    this._width = width;
+    this._height = height;
   }
 
   /** Create a virtual camera and add it. */
@@ -233,10 +240,7 @@ export class KlippCore extends EventDispatcher<CameraTransitionEventMap> {
 
   /** Runs at the start of every frame, before any camera. Layers override it to read their targets. */
   protected prepareFrame(): void {
-    // Until setSize, pieces keep the size they were given.
-    const width = this.sized ? this.width : 0;
-    const height = this.sized ? this.height : 0;
-    for (const camera of this.cameras) camera[prepare](width, height);
+    for (const camera of this.cameras) camera[prepare](this._width, this._height);
   }
 
   /** Called with the output whenever it changed. Layers override it to write their camera. */

@@ -11,7 +11,7 @@ export type { KlippMode };
 /** Bound `dt` under `frameloop="demand"` so an idle gap does not jump the blend forward in one frame. */
 const DEMAND_MODE_MAX_DELTA = 1 / 30;
 
-export type KlippProps = KlippCoreOptions & {
+export type KlippProps = Pick<KlippCoreOptions, 'defaultBlend' | 'customBlends'> & {
   children?: ReactNode;
   camera?: Camera;
   /** See `KlippMode`. */
