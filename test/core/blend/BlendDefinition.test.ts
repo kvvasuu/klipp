@@ -5,11 +5,6 @@ import { resolveBlendDefinition, type CustomBlend } from '../../../src/core/blen
 const defaultBlend = { curve: BlendCurves.linear, time: 1 };
 
 describe('resolveBlendDefinition', () => {
-  it('falls back to the default when no custom blend matches', () => {
-    const resolved = resolveBlendDefinition([], 'a', 'b', defaultBlend);
-    expect(resolved).toBe(defaultBlend);
-  });
-
   it('matches an exact from+to pair', () => {
     const blend = { curve: BlendCurves.easeInOut, time: 3 };
     const customBlends: CustomBlend[] = [{ from: 'a', to: 'b', blend }];
@@ -36,27 +31,26 @@ describe('resolveBlendDefinition', () => {
     expect(resolveBlendDefinition(customBlends, 'x', 'b', defaultBlend)).toBe(defaultBlend);
   });
 
-  it('an exact match wins over both wildcard entries', () => {
-    const toWildcard = { curve: BlendCurves.linear, time: 2 };
-    const fromWildcard = { curve: BlendCurves.linear, time: 4 };
+  it('prefers an exact pair, then a "to" wildcard, then a "from" wildcard, then the default', () => {
     const exact = { curve: BlendCurves.easeIn, time: 9 };
-    const customBlends: CustomBlend[] = [
-      { to: 'b', blend: toWildcard },
-      { from: 'a', blend: fromWildcard },
-      { from: 'a', to: 'b', blend: exact },
-    ];
-
-    expect(resolveBlendDefinition(customBlends, 'a', 'b', defaultBlend)).toBe(exact);
-  });
-
-  it('a "to" wildcard wins over a "from" wildcard', () => {
-    const fromWildcard = { curve: BlendCurves.linear, time: 4 };
     const toWildcard = { curve: BlendCurves.linear, time: 2 };
-    const customBlends: CustomBlend[] = [
-      { from: 'a', blend: fromWildcard },
-      { to: 'b', blend: toWildcard },
-    ];
+    const fromWildcard = { curve: BlendCurves.linear, time: 4 };
+    const resolve = (customBlends: CustomBlend[]) => resolveBlendDefinition(customBlends, 'a', 'b', defaultBlend);
 
-    expect(resolveBlendDefinition(customBlends, 'a', 'b', defaultBlend)).toBe(toWildcard);
+    expect(
+      resolve([
+        { from: 'a', blend: fromWildcard },
+        { to: 'b', blend: toWildcard },
+        { from: 'a', to: 'b', blend: exact },
+      ]),
+    ).toBe(exact);
+    expect(
+      resolve([
+        { from: 'a', blend: fromWildcard },
+        { to: 'b', blend: toWildcard },
+      ]),
+    ).toBe(toWildcard);
+    expect(resolve([{ from: 'a', blend: fromWildcard }])).toBe(fromWildcard);
+    expect(resolve([])).toBe(defaultBlend);
   });
 });
