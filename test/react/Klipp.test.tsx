@@ -44,13 +44,15 @@ describe('Klipp / useKlipp', () => {
   it('writes position and fov/near/far onto the r3f camera', async () => {
     let camera: PerspectiveCamera | undefined;
     function LensWriter() {
-      const { controller } = useVirtualCamera();
+      const controller = useVirtualCamera();
       useEffect(
         () =>
-          controller.registerAim((out) => {
-            out.fov = 35;
-            out.near = 1;
-            out.far = 200;
+          controller.setAim({
+            update: (out) => {
+              out.fov = 35;
+              out.near = 1;
+              out.far = 200;
+            },
           }),
         [controller],
       );
@@ -75,12 +77,14 @@ describe('Klipp / useKlipp', () => {
   it('sets viewOffset in canvas pixels (1280x800), skips it at zero and clears it when it returns to zero', async () => {
     let camera: PerspectiveCamera | undefined;
     function ViewOffsetWriter({ x, y }: { x: number; y: number }) {
-      const { controller } = useVirtualCamera();
+      const controller = useVirtualCamera();
       useEffect(
         () =>
-          controller.registerAim((out) => {
-            out.viewOffset[0] = x;
-            out.viewOffset[1] = y;
+          controller.setAim({
+            update: (out) => {
+              out.viewOffset[0] = x;
+              out.viewOffset[1] = y;
+            },
           }),
         [controller, x, y],
       );
@@ -204,9 +208,9 @@ describe('Klipp / useKlipp', () => {
         </Klipp>,
         { frameloop },
       );
-      const tick = vi.spyOn(core!, 'tick');
+      const update = vi.spyOn(core!, 'update');
       await renderer.advanceFrames(1, 2);
-      return tick.mock.calls[0][0];
+      return update.mock.calls[0][0];
     };
 
     expect(await tickDt('demand')).toBeLessThan(1 / 29);
@@ -374,7 +378,7 @@ it('passes defaultBlend and customBlends changes after mount to the core', async
 });
 
 function Reader({ onRead }: { onRead: (core: KlippCore) => void }) {
-  onRead(useKlipp().core);
+  onRead(useKlipp());
   return null;
 }
 

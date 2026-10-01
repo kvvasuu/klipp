@@ -5,7 +5,6 @@ import { composerDebugZones } from '../../core/debug/debugZones.js';
 import { DebugZoneOverlay } from '../DebugZoneOverlay.js';
 import { resolveVec3, type Vector3Like } from '../../three/resolve/resolveVector3.js';
 import type { Target } from '../../three/resolve/Target.js';
-import { useTargetSlot } from '../useTargetSlot.js';
 import { useVirtualCamera } from '../VirtualCameraContext.js';
 import { RotationComposerAim, type RotationComposerOptions } from '../../three/aim/RotationComposerAim.js';
 
@@ -21,23 +20,18 @@ export type RotationComposerProps = Omit<RotationComposerOptions, 'aspect' | 'ta
 
 /** Keeps a target within a chosen screen region by rotating the camera. */
 export function RotationComposer({ target, targetOffset, debug = false, ref, ...settings }: RotationComposerProps) {
-  const { controller, state: cameraState, initialState } = useVirtualCamera();
+  const camera = useVirtualCamera();
   const aspect = useThree((state) => state.viewport.aspect);
   const { targetOffset: defaultTargetOffset, ...params } = createRotationComposerParams({ ...settings, aspect });
-  const [aim] = useState(() => {
-    const instance = new RotationComposerAim(target, params);
-    if (initialState?.quaternion) instance.primeFrom(cameraState.quaternion);
-    return instance;
-  });
+  const [aim] = useState(() => new RotationComposerAim(target, params));
   aim.target = target;
-  aim.targetSlot = useTargetSlot(target);
   Object.assign(aim, params);
   resolveVec3(aim.targetOffset, targetOffset ?? defaultTargetOffset);
   aim.radius = settings.radius;
   aim.size = settings.size;
 
   useImperativeHandle(ref, () => aim, [aim]);
-  useEffect(() => controller.registerAim(aim.update), [controller, aim]);
+  useEffect(() => camera.setAim(aim), [camera, aim]);
 
   if (!debug) return null;
   return (

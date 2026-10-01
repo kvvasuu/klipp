@@ -4,7 +4,6 @@ import { Vector3 } from 'three';
 import { createGroupFramingParams } from '../../core/extension/groupFraming.js';
 import { groupFramingPaddingBox } from '../../core/debug/debugZones.js';
 import { DebugZoneOverlay } from '../DebugZoneOverlay.js';
-import { useTargetSlots } from '../useTargetSlot.js';
 import { useVirtualCamera } from '../VirtualCameraContext.js';
 import { GroupFramingExtension, type GroupFramingOptions } from '../../three/extension/GroupFramingExtension.js';
 import {
@@ -36,19 +35,19 @@ export function GroupFraming({
   ref,
   ...settings
 }: GroupFramingProps) {
-  const { controller, state: cameraState } = useVirtualCamera();
+  const camera = useVirtualCamera();
+  const cameraState = camera.state;
   const size = useThree((state) => state.size);
   const params = createGroupFramingParams({ ...settings, viewportWidth: size.width, viewportHeight: size.height });
   const [group] = useState(() => new TargetGroup(members, positionMode));
   const [extension] = useState(() => new GroupFramingExtension(group, params));
 
   group.members = members;
-  group.memberSlots = useTargetSlots(members.map((member) => member.target));
   group.positionMode = positionMode;
   Object.assign(extension, params);
 
   useImperativeHandle(ref, () => extension, [extension]);
-  useEffect(() => controller.registerExtension(extension.update), [controller, extension]);
+  useEffect(() => camera.addExtension(extension), [camera, extension]);
 
   const [paddingBox, setPaddingBox] = useState<[number, number] | null>(null);
 

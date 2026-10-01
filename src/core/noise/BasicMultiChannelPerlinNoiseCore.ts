@@ -15,7 +15,7 @@ export type PerlinNoiseOptions = Partial<PerlinNoiseParams> & {
 };
 
 /** Adds Perlin position and rotation noise to a camera state. */
-export class BasicMultiChannelPerlinNoise implements PerlinNoiseParams {
+export class BasicMultiChannelPerlinNoiseCore implements PerlinNoiseParams {
   declare positionAmplitude: Vec3;
   declare positionFrequency: Vec3;
   declare rotationAmplitude: Vec3;

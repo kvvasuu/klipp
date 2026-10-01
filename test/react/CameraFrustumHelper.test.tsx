@@ -11,8 +11,8 @@ import { VirtualCamera } from '../../src/react/VirtualCamera';
 import { useVirtualCamera } from '../../src/react/VirtualCameraContext';
 
 function Writer({ onWrite }: { onWrite: (out: CameraState) => void }) {
-  const { controller } = useVirtualCamera();
-  useEffect(() => controller.registerBody((out) => onWrite(out)), [controller, onWrite]);
+  const controller = useVirtualCamera();
+  useEffect(() => controller.setBody({ update: (out) => onWrite(out) }), [controller, onWrite]);
   return null;
 }
 

@@ -5,7 +5,7 @@ import { createCameraState } from '../src/core/CameraState';
 import { KlippCore } from '../src/core/KlippCore';
 import { BlendHints } from '../src/core/blend/BlendHints';
 import { lerpCameraState } from '../src/core/blend/lerpCameraState';
-import { VirtualCameraController } from '../src/core/VirtualCameraController';
+import { VirtualCameraCore } from '../src/core/VirtualCameraCore';
 import { HardLookAtAim } from '../src/three/aim/HardLookAtAim';
 import { RotationComposerAim } from '../src/three/aim/RotationComposerAim';
 import { FollowBody } from '../src/three/body/FollowBody';
@@ -14,12 +14,13 @@ import { PositionComposerBody } from '../src/three/body/PositionComposerBody';
 import { GroupFramingExtension } from '../src/three/extension/GroupFramingExtension';
 import { TargetGroup } from '../src/three/extension/TargetGroup';
 import { ImpulseField } from '../src/core/impulse/ImpulseField';
-import { ImpulseListenerNoise } from '../src/core/impulse/ImpulseListenerNoise';
+import { ImpulseListenerNoiseCore } from '../src/core/impulse/ImpulseListenerNoiseCore';
 import { createConsumedInput, type ConsumedInput } from '../src/core/input/consumedInput';
 import { InputSystem, MouseButton } from '../src/dom/InputSystem';
-import { BasicMultiChannelPerlinNoise } from '../src/core/noise/BasicMultiChannelPerlinNoise';
+import { BasicMultiChannelPerlinNoiseCore } from '../src/core/noise/BasicMultiChannelPerlinNoiseCore';
 import { TargetRegistry } from '../src/three/resolve/TargetRegistry';
 import { toQuaternion, toTuple } from './tuples';
+import { advance, register } from '../src/core/internal';
 
 const always = () => 1;
 
@@ -256,7 +257,7 @@ group('Aim.update @aim', () => {
 
 group('Noise/Extension.update @noise', () => {
   bench('BasicMultiChannelPerlin', function* () {
-    const perlin = new BasicMultiChannelPerlinNoise({
+    const perlin = new BasicMultiChannelPerlinNoiseCore({
       positionAmplitude: [0.4, 0.4, 0.4],
       positionFrequency: [1, 1, 1],
       rotationAmplitude: [4, 4, 4],
@@ -335,11 +336,11 @@ group('ImpulseField.sampleAt @impulse', () => {
   });
 });
 
-group('ImpulseListenerNoise.update @impulse', () => {
+group('ImpulseListenerNoiseCore.update @impulse', () => {
   bench('kick only', function* () {
     const field = new ImpulseField();
     field.generate({ position: [0, 0, 0], direction: [1, 0, 0], shape: always, duration: 1000 }, 0);
-    const listener = new ImpulseListenerNoise({ field });
+    const listener = new ImpulseListenerNoiseCore({ field });
     const out = createCameraState();
     let now = 0;
     yield () => {
@@ -353,11 +354,11 @@ group('ImpulseListenerNoise.update @impulse', () => {
   bench('kick + shake', function* () {
     const field = new ImpulseField();
     field.generate({ position: [0, 0, 0], direction: [1, 0, 0], shape: always, duration: 1000 }, 0);
-    const shake = new BasicMultiChannelPerlinNoise({
+    const shake = new BasicMultiChannelPerlinNoiseCore({
       positionAmplitude: [0.1, 0.1, 0.1],
       rotationAmplitude: [3, 3, 3],
     });
-    const listener = new ImpulseListenerNoise({ field, channelMask: 1, gain: 1, shake });
+    const listener = new ImpulseListenerNoiseCore({ field, channelMask: 1, gain: 1, shake });
     const out = createCameraState();
     let now = 0;
     yield () => {
@@ -371,7 +372,7 @@ group('ImpulseListenerNoise.update @impulse', () => {
   bench('kick + cameraSpace', function* () {
     const field = new ImpulseField();
     field.generate({ position: [0, 0, 0], direction: [1, 0, 0], shape: always, duration: 1000 }, 0);
-    const listener = new ImpulseListenerNoise({ field, channelMask: 1, gain: 1, cameraSpace: true });
+    const listener = new ImpulseListenerNoiseCore({ field, channelMask: 1, gain: 1, cameraSpace: true });
     const out = createCameraState();
     let now = 0;
     yield () => {
@@ -471,12 +472,12 @@ group('InputSystem event handlers @input', () => {
   });
 });
 
-group('VirtualCameraController.update @controller', () => {
+group('VirtualCameraCore.update @controller', () => {
   bench('minimal: HardLockToTarget + HardLookAt', function* () {
     const { object, step } = makeMovingTarget();
-    const controller = new VirtualCameraController('minimal');
-    controller.registerBody(new HardLockToTargetBody(object, { damping: 0.5 }).update);
-    controller.registerAim(new HardLookAtAim(object).update);
+    const controller = new VirtualCameraCore('minimal');
+    controller.setBody(new HardLockToTargetBody(object, { damping: 0.5 }));
+    controller.setAim(new HardLookAtAim(object));
     const out = createCameraState();
     yield () => {
       step();
@@ -487,19 +488,27 @@ group('VirtualCameraController.update @controller', () => {
 
   bench('full: Follow + RotationComposer + GroupFraming + Perlin (like FocusReproScene)', function* () {
     const { object, step } = makeMovingTarget();
-    const controller = new VirtualCameraController('full');
+    const controller = new VirtualCameraCore('full');
     const targetGroup = new TargetGroup([{ target: object, radius: 1.5 }]);
-    controller.registerBody(new FollowBody(object, { offset: [0, 3, 12], damping: 0.5 }).update);
-    controller.registerAim(
-      new RotationComposerAim(object, { screenPosition: [0, 0], aspect: 16 / 9, deadZone: [0.15, 0.15], damping: 0.5 })
-        .update,
-    );
-    controller.registerExtension(
-      new GroupFramingExtension(targetGroup, { padding: 40, viewportWidth: 1920, viewportHeight: 1080, damping: 0.5 })
-        .update,
-    );
-    controller.registerNoise(
-      new BasicMultiChannelPerlinNoise({
+    controller.setBody(new FollowBody(object, { offset: [0, 3, 12], damping: 0.5 }));
+    controller.setAim({
+      update: new RotationComposerAim(object, {
+        screenPosition: [0, 0],
+        aspect: 16 / 9,
+        deadZone: [0.15, 0.15],
+        damping: 0.5,
+      }).update,
+    });
+    controller.addExtension({
+      update: new GroupFramingExtension(targetGroup, {
+        padding: 40,
+        viewportWidth: 1920,
+        viewportHeight: 1080,
+        damping: 0.5,
+      }).update,
+    });
+    controller.addNoise({
+      update: new BasicMultiChannelPerlinNoiseCore({
         positionAmplitude: [0.1, 0.1, 0.1],
         positionFrequency: [1, 1, 1],
         rotationAmplitude: [2, 2, 2],
@@ -509,7 +518,7 @@ group('VirtualCameraController.update @controller', () => {
         seed: 7,
         amplitudeDamping: 0.5,
       }).update,
-    );
+    });
     const out = createCameraState();
     yield () => {
       step();
@@ -528,24 +537,24 @@ group('KlippCore.tick @core', () => {
     for (let i = 0; i < count; i++) {
       const state = createCameraState();
       vec3.set(state.position, i, 0, 0);
-      core.registerCamera({ id: `cam-${i}`, priority: i, state });
+      core[register]({ id: `cam-${i}`, priority: i, state });
     }
     return core;
   }
 
   bench('1 registered camera', function* () {
     const core = makeCoreWithCameras(1);
-    yield () => core.tick(0.016).position[0];
+    yield () => core[advance](0.016).position[0];
   });
 
   bench('10 registered cameras', function* () {
     const core = makeCoreWithCameras(10);
-    yield () => core.tick(0.016).position[0];
+    yield () => core[advance](0.016).position[0];
   });
 
   bench('50 registered cameras', function* () {
     const core = makeCoreWithCameras(50);
-    yield () => core.tick(0.016).position[0];
+    yield () => core[advance](0.016).position[0];
   });
 });
 

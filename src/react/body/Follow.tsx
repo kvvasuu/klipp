@@ -2,7 +2,6 @@ import { useEffect, useImperativeHandle, useState, type Ref } from 'react';
 import { createFollowParams } from '../../core/body/follow.js';
 import { resolveVec3, type Vector3Like } from '../../three/resolve/resolveVector3.js';
 import type { Target } from '../../three/resolve/Target.js';
-import { useTargetSlot } from '../useTargetSlot.js';
 import { useVirtualCamera } from '../VirtualCameraContext.js';
 import { FollowBody, type FollowOptions } from '../../three/body/FollowBody.js';
 
@@ -16,20 +15,15 @@ export type FollowProps = Omit<FollowOptions, 'offset'> & {
 
 /** Follows a target with a configurable offset and rotation frame. */
 export function Follow({ target, offset, ref, ...settings }: FollowProps) {
-  const { controller, state, initialState } = useVirtualCamera();
+  const camera = useVirtualCamera();
   const { offset: defaultOffset, ...params } = createFollowParams(settings);
-  const [body] = useState(() => {
-    const instance = new FollowBody(target, params);
-    if (initialState?.position) instance.primeFrom(state.position);
-    return instance;
-  });
+  const [body] = useState(() => new FollowBody(target, params));
   body.target = target;
-  body.targetSlot = useTargetSlot(target);
   Object.assign(body, params);
   resolveVec3(body.offset, offset ?? defaultOffset);
 
   useImperativeHandle(ref, () => body, [body]);
-  useEffect(() => controller.registerBody(body.update), [controller, body]);
+  useEffect(() => camera.setBody(body), [camera, body]);
 
   return null;
 }

@@ -13,13 +13,13 @@ import {
   useIsLiveVirtualCamera,
   useVirtualCamera,
 } from '../../src/react/VirtualCameraContext';
-import type { VirtualCameraController } from '../../src/core/VirtualCameraController';
+import type { VirtualCamera as VirtualCameraRig } from '../../src/three/VirtualCamera';
 import { BlendCurves } from '../../src/core/blend/BlendCurves';
 import { BlendHints } from '../../src/core/blend/BlendHints';
 import { toQuaternion } from '../tuples';
 
 function CoreReader({ onRead }: { onRead: (core: KlippCore) => void }) {
-  onRead(useKlipp().core);
+  onRead(useKlipp());
   return null;
 }
 
@@ -88,7 +88,7 @@ describe('VirtualCamera — registration lifecycle', () => {
     expect(core!.activeCameraId).toBe('challenger');
   });
 
-  it('the hints prop reaches core.registerCamera on mount, and core.updateHints on a later change (without a full re-register)', async () => {
+  it('the hints prop reaches the arbitration on mount, and on a later change without re-registering', async () => {
     let core: KlippCore | undefined;
     const scene = (mounted: boolean, hints: number) => (
       <Klipp>
@@ -98,15 +98,13 @@ describe('VirtualCamera — registration lifecycle', () => {
     );
 
     const renderer = await create(scene(false, BlendHints.none));
-    const registerSpy = vi.spyOn(core!, 'registerCamera');
-    const updateHintsSpy = vi.spyOn(core!, 'updateHints');
-
     await renderer.update(scene(true, BlendHints.sphericalPosition));
-    expect(registerSpy).toHaveBeenCalledWith(expect.objectContaining({ id: 'a', hints: BlendHints.sphericalPosition }));
+    const registered = core!.state.cameras.get('a')!;
+    expect(registered.hints).toBe(BlendHints.sphericalPosition);
 
     await renderer.update(scene(true, BlendHints.cylindricalPosition));
-    expect(updateHintsSpy).toHaveBeenCalledWith('a', BlendHints.cylindricalPosition);
-    expect(registerSpy).toHaveBeenCalledTimes(1); // the hints-only change did not re-register
+    expect(core!.state.cameras.get('a')).toBe(registered);
+    expect(registered.hints).toBe(BlendHints.cylindricalPosition);
   });
 
   it('a priority edit on the sole, already-live camera does not spuriously restart a blend (real bug: it briefly stopped tracking)', async () => {
@@ -163,10 +161,12 @@ describe('VirtualCamera — Body/Aim/Noise wiring', () => {
       state = camera.state;
       useEffect(
         () =>
-          camera.controller.registerBody((out) => {
-            out.position[0] = 42;
+          camera.setBody({
+            update: (out) => {
+              out.position[0] = 42;
+            },
           }),
-        [camera.controller],
+        [camera],
       );
       return null;
     }
@@ -179,10 +179,10 @@ describe('VirtualCamera — Body/Aim/Noise wiring', () => {
         </VirtualCamera>
       </Klipp>,
     );
-    const tick = vi.spyOn(core!, 'tick');
+    const update = vi.spyOn(core!, 'update');
     await renderer.advanceFrames(1, 0.25);
 
-    expect(tick).toHaveBeenCalledWith(0.25);
+    expect(update).toHaveBeenCalledWith(0.25);
     expect(state).toBe(core!.activeState);
     expect(state!.position[0]).toBe(42);
   });
@@ -262,11 +262,13 @@ describe('VirtualCamera — active prop', () => {
   it("an inactive camera's Body/Aim/Noise do not run — no wasted work for a non-candidate", async () => {
     let runs = 0;
     function CountingWriter() {
-      const { controller } = useVirtualCamera();
+      const controller = useVirtualCamera();
       useEffect(
         () =>
-          controller.registerBody(() => {
-            runs += 1;
+          controller.setBody({
+            update: () => {
+              runs += 1;
+            },
           }),
         [controller],
       );
@@ -294,9 +296,9 @@ describe('VirtualCamera — active prop', () => {
     const seen: boolean[] = [];
     const record = (justActivated: boolean) => void seen.push(justActivated);
     function Writer({ onCall }: { onCall: (justActivated: boolean) => void }) {
-      const { controller } = useVirtualCamera();
+      const controller = useVirtualCamera();
       useEffect(
-        () => controller.registerBody((_out, _dt, justActivated) => onCall(justActivated)),
+        () => controller.setBody({ update: (_out, _dt, justActivated) => onCall(justActivated) }),
         [controller, onCall],
       );
       return null;
@@ -432,8 +434,8 @@ describe('VirtualCameraEvents', () => {
 });
 
 describe('VirtualCamera ref', () => {
-  it('is the camera controller, whose events work without <VirtualCamera.Events>', async () => {
-    const ref = createRef<VirtualCameraController>();
+  it('is the three.js VirtualCamera, whose events work without <VirtualCamera.Events>', async () => {
+    const ref = createRef<VirtualCameraRig>();
     const onDeactivated = vi.fn();
     const scene = (bPriority: number) => (
       <Klipp defaultBlend={{ curve: BlendCurves.linear, time: 0 }}>

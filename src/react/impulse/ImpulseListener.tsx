@@ -3,10 +3,10 @@ import type { BasicMultiChannelPerlinProps } from '../noise/BasicMultiChannelPer
 import { useBasicMultiChannelPerlinNoise } from '../noise/useBasicMultiChannelPerlinNoise.js';
 import { useVirtualCamera } from '../VirtualCameraContext.js';
 import {
-  ImpulseListenerNoise,
+  ImpulseListenerNoiseCore as ImpulseListenerNoise,
   createImpulseListenerParams,
   type ImpulseListenerOptions,
-} from '../../core/impulse/ImpulseListenerNoise.js';
+} from '../../core/impulse/ImpulseListenerNoiseCore.js';
 
 /** Perlin shake options driven by the current impulse strength. */
 export type ImpulseShakeProps = Omit<BasicMultiChannelPerlinProps, 'amplitudeGain' | 'ref'>;
@@ -19,13 +19,13 @@ export type ImpulseListenerProps = Omit<ImpulseListenerOptions, 'shake'> & {
 
 /** Adds impulse-driven camera shake and kick. */
 export function ImpulseListener({ shake, ref, ...settings }: ImpulseListenerProps) {
-  const { controller } = useVirtualCamera();
+  const camera = useVirtualCamera();
   const params = createImpulseListenerParams(settings);
   const [listener] = useState(() => new ImpulseListenerNoise(params));
   Object.assign(listener, params);
 
   useImperativeHandle(ref, () => listener, [listener]);
-  useEffect(() => controller.registerNoise(listener.update), [controller, listener]);
+  useEffect(() => camera.addNoise(listener), [camera, listener]);
 
   return shake ? <ImpulseListenerShake listener={listener} {...shake} /> : null;
 }

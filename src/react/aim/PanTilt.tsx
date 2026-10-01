@@ -3,7 +3,6 @@ import type { DampingConstant } from '../../core/damping/Damper.js';
 import type { InputAxisRecentering } from '../../core/input/InputAxis.js';
 import { InputAxisOwnerContext } from '../input/InputAxisOwnerContext.js';
 import type { Target } from '../../three/resolve/Target.js';
-import { useTargetSlot } from '../useTargetSlot.js';
 import { useVirtualCamera } from '../VirtualCameraContext.js';
 import { PanTiltAim } from '../../three/aim/PanTiltAim.js';
 
@@ -50,19 +49,9 @@ export function PanTilt({
   ref,
   children,
 }: PanTiltProps) {
-  const { controller, state, initialState } = useVirtualCamera();
-  // matches initialState's own "applied once, at mount" contract
-  const [aim] = useState(() => {
-    const instance = new PanTiltAim();
-    if (initialState?.quaternion) {
-      instance.setFromRotation(state.quaternion, state.referenceUp);
-      instance.pan.reset();
-      instance.tilt.reset();
-    }
-    return instance;
-  });
+  const camera = useVirtualCamera();
+  const [aim] = useState(() => new PanTiltAim());
   aim.target = target;
-  aim.targetSlot = useTargetSlot(target);
   aim.pan.damping = damping;
   aim.pan.maxSpeed = maxSpeed;
   aim.pan.autoNormalize = autoNormalize;
@@ -76,7 +65,7 @@ export function PanTilt({
   aim.tilt.recentering = recentering;
 
   useImperativeHandle(ref, () => aim, [aim]);
-  useEffect(() => controller.registerAim(aim.update), [controller, aim]);
+  useEffect(() => camera.setAim(aim), [camera, aim]);
 
   return <InputAxisOwnerContext.Provider value={aim}>{children}</InputAxisOwnerContext.Provider>;
 }

@@ -1,15 +1,6 @@
-import type { Vec3 } from 'math';
-import type { CameraState } from '../../core/CameraState.js';
-import type { DampingConstant } from '../../core/damping/Damper.js';
-import {
-  createPositionComposerParams,
-  createPositionComposerState,
-  primePositionComposer,
-  retargetPositionComposer,
-  updatePositionComposer,
-  type PositionComposerParams,
-} from '../../core/body/positionComposer.js';
-import { createTargetPose } from '../../core/TargetPose.js';
+import type { PositionComposerParams } from '../../core/body/positionComposer.js';
+import { PositionComposerBodyCore } from '../../core/body/PositionComposerBodyCore.js';
+import { createTargetPose, type TargetPose } from '../../core/TargetPose.js';
 import { readTargetExtent } from '../readTargetExtent.js';
 import { readTargetPose } from '../readTargetPose.js';
 import type { Target } from '../resolve/Target.js';
@@ -23,32 +14,17 @@ export type PositionComposerOptions = Partial<PositionComposerParams> & {
   size?: Vector3Like;
 };
 
-/** Positions the camera using depth and screen-space composition. */
-export class PositionComposerBody implements PositionComposerParams {
-  target: Target;
+/** Positions the camera around an `Object3D`, ref or fixed point, measuring its size from geometry. */
+export class PositionComposerBody extends PositionComposerBodyCore<Target> {
   targetSlot: TargetSlot | null = null;
-  declare cameraDistance: number;
-  declare screenPosition: [number, number];
-  declare aspect: number;
-  declare deadZone: [number, number];
-  declare damping: DampingConstant;
-  declare hardLimit: [number, number];
-  declare depthDeadZone: number;
-  declare maxSpeed: number;
-  declare lookaheadTime: number;
-  declare lookaheadSmoothing: number;
-  declare lookaheadIgnoreY: boolean;
   radius?: number;
   size?: Vector3Like;
 
-  readonly state = createPositionComposerState();
   private readonly pose = createTargetPose();
-  private lastTarget: Target = undefined;
   private forceSizeRecalculation = false;
 
   constructor(target: Target, options?: PositionComposerOptions) {
-    this.target = target;
-    Object.assign(this, createPositionComposerParams(options));
+    super(target, options);
     this.radius = options?.radius;
     this.size = options?.size;
   }
@@ -58,23 +34,17 @@ export class PositionComposerBody implements PositionComposerParams {
     this.forceSizeRecalculation = true;
   }
 
-  primeFrom = (position: Vec3): void => primePositionComposer(this.state, this, position);
-
-  update = (out: CameraState, dt: number, justActivated: boolean): void => {
-    const resolved = readTargetPose(this.pose, this.target, this.targetSlot, false);
-    if (resolved) {
-      if (this.target !== this.lastTarget) retargetPositionComposer(this.state);
-      this.lastTarget = this.target;
-      readTargetExtent(
-        this.pose.extent,
-        this.target,
-        this.size,
-        this.radius,
-        this.forceSizeRecalculation,
-        this.targetSlot,
-      );
-      this.forceSizeRecalculation = false;
-    }
-    updatePositionComposer(out, this.state, this, resolved ? this.pose : null, dt, justActivated);
-  };
+  protected override readTarget(): TargetPose | null {
+    if (!readTargetPose(this.pose, this.target, this.targetSlot, false)) return null;
+    readTargetExtent(
+      this.pose.extent,
+      this.target,
+      this.size,
+      this.radius,
+      this.forceSizeRecalculation,
+      this.targetSlot,
+    );
+    this.forceSizeRecalculation = false;
+    return this.pose;
+  }
 }

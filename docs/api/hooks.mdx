@@ -29,20 +29,21 @@ const isLive = useIsLiveVirtualCamera();
 
 ## `useVirtualCamera`
 
-The nearest `<VirtualCamera>`'s `controller` and raw camera `state`. Mostly needed for [custom components](/advanced/custom-components).
+The nearest `<VirtualCamera>`'s three.js `VirtualCamera`, with its raw `state`. Mostly needed for [custom components](/advanced/custom-components).
 
 ```tsx
-const { controller, state } = useVirtualCamera();
+const camera = useVirtualCamera();
+camera.state; // the camera's raw state
 ```
 
 ## `useKlipp`
 
-The nearest `<Klipp>`'s `core`, which knows about every camera.
+The nearest `<Klipp>`'s three.js `Klipp`, which knows about every camera.
 
 ```tsx
-const { core } = useKlipp();
+const klipp = useKlipp();
 
-core.activeCameraId; // the current winner
-core.liveCameraId;   // the camera fully on screen
-core.isBlending;     // whether a blend is in progress
+klipp.activeCameraId; // the current winner
+klipp.liveCameraId;   // the camera fully on screen
+klipp.isBlending;     // whether a blend is in progress
 ```

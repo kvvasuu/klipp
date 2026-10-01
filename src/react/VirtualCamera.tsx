@@ -1,19 +1,8 @@
 import { useThree } from '@react-three/fiber';
-import {
-  useEffect,
-  useEffectEvent,
-  useImperativeHandle,
-  useState,
-  useSyncExternalStore,
-  type ReactNode,
-  type Ref,
-} from 'react';
-import { vec4 } from 'math';
-import { Quaternion, Vector3 } from 'three';
+import { useEffect, useImperativeHandle, useState, useSyncExternalStore, type ReactNode, type Ref } from 'react';
 import { BlendHints } from '../core/blend/BlendHints.js';
-import { copyCameraState, createCameraState, mergeCameraState } from '../core/CameraState.js';
+import { VirtualCamera as VirtualCameraRig } from '../three/VirtualCamera.js';
 import { useKlipp } from './KlippContext.js';
-import { resolveVector3 } from '../three/resolve/resolveVector3.js';
 import { useCameraTransitionEvent, type CameraTransitionEventProps } from './useCameraTransitionEvent.js';
 import {
   useVirtualCamera,
@@ -21,9 +10,7 @@ import {
   VirtualCameraContext,
   VirtualCameraLiveContext,
   type InitialCameraState,
-  type VirtualCameraContextValue,
 } from './VirtualCameraContext.js';
-import { VirtualCameraController } from '../core/VirtualCameraController.js';
 
 export type VirtualCameraProps = {
   name: string;
@@ -35,7 +22,7 @@ export type VirtualCameraProps = {
   /** Initial pose applied once when the camera mounts. */
   initialState?: InitialCameraState;
   children?: ReactNode;
-  ref?: Ref<VirtualCameraController>;
+  ref?: Ref<VirtualCameraRig>;
 };
 
 /** Registers a virtual camera with the nearest `Klipp`. */
@@ -48,67 +35,44 @@ export function VirtualCamera({
   children,
   ref,
 }: VirtualCameraProps) {
-  const { core, registerUpdate, initialCameraState } = useKlipp();
+  const klipp = useKlipp();
   const invalidate = useThree((state) => state.invalidate);
-  const [context] = useState<VirtualCameraContextValue>(() => {
-    const seeded = copyCameraState(createCameraState(), initialCameraState);
-    if (initialState) {
-      const { position, quaternion, target, lookAtTarget, referenceUp, ...rest } = initialState;
-      mergeCameraState(seeded, rest);
-      const scratch = new Vector3();
-      if (position) resolveVector3(scratch, position).toArray(seeded.position);
-      if (quaternion instanceof Quaternion) quaternion.toArray(seeded.quaternion);
-      else if (quaternion) vec4.copy(seeded.quaternion, quaternion);
-      if (target) resolveVector3(scratch, target).toArray(seeded.target);
-      if (lookAtTarget) resolveVector3(scratch, lookAtTarget).toArray(seeded.lookAtTarget);
-      if (referenceUp) resolveVector3(scratch, referenceUp).toArray(seeded.referenceUp);
-    }
-    return { controller: new VirtualCameraController(name), state: seeded, initialState };
-  });
-  const { state, controller } = context;
-  controller.name = name;
-  useImperativeHandle(ref, () => controller, [controller]);
-  useEffect(() => controller.trackEvents(core), [controller, core]);
+  const [camera] = useState(() => new VirtualCameraRig(name, { priority, active, hints, initialState }));
+  useImperativeHandle(ref, () => camera, [camera]);
 
-  const registerCamera = useEffectEvent(() => core.registerCamera({ id: name, priority, state, hints }));
+  // Settings first, so a (re)registration below already uses them.
+  useEffect(() => {
+    camera.name = name;
+  }, [camera, name]);
 
   useEffect(() => {
-    if (!active) return;
+    camera.priority = priority;
+    if (camera.active) invalidate();
+  }, [camera, priority, invalidate]);
+
+  useEffect(() => {
+    camera.hints = hints;
+  }, [camera, hints]);
+
+  useEffect(() => {
+    camera.active = active;
     invalidate();
-    const unregister = registerCamera();
+  }, [camera, active, invalidate]);
+
+  useEffect(() => {
+    const remove = klipp.add(camera);
+    invalidate();
     return () => {
-      unregister();
+      remove();
       invalidate();
     };
-  }, [core, name, state, active, invalidate]);
+  }, [klipp, camera, invalidate]);
 
-  useEffect(() => {
-    if (!active) return;
-    invalidate();
-    core.updatePriority(name, priority);
-  }, [core, name, priority, active, invalidate]);
-
-  useEffect(() => {
-    if (!active) return;
-    core.updateHints(name, hints);
-  }, [core, name, hints, active]);
-
-  useEffect(() => {
-    if (!active) return;
-    // Reactivation starts with a fresh activation flag.
-    let justActivated = true;
-    return registerUpdate((dt) => {
-      const stillInFlight = controller.update(state, dt, justActivated);
-      justActivated = false;
-      return stillInFlight;
-    });
-  }, [registerUpdate, controller, state, active]);
-
-  const isActive = useSyncExternalStore(core.subscribeActiveId, () => active && core.isActive(name));
-  const isLive = useSyncExternalStore(core.subscribeLiveId, () => active && core.isLive(name));
+  const isActive = useSyncExternalStore(klipp.subscribeActiveId, () => active && klipp.isActive(name));
+  const isLive = useSyncExternalStore(klipp.subscribeLiveId, () => active && klipp.isLive(name));
 
   return (
-    <VirtualCameraContext.Provider value={context}>
+    <VirtualCameraContext.Provider value={camera}>
       <VirtualCameraActiveContext.Provider value={isActive}>
         <VirtualCameraLiveContext.Provider value={isLive}>{children}</VirtualCameraLiveContext.Provider>
       </VirtualCameraActiveContext.Provider>
@@ -126,13 +90,13 @@ export function VirtualCameraEvents({
   onBlendFinished,
   onCut,
 }: VirtualCameraEventsProps) {
-  const { controller } = useVirtualCamera();
+  const camera = useVirtualCamera();
 
-  useCameraTransitionEvent(controller, 'activated', onActivated);
-  useCameraTransitionEvent(controller, 'deactivated', onDeactivated);
-  useCameraTransitionEvent(controller, 'blendCreated', onBlendCreated);
-  useCameraTransitionEvent(controller, 'blendFinished', onBlendFinished);
-  useCameraTransitionEvent(controller, 'cut', onCut);
+  useCameraTransitionEvent(camera, 'activated', onActivated);
+  useCameraTransitionEvent(camera, 'deactivated', onDeactivated);
+  useCameraTransitionEvent(camera, 'blendCreated', onBlendCreated);
+  useCameraTransitionEvent(camera, 'blendFinished', onBlendFinished);
+  useCameraTransitionEvent(camera, 'cut', onCut);
 
   return null;
 }

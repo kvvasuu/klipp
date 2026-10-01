@@ -1,16 +1,7 @@
-import type { Quat, Vec3 } from 'math';
-import type { CameraState } from '../../core/CameraState.js';
-import type { DampingConstant } from '../../core/damping/Damper.js';
-import {
-  createRotationComposerState,
-  primeRotationComposer,
-  retargetRotationComposer,
-  rotationComposerNeedsExtent,
-  updateRotationComposer,
-  createRotationComposerParams,
-  type RotationComposerParams,
-} from '../../core/aim/rotationComposer.js';
-import { createTargetPose } from '../../core/TargetPose.js';
+import type { RotationComposerParams } from '../../core/aim/rotationComposer.js';
+import { rotationComposerNeedsExtent } from '../../core/aim/rotationComposer.js';
+import { RotationComposerAimCore } from '../../core/aim/RotationComposerAimCore.js';
+import { createTargetPose, type TargetPose } from '../../core/TargetPose.js';
 import { readTargetExtent } from '../readTargetExtent.js';
 import { readTargetPose } from '../readTargetPose.js';
 import type { Target } from '../resolve/Target.js';
@@ -24,31 +15,17 @@ export type RotationComposerOptions = Partial<RotationComposerParams> & {
   size?: Vector3Like;
 };
 
-/** Rotates the camera to place a target at `screenPosition`. */
-export class RotationComposerAim implements RotationComposerParams {
-  target: Target;
+/** Rotates the camera to place an `Object3D`, ref or fixed point at `screenPosition`. */
+export class RotationComposerAim extends RotationComposerAimCore<Target> {
   targetSlot: TargetSlot | null = null;
-  declare screenPosition: [number, number];
-  declare aspect: number;
-  declare deadZone: [number, number];
-  declare damping: DampingConstant;
-  declare maxSpeed: number;
-  declare hardLimit: [number, number];
-  declare targetOffset: Vec3;
   radius?: number;
   size?: Vector3Like;
-  declare lookaheadTime: number;
-  declare lookaheadSmoothing: number;
-  declare lookaheadIgnoreY: boolean;
 
-  readonly state = createRotationComposerState();
   private readonly pose = createTargetPose();
-  private lastTarget: Target = undefined;
   private forceSizeRecalculation = false;
 
   constructor(target: Target, options?: RotationComposerOptions) {
-    this.target = target;
-    Object.assign(this, createRotationComposerParams(options));
+    super(target, options);
     this.radius = options?.radius;
     this.size = options?.size;
   }
@@ -58,25 +35,19 @@ export class RotationComposerAim implements RotationComposerParams {
     this.forceSizeRecalculation = true;
   }
 
-  primeFrom = (rotation: Quat): void => primeRotationComposer(this.state, this, rotation);
-
-  update = (out: CameraState, dt: number, justActivated: boolean): void => {
-    const resolved = readTargetPose(this.pose, this.target, this.targetSlot, true);
-    if (resolved) {
-      if (this.target !== this.lastTarget) retargetRotationComposer(this.state);
-      this.lastTarget = this.target;
-      if (rotationComposerNeedsExtent(this)) {
-        readTargetExtent(
-          this.pose.extent,
-          this.target,
-          this.size,
-          this.radius,
-          this.forceSizeRecalculation,
-          this.targetSlot,
-        );
-      }
-      this.forceSizeRecalculation = false;
+  protected override readTarget(): TargetPose | null {
+    if (!readTargetPose(this.pose, this.target, this.targetSlot, true)) return null;
+    if (rotationComposerNeedsExtent(this)) {
+      readTargetExtent(
+        this.pose.extent,
+        this.target,
+        this.size,
+        this.radius,
+        this.forceSizeRecalculation,
+        this.targetSlot,
+      );
     }
-    updateRotationComposer(out, this.state, this, resolved ? this.pose : null, dt, justActivated);
-  };
+    this.forceSizeRecalculation = false;
+    return this.pose;
+  }
 }

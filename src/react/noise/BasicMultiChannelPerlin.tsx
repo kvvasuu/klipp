@@ -2,9 +2,9 @@ import { useEffect, useImperativeHandle, type Ref } from 'react';
 import type { Vector3Like } from '../../three/resolve/resolveVector3.js';
 import { useVirtualCamera } from '../VirtualCameraContext.js';
 import type {
-  BasicMultiChannelPerlinNoise,
+  BasicMultiChannelPerlinNoiseCore as BasicMultiChannelPerlinNoise,
   PerlinNoiseOptions,
-} from '../../core/noise/BasicMultiChannelPerlinNoise.js';
+} from '../../core/noise/BasicMultiChannelPerlinNoiseCore.js';
 import { useBasicMultiChannelPerlinNoise } from './useBasicMultiChannelPerlinNoise.js';
 
 export type BasicMultiChannelPerlinProps = Omit<
@@ -24,11 +24,11 @@ export type BasicMultiChannelPerlinProps = Omit<
 
 /** Adds position and rotation noise to the camera. */
 export function BasicMultiChannelPerlin({ ref, ...props }: BasicMultiChannelPerlinProps) {
-  const { controller } = useVirtualCamera();
+  const camera = useVirtualCamera();
   const noise = useBasicMultiChannelPerlinNoise(props);
 
   useImperativeHandle(ref, () => noise, [noise]);
-  useEffect(() => controller.registerNoise(noise.update), [controller, noise]);
+  useEffect(() => camera.addNoise(noise), [camera, noise]);
 
   return null;
 }

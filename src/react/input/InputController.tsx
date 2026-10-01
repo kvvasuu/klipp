@@ -48,9 +48,7 @@ export type InputControllerProps = {
 function resolveAxis(owner: InputAxisOwner, name: string): InputAxis | null {
   const axis = owner.inputAxes[name];
   if (!axis) {
-    if (process.env.NODE_ENV !== 'production') {
-      console.warn(`<InputController>: no axis named "${name}" on target's inputAxes.`);
-    }
+    console.warn(`<InputController>: no axis named "${name}" on target's inputAxes.`);
     return null;
   }
   return axis;
@@ -96,7 +94,7 @@ export function InputController(props: InputControllerProps) {
     ref,
   } = props;
   const contextOwner = use(InputAxisOwnerContext);
-  const { registerUpdate } = useKlipp();
+  const klipp = useKlipp();
   const isActive = useIsActiveVirtualCamera();
   const isLive = useIsLiveVirtualCamera();
   const shouldConnect = isActive && (waitForBlend ? isLive : true);
@@ -115,7 +113,7 @@ export function InputController(props: InputControllerProps) {
     if (owner) controller.config = buildConfig(owner, props);
   });
 
-  useEffect(() => registerUpdate(() => controller.update()), [registerUpdate, controller]);
+  useEffect(() => klipp.registerUpdate(() => controller.update()), [klipp, controller]);
 
   useEffect(() => {
     if (!shouldConnect) return;

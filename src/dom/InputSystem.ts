@@ -436,9 +436,7 @@ export class InputSystem {
   };
 
   private onPointerLockError = (): void => {
-    if (process.env.NODE_ENV !== 'production') {
-      console.warn('InputSystem: requestPointerLock() failed - the browser rejected the request.');
-    }
+    console.warn('InputSystem: requestPointerLock() failed - the browser rejected the request.');
   };
 
   private onVisibilityChange = (): void => {

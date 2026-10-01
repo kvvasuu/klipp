@@ -1,12 +1,12 @@
 import { quat, vec3, vec4, type Vec3 } from 'math';
 import { describe, expect, it } from 'vitest';
 import { createCameraState } from '../../../src/core/CameraState';
-import { BasicMultiChannelPerlinNoise } from '../../../src/core/noise/BasicMultiChannelPerlinNoise';
+import { BasicMultiChannelPerlinNoiseCore } from '../../../src/core/noise/BasicMultiChannelPerlinNoiseCore';
 import { angleBetween } from '../mathHelpers';
 
 /** Noise with a fixed seed, so two instances produce the same samples. */
 const seeded = (position: Vec3, rotation?: Vec3, seed = 3, frequencyGain = 1, amplitudeDamping = 0) =>
-  new BasicMultiChannelPerlinNoise({
+  new BasicMultiChannelPerlinNoiseCore({
     positionAmplitude: position,
     rotationAmplitude: rotation,
     amplitudeGain: 1,
@@ -16,20 +16,20 @@ const seeded = (position: Vec3, rotation?: Vec3, seed = 3, frequencyGain = 1, am
   });
 
 /** Size of the position offset one update adds to a fresh camera at the origin. */
-function offset(noise: BasicMultiChannelPerlinNoise, dt: number, justActivated = false) {
+function offset(noise: BasicMultiChannelPerlinNoiseCore, dt: number, justActivated = false) {
   const out = createCameraState();
   noise.update(out, dt, justActivated);
   return vec3.length(out.position);
 }
 
-describe('BasicMultiChannelPerlinNoise', () => {
+describe('BasicMultiChannelPerlinNoiseCore', () => {
   it('does nothing with zero amplitudes or a zero amplitudeGain', () => {
-    const silenced = new BasicMultiChannelPerlinNoise({
+    const silenced = new BasicMultiChannelPerlinNoiseCore({
       positionAmplitude: [5, 5, 5],
       rotationAmplitude: [20, 20, 20],
     });
     silenced.amplitudeGain = 0;
-    for (const noise of [new BasicMultiChannelPerlinNoise(), silenced]) {
+    for (const noise of [new BasicMultiChannelPerlinNoiseCore(), silenced]) {
       const out = createCameraState();
       for (let i = 0; i < 10; i++) noise.update(out, 0.1, false);
       expect(out.position).toEqual([0, 0, 0]);

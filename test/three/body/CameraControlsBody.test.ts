@@ -10,6 +10,7 @@ import { HardLookAtAim } from '../../../src/three/aim/HardLookAtAim';
 import { CameraControlsBody } from '../../../src/three/body/CameraControlsBody';
 import { FollowBody } from '../../../src/three/body/FollowBody';
 import { HardLockToTargetBody } from '../../../src/three/body/HardLockToTargetBody';
+import { advance, register } from '../../../src/core/internal';
 
 /** Cosine between the camera's forward axis and the direction to `point`: 1 means looking right at it. */
 function lookingAt(out: CameraState, point: Vector3 | Vec3): number {
@@ -255,8 +256,8 @@ describe('CameraControlsBody', () => {
       const a = createCameraState();
       new FollowBody(new Vector3(), { offset: [10, 0, 0] }).update(a, 0.016, false);
       new HardLookAtAim(new Vector3()).update(a);
-      core.registerCamera({ id: 'a', priority: 10, state: a, hints: BlendHints.sphericalPosition });
-      core.tick(0);
+      core[register]({ id: 'a', priority: 10, state: a, hints: BlendHints.sphericalPosition });
+      core[advance](0);
 
       const b = createCameraState();
       new CameraControlsBody(new Vector3(), { aspect: 1, initialPosition: new Vector3(0, 5, -10) }).update(
@@ -264,9 +265,9 @@ describe('CameraControlsBody', () => {
         0.016,
         false,
       );
-      core.registerCamera({ id: 'b', priority: 20, state: b, hints: BlendHints.sphericalPosition });
+      core[register]({ id: 'b', priority: 20, state: b, hints: BlendHints.sphericalPosition });
 
-      const mid = core.tick(0.5);
+      const mid = core[advance](0.5);
       const straightMid = vec3.lerp(vec3.create(), a.position, b.position, 0.5);
       expect(vec3.distance(mid.position, straightMid)).toBeGreaterThan(0.5);
     });
@@ -276,8 +277,8 @@ describe('CameraControlsBody', () => {
       const a = createCameraState();
       new HardLockToTargetBody(new Vector3(15, 2, -3)).update(a, 0.016, false);
       new HardLookAtAim(new Vector3(5, 2, -3)).update(a);
-      core.registerCamera({ id: 'a', priority: 10, state: a });
-      core.tick(0);
+      core[register]({ id: 'a', priority: 10, state: a });
+      core[advance](0);
 
       const b = createCameraState();
       new CameraControlsBody(new Vector3(5, 2, 47), { aspect: 1, initialPosition: new Vector3(5, 7, 37) }).update(
@@ -285,10 +286,10 @@ describe('CameraControlsBody', () => {
         0.016,
         false,
       );
-      core.registerCamera({ id: 'b', priority: 20, state: b });
+      core[register]({ id: 'b', priority: 20, state: b });
 
       for (let i = 0; i < 3; i++) {
-        const out = core.tick(0.25);
+        const out = core[advance](0.25);
         expect(lookingAt(out, out.lookAtTarget)).toBeGreaterThan(0.99);
       }
     });
@@ -297,8 +298,8 @@ describe('CameraControlsBody', () => {
       const core = new KlippCore({ defaultBlend: { curve: BlendCurves.linear, time: 1 } });
       const intro = createCameraState();
       vec3.set(intro.position, -2, 0, -1);
-      core.registerCamera({ id: 'intro', priority: 2, state: intro });
-      core.tick(0);
+      core[register]({ id: 'intro', priority: 2, state: intro });
+      core[advance](0);
 
       const state = createCameraState();
       const body = new CameraControlsBody(new Vector3(), { aspect: 1, initialPosition: new Vector3(-2, 0, -1) });
@@ -306,13 +307,13 @@ describe('CameraControlsBody', () => {
       body.controls.dollyTo(5, false);
 
       body.update(state, 0.016, false);
-      core.registerCamera({ id: 'follow', priority: 3, state });
-      expect(vec3.distance(core.tick(0).position, intro.position)).toBeLessThan(1e-6);
+      core[register]({ id: 'follow', priority: 3, state });
+      expect(vec3.distance(core[advance](0).position, intro.position)).toBeLessThan(1e-6);
 
       let out = intro;
       for (let i = 0; i < 80; i++) {
         body.update(state, 0.016, false);
-        out = core.tick(0.016);
+        out = core[advance](0.016);
       }
       expect(vec3.distance(out.position, state.position)).toBeLessThan(1e-4);
       expect(vec3.distance(state.position, [-2, 0, -1])).toBeGreaterThan(1);

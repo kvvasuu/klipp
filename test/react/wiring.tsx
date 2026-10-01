@@ -9,7 +9,7 @@ import { useKlipp } from '../../src/react/KlippContext';
 import { VirtualCamera, type VirtualCameraProps } from '../../src/react/VirtualCamera';
 
 function CoreReader({ onRead }: { onRead: (core: KlippCore) => void }) {
-  onRead(useKlipp().core);
+  onRead(useKlipp());
   return null;
 }
 
