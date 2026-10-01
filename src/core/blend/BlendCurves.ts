@@ -12,10 +12,10 @@ export const BlendCurves = {
   linear: easing.linear as Ease,
   /** Smooth S-shaped blend. */
   easeInOut: ((t) => smoothstep(0, 1, t)) as Ease,
-  /** Fast departure, eased arrival. */
-  easeIn: ((t) => t * (2 - t)) as Ease,
   /** Eased departure, fast arrival. */
-  easeOut: ((t) => t * t) as Ease,
+  easeIn: ((t) => t * t) as Ease,
+  /** Fast departure, eased arrival. */
+  easeOut: ((t) => t * (2 - t)) as Ease,
   /** Abrupt departure, smooth arrival. */
   cubicOut: easing.cubicOut as Ease,
   /** Smooth departure, abrupt arrival. */

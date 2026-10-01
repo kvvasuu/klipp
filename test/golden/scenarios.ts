@@ -362,7 +362,7 @@ export const scenarios: Scenario[] = [
         const sequencer = new Sequencer(
           [
             { cameraId: 'a', state: a.state, hold: 0.8 },
-            { cameraId: 'b', state: b.state, hold: 0.6, blend: { curve: BlendCurves.easeIn, time: 0.5 } },
+            { cameraId: 'b', state: b.state, hold: 0.6, blend: { curve: BlendCurves.easeOut, time: 0.5 } },
           ],
           { loop: true, defaultBlend: { curve: BlendCurves.easeInOut, time: 0.4 } },
         );

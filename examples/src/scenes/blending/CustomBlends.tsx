@@ -42,7 +42,7 @@ type LabeledCustomBlend = CustomBlend & { label: string };
 const customBlends: LabeledCustomBlend[] = [
   { from: 'intro', to: 'gameplay', blend: { damping: 0.8 }, label: 'exact intro to gameplay: damping 0.8' },
   { to: 'closeup', blend: { curve: Curves.cut, time: 0 }, label: 'to-only: always cut into closeup' },
-  { from: 'wide', blend: { curve: Curves.easeOut, time: 3 }, label: 'from-only: always ease 3s leaving wide' },
+  { from: 'wide', blend: { curve: Curves.easeIn, time: 3 }, label: 'from-only: always ease 3s leaving wide' },
 ];
 
 // Reads which entry actually won off the real resolver's own output, instead of re-deriving specificity

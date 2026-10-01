@@ -25,8 +25,8 @@ describe('BlendCurves', () => {
     expect(BlendCurves.easeInOut(0.9)).toBeGreaterThan(0.9); // slow finish
   });
 
-  it('orders the one-sided curves by how fast they leave: cubicOut, easeIn, linear, easeOut, cubicIn', () => {
-    const order = ['cubicOut', 'easeIn', 'linear', 'easeOut', 'cubicIn'] as const;
+  it('orders the one-sided curves by how fast they leave: cubicOut, easeOut, linear, easeIn, cubicIn', () => {
+    const order = ['cubicOut', 'easeOut', 'linear', 'easeIn', 'cubicIn'] as const;
     const early = order.map((name) => BlendCurves[name](0.1));
     expect(early).toEqual([...early].sort((a, b) => b - a));
     expect(new Set(early).size).toBe(order.length);
