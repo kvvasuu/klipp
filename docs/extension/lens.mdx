@@ -4,7 +4,23 @@ description: Changes fov, near and far, with damping.
 nav: 42
 ---
 
-Sets the camera's `fov`, `near` and `far`. Leave a prop out to keep the current value. Each one can be damped separately, for effects like a speed zoom.
+Sets the camera's `fov`, `near` and `far`. Leave one out to keep the current value. Each one can be damped separately, for effects like a speed zoom.
+
+Set lens values through `Lens`, not on the real camera directly. klipp writes the lens every time the shot changes, so direct changes get overwritten, for example by the next blend.
+
+## Core
+
+```ts
+import { LensExtensionCore } from '@kvvasuu/klipp';
+
+const lens = new LensExtensionCore({ fov: 50, fovDamping: 0.4 });
+camera.addExtension(lens);
+
+// any time later
+lens.fov = boosting ? 75 : 50;
+```
+
+## React Three Fiber
 
 ```tsx
 <VirtualCamera name="chase" priority={10}>
@@ -13,25 +29,6 @@ Sets the camera's `fov`, `near` and `far`. Leave a prop out to keep the current 
   <Extension.Lens fov={boosting ? 75 : 50} fovDamping={0.4} />
 </VirtualCamera>
 ```
-
-> [!NOTE]
-> Set lens values through `Lens`, not on the camera directly. `<Klipp>` controls the camera's lens, so direct changes get overwritten, for example by the next blend.
-
-## Props
-
-| Prop | Description | Default |
-| ---- | ----------- | ------- |
-| `fov` | Field of view, in degrees. | |
-| `near` | Near clipping plane. | |
-| `far` | Far clipping plane. | |
-| `fovDamping` | Seconds to reach a new `fov`. See [Damping](/getting-started/core-concepts#damping). | `0` |
-| `nearDamping` | Seconds to reach a new `near`. | `0` |
-| `farDamping` | Seconds to reach a new `far`. | `0` |
-| `fovMaxSpeed` | Maximum `fov` change, in degrees per second. | `Infinity` |
-| `nearMaxSpeed` | Maximum `near` change, in units per second. | `Infinity` |
-| `farMaxSpeed` | Maximum `far` change, in units per second. | `Infinity` |
-
-## `ref`
 
 `ref` gives you the `LensExtension`. To change the lens every frame without re-rendering, set its fields directly:
 
@@ -42,3 +39,17 @@ useFrame(() => {
   lens.current.fov = 50 + speed * 0.5;
 });
 ```
+
+## Settings
+
+| Setting | Description | Default |
+| ------- | ----------- | ------- |
+| `fov` | Field of view, in degrees. | |
+| `near` | Near clipping plane. | |
+| `far` | Far clipping plane. | |
+| `fovDamping` | Seconds to reach a new `fov`. See [Damping](/getting-started/core-concepts#damping). | `0` |
+| `nearDamping` | Seconds to reach a new `near`. | `0` |
+| `farDamping` | Seconds to reach a new `far`. | `0` |
+| `fovMaxSpeed` | Maximum `fov` change, in degrees per second. | `Infinity` |
+| `nearMaxSpeed` | Maximum `near` change, in units per second. | `Infinity` |
+| `farMaxSpeed` | Maximum `far` change, in units per second. | `Infinity` |

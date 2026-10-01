@@ -8,49 +8,42 @@ nav: 1
 npm install @kvvasuu/klipp
 ```
 
-klipp is built with React Three Fiber in mind, but its engine has no React dependency, so you can use it in a plain three.js project too.
+klipp has one entry point per layer. Each one only needs the libraries it adapts to, and all of them are optional peer dependencies:
+
+| Entry point | What's in it | Install as well |
+| ----------- | ------------ | --------------- |
+| `@kvvasuu/klipp` | The core: `KlippCore`, virtual cameras, every piece as a `Core` class, and the data and functions underneath. | nothing |
+| `@kvvasuu/klipp/react` | React Three Fiber components. | `three`, `react`, `@react-three/fiber` |
+| `@kvvasuu/klipp/three` | The core classes for three.js: they read `Object3D` targets and drive a `PerspectiveCamera`. | `three` |
+| `@kvvasuu/klipp/dom` | Mouse, touch and wheel input, and debug overlays. | nothing, runs in a browser |
+
+Vectors in the core are plain arrays from [`math`](https://github.com/pmndrs/math): `[x, y, z]`, and quaternions `[x, y, z, w]`. It comes with klipp; add it to your own dependencies to import its `vec3` and `quat` functions.
+
+Constants like `BlendCurves`, `BindingModes` and `BlendHints` come from the core in every layer:
+
+```ts
+import { BlendCurves, BindingModes } from '@kvvasuu/klipp';
+```
+
+## Core
+
+Everything comes from `@kvvasuu/klipp`. You give it the frame time and the target poses, and it gives you the shot to put on your camera. See [Your first camera](/getting-started/your-first-camera).
+
+```ts
+import { KlippCore, FollowBodyCore, HardLookAtAimCore, createTargetPose } from '@kvvasuu/klipp';
+```
 
 ## React Three Fiber
 
-Almost everything you need comes from `@kvvasuu/klipp/react`:
+Everything comes from `@kvvasuu/klipp/react`. See [Your first camera with React Three Fiber](/getting-started/your-first-camera-react) for a complete scene.
 
 ```tsx
 import { Klipp, VirtualCamera, Body, Aim } from '@kvvasuu/klipp/react';
 ```
 
-The package has one entry per layer:
-
-- `@kvvasuu/klipp`: the core. Plain data and functions on `math`, no three.js or React (`BlendCurves`, `KlippCore`, `impulseField`, `updateFollow`, ...).
-- `@kvvasuu/klipp/three`: the three.js layer. Classes that resolve `Object3D` targets and write cameras (`FollowBody`, `HardLookAtAim`, `applyCameraState`, ...).
-- `@kvvasuu/klipp/react`: React Three Fiber components.
-- `@kvvasuu/klipp/dom`: pointer and keyboard input and debug overlays (`InputSystem`, `InputAxisController`, `DebugOverlay`).
-
-```tsx
-import { BlendCurves, BindingModes } from '@kvvasuu/klipp';
-```
-
-## Vanilla three.js
-
-`Klipp` from the three.js layer is what `<Klipp>` uses under the hood. Each virtual camera takes a Body and an Aim, and `update` drives the real camera:
-
-```ts
-import { Klipp, FollowBody, HardLookAtAim } from '@kvvasuu/klipp/three';
-
-const klipp = new Klipp(camera);
-klipp.setSize(width, height);
-
-const follow = klipp.addCamera('follow', { priority: 10 });
-follow.body = new FollowBody(player, { offset: [0, 3, 8], damping: 0.5 });
-follow.aim = new HardLookAtAim(player);
-
-function onFrame(dt) {
-  klipp.update(dt);
-}
-```
-
 ## CameraControls
 
-[`CameraControls`](/body/camera-controls) lives in its own entry point, so `camera-controls` only ends up in your bundle if you use it:
+[`CameraControls`](/body/camera-controls) is built on the `camera-controls` library, so it lives in its own entry point and only ends up in your bundle if you use it:
 
 ```bash
 npm install camera-controls

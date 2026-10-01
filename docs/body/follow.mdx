@@ -6,6 +6,19 @@ nav: 22
 
 Keeps the camera at `offset` from the target. By default the offset turns with the target, so a chase camera stays behind a character as it turns.
 
+## Core
+
+```ts
+import { FollowBodyCore, HardLookAtAimCore } from '@kvvasuu/klipp';
+
+camera.body = new FollowBodyCore(player, { offset: [0, 3, 8], damping: 0.5 });
+camera.aim = new HardLookAtAimCore(player);
+```
+
+Every binding mode but `worldSpace` turns the offset with the target, so fill in `player.rotation` and set `player.hasRotation`.
+
+## React Three Fiber
+
 ```tsx
 <VirtualCamera name="chase" priority={10}>
   <Body.Follow target={playerRef} offset={[0, 3, 8]} damping={0.5} />
@@ -13,10 +26,12 @@ Keeps the camera at `offset` from the target. By default the offset turns with t
 </VirtualCamera>
 ```
 
-## Props
+`ref` gives you the `FollowBody`.
 
-| Prop | Description | Default |
-| ---- | ----------- | ------- |
+## Settings
+
+| Setting | Description | Default |
+| ------- | ----------- | ------- |
 | `target` | What to follow. See [Targets](/getting-started/core-concepts#targets). | |
 | `offset` | Where the camera sits relative to the target. | `[0, 0, 10]` |
 | `damping` | Seconds to catch up with the target. `0` is instant. See [Damping](/getting-started/core-concepts#damping). | `0` |
@@ -25,9 +40,13 @@ Keeps the camera at `offset` from the target. By default the offset turns with t
 
 ## `bindingMode`
 
-```tsx
+```ts
 import { BindingModes } from '@kvvasuu/klipp';
 
+camera.body = new FollowBodyCore(plane, { offset: [0, 2, 10], bindingMode: BindingModes.lockToTargetWithWorldUp });
+```
+
+```tsx
 <Body.Follow target={planeRef} offset={[0, 2, 10]} bindingMode={BindingModes.lockToTargetWithWorldUp} />
 ```
 
@@ -39,8 +58,6 @@ import { BindingModes } from '@kvvasuu/klipp';
 | `lockToTargetOnAssign` | rotation at the moment `target` is set, then stays fixed. |
 | `worldSpace` | nothing. The offset is always in world space. |
 
-With a fixed-point target like `[0, 1, 0]` there's no rotation to follow, so the offset is always in world space.
+A target without rotation, like a fixed point, always uses world space.
 
 The binding mode also tells Aims like [`HardLookAt`](/aim/hard-look-at) which way is up, so with `lockToTarget` the camera rolls along with the target, and with `lockToTargetWithWorldUp` it never does.
-
-`ref` gives you the `FollowBody`.

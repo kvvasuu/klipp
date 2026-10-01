@@ -6,14 +6,10 @@ nav: 80
 
 ## Framing zones
 
-[`PositionComposer`](/body/position-composer), [`RotationComposer`](/aim/rotation-composer) and [`GroupFraming`](/extension/group-framing) take a `debug` prop that draws their zones on top of the canvas while their camera is the winner.
+[`PositionComposer`](/body/position-composer), [`RotationComposer`](/aim/rotation-composer) and [`GroupFraming`](/extension/group-framing) can draw their zones on top of the canvas.
 
-```tsx
-<Body.PositionComposer target={playerRef} deadZone={[0.4, 0.4]} hardLimit={[0.7, 0.7]} debug />
-```
-
-| Component | Draws |
-| --------- | ----- |
+| Piece | Draws |
+| ----- | ----- |
 | `PositionComposer`, `RotationComposer` | `deadZone` in green, `hardLimit` in red, and a crosshair at `screenPosition`. |
 | `GroupFraming` | `padding` in blue. |
 
@@ -25,22 +21,32 @@ Each element has a CSS class you can restyle: `klipp-debug-deadzone`, `klipp-deb
 }
 ```
 
-Without React, draw zones with `DebugOverlay`. `composerDebugZones` turns a composer's settings into the same boxes the components draw:
+### Core
+
+Draw zones with `DebugOverlay` from `@kvvasuu/klipp/dom`. `composerDebugZones` turns a composer's settings into the same boxes the components draw:
 
 ```ts
 import { composerDebugZones } from '@kvvasuu/klipp';
 import { DebugOverlay } from '@kvvasuu/klipp/dom';
 
 const overlay = new DebugOverlay();
-overlay.connect(renderer.domElement.parentElement!);
+overlay.connect(canvas.parentElement!);
 overlay.render(composerDebugZones(body.screenPosition, body.deadZone, body.hardLimit), body.screenPosition);
 ```
 
 Call `render` again whenever the zones change, and `disconnect()` to remove it. For group framing, `groupFramingPaddingBox` gives the size of the padding boundary.
 
-## `<CameraFrustumHelper>`
+### React Three Fiber
 
-Draws a camera's frustum in the scene, so you can see where an inactive camera is and what it's looking at. Place it inside the `<VirtualCamera>` you want to see.
+Add the `debug` prop. The zones show while their camera is the winner:
+
+```tsx
+<Body.PositionComposer target={playerRef} deadZone={[0.4, 0.4]} hardLimit={[0.7, 0.7]} debug />
+```
+
+## Camera frustums
+
+`<CameraFrustumHelper>` draws a camera's frustum in the scene, so you can see where an inactive camera is and what it's looking at. Place it inside the `<VirtualCamera>` you want to see.
 
 ```tsx
 import { CameraFrustumHelper } from '@kvvasuu/klipp/react';
@@ -58,4 +64,4 @@ import { CameraFrustumHelper } from '@kvvasuu/klipp/react';
 | `maxDistance` | How far the frustum is drawn. | `1` |
 | `hideWhenLive` | Hide it while this camera is on screen. | `true` |
 
-`ref` gives you the `THREE.CameraHelper`.
+`ref` gives you the `THREE.CameraHelper`. With the core, every camera's `state` holds what such a helper needs: `position`, `quaternion`, `fov`, `near` and `far`.

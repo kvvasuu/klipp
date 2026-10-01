@@ -6,6 +6,19 @@ nav: 33
 
 Gives the camera the same rotation as the target, as if it were glued to it. It doesn't look at the target, it only copies how the target is turned.
 
+## Core
+
+```ts
+import { HardLockToTargetBodyCore, RotateWithFollowTargetAimCore } from '@kvvasuu/klipp';
+
+camera.body = new HardLockToTargetBodyCore(head);
+camera.aim = new RotateWithFollowTargetAimCore(head, { damping: 0.1 });
+```
+
+Only `head.rotation` is read, and only while `head.hasRotation` is set.
+
+## React Three Fiber
+
 ```tsx
 <VirtualCamera name="first-person" priority={10}>
   <Body.HardLockToTarget target={headRef} />
@@ -13,12 +26,12 @@ Gives the camera the same rotation as the target, as if it were glued to it. It 
 </VirtualCamera>
 ```
 
-## Props
+`ref` gives you the `RotateWithFollowTargetAim`.
 
-| Prop | Description | Default |
-| ---- | ----------- | ------- |
-| `target` | Whose rotation to copy. Must be an object; a fixed point has no rotation. See [Targets](/getting-started/core-concepts#targets). | |
+## Settings
+
+| Setting | Description | Default |
+| ------- | ----------- | ------- |
+| `target` | Whose rotation to copy. Must have one; a fixed point doesn't. See [Targets](/getting-started/core-concepts#targets). | |
 | `damping` | Seconds to catch up with the target's rotation. `0` is instant. See [Damping](/getting-started/core-concepts#damping). | `0` |
 | `maxSpeed` | Maximum turn speed, in radians per second. | `Infinity` |
-
-`ref` gives you the `RotateWithFollowTargetAim`.

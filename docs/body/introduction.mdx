@@ -4,7 +4,20 @@ description: Decides where the camera is.
 nav: 20
 ---
 
-A Body decides where the camera is. Where it looks is up to the [Aim](/aim/introduction). Each `<VirtualCamera>` has at most one Body.
+A Body decides where the camera is. Where it looks is up to the [Aim](/aim/introduction). Each virtual camera has at most one Body.
+
+## Core
+
+```ts
+import { FollowBodyCore, HardLookAtAimCore } from '@kvvasuu/klipp';
+
+camera.body = new FollowBodyCore(player, { offset: [0, 3, 8], damping: 0.5 });
+camera.aim = new HardLookAtAimCore(player);
+```
+
+Setting `camera.body` replaces any previous Body.
+
+## React Three Fiber
 
 ```tsx
 import { VirtualCamera, Body, Aim } from '@kvvasuu/klipp/react';
@@ -24,4 +37,4 @@ import { VirtualCamera, Body, Aim } from '@kvvasuu/klipp/react';
 | [`PositionComposer`](/body/position-composer) | Keeping a target at a spot on screen: top-down, side-scrollers, anything with a fixed rotation. |
 | [`CameraControls`](/body/camera-controls) | Letting the user orbit, pan and zoom. |
 
-Without a Body the camera stays at its [`initialState`](/api/virtual-camera#initialstate) position.
+Without a Body the camera stays at its starting position, [`initialState`](/api/virtual-camera#initialstate).

@@ -4,7 +4,20 @@ description: Adjusts the shot after the Body and Aim.
 nav: 40
 ---
 
-Extensions tweak a shot once the Body and Aim are done. You can add as many as you like to one `<VirtualCamera>`.
+Extensions tweak a shot once the Body and Aim are done. You can add as many as you like to one virtual camera, and they run in the order they were added.
+
+## Core
+
+```ts
+import { GroupFramingExtensionCore, LensExtensionCore } from '@kvvasuu/klipp';
+
+camera.addExtension(new GroupFramingExtensionCore(members, 'groupCenter', { padding: 1 }));
+const removeLens = camera.addExtension(new LensExtensionCore({ fov: 40, fovDamping: 0.5 }));
+```
+
+`addExtension` returns a function that removes it.
+
+## React Three Fiber
 
 ```tsx
 import { Extension } from '@kvvasuu/klipp/react';
@@ -16,6 +29,8 @@ import { Extension } from '@kvvasuu/klipp/react';
   <Extension.Lens fov={40} fovDamping={0.5} />
 </VirtualCamera>
 ```
+
+## Which one?
 
 | Extension | Use it for |
 | --------- | ---------- |

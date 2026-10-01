@@ -4,7 +4,19 @@ description: Always looks straight at the target.
 nav: 31
 ---
 
-Rotates the camera so the target is always in the center of the screen.
+Rotates the camera so the target is always in the center of the screen. It's always instant. For a smooth look-at, use [`RotationComposer`](/aim/rotation-composer) with `damping`.
+
+## Core
+
+```ts
+import { HardLookAtAimCore } from '@kvvasuu/klipp';
+
+camera.aim = new HardLookAtAimCore(player);
+```
+
+Which way is up comes from the Body, for example from Follow's [`bindingMode`](/body/follow#bindingmode).
+
+## React Three Fiber
 
 ```tsx
 <VirtualCamera name="follow" priority={10}>
@@ -13,16 +25,10 @@ Rotates the camera so the target is always in the center of the screen.
 </VirtualCamera>
 ```
 
-## Props
-
-| Prop | Description | Default |
-| ---- | ----------- | ------- |
-| `target` | What to look at. See [Targets](/getting-started/core-concepts#targets). | |
-
-`HardLookAt` is always instant. For a smooth look-at, use [`RotationComposer`](/aim/rotation-composer) with `damping`:
-
-```tsx
-<Aim.RotationComposer target={playerRef} damping={0.3} />
-```
-
 `ref` gives you the `HardLookAtAim`.
+
+## Settings
+
+| Setting | Description | Default |
+| ------- | ----------- | ------- |
+| `target` | What to look at. See [Targets](/getting-started/core-concepts#targets). | |

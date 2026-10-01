@@ -1,10 +1,52 @@
 ---
 title: Klipp
-description: The component that drives the real camera.
+description: Picks the winning camera, blends between shots and drives the real camera.
 nav: 10
 ---
 
-`<Klipp>` picks the winning [`<VirtualCamera>`](/api/virtual-camera), blends between shots, and writes the result onto the React Three Fiber camera every frame. It has to be inside `<Canvas>`.
+The camera director: it runs every [virtual camera](/api/virtual-camera), picks the winner, blends between shots, and puts the result on your camera.
+
+## Core
+
+`KlippCore` works with any renderer. Call `update` every frame and put `shot` on your camera:
+
+```ts
+import { KlippCore, BlendCurves } from '@kvvasuu/klipp';
+
+const klipp = new KlippCore({ defaultBlend: { curve: BlendCurves.easeInOut, time: 1 } });
+klipp.setSize(canvas.width, canvas.height);
+klipp.addCamera('main', { priority: 10 });
+
+function frame(dt: number) {
+  if (klipp.update(dt)) {
+    engine.camera.setTransform(klipp.shot.position, klipp.shot.quaternion);
+    engine.camera.setFov(klipp.shot.fov);
+    engine.render();
+  }
+}
+```
+
+| Member | Description |
+| ------ | ----------- |
+| `addCamera(name, options)` | Creates a [virtual camera](/api/virtual-camera) and adds it. |
+| `add(camera)`, `remove(camera)` | Adds or removes a camera you created. Adding moves it from any other klipp. |
+| `update(dt)` | Runs one frame. Returns `true` while something is still moving or the shot changed. |
+| `shot` | The current shot, see below. |
+| `setSize(width, height)` | The viewport size in pixels, for pieces that frame by screen position. |
+| `setDefaultBlend(blend)`, `setCustomBlends(blends)` | Change the blends at any time. |
+| `registerUpdate(fn)` | Runs `fn` every frame before the cameras, for input. Returns a function that stops it. |
+| `mode` | `'enabled'`, `'standby'` or `'disabled'`. See below. |
+| `activeCameraId`, `isActive(name)` | The winner, the camera the shot is heading to. |
+| `liveCameraId`, `isLive(name)` | The camera fully on screen, once the blend into it has finished. |
+| `isBlending` | Whether a blend is in progress. |
+
+New cameras start from `initialCameraState`, an option of `KlippCore`. Pass your camera's starting pose there.
+
+`KlippCore` is also an event target, see [Events](/api/events).
+
+## React Three Fiber
+
+`<Klipp>` is `KlippCore` for React Three Fiber: it writes the shot onto the r3f camera every frame. It has to be inside `<Canvas>`.
 
 ```tsx
 import { Klipp } from '@kvvasuu/klipp/react';
@@ -17,8 +59,6 @@ import { BlendCurves } from '@kvvasuu/klipp';
 </Canvas>
 ```
 
-## Props
-
 | Prop | Description | Default |
 | ---- | ----------- | ------- |
 | `defaultBlend` | How to blend between cameras. See [Blending](/blending/introduction). | `{ curve: BlendCurves.easeInOut, time: 2 }` |
@@ -26,28 +66,28 @@ import { BlendCurves } from '@kvvasuu/klipp';
 | `camera` | The camera to drive. | the r3f default camera |
 | `mode` | `'enabled'`, `'standby'` or `'disabled'`. See below. | `'enabled'` |
 
-Virtual cameras start from the real camera's current `fov`, `near`, `far`, position and rotation, so whatever you set on `<Canvas camera={...}>` is the starting point.
+Virtual cameras start from the real camera's `fov`, `near`, `far`, position and rotation, so whatever you set on `<Canvas camera={...}>` is the starting point.
+
+[`useKlipp()`](/api/hooks#useklipp) gives you the `Klipp` behind `<Klipp>`, and [`<Klipp.Events>`](/api/events) listens to every transition.
 
 ## `mode`
 
-| Mode | Cameras update | Real camera is written |
-| ---- | -------------- | ---------------------- |
+| Mode | Cameras update | Camera is written |
+| ---- | -------------- | ----------------- |
 | `'enabled'` | yes | yes |
 | `'standby'` | yes | no |
 | `'disabled'` | no | no |
 
 Use `'standby'` to hand the camera to something else for a while (an editor, a photo mode). klipp keeps its cameras updated in the background, so they're ready the moment you switch back.
 
-## `<Klipp.Events>`
+## The shot
 
-Listens to every camera transition. See [Events](/api/events).
+`shot` is a `CameraState`:
 
-```tsx
-<Klipp>
-  <Klipp.Events onActivated={(e) => console.log(`${e.outgoing} -> ${e.incoming}`)} />
-</Klipp>
-```
+| Field | Description |
+| ----- | ----------- |
+| `position`, `quaternion` | Where the camera is and how it's turned: `[x, y, z]` and `[x, y, z, w]`. |
+| `fov`, `near`, `far` | Lens settings, `fov` in degrees. |
+| `viewOffset` | Shifts the view without moving the camera, as a fraction of half the viewport. `[0, 0]` is centered. |
 
-## Accessing the core
-
-[`useKlipp()`](/api/hooks#useklipp) gives you the three.js `Klipp` behind `<Klipp>`, for example to check which camera is on screen.
+`shot` changes only once the first camera goes live, and stays put in `'standby'`. To react only when it changes, override `write`, see [Building on the core](/getting-started/building-on-the-core#your-own-integration).

@@ -1,0 +1,129 @@
+---
+title: Building on the core
+description: Integrate klipp with your own renderer or engine, or use the data and functions underneath.
+nav: 5
+---
+
+The core is the whole camera system. An integration only adapts the two places where it meets your world: where the shot goes, and where the targets come from. The React and three.js layers are built exactly this way.
+
+## Your own integration
+
+**Where the shot goes.** Read `klipp.shot` after `update`. To update your camera only when the shot changes, extend `KlippCore` and override `write` instead, as the three.js layer does:
+
+```ts
+import { KlippCore, type CameraState } from '@kvvasuu/klipp';
+
+class EngineKlipp extends KlippCore {
+  protected override write(shot: CameraState, transformChanged: boolean, lensChanged: boolean) {
+    if (transformChanged) engine.camera.setTransform(shot.position, shot.quaternion);
+    if (lensChanged) engine.camera.setFov(shot.fov);
+  }
+}
+```
+
+**Where the targets come from.** Every piece with a target reads it through `readTarget`. By default the target is a `TargetPose` you fill in yourself. To follow your engine's objects directly, extend the piece and fill the pose from them:
+
+```ts
+import { quat, vec3 } from 'math';
+import { FollowBodyCore, createTargetPose, type TargetPose } from '@kvvasuu/klipp';
+
+class EngineFollow extends FollowBodyCore<EngineObject | null> {
+  private readonly pose = createTargetPose();
+
+  protected override readTarget(): TargetPose | null {
+    if (!this.target) return null;
+    vec3.copy(this.pose.position, this.target.worldPosition);
+    quat.copy(this.pose.rotation, this.target.worldRotation);
+    this.pose.hasRotation = true;
+    return this.pose;
+  }
+}
+
+camera.body = new EngineFollow(player, { offset: [0, 3, 8] });
+```
+
+The same works for `HardLockToTargetBodyCore`, `PositionComposerBodyCore`, `HardLookAtAimCore`, `RotateWithFollowTargetAimCore`, `RotationComposerAimCore` and `PanTiltAimCore`. `GroupFramingExtensionCore` reads its members through `readMembers`.
+
+Core classes end in `Core`. Drop the suffix for your own, as the three.js layer does: `FollowBody` is `FollowBodyCore` reading an `Object3D`.
+
+For logic of your own, write a [custom piece](/advanced/custom-components).
+
+## Data and functions
+
+Under its classes, every piece is plain data and functions on [`math`](https://github.com/pmndrs/math), with the same three parts:
+
+- `XParams`, and `createXParams(settings)` for the defaults: its settings (`FollowParams`: `offset`, `damping`, ...).
+- `XState` and `createXState()`: the memory it keeps between frames, like damping velocity.
+- `updateX(out, state, params, ...)`: advances one frame and writes into a `CameraState`.
+
+A class is a thin wrapper that passes itself as `params`. Calling the functions directly gives you full control, for example from an ECS or a simulation:
+
+```ts
+import { createCameraState, createFollowParams, createFollowState, createTargetPose, updateFollow, updateHardLookAt } from '@kvvasuu/klipp';
+
+const camera = createCameraState();
+const follow = createFollowState();
+const params = createFollowParams({ offset: [0, 3, 8], damping: 0.5 });
+const player = createTargetPose();
+
+function frame(dt: number, justActivated: boolean) {
+  updateFollow(camera, follow, params, player, dt, justActivated);
+  updateHardLookAt(camera, player.position);
+}
+```
+
+`justActivated` is `true` on a camera's first frame, and again when it turns back on, so smoothing starts from the right place. Virtual cameras pass it for you.
+
+Picking the camera and blending works the same way. `tickKlipp` returns the shot, and pushes transitions to `state.events` as data:
+
+```ts
+import { createKlippState, registerKlippCamera, tickKlipp, DEFAULT_BLEND, cameraTransformEquals } from '@kvvasuu/klipp';
+
+const klipp = createKlippState();
+const klippParams = { defaultBlend: DEFAULT_BLEND, customBlends: [] };
+registerKlippCamera(klipp, { id: 'follow', priority: 10, state: camera });
+
+function frame(dt: number) {
+  const shot = tickKlipp(klipp, klippParams, dt);
+  klipp.events.length = 0;
+  // write shot to your camera, for example only when cameraTransformEquals says it moved
+}
+```
+
+### With an ECS
+
+Because state is plain data, it can live in components. A sketch with [Koota](https://github.com/pmndrs/koota):
+
+```ts
+import { createWorld, trait } from 'koota';
+import { createCameraState, createFollowParams, createFollowState, createTargetPose, updateFollow } from '@kvvasuu/klipp';
+
+const Camera = trait(() => createCameraState());
+const Target = trait(() => createTargetPose());
+const Follow = trait(() => ({ state: createFollowState(), params: createFollowParams({ offset: [0, 3, 8] }) }));
+
+const world = createWorld();
+world.spawn(Camera, Target, Follow);
+
+function frame(dt: number) {
+  world.query(Camera, Target, Follow).updateEach(([camera, target, follow]) => {
+    updateFollow(camera, follow.state, follow.params, target, dt, false);
+  });
+}
+```
+
+### What's available
+
+| Piece | Functions |
+| ----- | --------- |
+| Body | `updateFollow`, `updateHardLockToTarget`, `updatePositionComposer` |
+| Aim | `updateHardLookAt`, `updateRotateWithFollowTarget`, `updateRotationComposer`, `updatePanTilt` |
+| Extension | `updateLens`, `updateGroupFraming` |
+| Noise | `updatePerlinNoise`, `sampleImpulses` |
+| Input | `updateAxis`, `applyAxisDelta`, `feedInputAxes` |
+| Choosing the camera | `registerKlippCamera`, `unregisterKlippCamera`, `setKlippPriority`, `setKlippHints`, `tickKlipp` |
+| Blending | `tickBlend`, `lerpCameraState` |
+| Damping | `damp`, `dampVector3`, `dampQuaternion` |
+| Output | `cameraTransformEquals`, `cameraLensEquals` |
+
+Each has a matching `create...State()` where it needs memory, and `create...Params()` where it has settings.

@@ -1,8 +1,25 @@
 ---
 title: On-demand rendering
-description: Using klipp with frameloop="demand".
+description: Render only while the camera is moving.
 nav: 90
 ---
+
+## Core
+
+`klipp.update` returns `true` while anything is still moving, or the shot changed this frame, so render only then:
+
+```ts
+function frame(dt: number) {
+  if (klipp.update(dt) || sceneChanged) {
+    engine.camera.setTransform(klipp.shot.position, klipp.shot.quaternion);
+    engine.render();
+  }
+}
+```
+
+Keep calling `update` every frame, even while nothing renders. It notices on its own when a target moves or a setting changes.
+
+## React Three Fiber
 
 klipp works with `<Canvas frameloop="demand">`. It keeps requesting frames on its own while anything is still moving: a blend, damping catching up, a shake.
 
