@@ -3,19 +3,19 @@ import { vec3, type Vec3 } from 'math';
 import { createRef, type ReactNode, type RefObject } from 'react';
 import { expect } from 'vitest';
 import type { CameraState } from '../../src/core/CameraState';
-import type { KlippCore } from '../../src/core/KlippCore';
+import type { KlippThree } from '../../src/three/KlippThree';
 import { Klipp } from '../../src/react/Klipp';
 import { useKlipp } from '../../src/react/KlippContext';
 import { VirtualCamera, type VirtualCameraProps } from '../../src/react/VirtualCamera';
 
-function CoreReader({ onRead }: { onRead: (core: KlippCore) => void }) {
+function CoreReader({ onRead }: { onRead: (core: KlippThree) => void }) {
   onRead(useKlipp());
   return null;
 }
 
 /** Mounts `piece` in a single active camera. `state` is the camera's output after the frames advanced so far. */
 export async function mountInCamera(piece: ReactNode, initialState?: VirtualCameraProps['initialState']) {
-  let core: KlippCore | undefined;
+  let core: KlippThree | undefined;
   const scene = (child: ReactNode) => (
     <Klipp>
       <CoreReader onRead={(c) => (core = c)} />

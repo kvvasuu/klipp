@@ -2,22 +2,22 @@ import { bench, group } from '@pmndrs/labs';
 import { vec3, type Vec3 } from 'math';
 import { BoxGeometry, Matrix4, Mesh, MeshBasicMaterial, Object3D, Quaternion, Vector3 } from 'three';
 import { createCameraState } from '../src/core/CameraState';
-import { KlippCore } from '../src/core/KlippCore';
+import { Klipp } from '../src/core/Klipp';
 import { BlendHints } from '../src/core/blend/BlendHints';
 import { lerpCameraState } from '../src/core/blend/lerpCameraState';
-import { VirtualCameraCore } from '../src/core/VirtualCameraCore';
-import { HardLookAtAim } from '../src/three/aim/HardLookAtAim';
-import { RotationComposerAim } from '../src/three/aim/RotationComposerAim';
-import { FollowBody } from '../src/three/body/FollowBody';
-import { HardLockToTargetBody } from '../src/three/body/HardLockToTargetBody';
-import { PositionComposerBody } from '../src/three/body/PositionComposerBody';
-import { GroupFramingExtension } from '../src/three/extension/GroupFramingExtension';
+import { VirtualCamera } from '../src/core/VirtualCamera';
+import { HardLookAtAimThree } from '../src/three/aim/HardLookAtAimThree';
+import { RotationComposerAimThree } from '../src/three/aim/RotationComposerAimThree';
+import { FollowBodyThree } from '../src/three/body/FollowBodyThree';
+import { HardLockToTargetBodyThree } from '../src/three/body/HardLockToTargetBodyThree';
+import { PositionComposerBodyThree } from '../src/three/body/PositionComposerBodyThree';
+import { GroupFramingExtensionThree } from '../src/three/extension/GroupFramingExtensionThree';
 import { TargetGroup } from '../src/three/extension/TargetGroup';
 import { ImpulseField } from '../src/core/impulse/ImpulseField';
-import { ImpulseListenerNoiseCore } from '../src/core/impulse/ImpulseListenerNoiseCore';
+import { ImpulseListenerNoise } from '../src/core/impulse/ImpulseListenerNoise';
 import { createConsumedInput, type ConsumedInput } from '../src/core/input/consumedInput';
 import { InputSystem, MouseButton } from '../src/dom/InputSystem';
-import { BasicMultiChannelPerlinNoiseCore } from '../src/core/noise/BasicMultiChannelPerlinNoiseCore';
+import { BasicMultiChannelPerlinNoise } from '../src/core/noise/BasicMultiChannelPerlinNoise';
 import { TargetRegistry } from '../src/three/resolve/TargetRegistry';
 import { toQuaternion, toTuple } from './tuples';
 import { advance, register } from '../src/core/internal';
@@ -61,7 +61,7 @@ function makeMovingMeshTarget(): { object: Mesh; step: () => void } {
 group('Body.update @body', () => {
   bench('HardLockToTarget', function* () {
     const { object, step } = makeMovingTarget();
-    const body = new HardLockToTargetBody(object, { damping: 0.5 });
+    const body = new HardLockToTargetBodyThree(object, { damping: 0.5 });
     const out = createCameraState();
     yield () => {
       step();
@@ -72,7 +72,7 @@ group('Body.update @body', () => {
 
   bench('Follow (lockToTarget binding)', function* () {
     const { object, step } = makeMovingTarget();
-    const body = new FollowBody(object, { offset: [0, 3, 8], damping: 0.5 });
+    const body = new FollowBodyThree(object, { offset: [0, 3, 8], damping: 0.5 });
     const out = createCameraState();
     yield () => {
       step();
@@ -83,7 +83,7 @@ group('Body.update @body', () => {
 
   bench('PositionComposer (deadZone + hardLimit)', function* () {
     const { object, step } = makeMovingTarget();
-    const body = new PositionComposerBody(object, {
+    const body = new PositionComposerBodyThree(object, {
       cameraDistance: 10,
       screenPosition: [0, 0],
       aspect: 16 / 9,
@@ -103,7 +103,7 @@ group('Body.update @body', () => {
   // is identical except lookahead is off
   bench('PositionComposer (deadZone + hardLimit + lookahead)', function* () {
     const { object, step } = makeMovingTarget();
-    const body = new PositionComposerBody(object, {
+    const body = new PositionComposerBodyThree(object, {
       cameraDistance: 10,
       screenPosition: [0, 0],
       aspect: 16 / 9,
@@ -127,7 +127,7 @@ group('Body.update @body', () => {
   // frame instead; all three should still show ~0 bytes/iter, same as the plain point-target bench above
   bench('PositionComposer (radius extent)', function* () {
     const { object, step } = makeMovingTarget();
-    const body = new PositionComposerBody(object, {
+    const body = new PositionComposerBodyThree(object, {
       cameraDistance: 10,
       screenPosition: [0, 0],
       aspect: 16 / 9,
@@ -146,7 +146,7 @@ group('Body.update @body', () => {
 
   bench('PositionComposer (explicit size extent, rotating box)', function* () {
     const { object, step } = makeMovingTarget();
-    const body = new PositionComposerBody(object, {
+    const body = new PositionComposerBodyThree(object, {
       cameraDistance: 10,
       screenPosition: [0, 0],
       aspect: 16 / 9,
@@ -165,7 +165,7 @@ group('Body.update @body', () => {
 
   bench('PositionComposer (auto-detected Mesh size extent, rotating box)', function* () {
     const { object, step } = makeMovingMeshTarget();
-    const body = new PositionComposerBody(object, {
+    const body = new PositionComposerBodyThree(object, {
       cameraDistance: 10,
       screenPosition: [0, 0],
       aspect: 16 / 9,
@@ -185,7 +185,7 @@ group('Body.update @body', () => {
 group('Aim.update @aim', () => {
   bench('HardLookAt', function* () {
     const { object, step } = makeMovingTarget();
-    const aim = new HardLookAtAim(object);
+    const aim = new HardLookAtAimThree(object);
     const out = createCameraState();
     vec3.set(out.position, 0, 2, 15);
     yield () => {
@@ -197,7 +197,7 @@ group('Aim.update @aim', () => {
 
   bench('RotationComposer (deadZone + hardLimit)', function* () {
     const { object, step } = makeMovingTarget();
-    const aim = new RotationComposerAim(object, {
+    const aim = new RotationComposerAimThree(object, {
       screenPosition: [0, 0],
       aspect: 16 / 9,
       deadZone: [0.2, 0.2],
@@ -217,7 +217,7 @@ group('Aim.update @aim', () => {
   // is identical except lookahead is off
   bench('RotationComposer (deadZone + hardLimit + lookahead)', function* () {
     const { object, step } = makeMovingTarget();
-    const aim = new RotationComposerAim(object, {
+    const aim = new RotationComposerAimThree(object, {
       screenPosition: [0, 0],
       aspect: 16 / 9,
       deadZone: [0.2, 0.2],
@@ -239,7 +239,7 @@ group('Aim.update @aim', () => {
   // the state a live camera spends most of its frames in, and a different path from the moving benches
   // above: both dampers early-return and the published lookAtTarget takes its exact-copy branch
   bench('RotationComposer (damped, converged on a still target)', function* () {
-    const aim = new RotationComposerAim(new Vector3(0, 2, -20), {
+    const aim = new RotationComposerAimThree(new Vector3(0, 2, -20), {
       screenPosition: [0, 0],
       aspect: 16 / 9,
       deadZone: [0, 0],
@@ -257,7 +257,7 @@ group('Aim.update @aim', () => {
 
 group('Noise/Extension.update @noise', () => {
   bench('BasicMultiChannelPerlin', function* () {
-    const perlin = new BasicMultiChannelPerlinNoiseCore({
+    const perlin = new BasicMultiChannelPerlinNoise({
       positionAmplitude: [0.4, 0.4, 0.4],
       positionFrequency: [1, 1, 1],
       rotationAmplitude: [4, 4, 4],
@@ -276,7 +276,7 @@ group('Noise/Extension.update @noise', () => {
 
   bench('GroupFraming (single member)', function* () {
     const targetGroup = new TargetGroup([{ target: new Vector3(0, 0, 0), radius: 1 }]);
-    const groupFraming = new GroupFramingExtension(targetGroup, {
+    const groupFraming = new GroupFramingExtensionThree(targetGroup, {
       padding: 40,
       viewportWidth: 1920,
       viewportHeight: 1080,
@@ -336,11 +336,11 @@ group('ImpulseField.sampleAt @impulse', () => {
   });
 });
 
-group('ImpulseListenerNoiseCore.update @impulse', () => {
+group('ImpulseListenerNoise.update @impulse', () => {
   bench('kick only', function* () {
     const field = new ImpulseField();
     field.generate({ position: [0, 0, 0], direction: [1, 0, 0], shape: always, duration: 1000 }, 0);
-    const listener = new ImpulseListenerNoiseCore({ field });
+    const listener = new ImpulseListenerNoise({ field });
     const out = createCameraState();
     let now = 0;
     yield () => {
@@ -354,11 +354,11 @@ group('ImpulseListenerNoiseCore.update @impulse', () => {
   bench('kick + shake', function* () {
     const field = new ImpulseField();
     field.generate({ position: [0, 0, 0], direction: [1, 0, 0], shape: always, duration: 1000 }, 0);
-    const shake = new BasicMultiChannelPerlinNoiseCore({
+    const shake = new BasicMultiChannelPerlinNoise({
       positionAmplitude: [0.1, 0.1, 0.1],
       rotationAmplitude: [3, 3, 3],
     });
-    const listener = new ImpulseListenerNoiseCore({ field, channelMask: 1, gain: 1, shake });
+    const listener = new ImpulseListenerNoise({ field, channelMask: 1, gain: 1, shake });
     const out = createCameraState();
     let now = 0;
     yield () => {
@@ -372,7 +372,7 @@ group('ImpulseListenerNoiseCore.update @impulse', () => {
   bench('kick + cameraSpace', function* () {
     const field = new ImpulseField();
     field.generate({ position: [0, 0, 0], direction: [1, 0, 0], shape: always, duration: 1000 }, 0);
-    const listener = new ImpulseListenerNoiseCore({ field, channelMask: 1, gain: 1, cameraSpace: true });
+    const listener = new ImpulseListenerNoise({ field, channelMask: 1, gain: 1, cameraSpace: true });
     const out = createCameraState();
     let now = 0;
     yield () => {
@@ -472,12 +472,12 @@ group('InputSystem event handlers @input', () => {
   });
 });
 
-group('VirtualCameraCore.update @controller', () => {
+group('VirtualCamera.update @controller', () => {
   bench('minimal: HardLockToTarget + HardLookAt', function* () {
     const { object, step } = makeMovingTarget();
-    const controller = new VirtualCameraCore('minimal');
-    controller.setBody(new HardLockToTargetBody(object, { damping: 0.5 }));
-    controller.setAim(new HardLookAtAim(object));
+    const controller = new VirtualCamera('minimal');
+    controller.setBody(new HardLockToTargetBodyThree(object, { damping: 0.5 }));
+    controller.setAim(new HardLookAtAimThree(object));
     const out = createCameraState();
     yield () => {
       step();
@@ -488,11 +488,11 @@ group('VirtualCameraCore.update @controller', () => {
 
   bench('full: Follow + RotationComposer + GroupFraming + Perlin (like FocusReproScene)', function* () {
     const { object, step } = makeMovingTarget();
-    const controller = new VirtualCameraCore('full');
+    const controller = new VirtualCamera('full');
     const targetGroup = new TargetGroup([{ target: object, radius: 1.5 }]);
-    controller.setBody(new FollowBody(object, { offset: [0, 3, 12], damping: 0.5 }));
+    controller.setBody(new FollowBodyThree(object, { offset: [0, 3, 12], damping: 0.5 }));
     controller.setAim({
-      update: new RotationComposerAim(object, {
+      update: new RotationComposerAimThree(object, {
         screenPosition: [0, 0],
         aspect: 16 / 9,
         deadZone: [0.15, 0.15],
@@ -500,7 +500,7 @@ group('VirtualCameraCore.update @controller', () => {
       }).update,
     });
     controller.addExtension({
-      update: new GroupFramingExtension(targetGroup, {
+      update: new GroupFramingExtensionThree(targetGroup, {
         padding: 40,
         viewportWidth: 1920,
         viewportHeight: 1080,
@@ -508,7 +508,7 @@ group('VirtualCameraCore.update @controller', () => {
       }).update,
     });
     controller.addNoise({
-      update: new BasicMultiChannelPerlinNoiseCore({
+      update: new BasicMultiChannelPerlinNoise({
         positionAmplitude: [0.1, 0.1, 0.1],
         positionFrequency: [1, 1, 1],
         rotationAmplitude: [2, 2, 2],
@@ -528,12 +528,12 @@ group('VirtualCameraCore.update @controller', () => {
   });
 });
 
-/** `KlippCore.tick()` in isolation — arbitration (pick the priority winner) + blend (lerpCameraState
+/** `Klipp.tick()` in isolation — arbitration (pick the priority winner) + blend (lerpCameraState
  *  toward it). Registered cameras' own `state` is just a static snapshot here (no Body/Aim running) so
  *  this isolates tick()'s OWN cost from whatever's driving each camera's state. */
-group('KlippCore.tick @core', () => {
-  function makeCoreWithCameras(count: number): KlippCore {
-    const core = new KlippCore();
+group('Klipp.tick @core', () => {
+  function makeCoreWithCameras(count: number): Klipp {
+    const core = new Klipp();
     for (let i = 0; i < count; i++) {
       const state = createCameraState();
       vec3.set(state.position, i, 0, 0);
@@ -627,8 +627,8 @@ function* twoCamerasOnSharedTarget(depth: number, withRegistry: boolean) {
   const { object, step } = makeNestedTarget(depth);
   const registry = new TargetRegistry();
   const cameras = [new Vector3(0, 3, 8), new Vector3(5, 2, 0)].map((offset) => {
-    const follow = new FollowBody(object, { offset: toTuple(offset), damping: 0.5 });
-    const look = new HardLookAtAim(object);
+    const follow = new FollowBodyThree(object, { offset: toTuple(offset), damping: 0.5 });
+    const look = new HardLookAtAimThree(object);
     if (withRegistry) follow.targetSlot = look.targetSlot = registry.acquire(object);
     return { follow, look, out: createCameraState() };
   });

@@ -2,11 +2,11 @@ import { vec4 } from 'math';
 import { Vector3 } from 'three';
 import { describe, expect, it } from 'vitest';
 import { createCameraState, type CameraState } from '../../src/core/CameraState';
-import { HardLookAtAim } from '../../src/three/aim/HardLookAtAim';
-import { RotationComposerAim } from '../../src/three/aim/RotationComposerAim';
+import { HardLookAtAimThree } from '../../src/three/aim/HardLookAtAimThree';
+import { RotationComposerAimThree } from '../../src/three/aim/RotationComposerAimThree';
 import { BlendDriver } from '../../src/core/blend/BlendDriver';
-import { FollowBody } from '../../src/three/body/FollowBody';
-import { HardLockToTargetBody } from '../../src/three/body/HardLockToTargetBody';
+import { FollowBodyThree } from '../../src/three/body/FollowBodyThree';
+import { HardLockToTargetBodyThree } from '../../src/three/body/HardLockToTargetBodyThree';
 import { toQuaternion } from '../tuples';
 
 const dt = 1 / 60;
@@ -22,14 +22,14 @@ function runFocusPull(retargetAtTick: number | null, reactivateOntoSameTargetFir
   const defaultState = createCameraState();
   const focusedState = createCameraState();
 
-  const defaultBody = new FollowBody(productCenter, { offset: [0, 4, 16], damping: 0 });
-  const defaultAim = new HardLookAtAim(productCenter);
+  const defaultBody = new FollowBodyThree(productCenter, { offset: [0, 4, 16], damping: 0 });
+  const defaultAim = new HardLookAtAimThree(productCenter);
 
   const firstFocus = { position: new Vector3(-6, 3, 7), lookAt: new Vector3(-6, 1, 0) };
   const secondFocus = { position: new Vector3(6, 1, -4), lookAt: new Vector3(6, 5, 1) };
 
-  const focusedBody = new HardLockToTargetBody(firstFocus.position, { damping: 0.5 });
-  const focusedAim = new RotationComposerAim(firstFocus.lookAt, {
+  const focusedBody = new HardLockToTargetBodyThree(firstFocus.position, { damping: 0.5 });
+  const focusedAim = new RotationComposerAimThree(firstFocus.lookAt, {
     screenPosition: [0, 0],
     aspect: 1,
     deadZone: [0, 0],

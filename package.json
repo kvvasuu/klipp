@@ -35,8 +35,8 @@
       "default": "./dist/three/index.js"
     },
     "./three/camera-controls": {
-      "types": "./dist/three/body/CameraControlsBody.d.ts",
-      "default": "./dist/three/body/CameraControlsBody.js"
+      "types": "./dist/three/body/CameraControlsBodyThree.d.ts",
+      "default": "./dist/three/body/CameraControlsBodyThree.js"
     },
     "./react": {
       "types": "./dist/react/index.d.ts",

@@ -5,14 +5,17 @@ import { composerDebugZones } from '../../core/debug/debugZones.js';
 import { DebugZoneOverlay } from '../DebugZoneOverlay.js';
 import type { Target } from '../../three/resolve/Target.js';
 import { useVirtualCamera } from '../VirtualCameraContext.js';
-import { PositionComposerBody, type PositionComposerOptions } from '../../three/body/PositionComposerBody.js';
+import {
+  PositionComposerBodyThree,
+  type PositionComposerThreeOptions,
+} from '../../three/body/PositionComposerBodyThree.js';
 
-export type PositionComposerProps = Omit<PositionComposerOptions, 'aspect'> & {
+export type PositionComposerProps = Omit<PositionComposerThreeOptions, 'aspect'> & {
   /** Target to compose around. Unresolved targets are ignored. */
   target?: Target;
   /** Draws the `deadZone` and `hardLimit` overlays. */
   debug?: boolean;
-  ref?: Ref<PositionComposerBody>;
+  ref?: Ref<PositionComposerBodyThree>;
 };
 
 /** Positions the camera around a target while maintaining screen composition. */
@@ -20,7 +23,7 @@ export function PositionComposer({ target, debug = false, ref, ...settings }: Po
   const camera = useVirtualCamera();
   const aspect = useThree((state) => state.viewport.aspect);
   const params = createPositionComposerParams({ ...settings, aspect });
-  const [body] = useState(() => new PositionComposerBody(target, params));
+  const [body] = useState(() => new PositionComposerBodyThree(target, params));
   body.target = target;
   Object.assign(body, params);
   body.radius = settings.radius;

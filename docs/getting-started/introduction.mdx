@@ -20,24 +20,11 @@ npm install @kvvasuu/klipp
 
 ## Why klipp?
 
-Cameras are a core part of 3D, yet most projects end up rebuilding the same pieces: an offset that follows the player, damping so it doesn't jitter, a dead zone, a cutscene camera and a smooth way back. Written by hand, all of that ends up tangled in one update loop.
-
-Engines like Unity and Unreal solved this years ago with virtual cameras. klipp brings that model to the web: each shot is described on its own, the one with the highest priority is on screen, and switching between shots is a blend instead of a jump.
+Most 3D projects rebuild the same camera code: an offset that follows the player, damping, a dead zone, a cutscene camera and a smooth way back. klipp brings the virtual camera model from engines like Unity to the web: each shot is described on its own, the one with the highest priority is on screen, and switching between shots is a blend.
 
 ## One system, any renderer
 
-The core of klipp is a complete camera system: virtual cameras, priority, blending, framing, shake and input. It knows nothing about renderers or frameworks, so it runs anywhere. Integrations are thin layers on top of it:
-
-| Entry point | For |
-| ----------- | --- |
-| `@kvvasuu/klipp` | The core. Use it with any renderer or engine, or build your own integration on it. |
-| `@kvvasuu/klipp/react` | React Three Fiber components. |
-| `@kvvasuu/klipp/three` | The core classes for three.js. The React components are built on them. |
-| `@kvvasuu/klipp/dom` | Mouse, touch and wheel input, and debug overlays. |
-
-Under its classes, the core is plain data and functions on [`math`](https://github.com/pmndrs/math). They are there for when you want full control, for example from an ECS.
-
-Every page shows each piece for the core, three.js and React Three Fiber, in tabs.
+The core is a complete camera system with no renderer or framework attached. Integrations are thin layers on top of it: three.js and React Three Fiber today, with more to come, like TresJS. Each page shows the core and every integration in tabs.
 
 ## What it looks like
 
@@ -53,20 +40,20 @@ A follow camera, and a cutscene camera that takes over when it turns on. Turning
 
 ```ts
 import { vec3 } from 'math';
-import { KlippCore, FollowBodyCore, HardLockToTargetBodyCore, HardLookAtAimCore, createTargetPose } from '@kvvasuu/klipp';
+import { Klipp, FollowBody, HardLockToTargetBody, HardLookAtAim, createTargetPose } from '@kvvasuu/klipp';
 
-const klipp = new KlippCore();
+const klipp = new Klipp();
 const player = createTargetPose(); // keep player.position up to date
 const spot = createTargetPose();
 vec3.set(spot.position, 10, 2, 0);
 
 const follow = klipp.addCamera('follow', { priority: 10 });
-follow.body = new FollowBodyCore(player, { offset: [0, 3, 8], damping: 0.5 });
-follow.aim = new HardLookAtAimCore(player);
+follow.body = new FollowBody(player, { offset: [0, 3, 8], damping: 0.5 });
+follow.aim = new HardLookAtAim(player);
 
 const cutscene = klipp.addCamera('cutscene', { priority: 20, active: false });
-cutscene.body = new HardLockToTargetBodyCore(spot);
-cutscene.aim = new HardLookAtAimCore(player);
+cutscene.body = new HardLockToTargetBody(spot);
+cutscene.aim = new HardLookAtAim(player);
 
 // every frame
 klipp.update(dt);
@@ -79,17 +66,17 @@ engineCamera.setRotation(klipp.shot.quaternion);
 
 ```ts
 import { Vector3 } from 'three';
-import { Klipp, FollowBody, HardLockToTargetBody, HardLookAtAim } from '@kvvasuu/klipp/three';
+import { KlippThree, FollowBodyThree, HardLockToTargetBodyThree, HardLookAtAimThree } from '@kvvasuu/klipp/three';
 
-const klipp = new Klipp(camera);
+const klipp = new KlippThree(camera);
 
 const follow = klipp.addCamera('follow', { priority: 10 });
-follow.body = new FollowBody(player, { offset: new Vector3(0, 3, 8), damping: 0.5 });
-follow.aim = new HardLookAtAim(player);
+follow.body = new FollowBodyThree(player, { offset: new Vector3(0, 3, 8), damping: 0.5 });
+follow.aim = new HardLookAtAimThree(player);
 
 const cutscene = klipp.addCamera('cutscene', { priority: 20, active: false });
-cutscene.body = new HardLockToTargetBody(new Vector3(10, 2, 0));
-cutscene.aim = new HardLookAtAim(player);
+cutscene.body = new HardLockToTargetBodyThree(new Vector3(10, 2, 0));
+cutscene.aim = new HardLookAtAimThree(player);
 
 // every frame, before rendering
 klipp.update(dt);

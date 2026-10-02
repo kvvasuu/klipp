@@ -1,7 +1,7 @@
 import { createRef } from 'react';
 import { describe, expect, it } from 'vitest';
 import { ImpulseField } from '../../../src/core/impulse/ImpulseField';
-import type { ImpulseListenerNoiseCore } from '../../../src/core/impulse/ImpulseListenerNoiseCore';
+import type { ImpulseListenerNoise } from '../../../src/core/impulse/ImpulseListenerNoise';
 import { ImpulseListener, type ImpulseListenerProps } from '../../../src/react/impulse/ImpulseListener';
 import { expectPropsReachInstance, mountInCamera } from '../wiring';
 
@@ -21,7 +21,7 @@ describe('ImpulseListener', () => {
   });
 
   it('passes every prop to the same listener, on mount and when props change', async () => {
-    await expectPropsReachInstance<ImpulseListenerProps, ImpulseListenerNoiseCore>(
+    await expectPropsReachInstance<ImpulseListenerProps, ImpulseListenerNoise>(
       (props, ref) => <ImpulseListener ref={ref} {...props} />,
       { field: new ImpulseField(), channelMask: 0b01, gain: 2, cameraSpace: true },
       { field: new ImpulseField(), channelMask: 0b10, gain: 0.5, cameraSpace: false },
@@ -41,7 +41,7 @@ describe('ImpulseListener', () => {
   });
 
   it('attaches a shake while the shake prop is set, driven by the field', async () => {
-    const ref = createRef<ImpulseListenerNoiseCore>();
+    const ref = createRef<ImpulseListenerNoise>();
     const field = new ImpulseField();
     field.generate({ position: [0, 0, 0], shape: always, duration: 60 });
     // A fixed seed: about one random seed in five samples exactly zero after these frames.

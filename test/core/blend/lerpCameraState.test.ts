@@ -124,7 +124,7 @@ describe('lerpCameraState', () => {
     it('a continuously-rotating "b" (e.g. Aim tracking an orbiting target) never takes a sudden jump, even sweeping past where "shortest from the frozen a" would flip sides', () => {
       const out = createCameraState();
       const from = makeState(); // frozen "a", identity — stays fixed the whole time, like a real blend
-      vec4.copy(out.quaternion, from.quaternion); // seed "previous output" the same way KlippCore does at blend start
+      vec4.copy(out.quaternion, from.quaternion); // seed "previous output" the same way Klipp does at blend start
 
       const axis: Vec3 = [0, 1, 0];
       const live = makeState();

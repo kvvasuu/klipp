@@ -6,7 +6,7 @@ nav: 24
 
 A user-controlled orbit camera, built on [`camera-controls`](https://github.com/yomotsu/camera-controls). It still takes part in priority and blending like any other camera. Unlike other Bodies, it controls both position and rotation, so don't add an Aim next to it.
 
-`camera-controls` is a three.js library, so this Body exists for three.js and React Three Fiber only, with no core form.
+`camera-controls` is a three.js library, so this Body exists only in integrations built on three.js.
 
 ```bash
 npm install camera-controls
@@ -41,9 +41,9 @@ With a `target`, the camera orbits around it and follows it when it moves. Witho
   <TabsContent value="three">
 
 ```ts
-import { CameraControlsBody } from '@kvvasuu/klipp/three/camera-controls';
+import { CameraControlsBodyThree } from '@kvvasuu/klipp/three/camera-controls';
 
-const body = new CameraControlsBody(ball);
+const body = new CameraControlsBodyThree(ball);
 body.controls.minDistance = 2;
 const orbit = klipp.addCamera('orbit', { priority: 10 });
 orbit.body = body;
@@ -71,7 +71,7 @@ Any option of a `camera-controls` instance can be passed as a prop, and its even
 
 Input only works while this camera is on screen, so you can mount several orbit cameras without them fighting over the mouse.
 
-`ref` gives you the `CameraControlsBody`.
+`ref` gives you the `CameraControlsBodyThree`.
 
   </TabsContent>
 </Tabs>

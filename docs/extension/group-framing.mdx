@@ -49,12 +49,12 @@ Members are plain data you keep up to date:
 
 ```ts
 import { vec3 } from 'math';
-import { GroupFramingExtensionCore, createGroupMember } from '@kvvasuu/klipp';
+import { GroupFramingExtension, createGroupMember } from '@kvvasuu/klipp';
 
 const a = createGroupMember();
 const b = createGroupMember();
 b.extent.radius = 2;
-camera.addExtension(new GroupFramingExtensionCore([a, b], 'groupCenter', { padding: 1, damping: 0.5 }));
+camera.addExtension(new GroupFramingExtension([a, b], 'groupCenter', { padding: 1, damping: 0.5 }));
 
 // every frame, before klipp.update
 vec3.copy(a.position, aPosition);
@@ -67,10 +67,10 @@ vec3.copy(b.position, bPosition);
 Members are a `TargetGroup`:
 
 ```ts
-import { GroupFramingExtension, TargetGroup } from '@kvvasuu/klipp/three';
+import { GroupFramingExtensionThree, TargetGroup } from '@kvvasuu/klipp/three';
 
 const group = new TargetGroup([{ target: a }, { target: b, radius: 2 }], 'groupCenter');
-camera.addExtension(new GroupFramingExtension(group, { padding: 1, damping: 0.5 }));
+camera.addExtension(new GroupFramingExtensionThree(group, { padding: 1, damping: 0.5 }));
 ```
 
 For meshes, member sizes are measured from their geometry. If a member's shape changes, call `recalculateSize()` to measure it again.
@@ -90,7 +90,7 @@ For meshes, member sizes are measured from their geometry. If a member's shape c
 </VirtualCamera>
 ```
 
-For meshes, member sizes are measured from their geometry. `ref` gives you the `GroupFramingExtension`: if a member's shape changes, call `recalculateSize()` to measure it again.
+For meshes, member sizes are measured from their geometry. `ref` gives you the `GroupFramingExtensionThree`: if a member's shape changes, call `recalculateSize()` to measure it again.
 
   </TabsContent>
 </Tabs>

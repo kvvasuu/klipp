@@ -48,11 +48,11 @@ It takes any camera state field, most commonly `position`, `quaternion` and `fov
   <TabsContent value="core">
 
 ```ts
-import { FollowBodyCore, HardLookAtAimCore } from '@kvvasuu/klipp';
+import { FollowBody, HardLookAtAim } from '@kvvasuu/klipp';
 
 const follow = klipp.addCamera('follow', { priority: 10 });
-follow.body = new FollowBodyCore(player, { offset: [0, 3, 8] });
-follow.aim = new HardLookAtAimCore(player);
+follow.body = new FollowBody(player, { offset: [0, 3, 8] });
+follow.aim = new HardLookAtAim(player);
 
 const map = klipp.addCamera('map', { priority: 20, active: false });
 map.active = mapOpen;
@@ -69,11 +69,11 @@ klipp.addCamera('fixed', { priority: 10, initialState: { position: [0, 10, 10], 
 
 ```ts
 import { Vector3 } from 'three';
-import { FollowBody, HardLookAtAim } from '@kvvasuu/klipp/three';
+import { FollowBodyThree, HardLookAtAimThree } from '@kvvasuu/klipp/three';
 
 const follow = klipp.addCamera('follow', { priority: 10 });
-follow.body = new FollowBody(player, { offset: new Vector3(0, 3, 8) });
-follow.aim = new HardLookAtAim(player);
+follow.body = new FollowBodyThree(player, { offset: new Vector3(0, 3, 8) });
+follow.aim = new HardLookAtAimThree(player);
 
 const map = klipp.addCamera('map', { priority: 20, active: false });
 map.active = mapOpen;

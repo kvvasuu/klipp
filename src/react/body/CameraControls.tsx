@@ -6,7 +6,7 @@ import { EventDispatcher as ThreeEventDispatcher, Vector3 } from 'three';
 import { resolveVector3 } from '../../three/resolve/resolveVector3.js';
 import type { Target } from '../../three/resolve/Target.js';
 import { useIsActiveVirtualCamera, useIsLiveVirtualCamera, useVirtualCamera } from '../VirtualCameraContext.js';
-import { CameraControlsBody } from '../../three/body/CameraControlsBody.js';
+import { CameraControlsBodyThree } from '../../three/body/CameraControlsBodyThree.js';
 
 type Overwrite<T, U> = Omit<T, keyof U> & U;
 
@@ -26,7 +26,7 @@ export type CameraControlsProps = Omit<
       waitForBlend?: boolean;
       /** Registers this instance as r3f's `state.controls` while it accepts input. */
       makeDefault?: boolean;
-      ref?: Ref<CameraControlsBody>;
+      ref?: Ref<CameraControlsBodyThree>;
       /** Also lowers r3f's render quality while dragging/transitioning. */
       regress?: boolean;
       onControlStart?: (event: { type: 'controlstart' }) => void;
@@ -74,7 +74,7 @@ export function CameraControls({
   const get = useThree((state) => state.get);
   const [body] = useState(
     () =>
-      new CameraControlsBody(target, {
+      new CameraControlsBodyThree(target, {
         aspect,
         initialPosition: initialPosition ? resolveVector3(new Vector3(), initialPosition) : null,
         impl,

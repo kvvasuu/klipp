@@ -25,20 +25,20 @@ Moves the camera to the target's position, with no offset. Good for first-person
   <TabsContent value="core">
 
 ```ts
-import { HardLockToTargetBodyCore, RotateWithFollowTargetAimCore } from '@kvvasuu/klipp';
+import { HardLockToTargetBody, RotateWithFollowTargetAim } from '@kvvasuu/klipp';
 
-camera.body = new HardLockToTargetBodyCore(head);
-camera.aim = new RotateWithFollowTargetAimCore(head);
+camera.body = new HardLockToTargetBody(head);
+camera.aim = new RotateWithFollowTargetAim(head);
 ```
 
   </TabsContent>
   <TabsContent value="three">
 
 ```ts
-import { HardLockToTargetBody, RotateWithFollowTargetAim } from '@kvvasuu/klipp/three';
+import { HardLockToTargetBodyThree, RotateWithFollowTargetAimThree } from '@kvvasuu/klipp/three';
 
-camera.body = new HardLockToTargetBody(head);
-camera.aim = new RotateWithFollowTargetAim(head);
+camera.body = new HardLockToTargetBodyThree(head);
+camera.aim = new RotateWithFollowTargetAimThree(head);
 ```
 
   </TabsContent>
@@ -51,7 +51,7 @@ camera.aim = new RotateWithFollowTargetAim(head);
 </VirtualCamera>
 ```
 
-`ref` gives you the `HardLockToTargetBody`.
+`ref` gives you the `HardLockToTargetBodyThree`.
 
   </TabsContent>
 </Tabs>

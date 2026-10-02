@@ -29,16 +29,17 @@ pnpm --filter examples dev
 - `src/core/` - camera logic as plain data and functions, on [`math`](https://github.com/pmndrs/math)
   only. No three.js, React or DOM.
 - `src/three/` - classes that read `Object3D` targets and write three.js cameras.
-- `src/dom/` - pointer and keyboard input, and debug overlays. Depends on `core` only.
+- `src/dom/` - pointer and wheel input, and debug overlays. Depends on `core` only.
 - `src/react/` - React Three Fiber components.
 
 Core modules follow one pattern: an `XParams` type for settings with `createXParams(settings)` for
 defaults, an `XState` type with `createXState()` for memory, and `updateX(out, state, params, ...)`.
 Core classes are thin wrappers that take `(target, options)`, fill their fields from `createXParams` and
-pass themselves as params. Their names end in `Core` (`KlippCore`, `FollowBodyCore`). A layer extends them
-or re-exports them without the suffix (`Klipp`, `FollowBody`, `LensExtension`), overriding only what it
-adapts, like `readTarget`. React components read their defaults from the same factory. Hot paths don't
-allocate: reuse module-level scratch values instead.
+pass themselves as params. A layer extends them under the same name with its own suffix (`KlippThree`,
+`FollowBodyThree`), overriding only what it adapts, like `readTarget`, and taking three.js vectors in its
+options. Classes a layer doesn't change are used from core as they are (`LensExtension`). React components
+read their defaults from the same factory. Hot paths don't allocate: reuse module-level scratch values
+instead.
 
 ## Tests
 

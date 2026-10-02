@@ -53,7 +53,7 @@ export function mixCameraStates(out: CameraState, slots: readonly MixingCameraSl
 
 /**
  * Continuous N-way cross-fade of up to 8 fixed slots, weighted by `weight / sum(weights)` - unlike
- * `KlippCore`/`Sequencer`, there's no winner and no time-driven curve; the caller drives the mix by
+ * `Klipp`/`Sequencer`, there's no winner and no time-driven curve; the caller drives the mix by
  * mutating `weight` directly (e.g. an authored slider blend between two cameras).
  *
  * Position/lens average in a plain weighted sum. Quaternions have no closed-form weighted average, so

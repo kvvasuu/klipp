@@ -5,7 +5,10 @@ import { createGroupFramingParams } from '../../core/extension/groupFraming.js';
 import { groupFramingPaddingBox } from '../../core/debug/debugZones.js';
 import { DebugZoneOverlay } from '../DebugZoneOverlay.js';
 import { useVirtualCamera } from '../VirtualCameraContext.js';
-import { GroupFramingExtension, type GroupFramingOptions } from '../../three/extension/GroupFramingExtension.js';
+import {
+  GroupFramingExtensionThree,
+  type GroupFramingOptions,
+} from '../../three/extension/GroupFramingExtensionThree.js';
 import {
   TargetGroup,
   type TargetGroupMember,
@@ -24,7 +27,7 @@ export type GroupFramingProps = Omit<GroupFramingOptions, 'viewportWidth' | 'vie
   positionMode?: TargetGroupPositionMode;
   /** Draws the padding boundary while this camera is live. */
   debug?: boolean;
-  ref?: Ref<GroupFramingExtension>;
+  ref?: Ref<GroupFramingExtensionThree>;
 };
 
 /** Keeps a target group framed within the camera. */
@@ -40,7 +43,7 @@ export function GroupFraming({
   const size = useThree((state) => state.size);
   const params = createGroupFramingParams({ ...settings, viewportWidth: size.width, viewportHeight: size.height });
   const [group] = useState(() => new TargetGroup(members, positionMode));
-  const [extension] = useState(() => new GroupFramingExtension(group, params));
+  const [extension] = useState(() => new GroupFramingExtensionThree(group, params));
 
   group.members = members;
   group.positionMode = positionMode;

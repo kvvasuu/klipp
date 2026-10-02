@@ -1,6 +1,6 @@
 import { createRef } from 'react';
 import { describe, expect, it } from 'vitest';
-import type { LensExtensionCore } from '../../../src/core/extension/LensExtensionCore';
+import type { LensExtension } from '../../../src/core/extension/LensExtension';
 import { Extension } from '../../../src/react/extension/Extension';
 import type { LensProps } from '../../../src/react/extension/Lens';
 import { expectPropsReachInstance, mountInCamera } from '../wiring';
@@ -13,7 +13,7 @@ describe('Extension.Lens', () => {
   });
 
   it('passes every prop to the same extension, on mount and when props change', async () => {
-    await expectPropsReachInstance<LensProps, LensExtensionCore>(
+    await expectPropsReachInstance<LensProps, LensExtension>(
       (props, ref) => <Extension.Lens ref={ref} {...props} />,
       {
         fov: 40,
@@ -41,7 +41,7 @@ describe('Extension.Lens', () => {
   });
 
   it('stops changing the lens once unmounted', async () => {
-    const ref = createRef<LensExtensionCore>();
+    const ref = createRef<LensExtension>();
     const mounted = await mountInCamera(<Extension.Lens ref={ref} fov={60} />);
     await mounted.frame();
     const lens = ref.current!;

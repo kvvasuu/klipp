@@ -8,20 +8,16 @@ nav: 1
 npm install @kvvasuu/klipp
 ```
 
-klipp has one entry point per layer. Each one only needs the libraries it adapts to, and all of them are optional peer dependencies:
+The core and each integration have their own entry point. Each one only needs the libraries it adapts to, all of them optional peer dependencies:
 
 | Entry point | What's in it | Install as well |
 | ----------- | ------------ | --------------- |
-| `@kvvasuu/klipp` | The core: `KlippCore`, virtual cameras, every piece as a `Core` class, and the data and functions underneath. | nothing |
-| `@kvvasuu/klipp/three` | The core classes for three.js: they read `Object3D` targets and drive a `PerspectiveCamera`. | `three` |
+| `@kvvasuu/klipp` | The core: `Klipp`, `VirtualCamera`, every piece as a class, and the data and functions underneath. | nothing |
+| `@kvvasuu/klipp/three` | The core classes for three.js, ending in `Three`: they read `Object3D` targets and drive a `PerspectiveCamera`. | `three` |
 | `@kvvasuu/klipp/react` | React Three Fiber components, built on the three.js classes. | `three`, `react`, `@react-three/fiber` |
 | `@kvvasuu/klipp/dom` | Mouse, touch and wheel input, and debug overlays. | nothing, runs in a browser |
 
-Vectors in the core are plain arrays from [`math`](https://github.com/pmndrs/math): `[x, y, z]`, and quaternions `[x, y, z, w]`. It comes with klipp; add it to your own dependencies to import its `vec3` and `quat` functions.
-
-Constants like `BlendCurves`, `BindingModes` and `BlendHints` come from the core in every layer.
-
-[`CameraControls`](/body/camera-controls) is built on the `camera-controls` library, so it lives in its own entry points and only ends up in your bundle if you use it.
+Vectors in the core are plain arrays from [`math`](https://github.com/pmndrs/math): `[x, y, z]` and `[x, y, z, w]`. Add it to your dependencies to use its `vec3` and `quat` functions. Constants like `BlendCurves` always come from the core.
 
 ## Usage
 
@@ -34,7 +30,7 @@ Constants like `BlendCurves`, `BindingModes` and `BlendHints` come from the core
   <TabsContent value="core">
 
 ```ts
-import { KlippCore, FollowBodyCore, HardLookAtAimCore, createTargetPose, BlendCurves } from '@kvvasuu/klipp';
+import { Klipp, FollowBody, HardLookAtAim, createTargetPose, BlendCurves } from '@kvvasuu/klipp';
 ```
 
   </TabsContent>
@@ -46,17 +42,7 @@ npm install three
 
 ```ts
 import { BlendCurves } from '@kvvasuu/klipp';
-import { Klipp, FollowBody, HardLookAtAim } from '@kvvasuu/klipp/three';
-```
-
-**CameraControls**
-
-```bash
-npm install camera-controls
-```
-
-```ts
-import { CameraControlsBody } from '@kvvasuu/klipp/three/camera-controls';
+import { KlippThree, FollowBodyThree, HardLookAtAimThree } from '@kvvasuu/klipp/three';
 ```
 
   </TabsContent>
@@ -69,16 +55,6 @@ npm install three react @react-three/fiber
 ```tsx
 import { BlendCurves } from '@kvvasuu/klipp';
 import { Klipp, VirtualCamera, Body, Aim } from '@kvvasuu/klipp/react';
-```
-
-**CameraControls**
-
-```bash
-npm install camera-controls
-```
-
-```tsx
-import { CameraControls } from '@kvvasuu/klipp/react/camera-controls';
 ```
 
   </TabsContent>

@@ -2,7 +2,7 @@ import { Object3D } from 'three';
 import { describe, expect, it } from 'vitest';
 import { BindingModes } from '../../../src/core/body/BindingModes';
 import { Body } from '../../../src/react/body/Body';
-import type { FollowBody } from '../../../src/three/body/FollowBody';
+import type { FollowBodyThree } from '../../../src/three/body/FollowBodyThree';
 import { expectPropsReachInstance, expectStopsWhenUnmounted, mountInCamera } from '../wiring';
 
 describe('Body.Follow', () => {
@@ -15,7 +15,7 @@ describe('Body.Follow', () => {
   });
 
   it('passes every prop to the same body, on mount and when props change', async () => {
-    await expectPropsReachInstance<object, FollowBody>(
+    await expectPropsReachInstance<object, FollowBodyThree>(
       (props, ref) => <Body.Follow ref={ref} {...props} />,
       { target: new Object3D(), offset: [0, 3, 8], damping: 0.5, bindingMode: BindingModes.worldSpace, maxSpeed: 4 },
       {

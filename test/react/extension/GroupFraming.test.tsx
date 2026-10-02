@@ -6,7 +6,7 @@ import { Extension } from '../../../src/react/extension/Extension';
 import type { GroupFramingProps } from '../../../src/react/extension/GroupFraming';
 import { Klipp } from '../../../src/react/Klipp';
 import { VirtualCamera } from '../../../src/react/VirtualCamera';
-import type { GroupFramingExtension } from '../../../src/three/extension/GroupFramingExtension';
+import type { GroupFramingExtensionThree } from '../../../src/three/extension/GroupFramingExtensionThree';
 import { mountInCamera } from '../wiring';
 
 afterEach(() => {
@@ -25,7 +25,7 @@ describe('Extension.GroupFraming', () => {
   });
 
   it('passes every prop to the same extension and its group, on mount and when props change', async () => {
-    const ref = createRef<GroupFramingExtension>();
+    const ref = createRef<GroupFramingExtensionThree>();
     const scene = (props: GroupFramingProps) => <Extension.GroupFraming ref={ref} {...props} />;
     const first: GroupFramingProps = {
       members: [{ target: new Vector3(), radius: 1 }],

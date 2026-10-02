@@ -52,10 +52,10 @@ Avoid Aims that recenter the target every frame, like `HardLookAt`: they cancel 
   <TabsContent value="core">
 
 ```ts
-import { PositionComposerBodyCore } from '@kvvasuu/klipp';
+import { PositionComposerBody } from '@kvvasuu/klipp';
 
 player.extent.radius = 0.5; // so the zones react to its edge
-camera.body = new PositionComposerBodyCore(player, { cameraDistance: 12, deadZone: [0.3, 0.2], damping: 0.3 });
+camera.body = new PositionComposerBody(player, { cameraDistance: 12, deadZone: [0.3, 0.2], damping: 0.3 });
 ```
 
 The target's size comes from `player.extent`: a `radius`, or a box `size` with `hasSize` set.
@@ -63,16 +63,16 @@ The target's size comes from `player.extent`: a `radius`, or a box `size` with `
 **Lookahead**
 
 ```ts
-camera.body = new PositionComposerBodyCore(player, { lookaheadTime: 0.4, lookaheadIgnoreY: true });
+camera.body = new PositionComposerBody(player, { lookaheadTime: 0.4, lookaheadIgnoreY: true });
 ```
 
   </TabsContent>
   <TabsContent value="three">
 
 ```ts
-import { PositionComposerBody } from '@kvvasuu/klipp/three';
+import { PositionComposerBodyThree } from '@kvvasuu/klipp/three';
 
-camera.body = new PositionComposerBody(player, { cameraDistance: 12, deadZone: [0.3, 0.2], damping: 0.3 });
+camera.body = new PositionComposerBodyThree(player, { cameraDistance: 12, deadZone: [0.3, 0.2], damping: 0.3 });
 ```
 
 For meshes, the target's size is measured from its geometry. If the shape changes (an animated skinned mesh, for example), call `recalculateSize()` to measure it again.
@@ -80,7 +80,7 @@ For meshes, the target's size is measured from its geometry. If the shape change
 **Lookahead**
 
 ```ts
-camera.body = new PositionComposerBody(player, { lookaheadTime: 0.4, lookaheadIgnoreY: true });
+camera.body = new PositionComposerBodyThree(player, { lookaheadTime: 0.4, lookaheadIgnoreY: true });
 ```
 
   </TabsContent>
@@ -92,7 +92,7 @@ camera.body = new PositionComposerBody(player, { lookaheadTime: 0.4, lookaheadIg
 </VirtualCamera>
 ```
 
-For meshes, the target's size is measured from its geometry. `ref` gives you the `PositionComposerBody`: if the shape changes (an animated skinned mesh, for example), call `recalculateSize()` to measure it again.
+For meshes, the target's size is measured from its geometry. `ref` gives you the `PositionComposerBodyThree`: if the shape changes (an animated skinned mesh, for example), call `recalculateSize()` to measure it again.
 
 **Lookahead**
 

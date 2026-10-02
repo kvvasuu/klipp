@@ -33,10 +33,10 @@ On the core and in three.js, these are set on the axes: `aim.pan` and `aim.tilt`
   <TabsContent value="core">
 
 ```ts
-import { PanTiltAimCore } from '@kvvasuu/klipp';
+import { PanTiltAim } from '@kvvasuu/klipp';
 import { InputAxisController } from '@kvvasuu/klipp/dom';
 
-const aim = new PanTiltAimCore();
+const aim = new PanTiltAim();
 aim.tilt.range = [-60, 60];
 camera.aim = aim;
 
@@ -51,7 +51,7 @@ klipp.whileOnScreen(camera, () => {
 klipp.registerUpdate(() => input.update()); // reads input before the cameras run
 ```
 
-Pass a target to make `pan` and `tilt` relative to its rotation: `new PanTiltAimCore(vehicle)`.
+Pass a target to make `pan` and `tilt` relative to its rotation: `new PanTiltAim(vehicle)`.
 
 **From code**
 
@@ -64,10 +64,10 @@ aim.tilt.value;        // current tilt
   <TabsContent value="three">
 
 ```ts
-import { PanTiltAim } from '@kvvasuu/klipp/three';
+import { PanTiltAimThree } from '@kvvasuu/klipp/three';
 import { InputAxisController } from '@kvvasuu/klipp/dom';
 
-const aim = new PanTiltAim();
+const aim = new PanTiltAimThree();
 aim.tilt.range = [-60, 60];
 camera.aim = aim;
 
@@ -82,7 +82,7 @@ klipp.whileOnScreen(camera, () => {
 klipp.registerUpdate(() => input.update()); // reads input before the cameras run
 ```
 
-Pass a target to make `pan` and `tilt` relative to its rotation: `new PanTiltAim(vehicle)`.
+Pass a target to make `pan` and `tilt` relative to its rotation: `new PanTiltAimThree(vehicle)`.
 
 **From code**
 
@@ -110,12 +110,12 @@ import { Aim, Body, InputController } from '@kvvasuu/klipp/react';
 </VirtualCamera>
 ```
 
-`ref` gives you the `PanTiltAim`.
+`ref` gives you the `PanTiltAimThree`.
 
 **From code**
 
 ```tsx
-const aim = useRef<PanTiltAim>(null);
+const aim = useRef<PanTiltAimThree>(null);
 
 aim.current.pan.applyDelta(5); // turn right by 5°
 aim.current.tilt.value;        // current tilt

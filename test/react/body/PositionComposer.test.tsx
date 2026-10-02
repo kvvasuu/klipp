@@ -2,7 +2,7 @@ import { Object3D } from 'three';
 import { describe, expect, it } from 'vitest';
 import { Body } from '../../../src/react/body/Body';
 import type { PositionComposerProps } from '../../../src/react/body/PositionComposer';
-import type { PositionComposerBody } from '../../../src/three/body/PositionComposerBody';
+import type { PositionComposerBodyThree } from '../../../src/three/body/PositionComposerBodyThree';
 import { expectPropsReachInstance, expectStopsWhenUnmounted, mountInCamera } from '../wiring';
 
 describe('Body.PositionComposer', () => {
@@ -15,7 +15,7 @@ describe('Body.PositionComposer', () => {
   });
 
   it('passes every prop to the same body, on mount and when props change', async () => {
-    await expectPropsReachInstance<PositionComposerProps, PositionComposerBody>(
+    await expectPropsReachInstance<PositionComposerProps, PositionComposerBodyThree>(
       (props, ref) => <Body.PositionComposer ref={ref} {...props} />,
       {
         target: new Object3D(),

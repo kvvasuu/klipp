@@ -2,7 +2,7 @@ import { createRef } from 'react';
 import { Object3D, Quaternion } from 'three';
 import { describe, expect, it } from 'vitest';
 import { Aim } from '../../../src/react/aim/Aim';
-import type { RotateWithFollowTargetAim } from '../../../src/three/aim/RotateWithFollowTargetAim';
+import type { RotateWithFollowTargetAimThree } from '../../../src/three/aim/RotateWithFollowTargetAimThree';
 import { expectPropsReachInstance, mountInCamera } from '../wiring';
 
 function rotatedTarget(y: number) {
@@ -21,7 +21,7 @@ describe('Aim.RotateWithFollowTarget', () => {
   });
 
   it('passes every prop to the same aim, on mount and when props change', async () => {
-    await expectPropsReachInstance<object, RotateWithFollowTargetAim>(
+    await expectPropsReachInstance<object, RotateWithFollowTargetAimThree>(
       (props, ref) => <Aim.RotateWithFollowTarget ref={ref} {...props} />,
       { target: new Object3D(), damping: 0.5, maxSpeed: 4 },
       { target: new Object3D(), damping: { into: 0.2, from: 1 }, maxSpeed: 8 },

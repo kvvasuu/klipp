@@ -7,29 +7,29 @@
  */
 import { vec3, type Vec3 } from 'math';
 import { createCameraState, type CameraState } from '../../src/core/CameraState';
-import { KlippCore } from '../../src/core/KlippCore';
-import { VirtualCameraCore } from '../../src/core/VirtualCameraCore';
-import { HardLookAtAim } from '../../src/three/aim/HardLookAtAim';
-import { PanTiltAim } from '../../src/three/aim/PanTiltAim';
-import { RotateWithFollowTargetAim } from '../../src/three/aim/RotateWithFollowTargetAim';
-import { RotationComposerAim } from '../../src/three/aim/RotationComposerAim';
+import { Klipp } from '../../src/core/Klipp';
+import { VirtualCamera } from '../../src/core/VirtualCamera';
+import { HardLookAtAimThree } from '../../src/three/aim/HardLookAtAimThree';
+import { PanTiltAimThree } from '../../src/three/aim/PanTiltAimThree';
+import { RotateWithFollowTargetAimThree } from '../../src/three/aim/RotateWithFollowTargetAimThree';
+import { RotationComposerAimThree } from '../../src/three/aim/RotationComposerAimThree';
 import { BlendCurves } from '../../src/core/blend/BlendCurves';
 import type { BlendDefinition } from '../../src/core/blend/BlendDefinition';
 import { BlendHints } from '../../src/core/blend/BlendHints';
 import { BindingModes, type BindingMode } from '../../src/core/body/BindingModes';
-import { FollowBody } from '../../src/three/body/FollowBody';
-import { HardLockToTargetBody } from '../../src/three/body/HardLockToTargetBody';
-import { PositionComposerBody } from '../../src/three/body/PositionComposerBody';
-import { GroupFramingExtension } from '../../src/three/extension/GroupFramingExtension';
-import { LensExtensionCore } from '../../src/core/extension/LensExtensionCore';
+import { FollowBodyThree } from '../../src/three/body/FollowBodyThree';
+import { HardLockToTargetBodyThree } from '../../src/three/body/HardLockToTargetBodyThree';
+import { PositionComposerBodyThree } from '../../src/three/body/PositionComposerBodyThree';
+import { GroupFramingExtensionThree } from '../../src/three/extension/GroupFramingExtensionThree';
+import { LensExtension } from '../../src/core/extension/LensExtension';
 import { TargetGroup } from '../../src/three/extension/TargetGroup';
 import { ClearShot } from '../../src/core/groups/ClearShot';
 import { MixingCamera } from '../../src/core/groups/MixingCamera';
 import { Sequencer } from '../../src/core/groups/Sequencer';
 import { StateDrivenCamera } from '../../src/core/groups/StateDrivenCamera';
 import { ImpulseField } from '../../src/core/impulse/ImpulseField';
-import { ImpulseListenerNoiseCore } from '../../src/core/impulse/ImpulseListenerNoiseCore';
-import { BasicMultiChannelPerlinNoiseCore } from '../../src/core/noise/BasicMultiChannelPerlinNoiseCore';
+import { ImpulseListenerNoise } from '../../src/core/impulse/ImpulseListenerNoise';
+import { BasicMultiChannelPerlinNoise } from '../../src/core/noise/BasicMultiChannelPerlinNoise';
 import { orbitCamera, simulate, type World } from './world';
 import { advance, register, setPriority } from '../../src/core/internal';
 
@@ -71,16 +71,16 @@ const aim = (name: string, make: (w: World) => Update, perFrame?: (w: World, dt:
 });
 
 /** A full controller: Follow + HardLookAt, plus whatever `extra` registers. */
-function rig(w: World, extra?: (c: VirtualCameraCore) => void, offset: Vec3 = [0, 3, 8]) {
-  const controller = new VirtualCameraCore('rig');
-  controller.setBody(new FollowBody(w.target, { offset, damping: 0.4 }));
-  controller.setAim(new HardLookAtAim(w.target));
+function rig(w: World, extra?: (c: VirtualCamera) => void, offset: Vec3 = [0, 3, 8]) {
+  const controller = new VirtualCamera('rig');
+  controller.setBody(new FollowBodyThree(w.target, { offset, damping: 0.4 }));
+  controller.setAim(new HardLookAtAimThree(w.target));
   extra?.(controller);
   const state = initialState();
   return { controller, state };
 }
 
-const controllerScenario = (name: string, extra: (c: VirtualCameraCore, w: World) => void): Scenario => ({
+const controllerScenario = (name: string, extra: (c: VirtualCamera, w: World) => void): Scenario => ({
   name,
   run: () =>
     simulate((w) => {
@@ -89,20 +89,23 @@ const controllerScenario = (name: string, extra: (c: VirtualCameraCore, w: World
     }),
 });
 
-/** Two cameras (A: Follow + HardLookAt, B: worldSpace Follow + RotationComposer) under KlippCore. */
+/** Two cameras (A: Follow + HardLookAt, B: worldSpace Follow + RotationComposer) under Klipp. */
 function coreScenario(name: string, defaultBlend: BlendDefinition, hints: BlendHints = BlendHints.none): Scenario {
   return {
     name,
     run: () =>
       simulate((w) => {
         const a = rig(w);
-        const b = new VirtualCameraCore('b');
+        const b = new VirtualCamera('b');
         b.setBody({
-          update: new FollowBody(w.target, { offset: [6, 2, -4], damping: 0.3, bindingMode: BindingModes.worldSpace })
-            .update,
+          update: new FollowBodyThree(w.target, {
+            offset: [6, 2, -4],
+            damping: 0.3,
+            bindingMode: BindingModes.worldSpace,
+          }).update,
         });
         b.setAim({
-          update: new RotationComposerAim(w.target, {
+          update: new RotationComposerAimThree(w.target, {
             screenPosition: [0.1, 0],
             aspect: 16 / 9,
             deadZone: [0.1, 0.1],
@@ -110,7 +113,7 @@ function coreScenario(name: string, defaultBlend: BlendDefinition, hints: BlendH
           }).update,
         });
         const bState = initialState();
-        const core = new KlippCore({ defaultBlend });
+        const core = new Klipp({ defaultBlend });
         core[register]({ id: 'a', priority: 10, state: a.state, hints });
         core[register]({ id: 'b', priority: 5, state: bState, hints });
         return (dt, frame) => {
@@ -128,21 +131,21 @@ const bindingModes: BindingMode[] = Object.values(BindingModes);
 
 export const scenarios: Scenario[] = [
   // bodies
-  body('body.hardLockToTarget', (w) => new HardLockToTargetBody(w.target, { damping: 0.3 }).update),
+  body('body.hardLockToTarget', (w) => new HardLockToTargetBodyThree(w.target, { damping: 0.3 }).update),
   body(
     'body.hardLockToTarget.maxSpeed',
-    (w) => new HardLockToTargetBody(w.target, { damping: 0.3, maxSpeed: 15 }).update,
+    (w) => new HardLockToTargetBodyThree(w.target, { damping: 0.3, maxSpeed: 15 }).update,
   ),
   ...bindingModes.map((mode) =>
     body(
       `body.follow.${mode}`,
-      (w) => new FollowBody(w.target, { offset: [0, 3, 8], damping: 0.4, bindingMode: mode }).update,
+      (w) => new FollowBodyThree(w.target, { offset: [0, 3, 8], damping: 0.4, bindingMode: mode }).update,
     ),
   ),
   body(
     'body.follow.asymmetricDamping.maxSpeed',
     (w) =>
-      new FollowBody(w.target, {
+      new FollowBodyThree(w.target, {
         offset: [1, 3, 8],
         damping: { into: 0.2, from: 0.6 },
         bindingMode: BindingModes.lockToTarget,
@@ -152,7 +155,7 @@ export const scenarios: Scenario[] = [
   body(
     'body.positionComposer',
     (w) =>
-      new PositionComposerBody(w.target, {
+      new PositionComposerBodyThree(w.target, {
         cameraDistance: 10,
         screenPosition: [0.1, 0],
         aspect: 16 / 9,
@@ -165,7 +168,7 @@ export const scenarios: Scenario[] = [
   body(
     'body.positionComposer.lookahead',
     (w) =>
-      new PositionComposerBody(w.target, {
+      new PositionComposerBodyThree(w.target, {
         cameraDistance: 12,
         screenPosition: [0, 0.1],
         aspect: 16 / 9,
@@ -181,12 +184,12 @@ export const scenarios: Scenario[] = [
   ),
 
   // aims
-  aim('aim.hardLookAt', (w) => new HardLookAtAim(w.target).update),
-  aim('aim.rotateWithFollowTarget', (w) => new RotateWithFollowTargetAim(w.target, { damping: 0.3 }).update),
+  aim('aim.hardLookAt', (w) => new HardLookAtAimThree(w.target).update),
+  aim('aim.rotateWithFollowTarget', (w) => new RotateWithFollowTargetAimThree(w.target, { damping: 0.3 }).update),
   aim(
     'aim.rotationComposer',
     (w) =>
-      new RotationComposerAim(w.target, {
+      new RotationComposerAimThree(w.target, {
         screenPosition: [0.1, -0.1],
         aspect: 16 / 9,
         deadZone: [0.1, 0.1],
@@ -199,7 +202,7 @@ export const scenarios: Scenario[] = [
   aim(
     'aim.rotationComposer.lookahead',
     (w) =>
-      new RotationComposerAim(w.target, {
+      new RotationComposerAimThree(w.target, {
         screenPosition: [0, 0],
         aspect: 16 / 9,
         deadZone: [0.05, 0.05],
@@ -213,11 +216,11 @@ export const scenarios: Scenario[] = [
       }).update,
   ),
   (() => {
-    let panTilt: PanTiltAim;
+    let panTilt: PanTiltAimThree;
     return aim(
       'aim.panTilt',
       (w) => {
-        panTilt = new PanTiltAim();
+        panTilt = new PanTiltAimThree();
         panTilt.target = w.target;
         return panTilt.update;
       },
@@ -230,7 +233,7 @@ export const scenarios: Scenario[] = [
 
   // extensions
   controllerScenario('extension.lens', (c) => {
-    const lens = new LensExtensionCore({
+    const lens = new LensExtension({
       fov: 35,
       near: 0.2,
       far: 500,
@@ -256,7 +259,7 @@ export const scenarios: Scenario[] = [
       { target: w.memberB, radius: 2 },
     ]);
     c.addExtension({
-      update: new GroupFramingExtension(group, {
+      update: new GroupFramingExtensionThree(group, {
         padding: 0.1,
         viewportWidth: 1920,
         viewportHeight: 1080,
@@ -278,7 +281,7 @@ export const scenarios: Scenario[] = [
       'groupAverage',
     );
     c.addExtension({
-      update: new GroupFramingExtension(group, {
+      update: new GroupFramingExtensionThree(group, {
         padding: 0.2,
         viewportWidth: 1280,
         viewportHeight: 720,
@@ -295,7 +298,7 @@ export const scenarios: Scenario[] = [
   // noise
   controllerScenario('noise.perlin', (c) => {
     c.addNoise({
-      update: new BasicMultiChannelPerlinNoiseCore({
+      update: new BasicMultiChannelPerlinNoise({
         positionAmplitude: [0.2, 0.1, 0.2],
         positionFrequency: [1, 1.3, 0.7],
         rotationAmplitude: [2, 1, 0.5],
@@ -312,7 +315,7 @@ export const scenarios: Scenario[] = [
     run: () =>
       simulate((w) => {
         const field = new ImpulseField();
-        const listener = new ImpulseListenerNoiseCore({ field, channelMask: 1, gain: 1 });
+        const listener = new ImpulseListenerNoise({ field, channelMask: 1, gain: 1 });
         const { controller, state } = rig(w);
         return (dt, frame) => {
           const now = w.clock.time; // explicit clock: never performance.now() in golden tests

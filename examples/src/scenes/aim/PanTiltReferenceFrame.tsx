@@ -1,5 +1,5 @@
 import { BindingModes } from '@kvvasuu/klipp';
-import { type PanTiltAim } from '@kvvasuu/klipp/three';
+import { type PanTiltAimThree } from '@kvvasuu/klipp/three';
 import { type InputAxisController } from '@kvvasuu/klipp/dom';
 import { Aim, Body, InputController, Klipp, VirtualCamera } from '@kvvasuu/klipp/react';
 import { useControls } from 'leva';
@@ -21,7 +21,7 @@ const seatOffset: [number, number, number] = [0, 0.8, 1];
 export function PanTiltReferenceFrame() {
   const planeRef = useRef<Group>(null);
   const controllerRef = useRef<InputAxisController>(null);
-  const aimRef = useRef<PanTiltAim>(null);
+  const aimRef = useRef<PanTiltAimThree>(null);
 
   const { rigidMount, lockPointer } = useControls('PanTilt: Reference Frame', {
     rigidMount: true,

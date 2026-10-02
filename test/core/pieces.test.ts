@@ -2,10 +2,10 @@ import { quat, vec3 } from 'math';
 import { describe, expect, it } from 'vitest';
 import { createCameraState, type CameraState } from '../../src/core/CameraState';
 import { createTargetPose } from '../../src/core/TargetPose';
-import { HardLookAtAimCore } from '../../src/core/aim/HardLookAtAimCore';
-import { PanTiltAimCore } from '../../src/core/aim/PanTiltAimCore';
-import { RotateWithFollowTargetAimCore } from '../../src/core/aim/RotateWithFollowTargetAimCore';
-import { RotationComposerAimCore } from '../../src/core/aim/RotationComposerAimCore';
+import { HardLookAtAim } from '../../src/core/aim/HardLookAtAim';
+import { PanTiltAim } from '../../src/core/aim/PanTiltAim';
+import { RotateWithFollowTargetAim } from '../../src/core/aim/RotateWithFollowTargetAim';
+import { RotationComposerAim } from '../../src/core/aim/RotationComposerAim';
 import { createPanTiltState, updatePanTilt } from '../../src/core/aim/panTilt';
 import { updateHardLookAt } from '../../src/core/aim/hardLookAt';
 import {
@@ -18,9 +18,9 @@ import {
   createRotationComposerState,
   updateRotationComposer,
 } from '../../src/core/aim/rotationComposer';
-import { FollowBodyCore } from '../../src/core/body/FollowBodyCore';
-import { HardLockToTargetBodyCore } from '../../src/core/body/HardLockToTargetBodyCore';
-import { PositionComposerBodyCore } from '../../src/core/body/PositionComposerBodyCore';
+import { FollowBody } from '../../src/core/body/FollowBody';
+import { HardLockToTargetBody } from '../../src/core/body/HardLockToTargetBody';
+import { PositionComposerBody } from '../../src/core/body/PositionComposerBody';
 import { createFollowParams, createFollowState, updateFollow } from '../../src/core/body/follow';
 import {
   createHardLockToTargetParams,
@@ -32,7 +32,7 @@ import {
   createPositionComposerState,
   updatePositionComposer,
 } from '../../src/core/body/positionComposer';
-import { GroupFramingExtensionCore } from '../../src/core/extension/GroupFramingExtensionCore';
+import { GroupFramingExtension } from '../../src/core/extension/GroupFramingExtension';
 import {
   createGroupFramingParams,
   createGroupFramingState,
@@ -67,7 +67,7 @@ const composed = { damping: 0.3, deadZone: [0.1, 0.1] as [number, number] };
 describe('core pieces', () => {
   it('match their functions step for step on a TargetPose the caller updates', () => {
     expectSameAs(
-      (pose) => new HardLockToTargetBodyCore(pose, damped),
+      (pose) => new HardLockToTargetBody(pose, damped),
       (pose) => {
         const state = createHardLockToTargetState();
         const params = createHardLockToTargetParams(damped);
@@ -75,7 +75,7 @@ describe('core pieces', () => {
       },
     );
     expectSameAs(
-      (pose) => new FollowBodyCore(pose, damped),
+      (pose) => new FollowBody(pose, damped),
       (pose) => {
         const state = createFollowState();
         const params = createFollowParams(damped);
@@ -83,7 +83,7 @@ describe('core pieces', () => {
       },
     );
     expectSameAs(
-      (pose) => new PositionComposerBodyCore(pose, composed),
+      (pose) => new PositionComposerBody(pose, composed),
       (pose) => {
         const state = createPositionComposerState();
         const params = createPositionComposerParams(composed);
@@ -91,11 +91,11 @@ describe('core pieces', () => {
       },
     );
     expectSameAs(
-      (pose) => new HardLookAtAimCore(pose),
+      (pose) => new HardLookAtAim(pose),
       (pose) => (out) => updateHardLookAt(out, pose.position),
     );
     expectSameAs(
-      (pose) => new RotateWithFollowTargetAimCore(pose, damped),
+      (pose) => new RotateWithFollowTargetAim(pose, damped),
       (pose) => {
         const state = createRotateWithFollowTargetState();
         const params = createRotateWithFollowTargetParams(damped);
@@ -103,7 +103,7 @@ describe('core pieces', () => {
       },
     );
     expectSameAs(
-      (pose) => new RotationComposerAimCore(pose, composed),
+      (pose) => new RotationComposerAim(pose, composed),
       (pose) => {
         const state = createRotationComposerState();
         const params = createRotationComposerParams(composed);
@@ -112,7 +112,7 @@ describe('core pieces', () => {
     );
     expectSameAs(
       (pose) => {
-        const aim = new PanTiltAimCore(pose);
+        const aim = new PanTiltAim(pose);
         aim.pan.applyDelta(30);
         return aim;
       },
@@ -124,14 +124,14 @@ describe('core pieces', () => {
     );
   });
 
-  it('GroupFramingExtensionCore matches updateGroupFraming on new members the caller updates', () => {
+  it('GroupFramingExtension matches updateGroupFraming on new members the caller updates', () => {
     const members = [createGroupMember(), createGroupMember()];
     members.forEach((member, i) => {
       vec3.set(member.position, i * 4 - 2, 0, -10);
       member.extent.radius = 1;
     });
     const options = { damping: 0.3, viewportWidth: 800, viewportHeight: 600 };
-    const extension = new GroupFramingExtensionCore(members, 'groupAverage', options);
+    const extension = new GroupFramingExtension(members, 'groupAverage', options);
     const state = createGroupFramingState();
     const params = createGroupFramingParams(options);
     const a = createCameraState();

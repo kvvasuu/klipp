@@ -6,14 +6,17 @@ import { DebugZoneOverlay } from '../DebugZoneOverlay.js';
 import { resolveVec3 } from '../../three/resolve/resolveVector3.js';
 import type { Target } from '../../three/resolve/Target.js';
 import { useVirtualCamera } from '../VirtualCameraContext.js';
-import { RotationComposerAim, type RotationComposerOptions } from '../../three/aim/RotationComposerAim.js';
+import {
+  RotationComposerAimThree,
+  type RotationComposerThreeOptions,
+} from '../../three/aim/RotationComposerAimThree.js';
 
-export type RotationComposerProps = Omit<RotationComposerOptions, 'aspect'> & {
+export type RotationComposerProps = Omit<RotationComposerThreeOptions, 'aspect'> & {
   /** Target to compose at `screenPosition`. Unresolved targets are ignored. */
   target?: Target;
   /** Draws the `deadZone` and `hardLimit` overlays. */
   debug?: boolean;
-  ref?: Ref<RotationComposerAim>;
+  ref?: Ref<RotationComposerAimThree>;
 };
 
 /** Keeps a target within a chosen screen region by rotating the camera. */
@@ -21,7 +24,7 @@ export function RotationComposer({ target, targetOffset, debug = false, ref, ...
   const camera = useVirtualCamera();
   const aspect = useThree((state) => state.viewport.aspect);
   const { targetOffset: defaultTargetOffset, ...params } = createRotationComposerParams({ ...settings, aspect });
-  const [aim] = useState(() => new RotationComposerAim(target, params));
+  const [aim] = useState(() => new RotationComposerAimThree(target, params));
   aim.target = target;
   Object.assign(aim, params);
   resolveVec3(aim.targetOffset, targetOffset ?? defaultTargetOffset);

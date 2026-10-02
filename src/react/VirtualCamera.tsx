@@ -1,7 +1,7 @@
 import { useThree } from '@react-three/fiber';
 import { useEffect, useImperativeHandle, useState, useSyncExternalStore, type ReactNode, type Ref } from 'react';
 import { BlendHints } from '../core/blend/BlendHints.js';
-import { VirtualCamera as VirtualCameraRig } from '../three/VirtualCamera.js';
+import { VirtualCameraThree } from '../three/VirtualCameraThree.js';
 import { useKlipp } from './KlippContext.js';
 import { useCameraTransitionEvent, type CameraTransitionEventProps } from './useCameraTransitionEvent.js';
 import {
@@ -22,10 +22,10 @@ export type VirtualCameraProps = {
   /** Initial pose applied once when the camera mounts. */
   initialState?: InitialCameraState;
   children?: ReactNode;
-  ref?: Ref<VirtualCameraRig>;
+  ref?: Ref<VirtualCameraThree>;
 };
 
-/** Registers a virtual camera with the nearest `Klipp`. */
+/** Registers a virtual camera with the nearest `<Klipp>`. */
 export function VirtualCamera({
   name,
   priority,
@@ -37,7 +37,7 @@ export function VirtualCamera({
 }: VirtualCameraProps) {
   const klipp = useKlipp();
   const invalidate = useThree((state) => state.invalidate);
-  const [camera] = useState(() => new VirtualCameraRig(name, { priority, active, hints, initialState }));
+  const [camera] = useState(() => new VirtualCameraThree(name, { priority, active, hints, initialState }));
   useImperativeHandle(ref, () => camera, [camera]);
 
   // Settings first, so a (re)registration below already uses them.
