@@ -32,7 +32,7 @@ A class with an `update` field works just as well as an object.
 
 An Extension that turns the shot slightly toward the pointer, on top of any Body and Aim. It's plain core code, so it works in every layer. `pointer` is `{ x, y }` from `-1` to `1`:
 
-```ts
+```ts title="pointerDrift.ts"
 import { quat, type Euler, type Quat } from 'math';
 import { Damper, type CameraPiece } from '@kvvasuu/klipp';
 
@@ -134,7 +134,7 @@ camera.addExtension(pointerDrift(pointer));
 
 Get the camera with [`useVirtualCamera()`](/api/hooks#usevirtualcamera) and add the piece in `useEffect`: the returned function is its cleanup. r3f's `state.pointer` already has the right shape:
 
-```tsx
+```tsx title="PointerDrift.tsx"
 import { useEffect } from 'react';
 import { useThree } from '@react-three/fiber';
 import { useVirtualCamera } from '@kvvasuu/klipp/react';

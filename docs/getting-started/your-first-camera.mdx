@@ -20,7 +20,7 @@ The core works with any renderer. Where the code touches yours, it says `engine`
 
 <Step>Create klipp</Step>
 
-```ts
+```ts title="main.ts"
 import { KlippCore } from '@kvvasuu/klipp';
 
 const klipp = new KlippCore();
@@ -117,7 +117,7 @@ const klipp = new KlippCore({ defaultBlend: { curve: BlendCurves.easeInOut, time
 
 `Klipp` drives a three.js camera:
 
-```ts
+```ts title="main.ts"
 import { GridHelper, PerspectiveCamera, Scene, WebGLRenderer } from 'three';
 import { Klipp } from '@kvvasuu/klipp/three';
 
@@ -217,7 +217,7 @@ const klipp = new Klipp(camera, { defaultBlend: { curve: BlendCurves.easeInOut, 
 
 A box that moves in a circle. A ref to it will be the target:
 
-```tsx
+```tsx title="App.tsx"
 import { useRef } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import type { Mesh } from 'three';
@@ -290,7 +290,7 @@ The camera now stays 8 units behind and 3 units above the box, looking straight 
 
 A wide overview camera with a higher `priority`, turned on and off with `active`. A target can also be a fixed point, `[x, y, z]`:
 
-```tsx
+```tsx title="App.tsx" collapsible
 import { useRef, useState } from 'react';
 import { Canvas } from '@react-three/fiber';
 import type { Mesh } from 'three';
