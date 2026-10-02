@@ -6,19 +6,19 @@ import { describe, expect, it, vi } from 'vitest';
 import type { CameraState } from '../../src/core/CameraState';
 import { Klipp } from '../../src/react/Klipp';
 import { useKlipp } from '../../src/react/KlippContext';
-import type { KlippCore } from '../../src/core/KlippCore';
+import type { KlippThree } from '../../src/three/KlippThree';
 import { VirtualCamera, VirtualCameraEvents } from '../../src/react/VirtualCamera';
 import {
   useIsActiveVirtualCamera,
   useIsLiveVirtualCamera,
   useVirtualCamera,
 } from '../../src/react/VirtualCameraContext';
-import type { VirtualCamera as VirtualCameraRig } from '../../src/three/VirtualCamera';
+import type { VirtualCameraThree } from '../../src/three/VirtualCameraThree';
 import { BlendCurves } from '../../src/core/blend/BlendCurves';
 import { BlendHints } from '../../src/core/blend/BlendHints';
 import { toQuaternion } from '../tuples';
 
-function CoreReader({ onRead }: { onRead: (core: KlippCore) => void }) {
+function CoreReader({ onRead }: { onRead: (core: KlippThree) => void }) {
   onRead(useKlipp());
   return null;
 }
@@ -53,7 +53,7 @@ async function handOver(events: { a?: ReactNode; klipp?: ReactNode }) {
 
 describe('VirtualCamera — registration lifecycle', () => {
   it('registers under its name, re-registers on rename, and unregisters on unmount', async () => {
-    let core: KlippCore | undefined;
+    let core: KlippThree | undefined;
     const scene = (name: string) => (
       <Klipp>
         <CoreReader onRead={(c) => (core = c)} />
@@ -72,7 +72,7 @@ describe('VirtualCamera — registration lifecycle', () => {
   });
 
   it('takes part in arbitration with its priority, following prop changes', async () => {
-    let core: KlippCore | undefined;
+    let core: KlippThree | undefined;
     const scene = (challenger: number) => (
       <Klipp>
         <CoreReader onRead={(c) => (core = c)} />
@@ -89,7 +89,7 @@ describe('VirtualCamera — registration lifecycle', () => {
   });
 
   it('the hints prop reaches the arbitration on mount, and on a later change without re-registering', async () => {
-    let core: KlippCore | undefined;
+    let core: KlippThree | undefined;
     const scene = (mounted: boolean, hints: number) => (
       <Klipp>
         <CoreReader onRead={(c) => (core = c)} />
@@ -108,7 +108,7 @@ describe('VirtualCamera — registration lifecycle', () => {
   });
 
   it('a priority edit on the sole, already-live camera does not spuriously restart a blend (real bug: it briefly stopped tracking)', async () => {
-    let core: KlippCore | undefined;
+    let core: KlippThree | undefined;
     const scene = (priority: number) => (
       <Klipp>
         <CoreReader onRead={(c) => (core = c)} />
@@ -131,7 +131,7 @@ describe('VirtualCamera — registration lifecycle', () => {
   });
 
   it("a camera's own CameraState instance survives an unrelated re-render", async () => {
-    let core: KlippCore | undefined;
+    let core: KlippThree | undefined;
     const scene = () => (
       <Klipp>
         <CoreReader onRead={(c) => (core = c)} />
@@ -154,7 +154,7 @@ describe('VirtualCamera — Body/Aim/Noise wiring', () => {
   });
 
   it("ticks the core and runs the camera's pieces against its own state every frame", async () => {
-    let core: KlippCore | undefined;
+    let core: KlippThree | undefined;
     let state: CameraState | undefined;
     function Piece() {
       const camera = useVirtualCamera();
@@ -216,7 +216,7 @@ describe('VirtualCamera — initialState prop', () => {
   });
 
   it("copies them once at mount, without keeping the caller's objects", async () => {
-    let core: KlippCore | undefined;
+    let core: KlippThree | undefined;
     const position = new Vector3(1, 2, 3);
     const quaternion = new Quaternion(0.1, 0.2, 0.3, 0.9).normalize();
     const scene = (initial: Vector3) => (
@@ -240,7 +240,7 @@ describe('VirtualCamera — initialState prop', () => {
 
 describe('VirtualCamera — active prop', () => {
   it('active={false} takes it out of arbitration until it turns back on', async () => {
-    let core: KlippCore | undefined;
+    let core: KlippThree | undefined;
     const scene = (active: boolean) => (
       <Klipp>
         <CoreReader onRead={(c) => (core = c)} />
@@ -435,7 +435,7 @@ describe('VirtualCameraEvents', () => {
 
 describe('VirtualCamera ref', () => {
   it('is the three.js VirtualCamera, whose events work without <VirtualCamera.Events>', async () => {
-    const ref = createRef<VirtualCameraRig>();
+    const ref = createRef<VirtualCameraThree>();
     const onDeactivated = vi.fn();
     const scene = (bPriority: number) => (
       <Klipp defaultBlend={{ curve: BlendCurves.linear, time: 0 }}>

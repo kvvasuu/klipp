@@ -1,7 +1,7 @@
 import { useFrame, useThree } from '@react-three/fiber';
 import { useEffect, useImperativeHandle, useState, type Ref } from 'react';
 import { Color, type CameraHelper, type ColorRepresentation } from 'three';
-import { CameraFrustumHelper as FrustumHelper } from '../three/CameraFrustumHelper.js';
+import { CameraFrustumHelperThree } from '../three/CameraFrustumHelperThree.js';
 import { useIsLiveVirtualCamera, useVirtualCamera } from './VirtualCameraContext.js';
 
 export type CameraFrustumHelperProps = {
@@ -24,7 +24,7 @@ export function CameraFrustumHelper({
   const { state } = useVirtualCamera();
   const isLive = useIsLiveVirtualCamera();
   const size = useThree((s) => s.size);
-  const [helper] = useState(() => new FrustumHelper(maxDistance));
+  const [helper] = useState(() => new CameraFrustumHelperThree(maxDistance));
   const [scratchColor] = useState(() => new Color());
   helper.maxDistance = maxDistance;
 

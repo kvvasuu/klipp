@@ -4,7 +4,7 @@ import type { InputAxisRecentering } from '../../core/input/InputAxis.js';
 import { InputAxisOwnerContext } from '../input/InputAxisOwnerContext.js';
 import type { Target } from '../../three/resolve/Target.js';
 import { useVirtualCamera } from '../VirtualCameraContext.js';
-import { PanTiltAim } from '../../three/aim/PanTiltAim.js';
+import { PanTiltAimThree } from '../../three/aim/PanTiltAimThree.js';
 
 export type PanTiltProps = {
   /** Rotation frame `pan`/`tilt` compose on top of.
@@ -26,7 +26,7 @@ export type PanTiltProps = {
   tiltRange?: [number, number];
   /** Applied to both `pan.recentering` and `tilt.recentering`. */
   recentering?: InputAxisRecentering;
-  ref?: Ref<PanTiltAim>;
+  ref?: Ref<PanTiltAimThree>;
   /** Nested `<InputController>` picks up `pan`/`tilt` automatically without an explicit `target`. */
   children?: ReactNode;
 };
@@ -35,7 +35,7 @@ const defaultPanRange: [number, number] = [-180, 180];
 const defaultTiltRange: [number, number] = [-90, 90];
 const defaultRecentering: InputAxisRecentering = { enabled: false, wait: 1, time: 1 };
 
-/** Thin wrapper around `PanTiltAim`. */
+/** Thin wrapper around `PanTiltAimThree`. */
 export function PanTilt({
   target,
   damping = 0,
@@ -50,7 +50,7 @@ export function PanTilt({
   children,
 }: PanTiltProps) {
   const camera = useVirtualCamera();
-  const [aim] = useState(() => new PanTiltAim());
+  const [aim] = useState(() => new PanTiltAimThree());
   aim.target = target;
   aim.pan.damping = damping;
   aim.pan.maxSpeed = maxSpeed;

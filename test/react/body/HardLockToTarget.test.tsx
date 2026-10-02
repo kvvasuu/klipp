@@ -1,7 +1,7 @@
 import { Object3D } from 'three';
 import { describe, expect, it } from 'vitest';
 import { Body } from '../../../src/react/body/Body';
-import type { HardLockToTargetBody } from '../../../src/three/body/HardLockToTargetBody';
+import type { HardLockToTargetBodyThree } from '../../../src/three/body/HardLockToTargetBodyThree';
 import { expectPropsReachInstance, expectStopsWhenUnmounted, mountInCamera } from '../wiring';
 
 describe('Body.HardLockToTarget', () => {
@@ -14,7 +14,7 @@ describe('Body.HardLockToTarget', () => {
   });
 
   it('passes every prop to the same body, on mount and when props change', async () => {
-    await expectPropsReachInstance<object, HardLockToTargetBody>(
+    await expectPropsReachInstance<object, HardLockToTargetBodyThree>(
       (props, ref) => <Body.HardLockToTarget ref={ref} {...props} />,
       { target: new Object3D(), damping: 0.5, maxSpeed: 4 },
       { target: new Object3D(), damping: { into: 0.2, from: 1 }, maxSpeed: 8 },

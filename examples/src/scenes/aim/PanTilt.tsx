@@ -1,4 +1,4 @@
-import type { PanTiltAim } from '@kvvasuu/klipp/three';
+import type { PanTiltAimThree } from '@kvvasuu/klipp/three';
 import type { InputAxisController } from '@kvvasuu/klipp/dom';
 import { Aim, InputController, Klipp, VirtualCamera } from '@kvvasuu/klipp/react';
 import { useFrame } from '@react-three/fiber';
@@ -15,7 +15,7 @@ const lookSource = { axes: { x: 'pan', y: 'tilt' }, gain: degreesPerPixel };
 
 export function PanTilt() {
   const controllerRef = useRef<InputAxisController>(null);
-  const aimRef = useRef<PanTiltAim>(null);
+  const aimRef = useRef<PanTiltAimThree>(null);
   const panValueRef = useRef<HTMLDivElement>(null);
 
   const { lockPointer, damping, maxSpeed, autoNormalize } = useControls('PanTilt', {

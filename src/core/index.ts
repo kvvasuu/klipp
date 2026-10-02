@@ -9,20 +9,15 @@ export {
 export { createTargetPose, type TargetPose } from './TargetPose.js';
 export { createTargetExtent, projectTargetExtent, type TargetExtent } from './TargetExtent.js';
 export { EventDispatcher, type DispatchedEvent, type EventListener } from './EventDispatcher.js';
+export { VirtualCamera, type VirtualCameraOptions, type CameraPiece, type CameraStateWriter } from './VirtualCamera.js';
 export {
-  VirtualCameraCore,
-  type VirtualCameraCoreOptions,
-  type CameraPiece,
-  type CameraStateWriter,
-} from './VirtualCameraCore.js';
-export {
-  KlippCore,
+  Klipp,
   type VirtualCameraConfig,
-  type KlippCoreOptions,
+  type KlippOptions,
   type KlippMode,
   type FrameUpdate,
   type CameraTransitionEventMap,
-} from './KlippCore.js';
+} from './Klipp.js';
 export {
   createKlippState,
   registerKlippCamera,
@@ -154,20 +149,17 @@ export {
   type RotationComposerState,
 } from './aim/rotationComposer.js';
 
-export { HardLockToTargetBodyCore, type HardLockToTargetOptions } from './body/HardLockToTargetBodyCore.js';
-export { FollowBodyCore, type FollowOptions } from './body/FollowBodyCore.js';
-export { PositionComposerBodyCore } from './body/PositionComposerBodyCore.js';
-export { HardLookAtAimCore } from './aim/HardLookAtAimCore.js';
-export {
-  RotateWithFollowTargetAimCore,
-  type RotateWithFollowTargetOptions,
-} from './aim/RotateWithFollowTargetAimCore.js';
-export { RotationComposerAimCore } from './aim/RotationComposerAimCore.js';
-export { PanTiltAimCore } from './aim/PanTiltAimCore.js';
-export { GroupFramingExtensionCore, type GroupFramingOptions } from './extension/GroupFramingExtensionCore.js';
+export { HardLockToTargetBody, type HardLockToTargetOptions } from './body/HardLockToTargetBody.js';
+export { FollowBody, type FollowOptions } from './body/FollowBody.js';
+export { PositionComposerBody } from './body/PositionComposerBody.js';
+export { HardLookAtAim } from './aim/HardLookAtAim.js';
+export { RotateWithFollowTargetAim, type RotateWithFollowTargetOptions } from './aim/RotateWithFollowTargetAim.js';
+export { RotationComposerAim } from './aim/RotationComposerAim.js';
+export { PanTiltAim } from './aim/PanTiltAim.js';
+export { GroupFramingExtension, type GroupFramingOptions } from './extension/GroupFramingExtension.js';
 
 export { composerDebugZones, groupFramingPaddingBox, type DebugZone } from './debug/debugZones.js';
-export { LensExtensionCore, type LensOptions } from './extension/LensExtensionCore.js';
+export { LensExtension, type LensOptions } from './extension/LensExtension.js';
 export { updateLens, createLensState, createLensParams, type LensParams, type LensState } from './extension/lens.js';
 export {
   updateGroupFraming,
@@ -203,7 +195,7 @@ export {
   type InputSourceMapping,
 } from './input/inputMapping.js';
 
-export { BasicMultiChannelPerlinNoiseCore, type PerlinNoiseOptions } from './noise/BasicMultiChannelPerlinNoiseCore.js';
+export { BasicMultiChannelPerlinNoise, type PerlinNoiseOptions } from './noise/BasicMultiChannelPerlinNoise.js';
 export {
   updatePerlinNoise,
   createPerlinNoiseState,
@@ -213,11 +205,11 @@ export {
 } from './noise/perlinNoise.js';
 export { ImpulseField, impulseField } from './impulse/ImpulseField.js';
 export {
-  ImpulseListenerNoiseCore,
+  ImpulseListenerNoise,
   createImpulseListenerParams,
   type ImpulseListenerOptions,
   type ImpulseListenerParams,
-} from './impulse/ImpulseListenerNoiseCore.js';
+} from './impulse/ImpulseListenerNoise.js';
 export {
   ImpulseShapes,
   generateImpulse,

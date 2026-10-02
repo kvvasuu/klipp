@@ -5,7 +5,7 @@ import { createRef, useEffect } from 'react';
 import { Vector3 } from 'three';
 import { describe, expect, it, vi } from 'vitest';
 import { CameraControls } from '../../../src/react/body/CameraControls';
-import type { CameraControlsBody } from '../../../src/three/body/CameraControlsBody';
+import type { CameraControlsBodyThree } from '../../../src/three/body/CameraControlsBodyThree';
 import { HardLockToTarget } from '../../../src/react/body/HardLockToTarget';
 import { Klipp } from '../../../src/react/Klipp';
 import { VirtualCamera } from '../../../src/react/VirtualCamera';
@@ -25,7 +25,7 @@ describe('CameraControls (React wrapper)', () => {
 
   it('passes its own props to the body and any other prop to the camera-controls instance', async () => {
     class CustomControls extends CameraControlsImpl {}
-    const ref = createRef<CameraControlsBody>();
+    const ref = createRef<CameraControlsBodyThree>();
     const scene = (target: Vector3, enableTransition: boolean, minDistance: number) => (
       <CameraControls
         ref={ref}
@@ -54,7 +54,7 @@ describe('CameraControls (React wrapper)', () => {
   });
 
   it('waitForBlend=false: connects the instant it wins priority, even mid-blend; disconnects the instant it loses', async () => {
-    let controlsBody: CameraControlsBody | null = null;
+    let controlsBody: CameraControlsBodyThree | null = null;
     const target = new Vector3(0, 0, -10);
 
     const scene = (orbitalPriority: number) => (
@@ -92,7 +92,7 @@ describe('CameraControls (React wrapper)', () => {
   });
 
   it('waitForBlend=true (default): does not connect until the blend into it actually finishes', async () => {
-    let controlsBody: CameraControlsBody | null = null;
+    let controlsBody: CameraControlsBodyThree | null = null;
     const target = new Vector3(0, 0, -10);
 
     const scene = (orbitalPriority: number) => (
@@ -125,7 +125,7 @@ describe('CameraControls (React wrapper)', () => {
   });
 
   it('waitForBlend=true (default): disconnects the instant it loses priority, not lagging through its own blend-out (real bug: overlapped with a waitForBlend=false camera winning immediately, so both received live drag/scroll input at once)', async () => {
-    let followBody: CameraControlsBody | null = null;
+    let followBody: CameraControlsBodyThree | null = null;
 
     const scene = (followPriority: number) => (
       <Klipp>
@@ -179,7 +179,7 @@ describe('CameraControls (React wrapper)', () => {
     });
 
     it('true: sets state.controls to the real CameraControlsImpl once connected, restores the previous value once it loses priority', async () => {
-      let controlsBody: CameraControlsBody | null = null;
+      let controlsBody: CameraControlsBodyThree | null = null;
       let controls: unknown;
 
       const scene = (orbitalPriority: number) => (
@@ -252,7 +252,11 @@ describe('CameraControls (React wrapper)', () => {
   });
 
   describe('pointer lock survives losing and regaining priority', () => {
-    function scene(priority: number, onBody: (b: CameraControlsBody | null) => void, onDom: (el: HTMLElement) => void) {
+    function scene(
+      priority: number,
+      onBody: (b: CameraControlsBodyThree | null) => void,
+      onDom: (el: HTMLElement) => void,
+    ) {
       function DomElementReader() {
         onDom(useThree((state) => state.gl.domElement));
         return null;
@@ -271,7 +275,7 @@ describe('CameraControls (React wrapper)', () => {
     }
 
     it('re-locks on reconnect if still OS-level locked - disconnect() drops the pointer-lock listeners without releasing the lock itself, so mouse movement would otherwise stay dead forever', async () => {
-      let orbitalBody: CameraControlsBody | null = null;
+      let orbitalBody: CameraControlsBodyThree | null = null;
       let domElement: HTMLElement | undefined;
 
       const renderer = await create(
@@ -307,7 +311,7 @@ describe('CameraControls (React wrapper)', () => {
     });
 
     it('does NOT re-lock on reconnect once the user already exited pointer lock (e.g. Esc) during the gap', async () => {
-      let orbitalBody: CameraControlsBody | null = null;
+      let orbitalBody: CameraControlsBodyThree | null = null;
       const noop = () => {};
 
       const renderer = await create(scene(10, (b) => (orbitalBody = b), noop));
@@ -327,7 +331,7 @@ describe('CameraControls (React wrapper)', () => {
 
   describe('invalidate() on drag/scroll input', () => {
     it('calls invalidate() when camera-controls fires controlstart/control/transitionstart/update/wake while connected (real bug: frameloop="demand" never re-rendered on drag)', async () => {
-      let controlsBody: CameraControlsBody | null = null;
+      let controlsBody: CameraControlsBodyThree | null = null;
       let invalidateSpy: ReturnType<typeof vi.spyOn> | undefined;
 
       function InvalidateReader() {
@@ -371,7 +375,7 @@ describe('CameraControls (React wrapper)', () => {
     });
 
     it('does not call invalidate() once disconnected — the listeners are torn down with connect()', async () => {
-      let controlsBody: CameraControlsBody | null = null;
+      let controlsBody: CameraControlsBodyThree | null = null;
       let invalidateSpy: ReturnType<typeof vi.spyOn> | undefined;
 
       function InvalidateReader() {
@@ -408,7 +412,7 @@ describe('CameraControls (React wrapper)', () => {
     });
 
     it('regress=true also calls performance.regress() on the same events invalidate() fires for, but not controlend/rest/sleep', async () => {
-      let controlsBody: CameraControlsBody | null = null;
+      let controlsBody: CameraControlsBodyThree | null = null;
       let regressSpy: ReturnType<typeof vi.spyOn> | undefined;
 
       function RegressReader() {
@@ -450,7 +454,7 @@ describe('CameraControls (React wrapper)', () => {
     });
 
     it('regress=false (default) never calls performance.regress()', async () => {
-      let controlsBody: CameraControlsBody | null = null;
+      let controlsBody: CameraControlsBodyThree | null = null;
       let regressSpy: ReturnType<typeof vi.spyOn> | undefined;
 
       function RegressReader() {
@@ -483,7 +487,7 @@ describe('CameraControls (React wrapper)', () => {
 
     it('forwards every camera-controls lifecycle event to its matching on* prop', async () => {
       const calls: string[] = [];
-      let controlsBody: CameraControlsBody | null = null;
+      let controlsBody: CameraControlsBodyThree | null = null;
 
       const scene = (
         <Klipp>
@@ -516,7 +520,7 @@ describe('CameraControls (React wrapper)', () => {
     });
 
     it('a new on* callback identity on re-render does not reconnect, and the latest closure still fires', async () => {
-      let controlsBody: CameraControlsBody | null = null;
+      let controlsBody: CameraControlsBodyThree | null = null;
       const calls: string[] = [];
 
       const scene = (onUpdate: () => void) => (

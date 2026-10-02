@@ -5,7 +5,7 @@ import { PerspectiveCamera } from 'three';
 import { describe, expect, it, vi } from 'vitest';
 import { Klipp } from '../../src/react/Klipp';
 import { useKlipp } from '../../src/react/KlippContext';
-import { KlippCore } from '../../src/core/KlippCore';
+import { KlippThree } from '../../src/three/KlippThree';
 import { VirtualCamera } from '../../src/react/VirtualCamera';
 import { useVirtualCamera } from '../../src/react/VirtualCameraContext';
 import { HardLockToTarget } from '../../src/react/body/HardLockToTarget';
@@ -19,9 +19,9 @@ describe('Klipp / useKlipp', () => {
     expect(() => renderHook(() => useKlipp())).toThrow(/within a <Klipp> provider/);
   });
 
-  it('provides one stable KlippCore per tree', async () => {
-    const seen: KlippCore[] = [];
-    let other: KlippCore | undefined;
+  it('provides one stable KlippThree per tree', async () => {
+    const seen: KlippThree[] = [];
+    let other: KlippThree | undefined;
     const scene = () => (
       <Klipp>
         <Reader onRead={(c) => seen.push(c)} />
@@ -36,7 +36,7 @@ describe('Klipp / useKlipp', () => {
       </Klipp>,
     );
 
-    expect(seen[0]).toBeInstanceOf(KlippCore);
+    expect(seen[0]).toBeInstanceOf(KlippThree);
     expect(seen[1]).toBe(seen[0]);
     expect(other).not.toBe(seen[0]);
   });
@@ -200,7 +200,7 @@ describe('Klipp / useKlipp', () => {
 
   it('clamps a large dt under frameloop="demand" only, so a blend animates after an idle gap', async () => {
     const tickDt = async (frameloop: 'always' | 'demand') => {
-      let core: KlippCore | undefined;
+      let core: KlippThree | undefined;
       const renderer = await create(
         <Klipp>
           <Reader onRead={(c) => (core = c)} />
@@ -218,8 +218,8 @@ describe('Klipp / useKlipp', () => {
   });
 
   describe('mode', () => {
-    it('"disabled": nothing runs — the real camera stays untouched, KlippCore never ticks', async () => {
-      let core: KlippCore | undefined;
+    it('"disabled": nothing runs — the real camera stays untouched, Klipp never ticks', async () => {
+      let core: KlippThree | undefined;
       let camera: PerspectiveCamera | undefined;
 
       function Scene() {
@@ -244,8 +244,8 @@ describe('Klipp / useKlipp', () => {
       expect(core!.liveCameraId).toBeNull(); // tick() never ran, so arbitration never even settled
     });
 
-    it('"standby": KlippCore keeps ticking (stays warm) but the real camera is left untouched', async () => {
-      let core: KlippCore | undefined;
+    it('"standby": Klipp keeps ticking (stays warm) but the real camera is left untouched', async () => {
+      let core: KlippThree | undefined;
       let camera: PerspectiveCamera | undefined;
 
       function Scene() {
@@ -274,7 +274,7 @@ describe('Klipp / useKlipp', () => {
     });
 
     it('"standby": still requests frames while a blend is in flight, so it actually stays warm under frameloop="demand" (real bug: it went idle instead)', async () => {
-      let core: KlippCore | undefined;
+      let core: KlippThree | undefined;
       let invalidateSpy: ReturnType<typeof vi.spyOn> | undefined;
 
       function Scene({ bPriority }: { bPriority: number }) {
@@ -359,7 +359,7 @@ describe('Klipp / useKlipp', () => {
 });
 
 it('passes defaultBlend and customBlends changes after mount to the core', async () => {
-  let core: KlippCore | undefined;
+  let core: KlippThree | undefined;
   const scene = (time: number, to: string) => (
     <Klipp
       defaultBlend={{ curve: BlendCurves.linear, time }}
@@ -377,7 +377,7 @@ it('passes defaultBlend and customBlends changes after mount to the core', async
   expect(setCustomBlends).toHaveBeenCalledWith([{ from: 'a', to: 'c', blend: { curve: BlendCurves.cut, time: 0 } }]);
 });
 
-function Reader({ onRead }: { onRead: (core: KlippCore) => void }) {
+function Reader({ onRead }: { onRead: (core: KlippThree) => void }) {
   onRead(useKlipp());
   return null;
 }

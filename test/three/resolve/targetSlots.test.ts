@@ -2,15 +2,15 @@ import { vec3 } from 'math';
 import { BoxGeometry, Mesh, type Object3D } from 'three';
 import { describe, expect, it } from 'vitest';
 import { createCameraState, type CameraState } from '../../../src/core/CameraState';
-import { HardLookAtAim } from '../../../src/three/aim/HardLookAtAim';
-import { PanTiltAim } from '../../../src/three/aim/PanTiltAim';
-import { RotateWithFollowTargetAim } from '../../../src/three/aim/RotateWithFollowTargetAim';
-import { RotationComposerAim } from '../../../src/three/aim/RotationComposerAim';
+import { HardLookAtAimThree } from '../../../src/three/aim/HardLookAtAimThree';
+import { PanTiltAimThree } from '../../../src/three/aim/PanTiltAimThree';
+import { RotateWithFollowTargetAimThree } from '../../../src/three/aim/RotateWithFollowTargetAimThree';
+import { RotationComposerAimThree } from '../../../src/three/aim/RotationComposerAimThree';
 import { BindingModes } from '../../../src/core/body/BindingModes';
-import { FollowBody } from '../../../src/three/body/FollowBody';
-import { HardLockToTargetBody } from '../../../src/three/body/HardLockToTargetBody';
-import { PositionComposerBody } from '../../../src/three/body/PositionComposerBody';
-import { GroupFramingExtension } from '../../../src/three/extension/GroupFramingExtension';
+import { FollowBodyThree } from '../../../src/three/body/FollowBodyThree';
+import { HardLockToTargetBodyThree } from '../../../src/three/body/HardLockToTargetBodyThree';
+import { PositionComposerBodyThree } from '../../../src/three/body/PositionComposerBodyThree';
+import { GroupFramingExtensionThree } from '../../../src/three/extension/GroupFramingExtensionThree';
 import { TargetGroup } from '../../../src/three/extension/TargetGroup';
 import { TargetRegistry, type TargetSlot } from '../../../src/three/resolve/TargetRegistry';
 import { createWorld, dtAt, orbitCamera, type World } from '../../golden/world';
@@ -61,8 +61,8 @@ describe('stages read the same values from registry slots as from the scene grap
   for (const mode of Object.values(BindingModes)) {
     it(`Follow (${mode}) + HardLookAt`, () => {
       const [direct, slotted] = runBothWays((w) => [
-        single(new FollowBody(w.target, { offset: [0, 3, 8], damping: 0.4, bindingMode: mode })),
-        single(new HardLookAtAim(w.target)),
+        single(new FollowBodyThree(w.target, { offset: [0, 3, 8], damping: 0.4, bindingMode: mode })),
+        single(new HardLookAtAimThree(w.target)),
       ]);
       expect(slotted).toEqual(direct);
     });
@@ -71,7 +71,7 @@ describe('stages read the same values from registry slots as from the scene grap
   it('PositionComposer with lookahead and a geometry-sized target', () => {
     const [direct, slotted] = runBothWays((w) => [
       single(
-        new PositionComposerBody(w.mesh, {
+        new PositionComposerBodyThree(w.mesh, {
           cameraDistance: 10,
           screenPosition: [0.1, 0],
           aspect: 16 / 9,
@@ -83,7 +83,7 @@ describe('stages read the same values from registry slots as from the scene grap
         }),
       ),
       single(
-        new RotationComposerAim(w.mesh, {
+        new RotationComposerAimThree(w.mesh, {
           screenPosition: [0.1, -0.1],
           aspect: 16 / 9,
           deadZone: [0.1, 0.1],
@@ -97,15 +97,15 @@ describe('stages read the same values from registry slots as from the scene grap
 
   it('HardLockToTarget + RotateWithFollowTarget', () => {
     const [direct, slotted] = runBothWays((w) => [
-      single(new HardLockToTargetBody(w.target, { damping: 0.3 })),
-      single(new RotateWithFollowTargetAim(w.target, { damping: 0.3 })),
+      single(new HardLockToTargetBodyThree(w.target, { damping: 0.3 })),
+      single(new RotateWithFollowTargetAimThree(w.target, { damping: 0.3 })),
     ]);
     expect(slotted).toEqual(direct);
   });
 
   it('PanTilt relative to the target', () => {
     const [direct, slotted] = runBothWays((w) => {
-      const panTilt = new PanTiltAim();
+      const panTilt = new PanTiltAimThree();
       panTilt.target = w.target;
       return [single(panTilt)];
     }, true);
@@ -119,14 +119,14 @@ describe('stages read the same values from registry slots as from the scene grap
         { target: w.memberA, radius: 0.5 },
         { target: w.mesh },
       ]);
-      const extension = new GroupFramingExtension(group, {
+      const extension = new GroupFramingExtensionThree(group, {
         padding: 0.1,
         viewportWidth: 1920,
         viewportHeight: 1080,
         damping: 0.3,
       });
       return [
-        single(new HardLookAtAim(w.target)),
+        single(new HardLookAtAimThree(w.target)),
         {
           update: extension.update,
           useSlots: (slotOf) =>

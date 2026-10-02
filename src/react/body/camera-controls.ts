@@ -1,2 +1,2 @@
 export { CameraControls, type CameraControlsProps } from './CameraControls.js';
-export { CameraControlsBody } from '../../three/body/CameraControlsBody.js';
+export { CameraControlsBodyThree } from '../../three/body/CameraControlsBodyThree.js';

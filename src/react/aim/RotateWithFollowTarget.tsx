@@ -3,21 +3,21 @@ import { createRotateWithFollowTargetParams } from '../../core/aim/rotateWithFol
 import type { Target } from '../../three/resolve/Target.js';
 import { useVirtualCamera } from '../VirtualCameraContext.js';
 import {
-  RotateWithFollowTargetAim,
+  RotateWithFollowTargetAimThree,
   type RotateWithFollowTargetOptions,
-} from '../../three/aim/RotateWithFollowTargetAim.js';
+} from '../../three/aim/RotateWithFollowTargetAimThree.js';
 
 export type RotateWithFollowTargetProps = RotateWithFollowTargetOptions & {
   /** Target rotation to copy. Unresolved targets are ignored. */
   target?: Target;
-  ref?: Ref<RotateWithFollowTargetAim>;
+  ref?: Ref<RotateWithFollowTargetAimThree>;
 };
 
-/** Thin wrapper around `RotateWithFollowTargetAim`. */
+/** Thin wrapper around `RotateWithFollowTargetAimThree`. */
 export function RotateWithFollowTarget({ target, ref, ...settings }: RotateWithFollowTargetProps) {
   const camera = useVirtualCamera();
   const params = createRotateWithFollowTargetParams(settings);
-  const [aim] = useState(() => new RotateWithFollowTargetAim(target, params));
+  const [aim] = useState(() => new RotateWithFollowTargetAimThree(target, params));
   aim.target = target;
   Object.assign(aim, params);
 

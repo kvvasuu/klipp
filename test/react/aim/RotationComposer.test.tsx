@@ -5,7 +5,7 @@ import { Aim } from '../../../src/react/aim/Aim';
 import type { RotationComposerProps } from '../../../src/react/aim/RotationComposer';
 import { Klipp } from '../../../src/react/Klipp';
 import { VirtualCamera } from '../../../src/react/VirtualCamera';
-import type { RotationComposerAim } from '../../../src/three/aim/RotationComposerAim';
+import type { RotationComposerAimThree } from '../../../src/three/aim/RotationComposerAimThree';
 import { expectPropsReachInstance, expectStopsWhenUnmounted, mountInCamera } from '../wiring';
 
 afterEach(() => {
@@ -27,7 +27,7 @@ describe('Aim.RotationComposer', () => {
   });
 
   it('passes every prop to the same aim, on mount and when props change', async () => {
-    await expectPropsReachInstance<RotationComposerProps, RotationComposerAim>(
+    await expectPropsReachInstance<RotationComposerProps, RotationComposerAimThree>(
       (props, ref) => <Aim.RotationComposer ref={ref} {...props} />,
       {
         target: new Object3D(),

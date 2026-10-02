@@ -1,13 +1,13 @@
 import { useEffect, useImperativeHandle, type Ref } from 'react';
 import { useVirtualCamera } from '../VirtualCameraContext.js';
 import type {
-  BasicMultiChannelPerlinNoise,
-  PerlinNoiseOptions,
-} from '../../three/noise/BasicMultiChannelPerlinNoise.js';
+  BasicMultiChannelPerlinNoiseThree,
+  PerlinNoiseThreeOptions,
+} from '../../three/noise/BasicMultiChannelPerlinNoiseThree.js';
 import { useBasicMultiChannelPerlinNoise } from './useBasicMultiChannelPerlinNoise.js';
 
-export type BasicMultiChannelPerlinProps = PerlinNoiseOptions & {
-  ref?: Ref<BasicMultiChannelPerlinNoise>;
+export type BasicMultiChannelPerlinProps = PerlinNoiseThreeOptions & {
+  ref?: Ref<BasicMultiChannelPerlinNoiseThree>;
 };
 
 /** Adds position and rotation noise to the camera. */

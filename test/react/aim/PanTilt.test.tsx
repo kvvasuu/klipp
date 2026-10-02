@@ -3,17 +3,17 @@ import { create } from '@react-three/test-renderer';
 import { createRef } from 'react';
 import { Euler, Object3D, Quaternion, Vector3 } from 'three';
 import { describe, expect, it } from 'vitest';
-import type { KlippCore } from '../../../src/core/KlippCore';
+import type { KlippThree } from '../../../src/three/KlippThree';
 import { Aim } from '../../../src/react/aim/Aim';
 import type { PanTiltProps } from '../../../src/react/aim/PanTilt';
 import { InputController } from '../../../src/react/input/InputController';
 import { Klipp } from '../../../src/react/Klipp';
 import { useKlipp } from '../../../src/react/KlippContext';
 import { VirtualCamera } from '../../../src/react/VirtualCamera';
-import type { PanTiltAim } from '../../../src/three/aim/PanTiltAim';
+import type { PanTiltAimThree } from '../../../src/three/aim/PanTiltAimThree';
 import { mountInCamera } from '../wiring';
 
-function SceneReader({ onRead }: { onRead: (core: KlippCore, element: HTMLElement) => void }) {
+function SceneReader({ onRead }: { onRead: (core: KlippThree, element: HTMLElement) => void }) {
   const element = useThree((state) => state.gl.domElement);
   onRead(useKlipp(), element);
   return null;
@@ -21,7 +21,7 @@ function SceneReader({ onRead }: { onRead: (core: KlippCore, element: HTMLElemen
 
 describe('Aim.PanTilt', () => {
   it('turns with a nested InputController, found through context', async () => {
-    let core: KlippCore | undefined;
+    let core: KlippThree | undefined;
     let element: HTMLElement | undefined;
     const renderer = await create(
       <Klipp>
@@ -45,7 +45,7 @@ describe('Aim.PanTilt', () => {
   });
 
   it('passes the target to the aim and every axis prop to both axes, with pan wrapping and tilt clamped by default', async () => {
-    const ref = createRef<PanTiltAim>();
+    const ref = createRef<PanTiltAimThree>();
     const scene = (props: PanTiltProps) => <Aim.PanTilt ref={ref} {...props} />;
     const mounted = await mountInCamera(scene({}));
     const aim = ref.current!;
@@ -81,7 +81,7 @@ describe('Aim.PanTilt', () => {
   });
 
   it('stops turning the camera once unmounted', async () => {
-    const ref = createRef<PanTiltAim>();
+    const ref = createRef<PanTiltAimThree>();
     const mounted = await mountInCamera(<Aim.PanTilt ref={ref} />);
     await mounted.frame();
     const aim = ref.current!;

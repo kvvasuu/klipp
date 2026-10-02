@@ -56,7 +56,7 @@ export function tickStateDriven(state: StateDrivenState, params: StateDrivenPara
 /**
  * Maps an externally-driven state (`setState()`, e.g. mirroring an animator's current state) to a child
  * camera. Several candidates can target the same state - then the highest `priority` wins, and on a
- * priority tie the FIRST one in the candidate list wins - deliberately simpler than `KlippCore`'s
+ * priority tie the FIRST one in the candidate list wins - deliberately simpler than `Klipp`'s
  * "most recently activated" tie-break, since there's no activation order here, just a fixed list.
  *
  * If the current state matches no candidate, holds whatever was live before (nothing to switch to).

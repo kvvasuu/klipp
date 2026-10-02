@@ -1,6 +1,6 @@
 import { vec3 } from 'math';
 import { describe, expect, it } from 'vitest';
-import type { BasicMultiChannelPerlinNoiseCore } from '../../../src/core/noise/BasicMultiChannelPerlinNoiseCore';
+import type { BasicMultiChannelPerlinNoiseThree } from '../../../src/three/noise/BasicMultiChannelPerlinNoiseThree';
 import type { BasicMultiChannelPerlinProps } from '../../../src/react/noise/BasicMultiChannelPerlin';
 import { Noise } from '../../../src/react/noise/Noise';
 import { expectPropsReachInstance, mountInCamera } from '../wiring';
@@ -19,7 +19,7 @@ describe('Noise.BasicMultiChannelPerlin', () => {
   });
 
   it('passes every prop to the same noise, on mount and when props change', async () => {
-    await expectPropsReachInstance<BasicMultiChannelPerlinProps, BasicMultiChannelPerlinNoiseCore>(
+    await expectPropsReachInstance<BasicMultiChannelPerlinProps, BasicMultiChannelPerlinNoiseThree>(
       (props, ref) => <Noise.BasicMultiChannelPerlin ref={ref} {...props} />,
       {
         positionAmplitude: [1, 2, 3],
