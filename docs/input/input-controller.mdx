@@ -16,7 +16,7 @@ Maps mouse buttons and finger counts onto axes. On the core and in three.js it's
 | `suppressContextMenu` | Disable the right-click menu on the canvas. On `inputSystem` on the core and in three.js. | `false` |
 | `interactiveArea` | Only start drags inside part of the canvas, as a normalized rectangle. On `inputSystem` on the core and in three.js. | whole canvas |
 | `lockTouchAxis` | For two-finger gestures, pick either pinch or rotate instead of both. On `inputSystem` on the core and in three.js. | `false` |
-| `waitForBlend` | React only. Ignore input until the blend into this camera has finished. | `true` |
+| `waitForBlend` | Ignore input until the blend into this camera has finished. An option of `klipp.whileOnScreen` on the core and in three.js. | `true` |
 | `target` | React only. A ref to something else with axes to control (for example a `PanTiltAim`), instead of the piece it's placed in. | parent |
 
 ## Mapping a source
@@ -57,11 +57,14 @@ const input = new InputAxisController({
   touches: { one: { axes: { x: aim.pan, y: aim.tilt }, gain: 0.15 }, two: null, three: null },
 });
 input.inputSystem.suppressContextMenu = true;
-input.connect(canvas);
+klipp.whileOnScreen(camera, () => {
+  input.connect(canvas);
+  return () => input.disconnect();
+});
 klipp.registerUpdate(() => input.update());
 ```
 
-Every source has to be listed, `null` for unused ones. Connect it while its camera is on screen and `disconnect()` it otherwise, so several cameras don't react to the same drag. `input.enabled = false` keeps it connected but ignores input.
+Every source has to be listed, `null` for unused ones. `whileOnScreen` connects it only while its camera is on screen, so several cameras don't react to the same drag. `input.enabled = false` keeps it connected but ignores input.
 
 **Pointer lock**
 
@@ -91,11 +94,14 @@ const input = new InputAxisController({
   touches: { one: { axes: { x: aim.pan, y: aim.tilt }, gain: 0.15 }, two: null, three: null },
 });
 input.inputSystem.suppressContextMenu = true;
-input.connect(renderer.domElement);
+klipp.whileOnScreen(camera, () => {
+  input.connect(renderer.domElement);
+  return () => input.disconnect();
+});
 klipp.registerUpdate(() => input.update());
 ```
 
-Every source has to be listed, `null` for unused ones. Connect it while its camera is on screen and `disconnect()` it otherwise, so several cameras don't react to the same drag. `input.enabled = false` keeps it connected but ignores input.
+Every source has to be listed, `null` for unused ones. `whileOnScreen` connects it only while its camera is on screen, so several cameras don't react to the same drag. `input.enabled = false` keeps it connected but ignores input.
 
 **Pointer lock**
 

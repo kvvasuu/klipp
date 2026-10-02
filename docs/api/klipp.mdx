@@ -19,6 +19,7 @@ The camera director: it runs every [virtual camera](/api/virtual-camera), picks 
 | `setSize(width, height)` | The viewport size in pixels, for pieces that frame by screen position. |
 | `setDefaultBlend(blend)`, `setCustomBlends(blends)` | Change the blends at any time. |
 | `registerUpdate(fn)` | Runs `fn` every frame before the cameras, for input. Returns a function that stops it. |
+| `whileOnScreen(camera, start, { waitForBlend })` | Calls `start` while `camera` is on screen, and the function it returns once it leaves, for example to connect input. With `waitForBlend` (the default), only once the blend into it has finished. Returns a function that stops. |
 | `mode` | `'enabled'`, `'standby'` or `'disabled'`. See below. |
 | `activeCameraId`, `isActive(name)` | The winner, the camera the shot is heading to. |
 | `liveCameraId`, `isLive(name)` | The camera fully on screen, once the blend into it has finished. |
