@@ -48,7 +48,9 @@ It takes any camera state field, most commonly `position`, `quaternion` and `fov
   <TabsContent value="core">
 
 ```ts
-import { FollowBody, HardLookAtAim } from '@kvvasuu/klipp';
+import { FollowBody, HardLookAtAim, createTargetPose } from '@kvvasuu/klipp';
+
+const player = createTargetPose(); // keep player.position and player.rotation up to date
 
 const follow = klipp.addCamera('follow', { priority: 10 });
 follow.body = new FollowBody(player, { offset: [0, 3, 8] });
