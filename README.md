@@ -71,8 +71,3 @@ import { Klipp, VirtualCamera, Body, Aim } from '@kvvasuu/klipp/react';
 
 - [Documentation](https://kvvasuu.github.io/klipp/docs/)
 - [Examples](https://kvvasuu.github.io/klipp/examples/)
-- [GitHub Sponsors](https://github.com/sponsors/kvvasuu), if this project helps you
-
-## License
-
-[MIT](LICENSE) © kvvasuu
