@@ -6,31 +6,6 @@ nav: 51
 
 Smooth, random shake on each position and rotation axis, relative to the camera: X is left/right, Y is up/down, Z is forward/back. Nothing shakes until you set an amplitude.
 
-## Core
-
-```ts
-import { BasicMultiChannelPerlinNoiseCore } from '@kvvasuu/klipp';
-
-const shake = new BasicMultiChannelPerlinNoiseCore({
-  positionAmplitude: [0.05, 0.05, 0],
-  rotationAmplitude: [0.3, 0.3, 0],
-  frequencyGain: 2,
-});
-camera.addNoise(shake);
-```
-
-## React Three Fiber
-
-```tsx
-<Noise.BasicMultiChannelPerlin
-  positionAmplitude={[0.05, 0.05, 0]}
-  rotationAmplitude={[0.3, 0.3, 0]}
-  frequencyGain={2}
-/>
-```
-
-`ref` gives you the `BasicMultiChannelPerlinNoise`.
-
 ## Settings
 
 | Setting | Description | Default |
@@ -46,12 +21,89 @@ camera.addNoise(shake);
 
 ## Fading in and out
 
-Change `amplitudeGain` with `amplitudeDamping` set, and the shake fades smoothly instead of starting or stopping abruptly:
+Change `amplitudeGain` with `amplitudeDamping` set, and the shake fades smoothly instead of starting or stopping abruptly.
+
+## Layering
+
+For a slow sway plus a fast jitter, add two of them with different settings.
+
+## Usage
+
+<Tabs defaultValue="core">
+  <TabsList>
+    <TabsTrigger value="core">Core</TabsTrigger>
+    <TabsTrigger value="three">three.js</TabsTrigger>
+    <TabsTrigger value="r3f">React Three Fiber</TabsTrigger>
+  </TabsList>
+  <TabsContent value="core">
+
+```ts
+import { BasicMultiChannelPerlinNoiseCore } from '@kvvasuu/klipp';
+
+const shake = new BasicMultiChannelPerlinNoiseCore({
+  positionAmplitude: [0.05, 0.05, 0],
+  rotationAmplitude: [0.3, 0.3, 0],
+  frequencyGain: 2,
+});
+camera.addNoise(shake);
+```
+
+**Fading in and out**
 
 ```ts
 shake.amplitudeDamping = 0.5;
 shake.amplitudeGain = engineRunning ? 1 : 0;
 ```
+
+**Layering**
+
+```ts
+camera.addNoise(new BasicMultiChannelPerlinNoiseCore({ rotationAmplitude: [1, 1, 0], frequencyGain: 0.3 }));
+camera.addNoise(new BasicMultiChannelPerlinNoiseCore({ positionAmplitude: [0.02, 0.02, 0], frequencyGain: 8 }));
+```
+
+  </TabsContent>
+  <TabsContent value="three">
+
+```ts
+import { BasicMultiChannelPerlinNoise } from '@kvvasuu/klipp/three';
+
+const shake = new BasicMultiChannelPerlinNoise({
+  positionAmplitude: [0.05, 0.05, 0],
+  rotationAmplitude: [0.3, 0.3, 0],
+  frequencyGain: 2,
+});
+camera.addNoise(shake);
+```
+
+**Fading in and out**
+
+```ts
+shake.amplitudeDamping = 0.5;
+shake.amplitudeGain = engineRunning ? 1 : 0;
+```
+
+**Layering**
+
+```ts
+camera.addNoise(new BasicMultiChannelPerlinNoise({ rotationAmplitude: [1, 1, 0], frequencyGain: 0.3 }));
+camera.addNoise(new BasicMultiChannelPerlinNoise({ positionAmplitude: [0.02, 0.02, 0], frequencyGain: 8 }));
+```
+
+  </TabsContent>
+  <TabsContent value="r3f">
+
+```tsx
+<Noise.BasicMultiChannelPerlin
+  positionAmplitude={[0.05, 0.05, 0]}
+  rotationAmplitude={[0.3, 0.3, 0]}
+  frequencyGain={2}
+/>
+```
+
+`ref` gives you the `BasicMultiChannelPerlinNoise`.
+
+**Fading in and out**
 
 ```tsx
 <Noise.BasicMultiChannelPerlin
@@ -61,16 +113,12 @@ shake.amplitudeGain = engineRunning ? 1 : 0;
 />
 ```
 
-## Layering
-
-For a slow sway plus a fast jitter, add two of them with different settings:
-
-```ts
-camera.addNoise(new BasicMultiChannelPerlinNoiseCore({ rotationAmplitude: [1, 1, 0], frequencyGain: 0.3 }));
-camera.addNoise(new BasicMultiChannelPerlinNoiseCore({ positionAmplitude: [0.02, 0.02, 0], frequencyGain: 8 }));
-```
+**Layering**
 
 ```tsx
 <Noise.BasicMultiChannelPerlin rotationAmplitude={[1, 1, 0]} frequencyGain={0.3} />
 <Noise.BasicMultiChannelPerlin positionAmplitude={[0.02, 0.02, 0]} frequencyGain={8} />
 ```
+
+  </TabsContent>
+</Tabs>

@@ -4,28 +4,7 @@ description: Control how klipp moves from one camera to the next.
 nav: 70
 ---
 
-When a different camera wins, klipp blends from the old shot to the new one. By default that takes 2 seconds with an ease-in-out curve.
-
-## Core
-
-Pass it when creating klipp, or change it later:
-
-```ts
-import { BlendCurves, KlippCore } from '@kvvasuu/klipp';
-
-const klipp = new KlippCore({ defaultBlend: { curve: BlendCurves.easeInOut, time: 1 } });
-klipp.setDefaultBlend({ curve: BlendCurves.linear, time: 0.5 });
-```
-
-## React Three Fiber
-
-Set `defaultBlend` on `<Klipp>`:
-
-```tsx
-import { BlendCurves } from '@kvvasuu/klipp';
-
-<Klipp defaultBlend={{ curve: BlendCurves.easeInOut, time: 1 }}>
-```
+When a different camera wins, klipp blends from the old shot to the new one. By default that takes 2 seconds with an ease-in-out curve. Set `defaultBlend` when creating klipp, or change it later with `setDefaultBlend`.
 
 ## Curve or damping
 
@@ -60,9 +39,35 @@ Any `(t) => number` function works as a curve too:
 
 ## Custom blends
 
-Use `customBlends` to give specific camera pairs their own blend. `from` and `to` are camera `name`s; leave one out to match any camera.
+`customBlends` gives specific camera pairs their own blend. `from` and `to` are camera `name`s; leave one out to match any camera.
+
+When several entries match, the most specific one wins: `from` and `to` together, then `to` only, then `from` only, then `defaultBlend`. Change them later with `setCustomBlends`.
+
+## Blend hints
+
+By default the camera moves in a straight line between the two shots. If both shots follow the same target from different sides, that line can pass right through it. Blend hints change the path:
+
+| Hint | Effect |
+| ---- | ------ |
+| `BlendHints.sphericalPosition` | Arcs around the target instead of cutting through it. |
+| `BlendHints.cylindricalPosition` | Arcs around the target horizontally, moves straight vertically. |
+| `BlendHints.ignoreTarget` | Rotates directly between the two shots instead of keeping the target in view during the blend. |
+
+A hint is a setting of the camera, and applies to every blend into or out of it. Combine hints with `|`.
+
+## Usage
+
+<Tabs defaultValue="core">
+  <TabsList>
+    <TabsTrigger value="core">Core</TabsTrigger>
+    <TabsTrigger value="three">three.js</TabsTrigger>
+    <TabsTrigger value="r3f">React Three Fiber</TabsTrigger>
+  </TabsList>
+  <TabsContent value="core">
 
 ```ts
+import { BlendCurves, BlendHints, KlippCore } from '@kvvasuu/klipp';
+
 const klipp = new KlippCore({
   defaultBlend: { curve: BlendCurves.easeInOut, time: 1 },
   customBlends: [
@@ -70,9 +75,46 @@ const klipp = new KlippCore({
     { from: 'intro', to: 'gameplay', blend: { damping: 0.8 } },
   ],
 });
+klipp.setDefaultBlend({ curve: BlendCurves.linear, time: 0.5 });
 ```
 
+**Blend hints**
+
+```ts
+const orbit = klipp.addCamera('orbit', { priority: 10, hints: BlendHints.sphericalPosition });
+orbit.hints = BlendHints.sphericalPosition | BlendHints.ignoreTarget;
+```
+
+  </TabsContent>
+  <TabsContent value="three">
+
+```ts
+import { BlendCurves, BlendHints } from '@kvvasuu/klipp';
+import { Klipp } from '@kvvasuu/klipp/three';
+
+const klipp = new Klipp(camera, {
+  defaultBlend: { curve: BlendCurves.easeInOut, time: 1 },
+  customBlends: [
+    { to: 'closeup', blend: { curve: BlendCurves.linear, time: 0 } },
+    { from: 'intro', to: 'gameplay', blend: { damping: 0.8 } },
+  ],
+});
+klipp.setDefaultBlend({ curve: BlendCurves.linear, time: 0.5 });
+```
+
+**Blend hints**
+
+```ts
+const orbit = klipp.addCamera('orbit', { priority: 10, hints: BlendHints.sphericalPosition });
+orbit.hints = BlendHints.sphericalPosition | BlendHints.ignoreTarget;
+```
+
+  </TabsContent>
+  <TabsContent value="r3f">
+
 ```tsx
+import { BlendCurves, BlendHints } from '@kvvasuu/klipp';
+
 <Klipp
   defaultBlend={{ curve: BlendCurves.easeInOut, time: 1 }}
   customBlends={[
@@ -82,31 +124,11 @@ const klipp = new KlippCore({
 >
 ```
 
-When several entries match, the most specific one wins: `from` and `to` together, then `to` only, then `from` only, then `defaultBlend`. Change them later with `klipp.setCustomBlends()`.
-
-## Blend hints
-
-By default the camera moves in a straight line between the two shots. If both shots follow the same target from different sides, that line can pass right through it. Blend hints change the path. A hint is an option of the camera, and a field you can change later:
-
-```ts
-import { BlendHints } from '@kvvasuu/klipp';
-
-const orbit = klipp.addCamera('orbit', { priority: 10, hints: BlendHints.sphericalPosition });
-orbit.hints = BlendHints.none;
-```
+**Blend hints**
 
 ```tsx
-<VirtualCamera name="orbit" priority={10} hints={BlendHints.sphericalPosition}>
+<VirtualCamera name="orbit" priority={10} hints={BlendHints.sphericalPosition | BlendHints.ignoreTarget}>
 ```
 
-| Hint | Effect |
-| ---- | ------ |
-| `BlendHints.sphericalPosition` | Arcs around the target instead of cutting through it. |
-| `BlendHints.cylindricalPosition` | Arcs around the target horizontally, moves straight vertically. |
-| `BlendHints.ignoreTarget` | Rotates directly between the two shots instead of keeping the target in view during the blend. |
-
-A hint applies to every blend into or out of its camera. Combine hints with `|`:
-
-```ts
-orbit.hints = BlendHints.sphericalPosition | BlendHints.ignoreTarget;
-```
+  </TabsContent>
+</Tabs>

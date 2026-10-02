@@ -6,7 +6,23 @@ nav: 33
 
 Gives the camera the same rotation as the target, as if it were glued to it. It doesn't look at the target, it only copies how the target is turned.
 
-## Core
+## Settings
+
+| Setting | Description | Default |
+| ------- | ----------- | ------- |
+| `target` | Whose rotation to copy. Must have one; a fixed point doesn't. See [Targets](/getting-started/core-concepts#targets). | |
+| `damping` | Seconds to catch up with the target's rotation. `0` is instant. See [Damping](/getting-started/core-concepts#damping). | `0` |
+| `maxSpeed` | Maximum turn speed, in radians per second. | `Infinity` |
+
+## Usage
+
+<Tabs defaultValue="core">
+  <TabsList>
+    <TabsTrigger value="core">Core</TabsTrigger>
+    <TabsTrigger value="three">three.js</TabsTrigger>
+    <TabsTrigger value="r3f">React Three Fiber</TabsTrigger>
+  </TabsList>
+  <TabsContent value="core">
 
 ```ts
 import { HardLockToTargetBodyCore, RotateWithFollowTargetAimCore } from '@kvvasuu/klipp';
@@ -17,7 +33,18 @@ camera.aim = new RotateWithFollowTargetAimCore(head, { damping: 0.1 });
 
 Only `head.rotation` is read, and only while `head.hasRotation` is set.
 
-## React Three Fiber
+  </TabsContent>
+  <TabsContent value="three">
+
+```ts
+import { HardLockToTargetBody, RotateWithFollowTargetAim } from '@kvvasuu/klipp/three';
+
+camera.body = new HardLockToTargetBody(head);
+camera.aim = new RotateWithFollowTargetAim(head, { damping: 0.1 });
+```
+
+  </TabsContent>
+  <TabsContent value="r3f">
 
 ```tsx
 <VirtualCamera name="first-person" priority={10}>
@@ -28,10 +55,5 @@ Only `head.rotation` is read, and only while `head.hasRotation` is set.
 
 `ref` gives you the `RotateWithFollowTargetAim`.
 
-## Settings
-
-| Setting | Description | Default |
-| ------- | ----------- | ------- |
-| `target` | Whose rotation to copy. Must have one; a fixed point doesn't. See [Targets](/getting-started/core-concepts#targets). | |
-| `damping` | Seconds to catch up with the target's rotation. `0` is instant. See [Damping](/getting-started/core-concepts#damping). | `0` |
-| `maxSpeed` | Maximum turn speed, in radians per second. | `Infinity` |
+  </TabsContent>
+</Tabs>

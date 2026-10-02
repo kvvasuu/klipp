@@ -8,7 +8,29 @@ Sets the camera's `fov`, `near` and `far`. Leave one out to keep the current val
 
 Set lens values through `Lens`, not on the real camera directly. klipp writes the lens every time the shot changes, so direct changes get overwritten, for example by the next blend.
 
-## Core
+## Settings
+
+| Setting | Description | Default |
+| ------- | ----------- | ------- |
+| `fov` | Field of view, in degrees. | |
+| `near` | Near clipping plane. | |
+| `far` | Far clipping plane. | |
+| `fovDamping` | Seconds to reach a new `fov`. See [Damping](/getting-started/core-concepts#damping). | `0` |
+| `nearDamping` | Seconds to reach a new `near`. | `0` |
+| `farDamping` | Seconds to reach a new `far`. | `0` |
+| `fovMaxSpeed` | Maximum `fov` change, in degrees per second. | `Infinity` |
+| `nearMaxSpeed` | Maximum `near` change, in units per second. | `Infinity` |
+| `farMaxSpeed` | Maximum `far` change, in units per second. | `Infinity` |
+
+## Usage
+
+<Tabs defaultValue="core">
+  <TabsList>
+    <TabsTrigger value="core">Core</TabsTrigger>
+    <TabsTrigger value="three">three.js</TabsTrigger>
+    <TabsTrigger value="r3f">React Three Fiber</TabsTrigger>
+  </TabsList>
+  <TabsContent value="core">
 
 ```ts
 import { LensExtensionCore } from '@kvvasuu/klipp';
@@ -20,7 +42,21 @@ camera.addExtension(lens);
 lens.fov = boosting ? 75 : 50;
 ```
 
-## React Three Fiber
+  </TabsContent>
+  <TabsContent value="three">
+
+```ts
+import { LensExtension } from '@kvvasuu/klipp/three';
+
+const lens = new LensExtension({ fov: 50, fovDamping: 0.4 });
+camera.addExtension(lens);
+
+// any time later
+lens.fov = boosting ? 75 : 50;
+```
+
+  </TabsContent>
+  <TabsContent value="r3f">
 
 ```tsx
 <VirtualCamera name="chase" priority={10}>
@@ -40,16 +76,5 @@ useFrame(() => {
 });
 ```
 
-## Settings
-
-| Setting | Description | Default |
-| ------- | ----------- | ------- |
-| `fov` | Field of view, in degrees. | |
-| `near` | Near clipping plane. | |
-| `far` | Far clipping plane. | |
-| `fovDamping` | Seconds to reach a new `fov`. See [Damping](/getting-started/core-concepts#damping). | `0` |
-| `nearDamping` | Seconds to reach a new `near`. | `0` |
-| `farDamping` | Seconds to reach a new `far`. | `0` |
-| `fovMaxSpeed` | Maximum `fov` change, in degrees per second. | `Infinity` |
-| `nearMaxSpeed` | Maximum `near` change, in units per second. | `Infinity` |
-| `farMaxSpeed` | Maximum `far` change, in units per second. | `Infinity` |
+  </TabsContent>
+</Tabs>

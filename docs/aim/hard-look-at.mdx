@@ -6,7 +6,23 @@ nav: 31
 
 Rotates the camera so the target is always in the center of the screen. It's always instant. For a smooth look-at, use [`RotationComposer`](/aim/rotation-composer) with `damping`.
 
-## Core
+Which way is up comes from the Body, for example from Follow's [`bindingMode`](/body/follow#bindingmode).
+
+## Settings
+
+| Setting | Description | Default |
+| ------- | ----------- | ------- |
+| `target` | What to look at. See [Targets](/getting-started/core-concepts#targets). | |
+
+## Usage
+
+<Tabs defaultValue="core">
+  <TabsList>
+    <TabsTrigger value="core">Core</TabsTrigger>
+    <TabsTrigger value="three">three.js</TabsTrigger>
+    <TabsTrigger value="r3f">React Three Fiber</TabsTrigger>
+  </TabsList>
+  <TabsContent value="core">
 
 ```ts
 import { HardLookAtAimCore } from '@kvvasuu/klipp';
@@ -14,9 +30,17 @@ import { HardLookAtAimCore } from '@kvvasuu/klipp';
 camera.aim = new HardLookAtAimCore(player);
 ```
 
-Which way is up comes from the Body, for example from Follow's [`bindingMode`](/body/follow#bindingmode).
+  </TabsContent>
+  <TabsContent value="three">
 
-## React Three Fiber
+```ts
+import { HardLookAtAim } from '@kvvasuu/klipp/three';
+
+camera.aim = new HardLookAtAim(player);
+```
+
+  </TabsContent>
+  <TabsContent value="r3f">
 
 ```tsx
 <VirtualCamera name="follow" priority={10}>
@@ -27,8 +51,5 @@ Which way is up comes from the Body, for example from Follow's [`bindingMode`](/
 
 `ref` gives you the `HardLookAtAim`.
 
-## Settings
-
-| Setting | Description | Default |
-| ------- | ----------- | ------- |
-| `target` | What to look at. See [Targets](/getting-started/core-concepts#targets). | |
+  </TabsContent>
+</Tabs>

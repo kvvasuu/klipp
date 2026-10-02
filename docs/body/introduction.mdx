@@ -4,9 +4,28 @@ description: Decides where the camera is.
 nav: 20
 ---
 
-A Body decides where the camera is. Where it looks is up to the [Aim](/aim/introduction). Each virtual camera has at most one Body.
+A Body decides where the camera is. Where it looks is up to the [Aim](/aim/introduction). Each virtual camera has at most one Body: setting another replaces it.
 
-## Core
+## Which one?
+
+| Body | Use it for |
+| ---- | ---------- |
+| [`HardLockToTarget`](/body/hard-lock-to-target) | Placing the camera exactly on a target: first person, a camera mounted on something, a fixed spot. |
+| [`Follow`](/body/follow) | Keeping a fixed offset from a target: chase cameras, third person. |
+| [`PositionComposer`](/body/position-composer) | Keeping a target at a spot on screen: top-down, side-scrollers, anything with a fixed rotation. |
+| [`CameraControls`](/body/camera-controls) | Letting the user orbit, pan and zoom. three.js and React only. |
+
+Without a Body the camera stays at its starting position, [`initialState`](/api/virtual-camera#initialstate).
+
+## Usage
+
+<Tabs defaultValue="core">
+  <TabsList>
+    <TabsTrigger value="core">Core</TabsTrigger>
+    <TabsTrigger value="three">three.js</TabsTrigger>
+    <TabsTrigger value="r3f">React Three Fiber</TabsTrigger>
+  </TabsList>
+  <TabsContent value="core">
 
 ```ts
 import { FollowBodyCore, HardLookAtAimCore } from '@kvvasuu/klipp';
@@ -15,9 +34,18 @@ camera.body = new FollowBodyCore(player, { offset: [0, 3, 8], damping: 0.5 });
 camera.aim = new HardLookAtAimCore(player);
 ```
 
-Setting `camera.body` replaces any previous Body.
+  </TabsContent>
+  <TabsContent value="three">
 
-## React Three Fiber
+```ts
+import { FollowBody, HardLookAtAim } from '@kvvasuu/klipp/three';
+
+camera.body = new FollowBody(player, { offset: [0, 3, 8], damping: 0.5 });
+camera.aim = new HardLookAtAim(player);
+```
+
+  </TabsContent>
+  <TabsContent value="r3f">
 
 ```tsx
 import { VirtualCamera, Body, Aim } from '@kvvasuu/klipp/react';
@@ -28,13 +56,5 @@ import { VirtualCamera, Body, Aim } from '@kvvasuu/klipp/react';
 </VirtualCamera>
 ```
 
-## Which one?
-
-| Body | Use it for |
-| ---- | ---------- |
-| [`HardLockToTarget`](/body/hard-lock-to-target) | Placing the camera exactly on a target: first person, a camera mounted on something, a fixed spot. |
-| [`Follow`](/body/follow) | Keeping a fixed offset from a target: chase cameras, third person. |
-| [`PositionComposer`](/body/position-composer) | Keeping a target at a spot on screen: top-down, side-scrollers, anything with a fixed rotation. |
-| [`CameraControls`](/body/camera-controls) | Letting the user orbit, pan and zoom. |
-
-Without a Body the camera stays at its starting position, [`initialState`](/api/virtual-camera#initialstate).
+  </TabsContent>
+</Tabs>

@@ -32,26 +32,28 @@ The core of klipp is a complete camera system: virtual cameras, priority, blendi
 | ----------- | --- |
 | `@kvvasuu/klipp` | The core. Use it with any renderer or engine, or build your own integration on it. |
 | `@kvvasuu/klipp/react` | React Three Fiber components. |
-| `@kvvasuu/klipp/three` | three.js classes, the layer the React components are built on. |
+| `@kvvasuu/klipp/three` | The core classes for three.js. The React components are built on them. |
 | `@kvvasuu/klipp/dom` | Mouse, touch and wheel input, and debug overlays. |
 
 Under its classes, the core is plain data and functions on [`math`](https://github.com/pmndrs/math). They are there for when you want full control, for example from an ECS.
 
-These docs show every piece with the core first, then as a React Three Fiber component.
+Every page shows each piece for the core, three.js and React Three Fiber, in tabs.
 
 ## What it looks like
 
-A follow camera and a cutscene camera, written to your own camera:
+A follow camera, and a cutscene camera that takes over when it turns on. Turning it off blends back.
+
+<Tabs defaultValue="core">
+  <TabsList>
+    <TabsTrigger value="core">Core</TabsTrigger>
+    <TabsTrigger value="three">three.js</TabsTrigger>
+    <TabsTrigger value="r3f">React Three Fiber</TabsTrigger>
+  </TabsList>
+  <TabsContent value="core">
 
 ```ts
 import { vec3 } from 'math';
-import {
-  KlippCore,
-  FollowBodyCore,
-  HardLockToTargetBodyCore,
-  HardLookAtAimCore,
-  createTargetPose,
-} from '@kvvasuu/klipp';
+import { KlippCore, FollowBodyCore, HardLockToTargetBodyCore, HardLookAtAimCore, createTargetPose } from '@kvvasuu/klipp';
 
 const klipp = new KlippCore();
 const player = createTargetPose(); // keep player.position up to date
@@ -72,9 +74,28 @@ engineCamera.setPosition(klipp.shot.position);
 engineCamera.setRotation(klipp.shot.quaternion);
 ```
 
-`cutscene.active = true` blends over to the cutscene camera.
+  </TabsContent>
+  <TabsContent value="three">
 
-The same with React Three Fiber, where `active={isCutscene}` does the switch:
+```ts
+import { Klipp, FollowBody, HardLockToTargetBody, HardLookAtAim } from '@kvvasuu/klipp/three';
+
+const klipp = new Klipp(camera);
+
+const follow = klipp.addCamera('follow', { priority: 10 });
+follow.body = new FollowBody(player, { offset: [0, 3, 8], damping: 0.5 });
+follow.aim = new HardLookAtAim(player);
+
+const cutscene = klipp.addCamera('cutscene', { priority: 20, active: false });
+cutscene.body = new HardLockToTargetBody([10, 2, 0]);
+cutscene.aim = new HardLookAtAim(player);
+
+// every frame, before rendering
+klipp.update(dt);
+```
+
+  </TabsContent>
+  <TabsContent value="r3f">
 
 ```tsx
 import { Klipp, VirtualCamera, Body, Aim } from '@kvvasuu/klipp/react';
@@ -92,9 +113,12 @@ import { Klipp, VirtualCamera, Body, Aim } from '@kvvasuu/klipp/react';
 </Klipp>
 ```
 
+  </TabsContent>
+</Tabs>
+
 ## Next steps
 
 1. [Installation](/getting-started/installation)
 2. [Core concepts](/getting-started/core-concepts)
-3. [Your first camera](/getting-started/your-first-camera), and the same [with React Three Fiber](/getting-started/your-first-camera-react)
+3. [Your first camera](/getting-started/your-first-camera)
 4. [Building on the core](/getting-started/building-on-the-core), for your own integration or for data and functions

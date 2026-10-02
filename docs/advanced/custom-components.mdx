@@ -15,8 +15,7 @@ camera.addNoise({ update });     // stacks
 
 `addExtension` and `addNoise` return a function that removes the piece. For a Body or Aim, `setBody` and `setAim` do the same, and warn if the camera already has one.
 
-- **Core:** add it to the camera from `klipp.addCamera`. A class with an `update` field works just as well as an object.
-- **React Three Fiber:** get the camera with [`useVirtualCamera()`](/api/hooks#usevirtualcamera) and add the piece in `useEffect`. The returned function is its cleanup.
+A class with an `update` field works just as well as an object.
 
 ## The update function
 
@@ -31,7 +30,7 @@ camera.addNoise({ update });     // stacks
 
 ## Example: drift toward the pointer
 
-An Extension that turns the shot slightly toward the pointer, on top of any Body and Aim. `pointer` is `{ x, y }` from `-1` to `1`, kept up to date by your input code:
+An Extension that turns the shot slightly toward the pointer, on top of any Body and Aim. It's plain core code, so it works in every layer. `pointer` is `{ x, y }` from `-1` to `1`:
 
 ```ts
 import { quat, type Euler, type Quat } from 'math';
@@ -66,30 +65,6 @@ export function pointerDrift(pointer: { x: number; y: number }, strength = 0.1, 
   };
 }
 
-camera.addExtension(pointerDrift(pointer));
-```
-
-In React, wrap it in a component. r3f's `state.pointer` already has the right shape:
-
-```tsx
-import { useEffect } from 'react';
-import { useThree } from '@react-three/fiber';
-import { useVirtualCamera } from '@kvvasuu/klipp/react';
-
-export function PointerDrift({ strength = 0.1, damping = 0.4 }) {
-  const camera = useVirtualCamera();
-  const pointer = useThree((state) => state.pointer);
-
-  useEffect(() => camera.addExtension(pointerDrift(pointer, strength, damping)), [camera, pointer, strength, damping]);
-
-  return null;
-}
-
-<VirtualCamera name="menu" priority={10}>
-  <Body.HardLockToTarget target={[0, 2, 8]} />
-  <Aim.HardLookAt target={[0, 1, 0]} />
-  <PointerDrift />
-</VirtualCamera>;
 ```
 
 > [!TIP]
@@ -126,3 +101,59 @@ From `@kvvasuu/klipp/three`:
 | `readTargetPose(out, target, null, withRotation)` | Reads the world position, and optionally rotation, of any [target](/getting-started/core-concepts#targets) into a `TargetPose`. Returns `false` if there isn't one. |
 | `resolveTargetPosition(out, target)`, `resolveTargetRotation(out, target)` | The same into a three.js `Vector3` or `Quaternion`. |
 | `resolveVector3(out, value)` | Turns `[x, y, z]`, a number or a `Vector3` into a `Vector3`. |
+
+## Usage
+
+<Tabs defaultValue="core">
+  <TabsList>
+    <TabsTrigger value="core">Core</TabsTrigger>
+    <TabsTrigger value="three">three.js</TabsTrigger>
+    <TabsTrigger value="r3f">React Three Fiber</TabsTrigger>
+  </TabsList>
+  <TabsContent value="core">
+
+```ts
+camera.addExtension(pointerDrift(pointer)); // keep pointer.x and pointer.y up to date
+```
+
+  </TabsContent>
+  <TabsContent value="three">
+
+```ts
+const pointer = { x: 0, y: 0 };
+renderer.domElement.addEventListener('pointermove', (e) => {
+  pointer.x = (e.offsetX / renderer.domElement.clientWidth) * 2 - 1;
+  pointer.y = -(e.offsetY / renderer.domElement.clientHeight) * 2 + 1;
+});
+
+camera.addExtension(pointerDrift(pointer));
+```
+
+  </TabsContent>
+  <TabsContent value="r3f">
+
+Get the camera with [`useVirtualCamera()`](/api/hooks#usevirtualcamera) and add the piece in `useEffect`: the returned function is its cleanup. r3f's `state.pointer` already has the right shape:
+
+```tsx
+import { useEffect } from 'react';
+import { useThree } from '@react-three/fiber';
+import { useVirtualCamera } from '@kvvasuu/klipp/react';
+
+export function PointerDrift({ strength = 0.1, damping = 0.4 }) {
+  const camera = useVirtualCamera();
+  const pointer = useThree((state) => state.pointer);
+
+  useEffect(() => camera.addExtension(pointerDrift(pointer, strength, damping)), [camera, pointer, strength, damping]);
+
+  return null;
+}
+
+<VirtualCamera name="menu" priority={10}>
+  <Body.HardLockToTarget target={[0, 2, 8]} />
+  <Aim.HardLookAt target={[0, 1, 0]} />
+  <PointerDrift />
+</VirtualCamera>;
+```
+
+  </TabsContent>
+</Tabs>

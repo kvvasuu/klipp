@@ -4,29 +4,7 @@ description: Decides where the camera looks.
 nav: 30
 ---
 
-An Aim rotates the camera. It never moves it, that's the [Body](/body/introduction)'s job. Each virtual camera has at most one Aim, and it always runs after the Body.
-
-## Core
-
-```ts
-import { FollowBodyCore, HardLookAtAimCore } from '@kvvasuu/klipp';
-
-camera.body = new FollowBodyCore(player, { offset: [0, 3, 8] });
-camera.aim = new HardLookAtAimCore(player);
-```
-
-Setting `camera.aim` replaces any previous Aim.
-
-## React Three Fiber
-
-```tsx
-import { VirtualCamera, Body, Aim } from '@kvvasuu/klipp/react';
-
-<VirtualCamera name="follow" priority={10}>
-  <Body.Follow target={playerRef} offset={[0, 3, 8]} />
-  <Aim.HardLookAt target={playerRef} />
-</VirtualCamera>
-```
+An Aim rotates the camera. It never moves it, that's the [Body](/body/introduction)'s job. Each virtual camera has at most one Aim: setting another replaces it. It always runs after the Body.
 
 ## Which one?
 
@@ -38,3 +16,45 @@ import { VirtualCamera, Body, Aim } from '@kvvasuu/klipp/react';
 | [`PanTilt`](/aim/pan-tilt) | Letting the user look around with the mouse or touch. |
 
 Without an Aim the camera keeps its starting rotation, [`initialState`](/api/virtual-camera#initialstate).
+
+## Usage
+
+<Tabs defaultValue="core">
+  <TabsList>
+    <TabsTrigger value="core">Core</TabsTrigger>
+    <TabsTrigger value="three">three.js</TabsTrigger>
+    <TabsTrigger value="r3f">React Three Fiber</TabsTrigger>
+  </TabsList>
+  <TabsContent value="core">
+
+```ts
+import { FollowBodyCore, HardLookAtAimCore } from '@kvvasuu/klipp';
+
+camera.body = new FollowBodyCore(player, { offset: [0, 3, 8] });
+camera.aim = new HardLookAtAimCore(player);
+```
+
+  </TabsContent>
+  <TabsContent value="three">
+
+```ts
+import { FollowBody, HardLookAtAim } from '@kvvasuu/klipp/three';
+
+camera.body = new FollowBody(player, { offset: [0, 3, 8] });
+camera.aim = new HardLookAtAim(player);
+```
+
+  </TabsContent>
+  <TabsContent value="r3f">
+
+```tsx
+import { VirtualCamera, Body, Aim } from '@kvvasuu/klipp/react';
+
+<VirtualCamera name="follow" priority={10}>
+  <Body.Follow target={playerRef} offset={[0, 3, 8]} />
+  <Aim.HardLookAt target={playerRef} />
+</VirtualCamera>
+```
+
+  </TabsContent>
+</Tabs>

@@ -4,11 +4,50 @@ description: Maps mouse and touch drags onto a piece's axes.
 nav: 61
 ---
 
-Maps mouse buttons and finger counts onto axes.
+Maps mouse buttons and finger counts onto axes. On the core and in three.js it's an `InputAxisController` from `@kvvasuu/klipp/dom` that takes the axes themselves. In React, `<InputController>` finds them by name in the piece it's placed in.
 
-## Core
+## Settings
 
-`InputAxisController` from `@kvvasuu/klipp/dom` takes the axes themselves. Every source has to be listed, `null` for unused ones:
+| Setting | Description | Default |
+| ------- | ----------- | ------- |
+| `mouseButtons` | What each mouse button drives: `{ left, right, middle }`. | |
+| `touches` | What each finger count drives: `{ one, two, three }`. | |
+| `enabled` | Turns input on or off. | `true` |
+| `suppressContextMenu` | Disable the right-click menu on the canvas. On `inputSystem` on the core and in three.js. | `false` |
+| `interactiveArea` | Only start drags inside part of the canvas, as a normalized rectangle. On `inputSystem` on the core and in three.js. | whole canvas |
+| `lockTouchAxis` | For two-finger gestures, pick either pinch or rotate instead of both. On `inputSystem` on the core and in three.js. | `false` |
+| `waitForBlend` | React only. Ignore input until the blend into this camera has finished. | `true` |
+| `target` | React only. A ref to something else with axes to control (for example a `PanTiltAim`), instead of the piece it's placed in. | parent |
+
+## Mapping a source
+
+Each button or finger count takes the same config:
+
+```ts
+{
+  axes: { x: 'pan', y: 'tilt' }, // which axis receives the horizontal and vertical drag: names in React, the axes themselves elsewhere
+  gain: 0.15,                    // multiplier from pixels to axis units
+  invert: { y: true },           // flip one or both directions, or `true` for both
+}
+```
+
+## Pointer lock
+
+For mouse look without holding a button, request pointer lock on the controller's `inputSystem`. While locked, mouse movement goes to `mouseButtons.left`.
+
+## Raw input
+
+`lastInput` holds this frame's raw deltas, for example `wheelDeltaY`, `touchPinchDelta` or `leftDx`, if you want to handle something yourself.
+
+## Usage
+
+<Tabs defaultValue="core">
+  <TabsList>
+    <TabsTrigger value="core">Core</TabsTrigger>
+    <TabsTrigger value="three">three.js</TabsTrigger>
+    <TabsTrigger value="r3f">React Three Fiber</TabsTrigger>
+  </TabsList>
+  <TabsContent value="core">
 
 ```ts
 import { InputAxisController } from '@kvvasuu/klipp/dom';
@@ -22,11 +61,61 @@ input.connect(canvas);
 klipp.registerUpdate(() => input.update());
 ```
 
-Connect it while its camera is on screen and `disconnect()` it otherwise, so several cameras don't react to the same drag. `input.enabled = false` keeps it connected but ignores input.
+Every source has to be listed, `null` for unused ones. Connect it while its camera is on screen and `disconnect()` it otherwise, so several cameras don't react to the same drag. `input.enabled = false` keeps it connected but ignores input.
 
-## React Three Fiber
+**Pointer lock**
 
-Place `<InputController>` inside a piece that has axes, like [`PanTilt`](/aim/pan-tilt), and it finds them by name. Input is only read while its camera is on screen.
+```ts
+// in a click handler
+input.inputSystem.requestPointerLock();
+input.inputSystem.exitPointerLock();
+```
+
+**Raw input**
+
+```ts
+klipp.registerUpdate(() => {
+  input.update();
+  zoom += input.lastInput.wheelDeltaY * 0.01;
+});
+```
+
+  </TabsContent>
+  <TabsContent value="three">
+
+```ts
+import { InputAxisController } from '@kvvasuu/klipp/dom';
+
+const input = new InputAxisController({
+  mouseButtons: { left: null, right: { axes: { x: aim.pan, y: aim.tilt }, gain: 0.15 }, middle: null },
+  touches: { one: { axes: { x: aim.pan, y: aim.tilt }, gain: 0.15 }, two: null, three: null },
+});
+input.inputSystem.suppressContextMenu = true;
+input.connect(renderer.domElement);
+klipp.registerUpdate(() => input.update());
+```
+
+Every source has to be listed, `null` for unused ones. Connect it while its camera is on screen and `disconnect()` it otherwise, so several cameras don't react to the same drag. `input.enabled = false` keeps it connected but ignores input.
+
+**Pointer lock**
+
+```ts
+// in a click handler
+input.inputSystem.requestPointerLock();
+input.inputSystem.exitPointerLock();
+```
+
+**Raw input**
+
+```ts
+klipp.registerUpdate(() => {
+  input.update();
+  zoom += input.lastInput.wheelDeltaY * 0.01;
+});
+```
+
+  </TabsContent>
+  <TabsContent value="r3f">
 
 ```tsx
 <Aim.PanTilt>
@@ -38,36 +127,9 @@ Place `<InputController>` inside a piece that has axes, like [`PanTilt`](/aim/pa
 </Aim.PanTilt>
 ```
 
-`ref` gives you the `InputAxisController`.
+Input is only read while its camera is on screen. `ref` gives you the `InputAxisController`.
 
-## Settings
-
-| Setting | Description | Default |
-| ------- | ----------- | ------- |
-| `mouseButtons` | What each mouse button drives: `{ left, right, middle }`. | |
-| `touches` | What each finger count drives: `{ one, two, three }`. | |
-| `enabled` | Turns input on or off. | `true` |
-| `suppressContextMenu` | Disable the right-click menu on the canvas. On `inputSystem` on the core. | `false` |
-| `interactiveArea` | Only start drags inside part of the canvas, as a normalized rectangle. On `inputSystem` on the core. | whole canvas |
-| `lockTouchAxis` | For two-finger gestures, pick either pinch or rotate instead of both. On `inputSystem` on the core. | `false` |
-| `waitForBlend` | React only. Ignore input until the blend into this camera has finished. | `true` |
-| `target` | React only. A ref to something else with axes to control (for example a `PanTiltAim`), instead of the piece it's placed in. | parent |
-
-## Mapping a source
-
-Each button or finger count takes the same config:
-
-```ts
-{
-  axes: { x: 'pan', y: 'tilt' }, // which axis receives the horizontal and vertical drag; the axes themselves on the core
-  gain: 0.15,                    // multiplier from pixels to axis units
-  invert: { y: true },           // flip one or both directions, or `true` for both
-}
-```
-
-## Pointer lock
-
-For mouse look without holding a button, request pointer lock. While locked, mouse movement goes to `mouseButtons.left`:
+**Pointer lock**
 
 ```tsx
 const input = useRef<InputAxisController>(null);
@@ -79,14 +141,13 @@ input.current.inputSystem.requestPointerLock();
 input.current.inputSystem.exitPointerLock();
 ```
 
-On the core, call the same methods on your controller's `inputSystem`.
-
-## Raw input
-
-`lastInput` holds this frame's raw deltas, for example `wheelDeltaY`, `touchPinchDelta` or `leftDx`, if you want to handle something yourself:
+**Raw input**
 
 ```tsx
 useFrame(() => {
   zoom += input.current.lastInput.wheelDeltaY * 0.01;
 });
 ```
+
+  </TabsContent>
+</Tabs>

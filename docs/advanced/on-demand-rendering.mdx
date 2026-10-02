@@ -4,9 +4,19 @@ description: Render only while the camera is moving.
 nav: 90
 ---
 
-## Core
+`klipp.update` returns `true` while anything is still moving (a blend, damping catching up, a shake), or the shot changed this frame. Render only then, and skip frames while the camera has settled.
 
-`klipp.update` returns `true` while anything is still moving, or the shot changed this frame, so render only then:
+Keep calling `update` every frame, even while nothing renders. It notices on its own when a target moves or a setting changes. React Three Fiber's `frameloop="demand"` is different: it stops calling frames altogether, so it needs a nudge, see its tab.
+
+## Usage
+
+<Tabs defaultValue="core">
+  <TabsList>
+    <TabsTrigger value="core">Core</TabsTrigger>
+    <TabsTrigger value="three">three.js</TabsTrigger>
+    <TabsTrigger value="r3f">React Three Fiber</TabsTrigger>
+  </TabsList>
+  <TabsContent value="core">
 
 ```ts
 function frame(dt: number) {
@@ -17,11 +27,19 @@ function frame(dt: number) {
 }
 ```
 
-Keep calling `update` every frame, even while nothing renders. It notices on its own when a target moves or a setting changes.
+  </TabsContent>
+  <TabsContent value="three">
 
-## React Three Fiber
+```ts
+renderer.setAnimationLoop(() => {
+  if (klipp.update(dt) || sceneChanged) renderer.render(scene, camera);
+});
+```
 
-klipp works with `<Canvas frameloop="demand">`. It keeps requesting frames on its own while anything is still moving: a blend, damping catching up, a shake.
+  </TabsContent>
+  <TabsContent value="r3f">
+
+klipp works with `<Canvas frameloop="demand">`. It keeps requesting frames on its own while anything is still moving.
 
 Once the camera has settled, nothing renders until something asks for a frame. Mounting a camera, changing its `active` or `priority`, and changing `Lens` props do that for you. For anything else, call `invalidate()` yourself, for example after:
 
@@ -40,3 +58,6 @@ function onClick() {
 ```
 
 Outside a component, import `invalidate` from `@react-three/fiber` directly.
+
+  </TabsContent>
+</Tabs>

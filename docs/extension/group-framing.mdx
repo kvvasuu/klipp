@@ -6,43 +6,7 @@ nav: 41
 
 Keeps every member on screen. It places the camera in line with the group's center, along the camera's current view direction, at the distance where every member fits. By default it never moves the camera closer than the Body placed it; with `fitMode: 'rigid'` it always sits at exactly that distance, so it also moves in as the group gets smaller.
 
-It doesn't rotate the camera, so pair it with an Aim that already looks at the group.
-
-## Core
-
-Members are plain data you keep up to date:
-
-```ts
-import { vec3 } from 'math';
-import { GroupFramingExtensionCore, createGroupMember } from '@kvvasuu/klipp';
-
-const a = createGroupMember();
-const b = createGroupMember();
-b.extent.radius = 2;
-camera.addExtension(new GroupFramingExtensionCore([a, b], 'groupCenter', { padding: 1, damping: 0.5 }));
-
-// every frame, before klipp.update
-vec3.copy(a.position, aPosition);
-vec3.copy(b.position, bPosition);
-```
-
-A member is `{ position, extent, weight, resolved }`. Set `resolved` to `false` to skip one, for example while it isn't loaded yet. `klipp.setSize` keeps the viewport size in sync.
-
-## React Three Fiber
-
-```tsx
-<VirtualCamera name="party" priority={10}>
-  <Body.Follow target={leaderRef} offset={[0, 4, 10]} />
-  <Aim.HardLookAt target={leaderRef} />
-  <Extension.GroupFraming
-    members={[{ target: aRef }, { target: bRef, radius: 2 }]}
-    padding={1}
-    damping={0.5}
-  />
-</VirtualCamera>
-```
-
-For meshes, member sizes are measured from their geometry. `ref` gives you the `GroupFramingExtension`: if a member's shape changes, call `recalculateSize()` to measure it again.
+It doesn't rotate the camera, so pair it with an Aim that already looks at the group. `klipp.setSize` keeps the viewport size in sync.
 
 ## Settings
 
@@ -62,11 +26,71 @@ For meshes, member sizes are measured from their geometry. `ref` gives you the `
 
 ## Members
 
-In React, each member is:
-
 | Field | Description | Default |
 | ----- | ----------- | ------- |
-| `target` | The member. See [Targets](/getting-started/core-concepts#targets). | |
+| `target` | three.js and React. The member. See [Targets](/getting-started/core-concepts#targets). | |
+| `position`, `extent` | Core only. The member's position and size, which you keep up to date. | |
 | `weight` | Influence on the center in `'groupAverage'` mode. | `1` |
-| `radius` | The member's radius, so its edge stays in view instead of its center. | `0` |
-| `size` | The member's box size, used instead of `radius`. | measured for meshes |
+| `radius` | three.js and React. The member's radius, so its edge stays in view instead of its center. | `0` |
+| `size` | three.js and React. The member's box size, used instead of `radius`. | measured for meshes |
+| `resolved` | Core only. Set to `false` to skip the member, for example while it isn't loaded yet. | `true` |
+
+## Usage
+
+<Tabs defaultValue="core">
+  <TabsList>
+    <TabsTrigger value="core">Core</TabsTrigger>
+    <TabsTrigger value="three">three.js</TabsTrigger>
+    <TabsTrigger value="r3f">React Three Fiber</TabsTrigger>
+  </TabsList>
+  <TabsContent value="core">
+
+Members are plain data you keep up to date:
+
+```ts
+import { vec3 } from 'math';
+import { GroupFramingExtensionCore, createGroupMember } from '@kvvasuu/klipp';
+
+const a = createGroupMember();
+const b = createGroupMember();
+b.extent.radius = 2;
+camera.addExtension(new GroupFramingExtensionCore([a, b], 'groupCenter', { padding: 1, damping: 0.5 }));
+
+// every frame, before klipp.update
+vec3.copy(a.position, aPosition);
+vec3.copy(b.position, bPosition);
+```
+
+  </TabsContent>
+  <TabsContent value="three">
+
+Members are a `TargetGroup`:
+
+```ts
+import { GroupFramingExtension, TargetGroup } from '@kvvasuu/klipp/three';
+
+const group = new TargetGroup([{ target: a }, { target: b, radius: 2 }], 'groupCenter');
+camera.addExtension(new GroupFramingExtension(group, { padding: 1, damping: 0.5 }));
+```
+
+For meshes, member sizes are measured from their geometry. If a member's shape changes, call `recalculateSize()` to measure it again.
+
+  </TabsContent>
+  <TabsContent value="r3f">
+
+```tsx
+<VirtualCamera name="party" priority={10}>
+  <Body.Follow target={leaderRef} offset={[0, 4, 10]} />
+  <Aim.HardLookAt target={leaderRef} />
+  <Extension.GroupFraming
+    members={[{ target: aRef }, { target: bRef, radius: 2 }]}
+    padding={1}
+    damping={0.5}
+  />
+</VirtualCamera>
+```
+
+For meshes, member sizes are measured from their geometry. `ref` gives you the `GroupFramingExtension`: if a member's shape changes, call `recalculateSize()` to measure it again.
+
+  </TabsContent>
+</Tabs>
