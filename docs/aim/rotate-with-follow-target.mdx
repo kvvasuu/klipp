@@ -25,7 +25,9 @@ Gives the camera the same rotation as the target, as if it were glued to it. It 
   <TabsContent value="core">
 
 ```ts
-import { HardLockToTargetBody, RotateWithFollowTargetAim } from '@kvvasuu/klipp';
+import { HardLockToTargetBody, RotateWithFollowTargetAim, createTargetPose } from '@kvvasuu/klipp';
+
+const head = createTargetPose(); // keep head.position, head.rotation and hasRotation up to date
 
 camera.body = new HardLockToTargetBody(head);
 camera.aim = new RotateWithFollowTargetAim(head, { damping: 0.1 });

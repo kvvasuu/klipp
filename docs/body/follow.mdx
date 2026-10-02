@@ -41,7 +41,9 @@ The binding mode also tells Aims like [`HardLookAt`](/aim/hard-look-at) which wa
   <TabsContent value="core">
 
 ```ts
-import { FollowBody, HardLookAtAim } from '@kvvasuu/klipp';
+import { FollowBody, HardLookAtAim, createTargetPose } from '@kvvasuu/klipp';
+
+const player = createTargetPose(); // keep player.position and player.rotation up to date
 
 camera.body = new FollowBody(player, { offset: [0, 3, 8], damping: 0.5 });
 camera.aim = new HardLookAtAim(player);
@@ -52,8 +54,9 @@ Every binding mode but `worldSpace` turns the offset with the target, so fill in
 **`bindingMode`**
 
 ```ts
-import { BindingModes } from '@kvvasuu/klipp';
+import { BindingModes, FollowBody, createTargetPose } from '@kvvasuu/klipp';
 
+const plane = createTargetPose(); // keep plane.position and plane.rotation up to date
 camera.body = new FollowBody(plane, { offset: [0, 2, 10], bindingMode: BindingModes.lockToTargetWithWorldUp });
 ```
 

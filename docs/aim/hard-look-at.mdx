@@ -25,7 +25,9 @@ Which way is up comes from the Body, for example from Follow's [`bindingMode`](/
   <TabsContent value="core">
 
 ```ts
-import { HardLookAtAim } from '@kvvasuu/klipp';
+import { HardLookAtAim, createTargetPose } from '@kvvasuu/klipp';
+
+const player = createTargetPose(); // keep player.position up to date
 
 camera.aim = new HardLookAtAim(player);
 ```

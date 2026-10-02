@@ -28,7 +28,9 @@ Without an Aim the camera keeps its starting rotation, [`initialState`](/api/vir
   <TabsContent value="core">
 
 ```ts
-import { FollowBody, HardLookAtAim } from '@kvvasuu/klipp';
+import { FollowBody, HardLookAtAim, createTargetPose } from '@kvvasuu/klipp';
+
+const player = createTargetPose(); // keep player.position up to date
 
 camera.body = new FollowBody(player, { offset: [0, 3, 8] });
 camera.aim = new HardLookAtAim(player);
