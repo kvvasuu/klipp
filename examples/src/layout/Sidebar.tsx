@@ -52,7 +52,7 @@ export function Sidebar() {
           <span />
           <span />
         </button>
-        <a href="https://kvvasuu.github.io/klipp/docs/" target="_blank" rel="noreferrer" className="sidebar-docs-link">
+        <a href="https://pmndrs.github.io/klipp/docs/" target="_blank" rel="noreferrer" className="sidebar-docs-link">
           Documentation ↗
         </a>
         <input

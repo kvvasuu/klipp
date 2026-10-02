@@ -43,7 +43,7 @@ jobs:
           --libname "Klipp" --libname-short "klipp"
           --home-redirect "/getting-started/introduction"
           --icon "📹"
-          --github "https://github.com/kvvasuu/klipp"
+          --github "https://github.com/pmndrs/klipp"
           --base-path "${{ steps.pages.outputs.base_path }}/docs"
           --url "${{ steps.pages.outputs.base_url }}/docs"
 

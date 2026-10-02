@@ -1,8 +1,8 @@
 # Klipp 📹
 
 [![Version](https://badgen.net/npm/v/@kvvasuu/klipp)](https://www.npmjs.com/package/@kvvasuu/klipp)
-[![Examples](https://img.shields.io/static/v1?message=Examples&style=flat&colorA=000000&colorB=000000&label=&logo=threedotjs&logoColor=ffffff)](https://kvvasuu.github.io/klipp/examples/)
-[![Docs](https://img.shields.io/static/v1?message=Docs&style=flat&colorA=000000&colorB=000000&label=&logo=googledocs&logoColor=ffffff)](https://kvvasuu.github.io/klipp/docs/)
+[![Examples](https://img.shields.io/static/v1?message=Examples&style=flat&colorA=000000&colorB=000000&label=&logo=threedotjs&logoColor=ffffff)](https://pmndrs.github.io/klipp/examples/)
+[![Docs](https://img.shields.io/static/v1?message=Docs&style=flat&colorA=000000&colorB=000000&label=&logo=googledocs&logoColor=ffffff)](https://pmndrs.github.io/klipp/docs/)
 [![license](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 A camera toolkit for the web, inspired by Unity Cinemachine. Describe the shots you want, and klipp picks the right one and blends between them.
@@ -69,5 +69,5 @@ import { Klipp, VirtualCamera, Body, Aim } from '@kvvasuu/klipp/react';
 
 ## Links
 
-- [Documentation](https://kvvasuu.github.io/klipp/docs/)
-- [Examples](https://kvvasuu.github.io/klipp/examples/)
+- [Documentation](https://pmndrs.github.io/klipp/docs/)
+- [Examples](https://pmndrs.github.io/klipp/examples/)
