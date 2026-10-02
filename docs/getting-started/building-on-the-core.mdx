@@ -4,7 +4,7 @@ description: Integrate klipp with your own renderer or engine, or use the data a
 nav: 5
 ---
 
-The core is the whole camera system. An integration only adapts the two places where it meets your world: where the shot goes, and where the targets come from. The React and three.js layers are built exactly this way.
+The core is the whole camera system. An integration only adapts the two places where it meets your world: where the shot goes, and where the targets come from. klipp's own integrations are built exactly this way.
 
 ## Your own integration
 
@@ -12,7 +12,7 @@ The core is the whole camera system. An integration only adapts the two places w
 
 <Step>Put the shot on your camera</Step>
 
-Read `klipp.shot` after `update`. To update your camera only when the shot changes, extend `Klipp` and override `write` instead, as the three.js layer does:
+Read `klipp.shot` after `update`. To update your camera only when the shot changes, extend `Klipp` and override `write` instead:
 
 ```ts title="EngineKlipp.ts"
 import { Klipp, type CameraState } from '@kvvasuu/klipp';
@@ -52,7 +52,7 @@ The same works for `HardLockToTargetBody`, `PositionComposerBody`, `HardLookAtAi
 
 </Steps>
 
-Name your classes after the core one with a suffix of your own, as the three.js layer does: `FollowBodyThree` is `FollowBody` reading an `Object3D`.
+Name your classes after the core one with a suffix of your own, like `FollowBodyThree`, which is `FollowBody` reading an `Object3D`.
 
 For logic of your own, write a [custom piece](/advanced/custom-components).
 

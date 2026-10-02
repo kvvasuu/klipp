@@ -7,7 +7,7 @@
 
 A camera toolkit for the web, inspired by Unity Cinemachine. Describe the shots you want, and klipp picks the right one and blends between them.
 
-The core is a complete camera system that runs anywhere: virtual cameras, priority, blending, framing, shake and input, with no renderer or framework attached. React Three Fiber and three.js are built on top of it, and so can be your engine. Underneath, every piece is also plain data and functions for when you want full control.
+The core is a complete camera system that runs anywhere: virtual cameras, priority, blending, framing, shake and input, with no renderer or framework attached. Integrations are thin layers on top: three.js and React Three Fiber today, with more to come, like TresJS. Your engine can be one too. Underneath, every piece is also plain data and functions for when you want full control.
 
 ### 👉 [See it in action on the examples site](https://kvvasuu.github.io/klipp/examples/)
 
@@ -80,7 +80,7 @@ Every `<VirtualCamera>` is a shot. The one with the highest `priority` is on scr
 
 ## Documentation
 
-The [documentation](https://kvvasuu.github.io/klipp/docs/) shows every piece with the core, and as a React Three Fiber component.
+The [documentation](https://kvvasuu.github.io/klipp/docs/) shows every piece with the core and each integration.
 
 ## Support
 

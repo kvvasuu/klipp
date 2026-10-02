@@ -4,7 +4,7 @@ description: One-off camera shakes from events like explosions and hits.
 nav: 55
 ---
 
-Fire an impulse from anywhere in your game, and every camera listening to it reacts. Impulses live in an `ImpulseField`. The shared `impulseField` is enough unless you want separate event streams. It's the same in every layer:
+Fire an impulse from anywhere in your game, and every camera listening to it reacts. Impulses live in an `ImpulseField`. The shared `impulseField` is enough unless you want separate event streams:
 
 ```ts
 import { impulseField, ImpulseShapes } from '@kvvasuu/klipp';
