@@ -98,9 +98,10 @@ camera.addNoise(new ImpulseListenerNoise());
 **Adding a rattle**
 
 ```ts
+import { Vector3 } from 'three';
 import { BasicMultiChannelPerlinNoise } from '@kvvasuu/klipp/three';
 
-const shake = new BasicMultiChannelPerlinNoise({ positionAmplitude: [0.1, 0.1, 0.1], rotationAmplitude: [4, 4, 4] });
+const shake = new BasicMultiChannelPerlinNoise({ positionAmplitude: new Vector3(0.1, 0.1, 0.1), rotationAmplitude: new Vector3(4, 4, 4) });
 camera.addNoise(new ImpulseListenerNoise({ shake }));
 ```
 

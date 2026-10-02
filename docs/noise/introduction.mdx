@@ -33,9 +33,10 @@ camera.addNoise(new BasicMultiChannelPerlinNoiseCore({ positionAmplitude: [0.1, 
   <TabsContent value="three">
 
 ```ts
+import { Vector3 } from 'three';
 import { BasicMultiChannelPerlinNoise } from '@kvvasuu/klipp/three';
 
-camera.addNoise(new BasicMultiChannelPerlinNoise({ positionAmplitude: [0.1, 0.1, 0], rotationAmplitude: [0.5, 0.5, 0] }));
+camera.addNoise(new BasicMultiChannelPerlinNoise({ positionAmplitude: new Vector3(0.1, 0.1, 0), rotationAmplitude: new Vector3(0.5, 0.5, 0) }));
 ```
 
   </TabsContent>
