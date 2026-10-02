@@ -39,7 +39,7 @@ Every piece is a core class. The three.js class is the same piece reading `Objec
 Pieces follow and look at targets:
 
 - **Core:** the core doesn't know about your scene. A target is a `TargetPose` you keep up to date from wherever your data lives: `position`, and `rotation` with `hasRotation`. Pieces that frame by size, like the composers, also read its `extent`.
-- **three.js and React:** a target is an `Object3D`, a ref to one, or a fixed point `[x, y, z]`. Objects are tracked live, including their rotation, and each one is read once per frame however many pieces follow it.
+- **three.js and React:** a target is an `Object3D`, a ref to one, or a fixed point: a `Vector3` or `[x, y, z]`. Objects are tracked live, including their rotation, and each one is read once per frame however many pieces follow it.
 
 A target of `null`, or a ref that is still empty, is ignored until it resolves.
 
@@ -53,7 +53,7 @@ Next to `damping` you'll usually find `maxSpeed`, which caps how fast the camera
 
 ## Changing settings while running
 
-Settings are plain fields, so you can change them at any time, even every frame. In React, `ref` gives you the piece itself, the three.js class, so you can change it without re-rendering.
+Settings are plain fields, so you can change them at any time, even every frame. Vectors in fields are `[x, y, z]` arrays in every layer, even where options and props also take a `Vector3`. In React, `ref` gives you the piece itself, the three.js class, so you can change it without re-rendering.
 
 ## Usage
 
@@ -130,16 +130,16 @@ dialogue.active = isTalking;
 
 ```ts
 const sideView = klipp.addCamera('side-view', { priority: 10 });
-sideView.body = new FollowBody(car, { offset: [6, 1, 0] });
+sideView.body = new FollowBody(car, { offset: new Vector3(6, 1, 0) });
 sideView.aim = new HardLookAtAim(finishLine);
 ```
 
 **Targets**
 
 ```ts
-new HardLookAtAim(player);              // an Object3D
-new HardLookAtAim({ current: player }); // a ref to one
-new HardLookAtAim([0, 1, 0]);           // a fixed point
+new HardLookAtAim(player);               // an Object3D
+new HardLookAtAim({ current: player });  // a ref to one
+new HardLookAtAim(new Vector3(0, 1, 0)); // a fixed point, or [0, 1, 0]
 ```
 
 **Damping**
@@ -152,7 +152,7 @@ new FollowBody(player, { damping: { into: 0.2, from: 1 } });
 **Changing settings**
 
 ```ts
-const body = new FollowBody(player, { offset: [0, 3, 8] });
+const body = new FollowBody(player, { offset: new Vector3(0, 3, 8) });
 follow.body = body;
 
 // any time later

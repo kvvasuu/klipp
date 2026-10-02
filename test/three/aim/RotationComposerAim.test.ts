@@ -62,6 +62,15 @@ describe('RotationComposerAim', () => {
     }
   });
 
+  it('takes targetOffset as a Vector3, and keeps radius and size', () => {
+    const aim = new RotationComposerAim(null, { targetOffset: new Vector3(0, 1.6, 0), radius: 0.5, size: 2 });
+
+    expect(aim.targetOffset).toEqual([0, 1.6, 0]);
+    expect(aim.radius).toBe(0.5);
+    expect(aim.size).toBe(2);
+    expect(new RotationComposerAim(null).targetOffset).toEqual([0, 0, 0]);
+  });
+
   it('leaves out untouched without a target', () => {
     const out = createCameraState();
     new RotationComposerAim(null, { screenPosition: [0.5, 0.5] }).update(out, 0.1, false);

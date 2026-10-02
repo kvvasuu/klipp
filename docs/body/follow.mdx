@@ -61,18 +61,20 @@ camera.body = new FollowBodyCore(plane, { offset: [0, 2, 10], bindingMode: Bindi
   <TabsContent value="three">
 
 ```ts
+import { Vector3 } from 'three';
 import { FollowBody, HardLookAtAim } from '@kvvasuu/klipp/three';
 
-camera.body = new FollowBody(player, { offset: [0, 3, 8], damping: 0.5 });
+camera.body = new FollowBody(player, { offset: new Vector3(0, 3, 8), damping: 0.5 });
 camera.aim = new HardLookAtAim(player);
 ```
 
 **`bindingMode`**
 
 ```ts
+import { Vector3 } from 'three';
 import { BindingModes } from '@kvvasuu/klipp';
 
-camera.body = new FollowBody(plane, { offset: [0, 2, 10], bindingMode: BindingModes.lockToTargetWithWorldUp });
+camera.body = new FollowBody(plane, { offset: new Vector3(0, 2, 10), bindingMode: BindingModes.lockToTargetWithWorldUp });
 ```
 
   </TabsContent>

@@ -16,6 +16,11 @@ export function resolveVector3(out: Vector3, value: Vector3Like): Vector3 {
   return out.set(value[0], value[1], value[2] ?? 0);
 }
 
+/** A new tuple from a vector shorthand, or `undefined` to keep a setting's default. */
+export function optionalVec3(value: Vector3Like | undefined): Vec3 | undefined {
+  return value === undefined ? undefined : resolveVec3([0, 0, 0], value);
+}
+
 /** Resolve a r3f vector shorthand into the tuple `out`. */
 export function resolveVec3(out: Vec3, value: Vector3Like): Vec3 {
   if (typeof value === 'number') return vec3.set(out, value, value, value);

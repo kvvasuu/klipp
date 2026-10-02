@@ -161,10 +161,11 @@ renderer.setAnimationLoop((time) => {
 A virtual camera is one shot, described by a **Body**, which decides where the camera is, and an **Aim**, which decides where it looks:
 
 ```ts
+import { Vector3 } from 'three';
 import { FollowBody, HardLookAtAim } from '@kvvasuu/klipp/three';
 
 const follow = klipp.addCamera('follow', { priority: 10 });
-follow.body = new FollowBody(player, { offset: [0, 3, 8] });
+follow.body = new FollowBody(player, { offset: new Vector3(0, 3, 8) });
 follow.aim = new HardLookAtAim(player);
 ```
 
@@ -175,19 +176,20 @@ The camera now stays 8 units behind and 3 units above the box, looking straight 
 `damping` lets the camera lag behind a little instead of being glued to the box. The value is roughly how many seconds it takes to catch up:
 
 ```ts
-follow.body = new FollowBody(player, { offset: [0, 3, 8], damping: 0.5 });
+follow.body = new FollowBody(player, { offset: new Vector3(0, 3, 8), damping: 0.5 });
 ```
 
 <Step>Add a second shot</Step>
 
-A wide overview camera with a higher `priority`, turned on and off with `active`. A target can also be a fixed point, `[x, y, z]`:
+A wide overview camera with a higher `priority`, turned on and off with `active`. A target can also be a fixed point:
 
 ```ts
+import { Vector3 } from 'three';
 import { HardLockToTargetBody } from '@kvvasuu/klipp/three';
 
 const overview = klipp.addCamera('overview', { priority: 20, active: false });
-overview.body = new HardLockToTargetBody([0, 15, 15]);
-overview.aim = new HardLookAtAim([0, 0, 0]);
+overview.body = new HardLockToTargetBody(new Vector3(0, 15, 15));
+overview.aim = new HardLookAtAim(new Vector3(0, 0, 0));
 
 button.onclick = () => {
   overview.active = !overview.active;

@@ -36,6 +36,17 @@ describe('FollowBody', () => {
     expect(out.position).toEqual([0, 0, 0]);
   });
 
+  it('takes offset as a Vector3, a tuple or one number, and keeps its own copy', () => {
+    const tuple: Vec3 = [1, 2, 3];
+    const fromTuple = new FollowBody(null, { offset: tuple });
+
+    expect(new FollowBody(null, { offset: new Vector3(1, 2, 3) }).offset).toEqual([1, 2, 3]);
+    expect(new FollowBody(null, { offset: 2 }).offset).toEqual([2, 2, 2]);
+    expect(new FollowBody(null).offset).toEqual([0, 0, 10]);
+    expect(fromTuple.offset).toEqual([1, 2, 3]);
+    expect(fromTuple.offset).not.toBe(tuple);
+  });
+
   describe('damping', () => {
     it('snaps on the very first update, then eases toward the offset position and converges', () => {
       const body = new FollowBody(new Vector3(), { offset: [10, 5, -3], damping: 0.3 });

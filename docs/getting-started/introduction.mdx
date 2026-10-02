@@ -78,16 +78,17 @@ engineCamera.setRotation(klipp.shot.quaternion);
   <TabsContent value="three">
 
 ```ts
+import { Vector3 } from 'three';
 import { Klipp, FollowBody, HardLockToTargetBody, HardLookAtAim } from '@kvvasuu/klipp/three';
 
 const klipp = new Klipp(camera);
 
 const follow = klipp.addCamera('follow', { priority: 10 });
-follow.body = new FollowBody(player, { offset: [0, 3, 8], damping: 0.5 });
+follow.body = new FollowBody(player, { offset: new Vector3(0, 3, 8), damping: 0.5 });
 follow.aim = new HardLookAtAim(player);
 
 const cutscene = klipp.addCamera('cutscene', { priority: 20, active: false });
-cutscene.body = new HardLockToTargetBody([10, 2, 0]);
+cutscene.body = new HardLockToTargetBody(new Vector3(10, 2, 0));
 cutscene.aim = new HardLookAtAim(player);
 
 // every frame, before rendering

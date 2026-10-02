@@ -1,15 +1,13 @@
 import { useEffect, useImperativeHandle, useState, type Ref } from 'react';
 import { createFollowParams } from '../../core/body/follow.js';
-import { resolveVec3, type Vector3Like } from '../../three/resolve/resolveVector3.js';
+import { resolveVec3 } from '../../three/resolve/resolveVector3.js';
 import type { Target } from '../../three/resolve/Target.js';
 import { useVirtualCamera } from '../VirtualCameraContext.js';
 import { FollowBody, type FollowOptions } from '../../three/body/FollowBody.js';
 
-export type FollowProps = Omit<FollowOptions, 'offset'> & {
+export type FollowProps = FollowOptions & {
   /** Target to follow. Unresolved targets are ignored. */
   target?: Target;
-  /** Offset from the target, rotated according to `bindingMode`. */
-  offset?: Vector3Like;
   ref?: Ref<FollowBody>;
 };
 

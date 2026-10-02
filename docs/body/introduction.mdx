@@ -38,9 +38,10 @@ camera.aim = new HardLookAtAimCore(player);
   <TabsContent value="three">
 
 ```ts
+import { Vector3 } from 'three';
 import { FollowBody, HardLookAtAim } from '@kvvasuu/klipp/three';
 
-camera.body = new FollowBody(player, { offset: [0, 3, 8], damping: 0.5 });
+camera.body = new FollowBody(player, { offset: new Vector3(0, 3, 8), damping: 0.5 });
 camera.aim = new HardLookAtAim(player);
 ```
 

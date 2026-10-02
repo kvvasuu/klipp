@@ -68,10 +68,11 @@ klipp.addCamera('fixed', { priority: 10, initialState: { position: [0, 10, 10], 
   <TabsContent value="three">
 
 ```ts
+import { Vector3 } from 'three';
 import { FollowBody, HardLookAtAim } from '@kvvasuu/klipp/three';
 
 const follow = klipp.addCamera('follow', { priority: 10 });
-follow.body = new FollowBody(player, { offset: [0, 3, 8] });
+follow.body = new FollowBody(player, { offset: new Vector3(0, 3, 8) });
 follow.aim = new HardLookAtAim(player);
 
 const map = klipp.addCamera('map', { priority: 20, active: false });
@@ -81,7 +82,7 @@ map.active = mapOpen;
 **`initialState`**
 
 ```ts
-klipp.addCamera('fixed', { priority: 10, initialState: { position: [0, 10, 10], fov: 35 } });
+klipp.addCamera('fixed', { priority: 10, initialState: { position: new Vector3(0, 10, 10), fov: 35 } });
 ```
 
   </TabsContent>

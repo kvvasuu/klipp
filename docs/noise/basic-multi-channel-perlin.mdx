@@ -66,11 +66,12 @@ camera.addNoise(new BasicMultiChannelPerlinNoiseCore({ positionAmplitude: [0.02,
   <TabsContent value="three">
 
 ```ts
+import { Vector3 } from 'three';
 import { BasicMultiChannelPerlinNoise } from '@kvvasuu/klipp/three';
 
 const shake = new BasicMultiChannelPerlinNoise({
-  positionAmplitude: [0.05, 0.05, 0],
-  rotationAmplitude: [0.3, 0.3, 0],
+  positionAmplitude: new Vector3(0.05, 0.05, 0),
+  rotationAmplitude: new Vector3(0.3, 0.3, 0),
   frequencyGain: 2,
 });
 camera.addNoise(shake);
@@ -86,8 +87,8 @@ shake.amplitudeGain = engineRunning ? 1 : 0;
 **Layering**
 
 ```ts
-camera.addNoise(new BasicMultiChannelPerlinNoise({ rotationAmplitude: [1, 1, 0], frequencyGain: 0.3 }));
-camera.addNoise(new BasicMultiChannelPerlinNoise({ positionAmplitude: [0.02, 0.02, 0], frequencyGain: 8 }));
+camera.addNoise(new BasicMultiChannelPerlinNoise({ rotationAmplitude: new Vector3(1, 1, 0), frequencyGain: 0.3 }));
+camera.addNoise(new BasicMultiChannelPerlinNoise({ positionAmplitude: new Vector3(0.02, 0.02, 0), frequencyGain: 8 }));
 ```
 
   </TabsContent>
