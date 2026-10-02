@@ -116,6 +116,12 @@ describe('CameraControlsBody', () => {
       expect(vec3.distance(out.position, start.toArray())).toBeGreaterThan(20);
     });
 
+    it('also takes a tuple', () => {
+      const out = createCameraState();
+      new CameraControlsBody(new Vector3(5, 0, 5), { aspect: 1, initialPosition: [5, 8, 15] }).update(out, 0.05, false);
+      expect(vec3.distance(out.position, [5, 8, 15])).toBeLessThan(1e-5);
+    });
+
     it('holds the camera there while the target is not resolved yet, then only turns toward it', () => {
       const ref: { current: Object3D | null } = { current: null };
       const start = new Vector3(0, 5, 20);

@@ -3,16 +3,14 @@ import { useEffect, useImperativeHandle, useState, type Ref } from 'react';
 import { createRotationComposerParams } from '../../core/aim/rotationComposer.js';
 import { composerDebugZones } from '../../core/debug/debugZones.js';
 import { DebugZoneOverlay } from '../DebugZoneOverlay.js';
-import { resolveVec3, type Vector3Like } from '../../three/resolve/resolveVector3.js';
+import { resolveVec3 } from '../../three/resolve/resolveVector3.js';
 import type { Target } from '../../three/resolve/Target.js';
 import { useVirtualCamera } from '../VirtualCameraContext.js';
 import { RotationComposerAim, type RotationComposerOptions } from '../../three/aim/RotationComposerAim.js';
 
-export type RotationComposerProps = Omit<RotationComposerOptions, 'aspect' | 'targetOffset'> & {
+export type RotationComposerProps = Omit<RotationComposerOptions, 'aspect'> & {
   /** Target to compose at `screenPosition`. Unresolved targets are ignored. */
   target?: Target;
-  /** Offset applied in the target's local rotation space. */
-  targetOffset?: Vector3Like;
   /** Draws the `deadZone` and `hardLimit` overlays. */
   debug?: boolean;
   ref?: Ref<RotationComposerAim>;

@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import type { CameraState } from '../../core/CameraState.js';
 import { resolveTargetPosition, type Target } from '../resolve/Target.js';
 import type { TargetSlot } from '../resolve/TargetRegistry.js';
+import { resolveVector3, type Vector3Like } from '../resolve/resolveVector3.js';
 
 CameraControls.install({ THREE });
 
@@ -12,7 +13,7 @@ export type CameraControlsOptions = {
   /** Viewport width divided by height. */
   aspect?: number;
   /** Where the camera starts. */
-  initialPosition?: THREE.Vector3 | null;
+  initialPosition?: Vector3Like | null;
   /** A `CameraControls` subclass to use instead. */
   impl?: typeof CameraControls;
   /** Animate the internal `camera-controls` calls. */
@@ -38,7 +39,8 @@ export class CameraControlsBody {
     this.enableTransition = options?.enableTransition ?? false;
     this.camera = new THREE.PerspectiveCamera();
     this.controls = new (options?.impl ?? CameraControls)(this.camera);
-    this.initialPosition = options?.initialPosition ?? null;
+    this.initialPosition =
+      options?.initialPosition != null ? resolveVector3(new THREE.Vector3(), options.initialPosition) : null;
 
     if (this.initialPosition) {
       const { x, y, z } = this.initialPosition;

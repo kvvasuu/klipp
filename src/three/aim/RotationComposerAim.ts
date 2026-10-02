@@ -6,9 +6,11 @@ import { readTargetExtent } from '../readTargetExtent.js';
 import { readTargetPose } from '../readTargetPose.js';
 import type { Target } from '../resolve/Target.js';
 import type { TargetSlot } from '../resolve/TargetRegistry.js';
-import type { Vector3Like } from '../resolve/resolveVector3.js';
+import { optionalVec3, type Vector3Like } from '../resolve/resolveVector3.js';
 
-export type RotationComposerOptions = Partial<RotationComposerParams> & {
+export type RotationComposerOptions = Partial<Omit<RotationComposerParams, 'targetOffset'>> & {
+  /** Offset from the target, in its local space. */
+  targetOffset?: Vector3Like;
   /** Target radius used when composing its visible edge. Ignored when `size` is set. */
   radius?: number;
   /** Target dimensions used when composing its visible edges. Measured automatically for meshes. */
@@ -24,10 +26,10 @@ export class RotationComposerAim extends RotationComposerAimCore<Target> {
   private readonly pose = createTargetPose();
   private forceSizeRecalculation = false;
 
-  constructor(target: Target, options?: RotationComposerOptions) {
-    super(target, options);
-    this.radius = options?.radius;
-    this.size = options?.size;
+  constructor(target: Target, { targetOffset, radius, size, ...options }: RotationComposerOptions = {}) {
+    super(target, { ...options, targetOffset: optionalVec3(targetOffset) });
+    this.radius = radius;
+    this.size = size;
   }
 
   /** Forces the auto-detected `size` to be re-measured on the next `update()`, then goes back to the cached value. */
