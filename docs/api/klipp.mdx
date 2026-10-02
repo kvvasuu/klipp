@@ -6,7 +6,7 @@ nav: 10
 
 The camera director: it runs every [virtual camera](/api/virtual-camera), picks the winner, blends between shots, and puts the result on your camera.
 
-`KlippCore` works with any renderer: put its `shot` on your camera after `update`. `Klipp` from `@kvvasuu/klipp/three` writes it to a three.js camera itself, and `<Klipp>` runs one inside React Three Fiber.
+`Klipp` works with any renderer: put its `shot` on your camera after `update`. `KlippThree` from `@kvvasuu/klipp/three` writes it to a three.js camera itself, and `<Klipp>` runs one inside React Three Fiber.
 
 ## Members
 
@@ -59,12 +59,12 @@ Use `'standby'` to hand the camera to something else for a while (an editor, a p
   </TabsList>
   <TabsContent value="core">
 
-`KlippCore` works with any renderer. Call `update` every frame and put `shot` on your camera:
+`Klipp` works with any renderer. Call `update` every frame and put `shot` on your camera:
 
 ```ts
-import { KlippCore, BlendCurves } from '@kvvasuu/klipp';
+import { Klipp, BlendCurves } from '@kvvasuu/klipp';
 
-const klipp = new KlippCore({ defaultBlend: { curve: BlendCurves.easeInOut, time: 1 } });
+const klipp = new Klipp({ defaultBlend: { curve: BlendCurves.easeInOut, time: 1 } });
 klipp.setSize(canvas.width, canvas.height);
 klipp.addCamera('main', { priority: 10 });
 
@@ -77,18 +77,18 @@ function frame(dt: number) {
 }
 ```
 
-New cameras start from `initialCameraState`, an option of `KlippCore`. Pass your camera's starting pose there.
+New cameras start from `initialCameraState`, an option of `Klipp`. Pass your camera's starting pose there.
 
   </TabsContent>
   <TabsContent value="three">
 
-`Klipp` is `KlippCore` driving a three.js camera. `update` writes the shot to it:
+`KlippThree` is `Klipp` driving a three.js camera. `update` writes the shot to it:
 
 ```ts
 import { BlendCurves } from '@kvvasuu/klipp';
-import { Klipp } from '@kvvasuu/klipp/three';
+import { KlippThree } from '@kvvasuu/klipp/three';
 
-const klipp = new Klipp(camera, { defaultBlend: { curve: BlendCurves.easeInOut, time: 1 } });
+const klipp = new KlippThree(camera, { defaultBlend: { curve: BlendCurves.easeInOut, time: 1 } });
 klipp.setSize(innerWidth, innerHeight);
 klipp.addCamera('main', { priority: 10 });
 
@@ -98,12 +98,12 @@ renderer.setAnimationLoop(() => {
 });
 ```
 
-New cameras start from the camera's `fov`, `near`, `far`, position and rotation at the time `Klipp` is created. Lens changes need a `PerspectiveCamera`. `camera.aspect` stays yours to update on resize, next to `setSize`.
+New cameras start from the camera's `fov`, `near`, `far`, position and rotation at the time `KlippThree` is created. Lens changes need a `PerspectiveCamera`. `camera.aspect` stays yours to update on resize, next to `setSize`.
 
   </TabsContent>
   <TabsContent value="r3f">
 
-`<Klipp>` creates a `Klipp` on the React Three Fiber camera and runs it every frame. It has to be inside `<Canvas>`.
+`<Klipp>` creates a `KlippThree` on the React Three Fiber camera and runs it every frame. It has to be inside `<Canvas>`.
 
 ```tsx
 import { BlendCurves } from '@kvvasuu/klipp';
@@ -125,7 +125,7 @@ import { Klipp } from '@kvvasuu/klipp/react';
 
 Virtual cameras start from the real camera's `fov`, `near`, `far`, position and rotation, so whatever you set on `<Canvas camera={...}>` is the starting point. It keeps the viewport size in sync for you.
 
-[`useKlipp()`](/api/hooks#useklipp) gives you the `Klipp` behind `<Klipp>`, with the members above, and [`<Klipp.Events>`](/api/events) listens to every transition.
+[`useKlipp()`](/api/hooks#useklipp) gives you the `KlippThree` behind `<Klipp>`, with the members above, and [`<Klipp.Events>`](/api/events) listens to every transition.
 
   </TabsContent>
 </Tabs>

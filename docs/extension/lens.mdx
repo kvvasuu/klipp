@@ -33,9 +33,9 @@ Set lens values through `Lens`, not on the real camera directly. klipp writes th
   <TabsContent value="core">
 
 ```ts
-import { LensExtensionCore } from '@kvvasuu/klipp';
+import { LensExtension } from '@kvvasuu/klipp';
 
-const lens = new LensExtensionCore({ fov: 50, fovDamping: 0.4 });
+const lens = new LensExtension({ fov: 50, fovDamping: 0.4 });
 camera.addExtension(lens);
 
 // any time later
@@ -46,7 +46,7 @@ lens.fov = boosting ? 75 : 50;
   <TabsContent value="three">
 
 ```ts
-import { LensExtension } from '@kvvasuu/klipp/three';
+import { LensExtension } from '@kvvasuu/klipp';
 
 const lens = new LensExtension({ fov: 50, fovDamping: 0.4 });
 camera.addExtension(lens);

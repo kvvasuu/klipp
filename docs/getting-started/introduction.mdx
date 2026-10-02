@@ -53,20 +53,20 @@ A follow camera, and a cutscene camera that takes over when it turns on. Turning
 
 ```ts
 import { vec3 } from 'math';
-import { KlippCore, FollowBodyCore, HardLockToTargetBodyCore, HardLookAtAimCore, createTargetPose } from '@kvvasuu/klipp';
+import { Klipp, FollowBody, HardLockToTargetBody, HardLookAtAim, createTargetPose } from '@kvvasuu/klipp';
 
-const klipp = new KlippCore();
+const klipp = new Klipp();
 const player = createTargetPose(); // keep player.position up to date
 const spot = createTargetPose();
 vec3.set(spot.position, 10, 2, 0);
 
 const follow = klipp.addCamera('follow', { priority: 10 });
-follow.body = new FollowBodyCore(player, { offset: [0, 3, 8], damping: 0.5 });
-follow.aim = new HardLookAtAimCore(player);
+follow.body = new FollowBody(player, { offset: [0, 3, 8], damping: 0.5 });
+follow.aim = new HardLookAtAim(player);
 
 const cutscene = klipp.addCamera('cutscene', { priority: 20, active: false });
-cutscene.body = new HardLockToTargetBodyCore(spot);
-cutscene.aim = new HardLookAtAimCore(player);
+cutscene.body = new HardLockToTargetBody(spot);
+cutscene.aim = new HardLookAtAim(player);
 
 // every frame
 klipp.update(dt);
@@ -79,17 +79,17 @@ engineCamera.setRotation(klipp.shot.quaternion);
 
 ```ts
 import { Vector3 } from 'three';
-import { Klipp, FollowBody, HardLockToTargetBody, HardLookAtAim } from '@kvvasuu/klipp/three';
+import { KlippThree, FollowBodyThree, HardLockToTargetBodyThree, HardLookAtAimThree } from '@kvvasuu/klipp/three';
 
-const klipp = new Klipp(camera);
+const klipp = new KlippThree(camera);
 
 const follow = klipp.addCamera('follow', { priority: 10 });
-follow.body = new FollowBody(player, { offset: new Vector3(0, 3, 8), damping: 0.5 });
-follow.aim = new HardLookAtAim(player);
+follow.body = new FollowBodyThree(player, { offset: new Vector3(0, 3, 8), damping: 0.5 });
+follow.aim = new HardLookAtAimThree(player);
 
 const cutscene = klipp.addCamera('cutscene', { priority: 20, active: false });
-cutscene.body = new HardLockToTargetBody(new Vector3(10, 2, 0));
-cutscene.aim = new HardLookAtAim(player);
+cutscene.body = new HardLockToTargetBodyThree(new Vector3(10, 2, 0));
+cutscene.aim = new HardLookAtAimThree(player);
 
 // every frame, before rendering
 klipp.update(dt);

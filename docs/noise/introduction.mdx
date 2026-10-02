@@ -24,9 +24,9 @@ Noise shakes the camera on top of everything else, so the shot stays framed corr
   <TabsContent value="core">
 
 ```ts
-import { BasicMultiChannelPerlinNoiseCore } from '@kvvasuu/klipp';
+import { BasicMultiChannelPerlinNoise } from '@kvvasuu/klipp';
 
-camera.addNoise(new BasicMultiChannelPerlinNoiseCore({ positionAmplitude: [0.1, 0.1, 0], rotationAmplitude: [0.5, 0.5, 0] }));
+camera.addNoise(new BasicMultiChannelPerlinNoise({ positionAmplitude: [0.1, 0.1, 0], rotationAmplitude: [0.5, 0.5, 0] }));
 ```
 
   </TabsContent>
@@ -34,9 +34,9 @@ camera.addNoise(new BasicMultiChannelPerlinNoiseCore({ positionAmplitude: [0.1, 
 
 ```ts
 import { Vector3 } from 'three';
-import { BasicMultiChannelPerlinNoise } from '@kvvasuu/klipp/three';
+import { BasicMultiChannelPerlinNoiseThree } from '@kvvasuu/klipp/three';
 
-camera.addNoise(new BasicMultiChannelPerlinNoise({ positionAmplitude: new Vector3(0.1, 0.1, 0), rotationAmplitude: new Vector3(0.5, 0.5, 0) }));
+camera.addNoise(new BasicMultiChannelPerlinNoiseThree({ positionAmplitude: new Vector3(0.1, 0.1, 0), rotationAmplitude: new Vector3(0.5, 0.5, 0) }));
 ```
 
   </TabsContent>

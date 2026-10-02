@@ -12,12 +12,12 @@ The core is the whole camera system. An integration only adapts the two places w
 
 <Step>Put the shot on your camera</Step>
 
-Read `klipp.shot` after `update`. To update your camera only when the shot changes, extend `KlippCore` and override `write` instead, as the three.js layer does:
+Read `klipp.shot` after `update`. To update your camera only when the shot changes, extend `Klipp` and override `write` instead, as the three.js layer does:
 
 ```ts title="EngineKlipp.ts"
-import { KlippCore, type CameraState } from '@kvvasuu/klipp';
+import { Klipp, type CameraState } from '@kvvasuu/klipp';
 
-class EngineKlipp extends KlippCore {
+class EngineKlipp extends Klipp {
   protected override write(shot: CameraState, transformChanged: boolean, lensChanged: boolean) {
     if (transformChanged) engine.camera.setTransform(shot.position, shot.quaternion);
     if (lensChanged) engine.camera.setFov(shot.fov);
@@ -31,9 +31,9 @@ Every piece with a target reads it through `readTarget`. By default the target i
 
 ```ts title="EngineFollow.ts"
 import { quat, vec3 } from 'math';
-import { FollowBodyCore, createTargetPose, type TargetPose } from '@kvvasuu/klipp';
+import { FollowBody, createTargetPose, type TargetPose } from '@kvvasuu/klipp';
 
-class EngineFollow extends FollowBodyCore<EngineObject | null> {
+class EngineFollow extends FollowBody<EngineObject | null> {
   private readonly pose = createTargetPose();
 
   protected override readTarget(): TargetPose | null {
@@ -48,11 +48,11 @@ class EngineFollow extends FollowBodyCore<EngineObject | null> {
 camera.body = new EngineFollow(player, { offset: [0, 3, 8] });
 ```
 
-The same works for `HardLockToTargetBodyCore`, `PositionComposerBodyCore`, `HardLookAtAimCore`, `RotateWithFollowTargetAimCore`, `RotationComposerAimCore` and `PanTiltAimCore`. `GroupFramingExtensionCore` reads its members through `readMembers`.
+The same works for `HardLockToTargetBody`, `PositionComposerBody`, `HardLookAtAim`, `RotateWithFollowTargetAim`, `RotationComposerAim` and `PanTiltAim`. `GroupFramingExtension` reads its members through `readMembers`.
 
 </Steps>
 
-Core classes end in `Core`. Drop the suffix for your own, as the three.js layer does: `FollowBody` is `FollowBodyCore` reading an `Object3D`.
+Name your classes after the core one with a suffix of your own, as the three.js layer does: `FollowBodyThree` is `FollowBody` reading an `Object3D`.
 
 For logic of your own, write a [custom piece](/advanced/custom-components).
 

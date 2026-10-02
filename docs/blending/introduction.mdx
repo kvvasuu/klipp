@@ -66,9 +66,9 @@ A hint is a setting of the camera, and applies to every blend into or out of it.
   <TabsContent value="core">
 
 ```ts
-import { BlendCurves, BlendHints, KlippCore } from '@kvvasuu/klipp';
+import { BlendCurves, BlendHints, Klipp } from '@kvvasuu/klipp';
 
-const klipp = new KlippCore({
+const klipp = new Klipp({
   defaultBlend: { curve: BlendCurves.easeInOut, time: 1 },
   customBlends: [
     { to: 'closeup', blend: { curve: BlendCurves.linear, time: 0 } },
@@ -90,9 +90,9 @@ orbit.hints = BlendHints.sphericalPosition | BlendHints.ignoreTarget;
 
 ```ts
 import { BlendCurves, BlendHints } from '@kvvasuu/klipp';
-import { Klipp } from '@kvvasuu/klipp/three';
+import { KlippThree } from '@kvvasuu/klipp/three';
 
-const klipp = new Klipp(camera, {
+const klipp = new KlippThree(camera, {
   defaultBlend: { curve: BlendCurves.easeInOut, time: 1 },
   customBlends: [
     { to: 'closeup', blend: { curve: BlendCurves.linear, time: 0 } },

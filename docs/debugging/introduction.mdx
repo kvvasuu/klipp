@@ -71,12 +71,12 @@ overlay.render(composerDebugZones(body.screenPosition, body.deadZone, body.hardL
 
 **Camera frustums**
 
-`CameraFrustumHelper` is a `CameraHelper` that follows a virtual camera's `state`. Its `maxDistance` sets how far the frustum is drawn, `1` by default:
+`CameraFrustumHelperThree` is a `CameraHelper` that follows a virtual camera's `state`. Its `maxDistance` sets how far the frustum is drawn, `1` by default:
 
 ```ts
-import { CameraFrustumHelper } from '@kvvasuu/klipp/three';
+import { CameraFrustumHelperThree } from '@kvvasuu/klipp/three';
 
-const helper = new CameraFrustumHelper();
+const helper = new CameraFrustumHelperThree();
 scene.add(helper);
 
 // every frame, after klipp.update

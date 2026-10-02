@@ -86,7 +86,7 @@ zoom.value;
 The axes are on the piece's `ref`:
 
 ```tsx
-const aim = useRef<PanTiltAim>(null);
+const aim = useRef<PanTiltAimThree>(null);
 
 aim.current.pan.applyDelta(5); // turn by 5°
 aim.current.pan.value;         // read the current value

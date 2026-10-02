@@ -27,11 +27,11 @@ Body and Aim are independent, so a camera can follow one object while looking at
 
 ## One piece, three forms
 
-Every piece is a core class. The three.js class is the same piece reading `Object3D` targets, and the React component creates that class for you. Settings have the same names everywhere:
+Every piece is a core class. The three.js class, ending in `Three`, is the same piece reading `Object3D` targets, and the React component creates that class for you. Settings have the same names everywhere:
 
 | | Core | three.js | React Three Fiber |
 | - | ---- | -------- | ----------------- |
-| Follow | `new FollowBodyCore(target, { offset })` | `new FollowBody(target, { offset })` | `<Body.Follow target={...} offset={...} />` |
+| Follow | `new FollowBody(target, { offset })` | `new FollowBodyThree(target, { offset })` | `<Body.Follow target={...} offset={...} />` |
 | Settings | the options object, then fields of the instance | the same | props |
 
 ## Targets
@@ -53,7 +53,7 @@ Next to `damping` you'll usually find `maxSpeed`, which caps how fast the camera
 
 ## Changing settings while running
 
-Settings are plain fields, so you can change them at any time, even every frame. Vectors in fields are `[x, y, z]` arrays in every layer, even where options and props also take a `Vector3`. In React, `ref` gives you the piece itself, the three.js class, so you can change it without re-rendering.
+Settings are plain fields, so you can change them at any time, even every frame. Vectors in fields are `[x, y, z]` arrays in every layer, even where options and props also take a `Vector3`. In React, `ref` gives you the piece itself, so you can change it without re-rendering.
 
 ## Usage
 
@@ -78,8 +78,8 @@ dialogue.active = isTalking;
 
 ```ts
 const sideView = klipp.addCamera('side-view', { priority: 10 });
-sideView.body = new FollowBodyCore(car, { offset: [6, 1, 0] });
-sideView.aim = new HardLookAtAimCore(finishLine);
+sideView.body = new FollowBody(car, { offset: [6, 1, 0] });
+sideView.aim = new HardLookAtAim(finishLine);
 ```
 
 **Targets**
@@ -100,14 +100,14 @@ player.hasRotation = true;
 **Damping**
 
 ```ts
-new FollowBodyCore(player, { damping: 0.5 });
-new FollowBodyCore(player, { damping: { into: 0.2, from: 1 } });
+new FollowBody(player, { damping: 0.5 });
+new FollowBody(player, { damping: { into: 0.2, from: 1 } });
 ```
 
 **Changing settings**
 
 ```ts
-const body = new FollowBodyCore(player, { offset: [0, 3, 8] });
+const body = new FollowBody(player, { offset: [0, 3, 8] });
 follow.body = body;
 
 // any time later
@@ -130,29 +130,29 @@ dialogue.active = isTalking;
 
 ```ts
 const sideView = klipp.addCamera('side-view', { priority: 10 });
-sideView.body = new FollowBody(car, { offset: new Vector3(6, 1, 0) });
-sideView.aim = new HardLookAtAim(finishLine);
+sideView.body = new FollowBodyThree(car, { offset: new Vector3(6, 1, 0) });
+sideView.aim = new HardLookAtAimThree(finishLine);
 ```
 
 **Targets**
 
 ```ts
-new HardLookAtAim(player);               // an Object3D
-new HardLookAtAim({ current: player });  // a ref to one
-new HardLookAtAim(new Vector3(0, 1, 0)); // a fixed point, or [0, 1, 0]
+new HardLookAtAimThree(player);               // an Object3D
+new HardLookAtAimThree({ current: player });  // a ref to one
+new HardLookAtAimThree(new Vector3(0, 1, 0)); // a fixed point, or [0, 1, 0]
 ```
 
 **Damping**
 
 ```ts
-new FollowBody(player, { damping: 0.5 });
-new FollowBody(player, { damping: { into: 0.2, from: 1 } });
+new FollowBodyThree(player, { damping: 0.5 });
+new FollowBodyThree(player, { damping: { into: 0.2, from: 1 } });
 ```
 
 **Changing settings**
 
 ```ts
-const body = new FollowBody(player, { offset: new Vector3(0, 3, 8) });
+const body = new FollowBodyThree(player, { offset: new Vector3(0, 3, 8) });
 follow.body = body;
 
 // any time later
@@ -198,7 +198,7 @@ body.offset[2] = zoom;
 **Changing settings**
 
 ```tsx
-const body = useRef<FollowBody>(null); // from @kvvasuu/klipp/three
+const body = useRef<FollowBodyThree>(null); // from @kvvasuu/klipp/three
 
 useFrame(() => {
   body.current.offset[2] = zoom;

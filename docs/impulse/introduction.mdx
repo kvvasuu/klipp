@@ -64,18 +64,18 @@ By default `direction` is in world space, which suits explosions: the camera get
   <TabsContent value="core">
 
 ```ts
-import { ImpulseListenerNoiseCore } from '@kvvasuu/klipp';
+import { ImpulseListenerNoise } from '@kvvasuu/klipp';
 
-camera.addNoise(new ImpulseListenerNoiseCore());
+camera.addNoise(new ImpulseListenerNoise());
 ```
 
 **Adding a rattle**
 
 ```ts
-import { BasicMultiChannelPerlinNoiseCore } from '@kvvasuu/klipp';
+import { BasicMultiChannelPerlinNoise } from '@kvvasuu/klipp';
 
-const shake = new BasicMultiChannelPerlinNoiseCore({ positionAmplitude: [0.1, 0.1, 0.1], rotationAmplitude: [4, 4, 4] });
-camera.addNoise(new ImpulseListenerNoiseCore({ shake }));
+const shake = new BasicMultiChannelPerlinNoise({ positionAmplitude: [0.1, 0.1, 0.1], rotationAmplitude: [4, 4, 4] });
+camera.addNoise(new ImpulseListenerNoise({ shake }));
 ```
 
 **Camera-relative**
@@ -83,14 +83,14 @@ camera.addNoise(new ImpulseListenerNoiseCore({ shake }));
 ```ts
 impulseField.generate({ position: [0, 0, 0], direction: [0, 0.3, 0.1], shape: ImpulseShapes.recoil });
 
-camera.addNoise(new ImpulseListenerNoiseCore({ cameraSpace: true }));
+camera.addNoise(new ImpulseListenerNoise({ cameraSpace: true }));
 ```
 
   </TabsContent>
   <TabsContent value="three">
 
 ```ts
-import { ImpulseListenerNoise } from '@kvvasuu/klipp/three';
+import { ImpulseListenerNoise } from '@kvvasuu/klipp';
 
 camera.addNoise(new ImpulseListenerNoise());
 ```
@@ -99,9 +99,9 @@ camera.addNoise(new ImpulseListenerNoise());
 
 ```ts
 import { Vector3 } from 'three';
-import { BasicMultiChannelPerlinNoise } from '@kvvasuu/klipp/three';
+import { BasicMultiChannelPerlinNoiseThree } from '@kvvasuu/klipp/three';
 
-const shake = new BasicMultiChannelPerlinNoise({ positionAmplitude: new Vector3(0.1, 0.1, 0.1), rotationAmplitude: new Vector3(4, 4, 4) });
+const shake = new BasicMultiChannelPerlinNoiseThree({ positionAmplitude: new Vector3(0.1, 0.1, 0.1), rotationAmplitude: new Vector3(4, 4, 4) });
 camera.addNoise(new ImpulseListenerNoise({ shake }));
 ```
 

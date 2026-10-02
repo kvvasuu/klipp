@@ -23,14 +23,14 @@ A follow camera with no framework, for any renderer. Keep the targets up to date
 
 ```ts
 import { vec3 } from 'math';
-import { KlippCore, FollowBodyCore, HardLookAtAimCore, createTargetPose } from '@kvvasuu/klipp';
+import { Klipp, FollowBody, HardLookAtAim, createTargetPose } from '@kvvasuu/klipp';
 
-const klipp = new KlippCore();
+const klipp = new Klipp();
 const player = createTargetPose();
 
 const follow = klipp.addCamera('follow', { priority: 10 });
-follow.body = new FollowBodyCore(player, { offset: [0, 3, 8], damping: 0.5 });
-follow.aim = new HardLookAtAimCore(player);
+follow.body = new FollowBody(player, { offset: [0, 3, 8], damping: 0.5 });
+follow.aim = new HardLookAtAim(player);
 
 // every frame
 vec3.copy(player.position, engine.playerPosition);
@@ -75,7 +75,7 @@ Every `<VirtualCamera>` is a shot. The one with the highest `priority` is on scr
 | ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
 | `@kvvasuu/klipp`       | The core: the whole camera system, plus the data and functions it is built from. Built on [`math`](https://github.com/pmndrs/math). |
 | `@kvvasuu/klipp/react` | React Three Fiber components.                                                                                                       |
-| `@kvvasuu/klipp/three` | three.js: the core classes reading `Object3D` targets and driving a `PerspectiveCamera`.                                            |
+| `@kvvasuu/klipp/three` | three.js: the core classes, ending in `Three`, reading `Object3D` targets and driving a `PerspectiveCamera`.                        |
 | `@kvvasuu/klipp/dom`   | Mouse, touch and wheel input, and debug overlays.                                                                                   |
 
 ## Documentation

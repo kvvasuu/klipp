@@ -12,8 +12,8 @@ klipp has one entry point per layer. Each one only needs the libraries it adapts
 
 | Entry point | What's in it | Install as well |
 | ----------- | ------------ | --------------- |
-| `@kvvasuu/klipp` | The core: `KlippCore`, virtual cameras, every piece as a `Core` class, and the data and functions underneath. | nothing |
-| `@kvvasuu/klipp/three` | The core classes for three.js: they read `Object3D` targets and drive a `PerspectiveCamera`. | `three` |
+| `@kvvasuu/klipp` | The core: `Klipp`, `VirtualCamera`, every piece as a class, and the data and functions underneath. | nothing |
+| `@kvvasuu/klipp/three` | The core classes for three.js, ending in `Three`: they read `Object3D` targets and drive a `PerspectiveCamera`. | `three` |
 | `@kvvasuu/klipp/react` | React Three Fiber components, built on the three.js classes. | `three`, `react`, `@react-three/fiber` |
 | `@kvvasuu/klipp/dom` | Mouse, touch and wheel input, and debug overlays. | nothing, runs in a browser |
 
@@ -34,7 +34,7 @@ Constants like `BlendCurves`, `BindingModes` and `BlendHints` come from the core
   <TabsContent value="core">
 
 ```ts
-import { KlippCore, FollowBodyCore, HardLookAtAimCore, createTargetPose, BlendCurves } from '@kvvasuu/klipp';
+import { Klipp, FollowBody, HardLookAtAim, createTargetPose, BlendCurves } from '@kvvasuu/klipp';
 ```
 
   </TabsContent>
@@ -46,7 +46,7 @@ npm install three
 
 ```ts
 import { BlendCurves } from '@kvvasuu/klipp';
-import { Klipp, FollowBody, HardLookAtAim } from '@kvvasuu/klipp/three';
+import { KlippThree, FollowBodyThree, HardLookAtAimThree } from '@kvvasuu/klipp/three';
 ```
 
 **CameraControls**
@@ -56,7 +56,7 @@ npm install camera-controls
 ```
 
 ```ts
-import { CameraControlsBody } from '@kvvasuu/klipp/three/camera-controls';
+import { CameraControlsBodyThree } from '@kvvasuu/klipp/three/camera-controls';
 ```
 
   </TabsContent>

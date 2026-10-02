@@ -41,10 +41,10 @@ The binding mode also tells Aims like [`HardLookAt`](/aim/hard-look-at) which wa
   <TabsContent value="core">
 
 ```ts
-import { FollowBodyCore, HardLookAtAimCore } from '@kvvasuu/klipp';
+import { FollowBody, HardLookAtAim } from '@kvvasuu/klipp';
 
-camera.body = new FollowBodyCore(player, { offset: [0, 3, 8], damping: 0.5 });
-camera.aim = new HardLookAtAimCore(player);
+camera.body = new FollowBody(player, { offset: [0, 3, 8], damping: 0.5 });
+camera.aim = new HardLookAtAim(player);
 ```
 
 Every binding mode but `worldSpace` turns the offset with the target, so fill in `player.rotation` and set `player.hasRotation`.
@@ -54,7 +54,7 @@ Every binding mode but `worldSpace` turns the offset with the target, so fill in
 ```ts
 import { BindingModes } from '@kvvasuu/klipp';
 
-camera.body = new FollowBodyCore(plane, { offset: [0, 2, 10], bindingMode: BindingModes.lockToTargetWithWorldUp });
+camera.body = new FollowBody(plane, { offset: [0, 2, 10], bindingMode: BindingModes.lockToTargetWithWorldUp });
 ```
 
   </TabsContent>
@@ -62,10 +62,10 @@ camera.body = new FollowBodyCore(plane, { offset: [0, 2, 10], bindingMode: Bindi
 
 ```ts
 import { Vector3 } from 'three';
-import { FollowBody, HardLookAtAim } from '@kvvasuu/klipp/three';
+import { FollowBodyThree, HardLookAtAimThree } from '@kvvasuu/klipp/three';
 
-camera.body = new FollowBody(player, { offset: new Vector3(0, 3, 8), damping: 0.5 });
-camera.aim = new HardLookAtAim(player);
+camera.body = new FollowBodyThree(player, { offset: new Vector3(0, 3, 8), damping: 0.5 });
+camera.aim = new HardLookAtAimThree(player);
 ```
 
 **`bindingMode`**
@@ -74,7 +74,7 @@ camera.aim = new HardLookAtAim(player);
 import { Vector3 } from 'three';
 import { BindingModes } from '@kvvasuu/klipp';
 
-camera.body = new FollowBody(plane, { offset: new Vector3(0, 2, 10), bindingMode: BindingModes.lockToTargetWithWorldUp });
+camera.body = new FollowBodyThree(plane, { offset: new Vector3(0, 2, 10), bindingMode: BindingModes.lockToTargetWithWorldUp });
 ```
 
   </TabsContent>
@@ -87,7 +87,7 @@ camera.body = new FollowBody(plane, { offset: new Vector3(0, 2, 10), bindingMode
 </VirtualCamera>
 ```
 
-`ref` gives you the `FollowBody`.
+`ref` gives you the `FollowBodyThree`.
 
 **`bindingMode`**
 

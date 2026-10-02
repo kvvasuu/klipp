@@ -28,10 +28,10 @@ Without a Body the camera stays at its starting position, [`initialState`](/api/
   <TabsContent value="core">
 
 ```ts
-import { FollowBodyCore, HardLookAtAimCore } from '@kvvasuu/klipp';
+import { FollowBody, HardLookAtAim } from '@kvvasuu/klipp';
 
-camera.body = new FollowBodyCore(player, { offset: [0, 3, 8], damping: 0.5 });
-camera.aim = new HardLookAtAimCore(player);
+camera.body = new FollowBody(player, { offset: [0, 3, 8], damping: 0.5 });
+camera.aim = new HardLookAtAim(player);
 ```
 
   </TabsContent>
@@ -39,10 +39,10 @@ camera.aim = new HardLookAtAimCore(player);
 
 ```ts
 import { Vector3 } from 'three';
-import { FollowBody, HardLookAtAim } from '@kvvasuu/klipp/three';
+import { FollowBodyThree, HardLookAtAimThree } from '@kvvasuu/klipp/three';
 
-camera.body = new FollowBody(player, { offset: new Vector3(0, 3, 8), damping: 0.5 });
-camera.aim = new HardLookAtAim(player);
+camera.body = new FollowBodyThree(player, { offset: new Vector3(0, 3, 8), damping: 0.5 });
+camera.aim = new HardLookAtAimThree(player);
 ```
 
   </TabsContent>

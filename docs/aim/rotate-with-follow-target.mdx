@@ -25,10 +25,10 @@ Gives the camera the same rotation as the target, as if it were glued to it. It 
   <TabsContent value="core">
 
 ```ts
-import { HardLockToTargetBodyCore, RotateWithFollowTargetAimCore } from '@kvvasuu/klipp';
+import { HardLockToTargetBody, RotateWithFollowTargetAim } from '@kvvasuu/klipp';
 
-camera.body = new HardLockToTargetBodyCore(head);
-camera.aim = new RotateWithFollowTargetAimCore(head, { damping: 0.1 });
+camera.body = new HardLockToTargetBody(head);
+camera.aim = new RotateWithFollowTargetAim(head, { damping: 0.1 });
 ```
 
 Only `head.rotation` is read, and only while `head.hasRotation` is set.
@@ -37,10 +37,10 @@ Only `head.rotation` is read, and only while `head.hasRotation` is set.
   <TabsContent value="three">
 
 ```ts
-import { HardLockToTargetBody, RotateWithFollowTargetAim } from '@kvvasuu/klipp/three';
+import { HardLockToTargetBodyThree, RotateWithFollowTargetAimThree } from '@kvvasuu/klipp/three';
 
-camera.body = new HardLockToTargetBody(head);
-camera.aim = new RotateWithFollowTargetAim(head, { damping: 0.1 });
+camera.body = new HardLockToTargetBodyThree(head);
+camera.aim = new RotateWithFollowTargetAimThree(head, { damping: 0.1 });
 ```
 
   </TabsContent>
@@ -53,7 +53,7 @@ camera.aim = new RotateWithFollowTargetAim(head, { damping: 0.1 });
 </VirtualCamera>
 ```
 
-`ref` gives you the `RotateWithFollowTargetAim`.
+`ref` gives you the `RotateWithFollowTargetAimThree`.
 
   </TabsContent>
 </Tabs>

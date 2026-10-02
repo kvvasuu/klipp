@@ -41,10 +41,10 @@ When pairing it with [`PositionComposer`](/body/position-composer), use the same
   <TabsContent value="core">
 
 ```ts
-import { RotationComposerAimCore } from '@kvvasuu/klipp';
+import { RotationComposerAim } from '@kvvasuu/klipp';
 
 player.extent.radius = 0.5; // so the zones react to its edge
-camera.aim = new RotationComposerAimCore(player, { deadZone: [0.2, 0.2], damping: 0.3 });
+camera.aim = new RotationComposerAim(player, { deadZone: [0.2, 0.2], damping: 0.3 });
 ```
 
 The target's size comes from `player.extent`, and its rotation is only used for `targetOffset`.
@@ -53,9 +53,9 @@ The target's size comes from `player.extent`, and its rotation is only used for 
   <TabsContent value="three">
 
 ```ts
-import { RotationComposerAim } from '@kvvasuu/klipp/three';
+import { RotationComposerAimThree } from '@kvvasuu/klipp/three';
 
-camera.aim = new RotationComposerAim(player, { deadZone: [0.2, 0.2], damping: 0.3 });
+camera.aim = new RotationComposerAimThree(player, { deadZone: [0.2, 0.2], damping: 0.3 });
 ```
 
 For meshes, the target's size is measured from its geometry. If the shape changes (an animated skinned mesh, for example), call `recalculateSize()` to measure it again.
@@ -70,7 +70,7 @@ For meshes, the target's size is measured from its geometry. If the shape change
 </VirtualCamera>
 ```
 
-For meshes, the target's size is measured from its geometry. `ref` gives you the `RotationComposerAim`: if the shape changes (an animated skinned mesh, for example), call `recalculateSize()` to measure it again.
+For meshes, the target's size is measured from its geometry. `ref` gives you the `RotationComposerAimThree`: if the shape changes (an animated skinned mesh, for example), call `recalculateSize()` to measure it again.
 
   </TabsContent>
 </Tabs>

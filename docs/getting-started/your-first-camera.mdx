@@ -21,9 +21,9 @@ The core works with any renderer. Where the code touches yours, it says `engine`
 <Step>Create klipp</Step>
 
 ```ts title="main.ts"
-import { KlippCore } from '@kvvasuu/klipp';
+import { Klipp } from '@kvvasuu/klipp';
 
-const klipp = new KlippCore();
+const klipp = new Klipp();
 klipp.setSize(canvas.width, canvas.height);
 ```
 
@@ -57,11 +57,11 @@ function frame(dt: number) {
 A virtual camera is one shot, described by a **Body**, which decides where the camera is, and an **Aim**, which decides where it looks:
 
 ```ts
-import { FollowBodyCore, HardLookAtAimCore } from '@kvvasuu/klipp';
+import { FollowBody, HardLookAtAim } from '@kvvasuu/klipp';
 
 const follow = klipp.addCamera('follow', { priority: 10 });
-follow.body = new FollowBodyCore(player, { offset: [0, 3, 8] });
-follow.aim = new HardLookAtAimCore(player);
+follow.body = new FollowBody(player, { offset: [0, 3, 8] });
+follow.aim = new HardLookAtAim(player);
 ```
 
 The camera now stays 8 units behind and 3 units above the box, looking straight at it.
@@ -71,7 +71,7 @@ The camera now stays 8 units behind and 3 units above the box, looking straight 
 `damping` lets the camera lag behind a little instead of being glued to the box. The value is roughly how many seconds it takes to catch up:
 
 ```ts
-follow.body = new FollowBodyCore(player, { offset: [0, 3, 8], damping: 0.5 });
+follow.body = new FollowBody(player, { offset: [0, 3, 8], damping: 0.5 });
 ```
 
 <Step>Add a second shot</Step>
@@ -79,15 +79,15 @@ follow.body = new FollowBodyCore(player, { offset: [0, 3, 8], damping: 0.5 });
 A wide overview camera with a higher `priority`, turned on and off with `active`:
 
 ```ts
-import { HardLockToTargetBodyCore } from '@kvvasuu/klipp';
+import { HardLockToTargetBody } from '@kvvasuu/klipp';
 
 const above = createTargetPose();
 vec3.set(above.position, 0, 15, 15);
 const center = createTargetPose();
 
 const overview = klipp.addCamera('overview', { priority: 20, active: false });
-overview.body = new HardLockToTargetBodyCore(above);
-overview.aim = new HardLookAtAimCore(center);
+overview.body = new HardLockToTargetBody(above);
+overview.aim = new HardLookAtAim(center);
 
 button.onclick = () => {
   overview.active = !overview.active;
@@ -103,7 +103,7 @@ By default a blend takes 2 seconds with an ease-in-out curve:
 ```ts
 import { BlendCurves } from '@kvvasuu/klipp';
 
-const klipp = new KlippCore({ defaultBlend: { curve: BlendCurves.easeInOut, time: 0.8 } });
+const klipp = new Klipp({ defaultBlend: { curve: BlendCurves.easeInOut, time: 0.8 } });
 ```
 
 </Steps>
@@ -115,11 +115,11 @@ const klipp = new KlippCore({ defaultBlend: { curve: BlendCurves.easeInOut, time
 
 <Step>Create klipp</Step>
 
-`Klipp` drives a three.js camera:
+`KlippThree` drives a three.js camera:
 
 ```ts title="main.ts"
 import { GridHelper, PerspectiveCamera, Scene, WebGLRenderer } from 'three';
-import { Klipp } from '@kvvasuu/klipp/three';
+import { KlippThree } from '@kvvasuu/klipp/three';
 
 const renderer = new WebGLRenderer();
 renderer.setSize(innerWidth, innerHeight);
@@ -129,7 +129,7 @@ const scene = new Scene();
 scene.add(new GridHelper(20, 20));
 const camera = new PerspectiveCamera(50, innerWidth / innerHeight);
 
-const klipp = new Klipp(camera);
+const klipp = new KlippThree(camera);
 klipp.setSize(innerWidth, innerHeight);
 ```
 
@@ -162,11 +162,11 @@ A virtual camera is one shot, described by a **Body**, which decides where the c
 
 ```ts
 import { Vector3 } from 'three';
-import { FollowBody, HardLookAtAim } from '@kvvasuu/klipp/three';
+import { FollowBodyThree, HardLookAtAimThree } from '@kvvasuu/klipp/three';
 
 const follow = klipp.addCamera('follow', { priority: 10 });
-follow.body = new FollowBody(player, { offset: new Vector3(0, 3, 8) });
-follow.aim = new HardLookAtAim(player);
+follow.body = new FollowBodyThree(player, { offset: new Vector3(0, 3, 8) });
+follow.aim = new HardLookAtAimThree(player);
 ```
 
 The camera now stays 8 units behind and 3 units above the box, looking straight at it.
@@ -176,7 +176,7 @@ The camera now stays 8 units behind and 3 units above the box, looking straight 
 `damping` lets the camera lag behind a little instead of being glued to the box. The value is roughly how many seconds it takes to catch up:
 
 ```ts
-follow.body = new FollowBody(player, { offset: new Vector3(0, 3, 8), damping: 0.5 });
+follow.body = new FollowBodyThree(player, { offset: new Vector3(0, 3, 8), damping: 0.5 });
 ```
 
 <Step>Add a second shot</Step>
@@ -185,11 +185,11 @@ A wide overview camera with a higher `priority`, turned on and off with `active`
 
 ```ts
 import { Vector3 } from 'three';
-import { HardLockToTargetBody } from '@kvvasuu/klipp/three';
+import { HardLockToTargetBodyThree } from '@kvvasuu/klipp/three';
 
 const overview = klipp.addCamera('overview', { priority: 20, active: false });
-overview.body = new HardLockToTargetBody(new Vector3(0, 15, 15));
-overview.aim = new HardLookAtAim(new Vector3(0, 0, 0));
+overview.body = new HardLockToTargetBodyThree(new Vector3(0, 15, 15));
+overview.aim = new HardLookAtAimThree(new Vector3(0, 0, 0));
 
 button.onclick = () => {
   overview.active = !overview.active;
@@ -205,7 +205,7 @@ By default a blend takes 2 seconds with an ease-in-out curve:
 ```ts
 import { BlendCurves } from '@kvvasuu/klipp';
 
-const klipp = new Klipp(camera, { defaultBlend: { curve: BlendCurves.easeInOut, time: 0.8 } });
+const klipp = new KlippThree(camera, { defaultBlend: { curve: BlendCurves.easeInOut, time: 0.8 } });
 ```
 
 </Steps>
