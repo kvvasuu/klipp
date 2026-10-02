@@ -1,6 +1,6 @@
 import { useParams } from 'react-router';
 
-const repoUrl = 'https://github.com/kvvasuu/klipp';
+const repoUrl = 'https://github.com/pmndrs/klipp';
 
 /** Scene files are named after their slug in PascalCase, e.g. `pan-tilt-recentering` -> `PanTiltRecentering.tsx`. */
 function sceneFileName(slug: string): string {
