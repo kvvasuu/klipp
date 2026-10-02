@@ -16,11 +16,11 @@
   "author": "Łukasz Kwas (https://github.com/kvvasuu)",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/kvvasuu/klipp.git"
+    "url": "git+https://github.com/pmndrs/klipp.git"
   },
-  "homepage": "https://github.com/kvvasuu/klipp#readme",
+  "homepage": "https://github.com/pmndrs/klipp#readme",
   "bugs": {
-    "url": "https://github.com/kvvasuu/klipp/issues"
+    "url": "https://github.com/pmndrs/klipp/issues"
   },
   "type": "module",
   "main": "dist/core/index.js",
