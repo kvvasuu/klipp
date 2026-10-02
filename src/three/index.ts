@@ -6,6 +6,7 @@ export {
   type CameraPiece,
 } from './VirtualCamera.js';
 export { copyCameraStateFromCamera, applyCameraState, writeCameraTransform, writeCameraLens } from './camera.js';
+export { CameraFrustumHelper } from './CameraFrustumHelper.js';
 export { readTargetPose, readTargetRotation } from './readTargetPose.js';
 export { readTargetExtent } from './readTargetExtent.js';
 export {

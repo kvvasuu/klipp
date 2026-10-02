@@ -25,7 +25,7 @@ With a `target`, the camera orbits around it and follows it when it moves. Witho
 | `initialPosition` | Where the camera starts. | |
 | `enableTransition` | Animate the internal `camera-controls` calls. | `false` |
 | `impl` | A custom `CameraControls` subclass to use instead. | |
-| `waitForBlend` | React only. Ignore input until the blend into this camera has finished. | `true` |
+| `waitForBlend` | Ignore input until the blend into this camera has finished. An option of `klipp.whileOnScreen` in three.js. | `true` |
 | `makeDefault` | React only. Set as r3f's `state.controls` while it accepts input. | `false` |
 | `regress` | React only. Lower render quality while moving (`performance.regress()`). | `false` |
 
@@ -45,12 +45,16 @@ import { CameraControlsBody } from '@kvvasuu/klipp/three/camera-controls';
 
 const body = new CameraControlsBody(ball);
 body.controls.minDistance = 2;
-klipp.addCamera('orbit', { priority: 10 }).body = body;
+const orbit = klipp.addCamera('orbit', { priority: 10 });
+orbit.body = body;
 
-body.controls.connect(renderer.domElement);
+klipp.whileOnScreen(orbit, () => {
+  body.controls.connect(renderer.domElement);
+  return () => body.controls.disconnect();
+});
 ```
 
-Connect the controls while their camera is on screen and `disconnect()` them otherwise, so several orbit cameras don't fight over the mouse.
+`whileOnScreen` connects the controls only while their camera is on screen, so several orbit cameras don't fight over the mouse.
 
   </TabsContent>
   <TabsContent value="r3f">

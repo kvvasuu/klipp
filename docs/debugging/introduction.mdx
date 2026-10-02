@@ -71,23 +71,16 @@ overlay.render(composerDebugZones(body.screenPosition, body.deadZone, body.hardL
 
 **Camera frustums**
 
-A `CameraHelper` on a proxy camera that follows the virtual camera's `state`:
+`CameraFrustumHelper` is a `CameraHelper` that follows a virtual camera's `state`. Its `maxDistance` sets how far the frustum is drawn, `1` by default:
 
 ```ts
-import { CameraHelper, PerspectiveCamera } from 'three';
-import { applyCameraState } from '@kvvasuu/klipp/three';
+import { CameraFrustumHelper } from '@kvvasuu/klipp/three';
 
-const proxy = new PerspectiveCamera();
-const helper = new CameraHelper(proxy);
+const helper = new CameraFrustumHelper();
 scene.add(helper);
 
 // every frame, after klipp.update
-applyCameraState(proxy, securityCam.state, innerWidth, innerHeight);
-proxy.aspect = innerWidth / innerHeight;
-proxy.far = Math.min(proxy.far, 1); // draw only the first unit
-proxy.updateProjectionMatrix();
-proxy.updateMatrixWorld();
-helper.update();
+helper.sync(securityCam.state, innerWidth / innerHeight);
 ```
 
   </TabsContent>

@@ -1,10 +1,8 @@
 import { useFrame, useThree } from '@react-three/fiber';
-import { useEffect, useImperativeHandle, useRef, useState, type Ref } from 'react';
-import { CameraHelper, Color, PerspectiveCamera, Quaternion, Vector3, type ColorRepresentation } from 'three';
+import { useEffect, useImperativeHandle, useState, type Ref } from 'react';
+import { Color, type CameraHelper, type ColorRepresentation } from 'three';
+import { CameraFrustumHelper as FrustumHelper } from '../three/CameraFrustumHelper.js';
 import { useIsLiveVirtualCamera, useVirtualCamera } from './VirtualCameraContext.js';
-
-const scratchPosition = new Vector3();
-const scratchQuaternion = new Quaternion();
 
 export type CameraFrustumHelperProps = {
   /** Single color for the whole helper. */
@@ -26,10 +24,9 @@ export function CameraFrustumHelper({
   const { state } = useVirtualCamera();
   const isLive = useIsLiveVirtualCamera();
   const size = useThree((s) => s.size);
-  const [scratchCamera] = useState(() => new PerspectiveCamera());
-  const [helper] = useState(() => new CameraHelper(scratchCamera));
+  const [helper] = useState(() => new FrustumHelper(maxDistance));
   const [scratchColor] = useState(() => new Color());
-  const lastLens = useRef({ fov: NaN, near: NaN, far: NaN, aspect: NaN });
+  helper.maxDistance = maxDistance;
 
   useImperativeHandle(ref, () => helper, [helper]);
   useEffect(() => () => helper.dispose(), [helper]);
@@ -40,36 +37,7 @@ export function CameraFrustumHelper({
     helper.setColors(scratchColor, scratchColor, scratchColor, scratchColor, scratchColor);
   }, [helper, scratchColor, color]);
 
-  useFrame(() => {
-    const aspect = size.width / size.height;
-    const far = Math.min(state.far, maxDistance);
-    const lens = lastLens.current;
-    const lensChanged =
-      lens.fov !== state.fov || lens.near !== state.near || lens.far !== far || lens.aspect !== aspect;
-    if (lensChanged) {
-      scratchCamera.fov = state.fov;
-      scratchCamera.near = state.near;
-      scratchCamera.far = far;
-      scratchCamera.aspect = aspect;
-      scratchCamera.updateProjectionMatrix();
-      lens.fov = state.fov;
-      lens.near = state.near;
-      lens.far = far;
-      lens.aspect = aspect;
-    }
-
-    scratchPosition.fromArray(state.position);
-    scratchQuaternion.fromArray(state.quaternion);
-    const transformChanged =
-      !scratchCamera.position.equals(scratchPosition) || !scratchCamera.quaternion.equals(scratchQuaternion);
-    if (transformChanged) {
-      scratchCamera.position.copy(scratchPosition);
-      scratchCamera.quaternion.copy(scratchQuaternion);
-      scratchCamera.updateMatrixWorld(true);
-    }
-
-    if (lensChanged || transformChanged) helper.update();
-  });
+  useFrame(() => helper.sync(state, size.width / size.height));
 
   if (hideWhenLive && isLive) return null;
   return <primitive object={helper} />;

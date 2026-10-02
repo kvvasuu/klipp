@@ -726,6 +726,41 @@ describe('KlippCore — update(dt): the frame loop', () => {
     warn.mockRestore();
   });
 
+  it('whileOnScreen starts once the blend into the camera finishes, and stops when another camera wins', () => {
+    const { klipp, left, right } = twoShots();
+    const calls: string[] = [];
+    const stopWatching = klipp.whileOnScreen(right, () => {
+      calls.push('start');
+      return () => calls.push('stop');
+    });
+
+    klipp.update(0.1);
+    right.priority = 20;
+    klipp.update(0.5);
+    expect(calls).toEqual([]);
+    klipp.update(0.6);
+    expect(calls).toEqual(['start']);
+
+    left.priority = 30;
+    expect(calls).toEqual(['start', 'stop']);
+
+    right.priority = 40;
+    klipp.update(0.1);
+    klipp.update(1);
+    stopWatching();
+    expect(calls).toEqual(['start', 'stop', 'start', 'stop']);
+  });
+
+  it('whileOnScreen without waitForBlend starts as soon as the camera wins', () => {
+    const { klipp, right } = twoShots();
+    const start = vi.fn(() => () => {});
+    klipp.update(0.1);
+    klipp.whileOnScreen(right, start, { waitForBlend: false });
+
+    right.priority = 20;
+    expect(start).toHaveBeenCalledTimes(1);
+  });
+
   it('a removed camera leaves the arbitration', () => {
     const { klipp, left } = twoShots();
     klipp.update(0.1);

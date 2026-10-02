@@ -29,7 +29,10 @@ const input = new InputAxisController({
   mouseButtons: { left: null, right: { axes: { x: aim.pan, y: aim.tilt } }, middle: null },
   touches: { one: { axes: { x: aim.pan, y: aim.tilt } }, two: null, three: null },
 });
-input.connect(canvas);
+klipp.whileOnScreen(camera, () => {
+  input.connect(canvas);
+  return () => input.disconnect();
+});
 klipp.registerUpdate(() => input.update()); // reads input before the cameras run
 ```
 
@@ -47,7 +50,10 @@ const input = new InputAxisController({
   mouseButtons: { left: null, right: { axes: { x: aim.pan, y: aim.tilt } }, middle: null },
   touches: { one: { axes: { x: aim.pan, y: aim.tilt } }, two: null, three: null },
 });
-input.connect(renderer.domElement);
+klipp.whileOnScreen(camera, () => {
+  input.connect(renderer.domElement);
+  return () => input.disconnect();
+});
 klipp.registerUpdate(() => input.update()); // reads input before the cameras run
 ```
 
