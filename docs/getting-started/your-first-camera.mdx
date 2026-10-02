@@ -1,16 +1,26 @@
 ---
 title: Your first camera
-description: Build a follow camera and switch to a second shot, step by step, with no framework.
+description: Build a follow camera and switch to a second shot, step by step.
 nav: 3
 ---
 
-This guide builds a camera that follows a moving box, then adds a second shot and switches between the two. It uses the core alone, so it works with any renderer. Where the code touches yours, it says `engine`.
+This guide builds a camera that follows a moving box, then adds a second shot and switches between the two.
 
-## Create klipp
+<Tabs defaultValue="core">
+  <TabsList>
+    <TabsTrigger value="core">Core</TabsTrigger>
+    <TabsTrigger value="three">three.js</TabsTrigger>
+    <TabsTrigger value="r3f">React Three Fiber</TabsTrigger>
+  </TabsList>
+  <TabsContent value="core">
 
-`KlippCore` runs the cameras and blends between them:
+The core works with any renderer. Where the code touches yours, it says `engine`.
 
-```ts
+<Steps>
+
+<Step>Create klipp</Step>
+
+```ts title="main.ts"
 import { KlippCore } from '@kvvasuu/klipp';
 
 const klipp = new KlippCore();
@@ -19,26 +29,9 @@ klipp.setSize(canvas.width, canvas.height);
 
 `setSize` matters for pieces that frame by screen position, like the composers. Call it again whenever the viewport resizes.
 
-## Run it every frame
+<Step>Add a moving target</Step>
 
-After `update`, `klipp.shot` holds the shot. Put it on your camera:
-
-```ts
-function frame(dt: number) {
-  // ...move your scene...
-  klipp.update(dt);
-  engine.camera.setPosition(klipp.shot.position); // [x, y, z]
-  engine.camera.setRotation(klipp.shot.quaternion); // [x, y, z, w]
-  engine.camera.setFov(klipp.shot.fov); // degrees
-  engine.render();
-}
-```
-
-`update` returns `true` while anything is still moving, so with on-demand rendering you can skip frames when it returns `false`.
-
-## Describe the target
-
-The core doesn't read your scene. A target is a `TargetPose` you keep up to date:
+The core doesn't read your scene. A target is a `TargetPose` you keep up to date. After `update`, `klipp.shot` holds the shot to put on your camera:
 
 ```ts
 import { vec3 } from 'math';
@@ -50,17 +43,18 @@ function frame(dt: number) {
   const t = engine.time;
   vec3.set(player.position, Math.sin(t) * 4, 0.5, Math.cos(t) * 4);
   engine.box.setPosition(player.position);
+
   klipp.update(dt);
-  // ...put klipp.shot on your camera and render, as above
+  engine.camera.setPosition(klipp.shot.position); // [x, y, z]
+  engine.camera.setRotation(klipp.shot.quaternion); // [x, y, z, w]
+  engine.camera.setFov(klipp.shot.fov); // degrees
+  engine.render();
 }
 ```
 
-## Add a virtual camera
+<Step>Add a virtual camera</Step>
 
-A virtual camera is one shot. You describe it with two pieces:
-
-- a **Body**, which decides where the camera is,
-- an **Aim**, which decides where it looks.
+A virtual camera is one shot, described by a **Body**, which decides where the camera is, and an **Aim**, which decides where it looks:
 
 ```ts
 import { FollowBodyCore, HardLookAtAimCore } from '@kvvasuu/klipp';
@@ -72,19 +66,17 @@ follow.aim = new HardLookAtAimCore(player);
 
 The camera now stays 8 units behind and 3 units above the box, looking straight at it.
 
-## Smooth it out
+<Step>Smooth it out</Step>
 
-Add `damping` to let the camera lag behind a little instead of being glued to the box. The value is roughly how many seconds it takes to catch up:
+`damping` lets the camera lag behind a little instead of being glued to the box. The value is roughly how many seconds it takes to catch up:
 
 ```ts
 follow.body = new FollowBodyCore(player, { offset: [0, 3, 8], damping: 0.5 });
 ```
 
-Settings are plain fields, so changing them later works too.
+<Step>Add a second shot</Step>
 
-## Add a second shot
-
-Add a wide overview camera with a higher priority, and turn it on and off with `active`:
+A wide overview camera with a higher `priority`, turned on and off with `active`:
 
 ```ts
 import { HardLockToTargetBodyCore } from '@kvvasuu/klipp';
@@ -104,9 +96,9 @@ button.onclick = () => {
 
 The highest-priority active camera is the one on screen. Toggle `overview` and klipp blends between the two shots.
 
-## Change the blend
+<Step>Change the blend</Step>
 
-By default a blend takes 2 seconds with an ease-in-out curve. Change it when creating klipp:
+By default a blend takes 2 seconds with an ease-in-out curve:
 
 ```ts
 import { BlendCurves } from '@kvvasuu/klipp';
@@ -114,9 +106,242 @@ import { BlendCurves } from '@kvvasuu/klipp';
 const klipp = new KlippCore({ defaultBlend: { curve: BlendCurves.easeInOut, time: 0.8 } });
 ```
 
+</Steps>
+
+  </TabsContent>
+  <TabsContent value="three">
+
+<Steps>
+
+<Step>Create klipp</Step>
+
+`Klipp` drives a three.js camera:
+
+```ts title="main.ts"
+import { GridHelper, PerspectiveCamera, Scene, WebGLRenderer } from 'three';
+import { Klipp } from '@kvvasuu/klipp/three';
+
+const renderer = new WebGLRenderer();
+renderer.setSize(innerWidth, innerHeight);
+document.body.appendChild(renderer.domElement);
+
+const scene = new Scene();
+scene.add(new GridHelper(20, 20));
+const camera = new PerspectiveCamera(50, innerWidth / innerHeight);
+
+const klipp = new Klipp(camera);
+klipp.setSize(innerWidth, innerHeight);
+```
+
+`setSize` matters for pieces that frame by screen position, like the composers. Call it again whenever the viewport resizes.
+
+<Step>Add a moving box</Step>
+
+Any `Object3D` can be a target. `klipp.update` writes the shot to the camera:
+
+```ts
+import { BoxGeometry, Mesh, MeshNormalMaterial } from 'three';
+
+const player = new Mesh(new BoxGeometry(), new MeshNormalMaterial());
+scene.add(player);
+
+let last = 0;
+renderer.setAnimationLoop((time) => {
+  const t = time / 1000;
+  player.position.set(Math.sin(t) * 4, 0.5, Math.cos(t) * 4);
+
+  klipp.update(t - last);
+  last = t;
+  renderer.render(scene, camera);
+});
+```
+
+<Step>Add a virtual camera</Step>
+
+A virtual camera is one shot, described by a **Body**, which decides where the camera is, and an **Aim**, which decides where it looks:
+
+```ts
+import { FollowBody, HardLookAtAim } from '@kvvasuu/klipp/three';
+
+const follow = klipp.addCamera('follow', { priority: 10 });
+follow.body = new FollowBody(player, { offset: [0, 3, 8] });
+follow.aim = new HardLookAtAim(player);
+```
+
+The camera now stays 8 units behind and 3 units above the box, looking straight at it.
+
+<Step>Smooth it out</Step>
+
+`damping` lets the camera lag behind a little instead of being glued to the box. The value is roughly how many seconds it takes to catch up:
+
+```ts
+follow.body = new FollowBody(player, { offset: [0, 3, 8], damping: 0.5 });
+```
+
+<Step>Add a second shot</Step>
+
+A wide overview camera with a higher `priority`, turned on and off with `active`. A target can also be a fixed point, `[x, y, z]`:
+
+```ts
+import { HardLockToTargetBody } from '@kvvasuu/klipp/three';
+
+const overview = klipp.addCamera('overview', { priority: 20, active: false });
+overview.body = new HardLockToTargetBody([0, 15, 15]);
+overview.aim = new HardLookAtAim([0, 0, 0]);
+
+button.onclick = () => {
+  overview.active = !overview.active;
+};
+```
+
+The highest-priority active camera is the one on screen. Toggle `overview` and klipp blends between the two shots.
+
+<Step>Change the blend</Step>
+
+By default a blend takes 2 seconds with an ease-in-out curve:
+
+```ts
+import { BlendCurves } from '@kvvasuu/klipp';
+
+const klipp = new Klipp(camera, { defaultBlend: { curve: BlendCurves.easeInOut, time: 0.8 } });
+```
+
+</Steps>
+
+  </TabsContent>
+  <TabsContent value="r3f">
+
+<Steps>
+
+<Step>Start with a scene</Step>
+
+A box that moves in a circle. A ref to it will be the target:
+
+```tsx title="App.tsx"
+import { useRef } from 'react';
+import { Canvas, useFrame } from '@react-three/fiber';
+import type { Mesh } from 'three';
+
+function Player({ ref }) {
+  useFrame(({ clock }) => {
+    const t = clock.getElapsedTime();
+    ref.current.position.set(Math.sin(t) * 4, 0.5, Math.cos(t) * 4);
+  });
+
+  return (
+    <mesh ref={ref}>
+      <boxGeometry />
+      <meshNormalMaterial />
+    </mesh>
+  );
+}
+
+export default function App() {
+  const playerRef = useRef<Mesh>(null);
+
+  return (
+    <Canvas>
+      <Player ref={playerRef} />
+      <gridHelper args={[20, 20]} />
+    </Canvas>
+  );
+}
+```
+
+<Step>Add `<Klipp>`</Step>
+
+`<Klipp>` drives the camera. Put it anywhere inside `<Canvas>`:
+
+```tsx
+import { Klipp } from '@kvvasuu/klipp/react';
+
+<Canvas>
+  <Klipp>{/* cameras go here */}</Klipp>
+  <Player ref={playerRef} />
+</Canvas>
+```
+
+<Step>Add a virtual camera</Step>
+
+A `<VirtualCamera>` is one shot, described by a **Body**, which decides where the camera is, and an **Aim**, which decides where it looks:
+
+```tsx
+import { Klipp, VirtualCamera, Body, Aim } from '@kvvasuu/klipp/react';
+
+<Klipp>
+  <VirtualCamera name="follow" priority={10}>
+    <Body.Follow target={playerRef} offset={[0, 3, 8]} />
+    <Aim.HardLookAt target={playerRef} />
+  </VirtualCamera>
+</Klipp>
+```
+
+The camera now stays 8 units behind and 3 units above the box, looking straight at it.
+
+<Step>Smooth it out</Step>
+
+`damping` lets the camera lag behind a little instead of being glued to the box. The value is roughly how many seconds it takes to catch up:
+
+```tsx
+<Body.Follow target={playerRef} offset={[0, 3, 8]} damping={0.5} />
+```
+
+<Step>Add a second shot</Step>
+
+A wide overview camera with a higher `priority`, turned on and off with `active`. A target can also be a fixed point, `[x, y, z]`:
+
+```tsx title="App.tsx" collapsible
+import { useRef, useState } from 'react';
+import { Canvas } from '@react-three/fiber';
+import type { Mesh } from 'three';
+import { Klipp, VirtualCamera, Body, Aim } from '@kvvasuu/klipp/react';
+
+export default function App() {
+  const playerRef = useRef<Mesh>(null);
+  const [overview, setOverview] = useState(false);
+
+  return (
+    <>
+      <button onClick={() => setOverview(!overview)}>Toggle overview</button>
+      <Canvas>
+        <Klipp>
+          <VirtualCamera name="follow" priority={10}>
+            <Body.Follow target={playerRef} offset={[0, 3, 8]} damping={0.5} />
+            <Aim.HardLookAt target={playerRef} />
+          </VirtualCamera>
+
+          <VirtualCamera name="overview" priority={20} active={overview}>
+            <Body.HardLockToTarget target={[0, 15, 15]} />
+            <Aim.HardLookAt target={[0, 0, 0]} />
+          </VirtualCamera>
+        </Klipp>
+        <Player ref={playerRef} />
+        <gridHelper args={[20, 20]} />
+      </Canvas>
+    </>
+  );
+}
+```
+
+The highest-priority active camera is the one on screen. Toggle `overview` and klipp blends between the two shots.
+
+<Step>Change the blend</Step>
+
+By default a blend takes 2 seconds with an ease-in-out curve:
+
+```tsx
+import { BlendCurves } from '@kvvasuu/klipp';
+
+<Klipp defaultBlend={{ curve: BlendCurves.easeInOut, time: 0.8 }}>
+```
+
+</Steps>
+
+  </TabsContent>
+</Tabs>
+
 ## Where to go next
 
 - [Body](/body/introduction) and [Aim](/aim/introduction) for every way to position and aim a camera.
 - [Blending](/blending/introduction) for curves, per-camera transitions and blend hints.
-- [Your first camera with React Three Fiber](/getting-started/your-first-camera-react) for the same scene as components.
-- [Building on the core](/getting-started/building-on-the-core) to read your scene's objects directly, or to use plain data and functions.
+- [Building on the core](/getting-started/building-on-the-core) to read your engine's objects directly, or to use plain data and functions.

@@ -13,37 +13,65 @@ klipp has one entry point per layer. Each one only needs the libraries it adapts
 | Entry point | What's in it | Install as well |
 | ----------- | ------------ | --------------- |
 | `@kvvasuu/klipp` | The core: `KlippCore`, virtual cameras, every piece as a `Core` class, and the data and functions underneath. | nothing |
-| `@kvvasuu/klipp/react` | React Three Fiber components. | `three`, `react`, `@react-three/fiber` |
 | `@kvvasuu/klipp/three` | The core classes for three.js: they read `Object3D` targets and drive a `PerspectiveCamera`. | `three` |
+| `@kvvasuu/klipp/react` | React Three Fiber components, built on the three.js classes. | `three`, `react`, `@react-three/fiber` |
 | `@kvvasuu/klipp/dom` | Mouse, touch and wheel input, and debug overlays. | nothing, runs in a browser |
 
 Vectors in the core are plain arrays from [`math`](https://github.com/pmndrs/math): `[x, y, z]`, and quaternions `[x, y, z, w]`. It comes with klipp; add it to your own dependencies to import its `vec3` and `quat` functions.
 
-Constants like `BlendCurves`, `BindingModes` and `BlendHints` come from the core in every layer:
+Constants like `BlendCurves`, `BindingModes` and `BlendHints` come from the core in every layer.
+
+[`CameraControls`](/body/camera-controls) is built on the `camera-controls` library, so it lives in its own entry points and only ends up in your bundle if you use it.
+
+## Usage
+
+<Tabs defaultValue="core">
+  <TabsList>
+    <TabsTrigger value="core">Core</TabsTrigger>
+    <TabsTrigger value="three">three.js</TabsTrigger>
+    <TabsTrigger value="r3f">React Three Fiber</TabsTrigger>
+  </TabsList>
+  <TabsContent value="core">
 
 ```ts
-import { BlendCurves, BindingModes } from '@kvvasuu/klipp';
+import { KlippCore, FollowBodyCore, HardLookAtAimCore, createTargetPose, BlendCurves } from '@kvvasuu/klipp';
 ```
 
-## Core
+  </TabsContent>
+  <TabsContent value="three">
 
-Everything comes from `@kvvasuu/klipp`. You give it the frame time and the target poses, and it gives you the shot to put on your camera. See [Your first camera](/getting-started/your-first-camera).
+```bash
+npm install three
+```
 
 ```ts
-import { KlippCore, FollowBodyCore, HardLookAtAimCore, createTargetPose } from '@kvvasuu/klipp';
+import { BlendCurves } from '@kvvasuu/klipp';
+import { Klipp, FollowBody, HardLookAtAim } from '@kvvasuu/klipp/three';
 ```
 
-## React Three Fiber
+**CameraControls**
 
-Everything comes from `@kvvasuu/klipp/react`. See [Your first camera with React Three Fiber](/getting-started/your-first-camera-react) for a complete scene.
+```bash
+npm install camera-controls
+```
+
+```ts
+import { CameraControlsBody } from '@kvvasuu/klipp/three/camera-controls';
+```
+
+  </TabsContent>
+  <TabsContent value="r3f">
+
+```bash
+npm install three react @react-three/fiber
+```
 
 ```tsx
+import { BlendCurves } from '@kvvasuu/klipp';
 import { Klipp, VirtualCamera, Body, Aim } from '@kvvasuu/klipp/react';
 ```
 
-## CameraControls
-
-[`CameraControls`](/body/camera-controls) is built on the `camera-controls` library, so it lives in its own entry point and only ends up in your bundle if you use it:
+**CameraControls**
 
 ```bash
 npm install camera-controls
@@ -52,3 +80,8 @@ npm install camera-controls
 ```tsx
 import { CameraControls } from '@kvvasuu/klipp/react/camera-controls';
 ```
+
+  </TabsContent>
+</Tabs>
+
+[Your first camera](/getting-started/your-first-camera) builds a complete scene with each of them.

@@ -8,9 +8,13 @@ The core is the whole camera system. An integration only adapts the two places w
 
 ## Your own integration
 
-**Where the shot goes.** Read `klipp.shot` after `update`. To update your camera only when the shot changes, extend `KlippCore` and override `write` instead, as the three.js layer does:
+<Steps>
 
-```ts
+<Step>Put the shot on your camera</Step>
+
+Read `klipp.shot` after `update`. To update your camera only when the shot changes, extend `KlippCore` and override `write` instead, as the three.js layer does:
+
+```ts title="EngineKlipp.ts"
 import { KlippCore, type CameraState } from '@kvvasuu/klipp';
 
 class EngineKlipp extends KlippCore {
@@ -21,9 +25,11 @@ class EngineKlipp extends KlippCore {
 }
 ```
 
-**Where the targets come from.** Every piece with a target reads it through `readTarget`. By default the target is a `TargetPose` you fill in yourself. To follow your engine's objects directly, extend the piece and fill the pose from them:
+<Step>Read your targets</Step>
 
-```ts
+Every piece with a target reads it through `readTarget`. By default the target is a `TargetPose` you fill in yourself. To follow your engine's objects directly, extend the piece and fill the pose from them:
+
+```ts title="EngineFollow.ts"
 import { quat, vec3 } from 'math';
 import { FollowBodyCore, createTargetPose, type TargetPose } from '@kvvasuu/klipp';
 
@@ -43,6 +49,8 @@ camera.body = new EngineFollow(player, { offset: [0, 3, 8] });
 ```
 
 The same works for `HardLockToTargetBodyCore`, `PositionComposerBodyCore`, `HardLookAtAimCore`, `RotateWithFollowTargetAimCore`, `RotationComposerAimCore` and `PanTiltAimCore`. `GroupFramingExtensionCore` reads its members through `readMembers`.
+
+</Steps>
 
 Core classes end in `Core`. Drop the suffix for your own, as the three.js layer does: `FollowBody` is `FollowBodyCore` reading an `Object3D`.
 

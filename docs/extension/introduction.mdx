@@ -4,9 +4,24 @@ description: Adjusts the shot after the Body and Aim.
 nav: 40
 ---
 
-Extensions tweak a shot once the Body and Aim are done. You can add as many as you like to one virtual camera, and they run in the order they were added.
+Extensions tweak a shot once the Body and Aim are done. You can add as many as you like to one virtual camera, and they run in the order they were added. `addExtension` returns a function that removes one.
 
-## Core
+## Which one?
+
+| Extension | Use it for |
+| --------- | ---------- |
+| [`GroupFraming`](/extension/group-framing) | Keeping several targets in view by moving the camera closer or farther. |
+| [`Lens`](/extension/lens) | Changing `fov`, `near` and `far`, with damping. |
+
+## Usage
+
+<Tabs defaultValue="core">
+  <TabsList>
+    <TabsTrigger value="core">Core</TabsTrigger>
+    <TabsTrigger value="three">three.js</TabsTrigger>
+    <TabsTrigger value="r3f">React Three Fiber</TabsTrigger>
+  </TabsList>
+  <TabsContent value="core">
 
 ```ts
 import { GroupFramingExtensionCore, LensExtensionCore } from '@kvvasuu/klipp';
@@ -15,9 +30,18 @@ camera.addExtension(new GroupFramingExtensionCore(members, 'groupCenter', { padd
 const removeLens = camera.addExtension(new LensExtensionCore({ fov: 40, fovDamping: 0.5 }));
 ```
 
-`addExtension` returns a function that removes it.
+  </TabsContent>
+  <TabsContent value="three">
 
-## React Three Fiber
+```ts
+import { GroupFramingExtension, LensExtension, TargetGroup } from '@kvvasuu/klipp/three';
+
+camera.addExtension(new GroupFramingExtension(new TargetGroup([{ target: a }, { target: b }]), { padding: 1 }));
+const removeLens = camera.addExtension(new LensExtension({ fov: 40, fovDamping: 0.5 }));
+```
+
+  </TabsContent>
+  <TabsContent value="r3f">
 
 ```tsx
 import { Extension } from '@kvvasuu/klipp/react';
@@ -30,9 +54,5 @@ import { Extension } from '@kvvasuu/klipp/react';
 </VirtualCamera>
 ```
 
-## Which one?
-
-| Extension | Use it for |
-| --------- | ---------- |
-| [`GroupFraming`](/extension/group-framing) | Keeping several targets in view by moving the camera closer or farther. |
-| [`Lens`](/extension/lens) | Changing `fov`, `near` and `far`, with damping. |
+  </TabsContent>
+</Tabs>

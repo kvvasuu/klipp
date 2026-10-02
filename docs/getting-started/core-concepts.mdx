@@ -12,24 +12,6 @@ A virtual camera is a shot you might want to show. You can have as many as you l
 - an inactive camera is out of the running completely,
 - when the winner changes, klipp [blends](/blending/introduction) from the old shot to the new one.
 
-Each one is a camera added to a `KlippCore`:
-
-```ts
-const gameplay = klipp.addCamera('gameplay', { priority: 10 });
-const dialogue = klipp.addCamera('dialogue', { priority: 20, active: false });
-
-dialogue.active = isTalking;
-```
-
-In React, a [`<VirtualCamera>`](/api/virtual-camera) inside [`<Klipp>`](/api/klipp):
-
-```tsx
-<Klipp>
-  <VirtualCamera name="gameplay" priority={10}>...</VirtualCamera>
-  <VirtualCamera name="dialogue" priority={20} active={isTalking}>...</VirtualCamera>
-</Klipp>
-```
-
 ## Building a shot
 
 Each camera is made of up to four kinds of pieces, which run in this order every frame:
@@ -41,7 +23,58 @@ Each camera is made of up to four kinds of pieces, which run in this order every
 | [Extension](/extension/introduction) | Adjusts the finished shot | any | `GroupFraming`, `Lens` |
 | [Noise](/noise/introduction) | Adds shake on top | any | `BasicMultiChannelPerlin`, `ImpulseListener` |
 
-Body and Aim are independent, so a camera can follow one object while looking at another:
+Body and Aim are independent, so a camera can follow one object while looking at another. Every piece is optional: a camera without an Aim keeps its starting rotation, which is handy for top-down or side-scrolling games.
+
+## One piece, three forms
+
+Every piece is a core class. The three.js class is the same piece reading `Object3D` targets, and the React component creates that class for you. Settings have the same names everywhere:
+
+| | Core | three.js | React Three Fiber |
+| - | ---- | -------- | ----------------- |
+| Follow | `new FollowBodyCore(target, { offset })` | `new FollowBody(target, { offset })` | `<Body.Follow target={...} offset={...} />` |
+| Settings | the options object, then fields of the instance | the same | props |
+
+## Targets
+
+Pieces follow and look at targets:
+
+- **Core:** the core doesn't know about your scene. A target is a `TargetPose` you keep up to date from wherever your data lives: `position`, and `rotation` with `hasRotation`. Pieces that frame by size, like the composers, also read its `extent`.
+- **three.js and React:** a target is an `Object3D`, a ref to one, or a fixed point `[x, y, z]`. Objects are tracked live, including their rotation, and each one is read once per frame however many pieces follow it.
+
+A target of `null`, or a ref that is still empty, is ignored until it resolves.
+
+## Damping
+
+Most pieces take a `damping` setting that makes them ease toward their goal instead of snapping to it. It's a time in seconds: `0` is instant, `0.5` feels smooth, `2` feels heavy.
+
+Pass `{ into, from }` to ease differently while the gap is growing (`into`) and while it's closing again (`from`).
+
+Next to `damping` you'll usually find `maxSpeed`, which caps how fast the camera may move while catching up.
+
+## Changing settings while running
+
+Settings are plain fields, so you can change them at any time, even every frame. In React, `ref` gives you the piece itself, the three.js class, so you can change it without re-rendering.
+
+## Usage
+
+<Tabs defaultValue="core">
+  <TabsList>
+    <TabsTrigger value="core">Core</TabsTrigger>
+    <TabsTrigger value="three">three.js</TabsTrigger>
+    <TabsTrigger value="r3f">React Three Fiber</TabsTrigger>
+  </TabsList>
+  <TabsContent value="core">
+
+**Virtual cameras**
+
+```ts
+const gameplay = klipp.addCamera('gameplay', { priority: 10 });
+const dialogue = klipp.addCamera('dialogue', { priority: 20, active: false });
+
+dialogue.active = isTalking;
+```
+
+**Body and Aim**
 
 ```ts
 const sideView = klipp.addCamera('side-view', { priority: 10 });
@@ -49,35 +82,14 @@ sideView.body = new FollowBodyCore(car, { offset: [6, 1, 0] });
 sideView.aim = new HardLookAtAimCore(finishLine);
 ```
 
-```tsx
-<VirtualCamera name="side-view" priority={10}>
-  <Body.Follow target={carRef} offset={[6, 1, 0]} />
-  <Aim.HardLookAt target={finishLineRef} />
-</VirtualCamera>
-```
-
-Every piece is optional. A camera without an Aim keeps its starting rotation, which is handy for top-down or side-scrolling games.
-
-## One piece, two forms
-
-Every piece exists as a core class and as a React component, with the same settings under the same names:
-
-| | Core | React Three Fiber |
-| - | ---- | ----------------- |
-| Follow | `new FollowBodyCore(target, { offset })` | `<Body.Follow target={...} offset={...} />` |
-| Settings | the options object, then fields of the instance | props |
-
-Each piece's page shows both forms, and one table of settings for them.
-
-## Targets
-
-The core doesn't know about your scene. A target is a `TargetPose` you keep up to date from wherever your data lives:
+**Targets**
 
 ```ts
 import { quat, vec3 } from 'math';
 import { createTargetPose } from '@kvvasuu/klipp';
 
 const player = createTargetPose();
+player.extent.radius = 0.5; // for pieces that frame by size
 
 // every frame, before klipp.update
 vec3.copy(player.position, playerPosition);
@@ -85,37 +97,14 @@ quat.copy(player.rotation, playerRotation);
 player.hasRotation = true;
 ```
 
-A target of `null` is ignored. Pieces that frame by size, like the composers, also read `player.extent`: set `extent.radius`, or `extent.size` with `hasSize`.
-
-In React, every `target` accepts the same things:
-
-```tsx
-<Aim.HardLookAt target={playerRef} />   // a ref to an Object3D
-<Aim.HardLookAt target={player} />      // an Object3D
-<Aim.HardLookAt target={[0, 1, 0]} />   // a fixed point, like <mesh position>
-```
-
-Objects are tracked live, including their rotation. A ref that isn't mounted yet, or `null`, is ignored until it resolves.
-
-## Damping
-
-Most pieces take a `damping` setting that makes them ease toward their goal instead of snapping to it. It's a time in seconds: `0` is instant, `0.5` feels smooth, `2` feels heavy.
+**Damping**
 
 ```ts
 new FollowBodyCore(player, { damping: 0.5 });
-```
-
-Pass `{ into, from }` to ease differently while the gap is growing (`into`) and while it's closing again (`from`):
-
-```ts
 new FollowBodyCore(player, { damping: { into: 0.2, from: 1 } });
 ```
 
-Next to `damping` you'll usually find `maxSpeed`, which caps how fast the camera may move while catching up.
-
-## Changing settings while running
-
-Settings are plain fields, so you can change them at any time, even every frame. With the core, set them on the piece. In React, `ref` gives you that same piece, so you can skip re-rendering:
+**Changing settings**
 
 ```ts
 const body = new FollowBodyCore(player, { offset: [0, 3, 8] });
@@ -124,6 +113,89 @@ follow.body = body;
 // any time later
 body.offset[2] = zoom;
 ```
+
+  </TabsContent>
+  <TabsContent value="three">
+
+**Virtual cameras**
+
+```ts
+const gameplay = klipp.addCamera('gameplay', { priority: 10 });
+const dialogue = klipp.addCamera('dialogue', { priority: 20, active: false });
+
+dialogue.active = isTalking;
+```
+
+**Body and Aim**
+
+```ts
+const sideView = klipp.addCamera('side-view', { priority: 10 });
+sideView.body = new FollowBody(car, { offset: [6, 1, 0] });
+sideView.aim = new HardLookAtAim(finishLine);
+```
+
+**Targets**
+
+```ts
+new HardLookAtAim(player);              // an Object3D
+new HardLookAtAim({ current: player }); // a ref to one
+new HardLookAtAim([0, 1, 0]);           // a fixed point
+```
+
+**Damping**
+
+```ts
+new FollowBody(player, { damping: 0.5 });
+new FollowBody(player, { damping: { into: 0.2, from: 1 } });
+```
+
+**Changing settings**
+
+```ts
+const body = new FollowBody(player, { offset: [0, 3, 8] });
+follow.body = body;
+
+// any time later
+body.offset[2] = zoom;
+```
+
+  </TabsContent>
+  <TabsContent value="r3f">
+
+**Virtual cameras**
+
+```tsx
+<Klipp>
+  <VirtualCamera name="gameplay" priority={10}>...</VirtualCamera>
+  <VirtualCamera name="dialogue" priority={20} active={isTalking}>...</VirtualCamera>
+</Klipp>
+```
+
+**Body and Aim**
+
+```tsx
+<VirtualCamera name="side-view" priority={10}>
+  <Body.Follow target={carRef} offset={[6, 1, 0]} />
+  <Aim.HardLookAt target={finishLineRef} />
+</VirtualCamera>
+```
+
+**Targets**
+
+```tsx
+<Aim.HardLookAt target={playerRef} />   // a ref to an Object3D
+<Aim.HardLookAt target={player} />      // an Object3D
+<Aim.HardLookAt target={[0, 1, 0]} />   // a fixed point, like <mesh position>
+```
+
+**Damping**
+
+```tsx
+<Body.Follow target={playerRef} damping={0.5} />
+<Body.Follow target={playerRef} damping={{ into: 0.2, from: 1 }} />
+```
+
+**Changing settings**
 
 ```tsx
 const body = useRef<FollowBody>(null); // from @kvvasuu/klipp/three
@@ -135,4 +207,7 @@ useFrame(() => {
 <Body.Follow ref={body} target={playerRef} />;
 ```
 
-Ready to build one? Continue with [Your first camera](/getting-started/your-first-camera), or the same [with React Three Fiber](/getting-started/your-first-camera-react).
+  </TabsContent>
+</Tabs>
+
+Ready to build one? Continue with [Your first camera](/getting-started/your-first-camera).

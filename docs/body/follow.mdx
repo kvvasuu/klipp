@@ -6,28 +6,6 @@ nav: 22
 
 Keeps the camera at `offset` from the target. By default the offset turns with the target, so a chase camera stays behind a character as it turns.
 
-## Core
-
-```ts
-import { FollowBodyCore, HardLookAtAimCore } from '@kvvasuu/klipp';
-
-camera.body = new FollowBodyCore(player, { offset: [0, 3, 8], damping: 0.5 });
-camera.aim = new HardLookAtAimCore(player);
-```
-
-Every binding mode but `worldSpace` turns the offset with the target, so fill in `player.rotation` and set `player.hasRotation`.
-
-## React Three Fiber
-
-```tsx
-<VirtualCamera name="chase" priority={10}>
-  <Body.Follow target={playerRef} offset={[0, 3, 8]} damping={0.5} />
-  <Aim.HardLookAt target={playerRef} />
-</VirtualCamera>
-```
-
-`ref` gives you the `FollowBody`.
-
 ## Settings
 
 | Setting | Description | Default |
@@ -40,16 +18,6 @@ Every binding mode but `worldSpace` turns the offset with the target, so fill in
 
 ## `bindingMode`
 
-```ts
-import { BindingModes } from '@kvvasuu/klipp';
-
-camera.body = new FollowBodyCore(plane, { offset: [0, 2, 10], bindingMode: BindingModes.lockToTargetWithWorldUp });
-```
-
-```tsx
-<Body.Follow target={planeRef} offset={[0, 2, 10]} bindingMode={BindingModes.lockToTargetWithWorldUp} />
-```
-
 | Mode | The offset turns with the target's |
 | ---- | ---------------------------------- |
 | `lockToTarget` | full rotation, including roll. |
@@ -61,3 +29,71 @@ camera.body = new FollowBodyCore(plane, { offset: [0, 2, 10], bindingMode: Bindi
 A target without rotation, like a fixed point, always uses world space.
 
 The binding mode also tells Aims like [`HardLookAt`](/aim/hard-look-at) which way is up, so with `lockToTarget` the camera rolls along with the target, and with `lockToTargetWithWorldUp` it never does.
+
+## Usage
+
+<Tabs defaultValue="core">
+  <TabsList>
+    <TabsTrigger value="core">Core</TabsTrigger>
+    <TabsTrigger value="three">three.js</TabsTrigger>
+    <TabsTrigger value="r3f">React Three Fiber</TabsTrigger>
+  </TabsList>
+  <TabsContent value="core">
+
+```ts
+import { FollowBodyCore, HardLookAtAimCore } from '@kvvasuu/klipp';
+
+camera.body = new FollowBodyCore(player, { offset: [0, 3, 8], damping: 0.5 });
+camera.aim = new HardLookAtAimCore(player);
+```
+
+Every binding mode but `worldSpace` turns the offset with the target, so fill in `player.rotation` and set `player.hasRotation`.
+
+**`bindingMode`**
+
+```ts
+import { BindingModes } from '@kvvasuu/klipp';
+
+camera.body = new FollowBodyCore(plane, { offset: [0, 2, 10], bindingMode: BindingModes.lockToTargetWithWorldUp });
+```
+
+  </TabsContent>
+  <TabsContent value="three">
+
+```ts
+import { FollowBody, HardLookAtAim } from '@kvvasuu/klipp/three';
+
+camera.body = new FollowBody(player, { offset: [0, 3, 8], damping: 0.5 });
+camera.aim = new HardLookAtAim(player);
+```
+
+**`bindingMode`**
+
+```ts
+import { BindingModes } from '@kvvasuu/klipp';
+
+camera.body = new FollowBody(plane, { offset: [0, 2, 10], bindingMode: BindingModes.lockToTargetWithWorldUp });
+```
+
+  </TabsContent>
+  <TabsContent value="r3f">
+
+```tsx
+<VirtualCamera name="chase" priority={10}>
+  <Body.Follow target={playerRef} offset={[0, 3, 8]} damping={0.5} />
+  <Aim.HardLookAt target={playerRef} />
+</VirtualCamera>
+```
+
+`ref` gives you the `FollowBody`.
+
+**`bindingMode`**
+
+```tsx
+import { BindingModes } from '@kvvasuu/klipp';
+
+<Body.Follow target={planeRef} offset={[0, 2, 10]} bindingMode={BindingModes.lockToTargetWithWorldUp} />
+```
+
+  </TabsContent>
+</Tabs>

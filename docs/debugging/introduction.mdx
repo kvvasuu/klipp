@@ -21,9 +21,23 @@ Each element has a CSS class you can restyle: `klipp-debug-deadzone`, `klipp-deb
 }
 ```
 
-### Core
+## Camera frustums
 
-Draw zones with `DebugOverlay` from `@kvvasuu/klipp/dom`. `composerDebugZones` turns a composer's settings into the same boxes the components draw:
+A frustum helper draws a camera in the scene, so you can see where an inactive camera is and what it's looking at. Every camera's `state` holds what it needs: `position`, `quaternion`, `fov`, `near` and `far`.
+
+## Usage
+
+<Tabs defaultValue="core">
+  <TabsList>
+    <TabsTrigger value="core">Core</TabsTrigger>
+    <TabsTrigger value="three">three.js</TabsTrigger>
+    <TabsTrigger value="r3f">React Three Fiber</TabsTrigger>
+  </TabsList>
+  <TabsContent value="core">
+
+**Framing zones**
+
+Draw them with `DebugOverlay` from `@kvvasuu/klipp/dom`:
 
 ```ts
 import { composerDebugZones } from '@kvvasuu/klipp';
@@ -34,9 +48,52 @@ overlay.connect(canvas.parentElement!);
 overlay.render(composerDebugZones(body.screenPosition, body.deadZone, body.hardLimit), body.screenPosition);
 ```
 
-Call `render` again whenever the zones change, and `disconnect()` to remove it. For group framing, `groupFramingPaddingBox` gives the size of the padding boundary.
+`composerDebugZones` turns a composer's settings into the same boxes the React components draw. Call `render` again whenever the zones change, and `disconnect()` to remove the overlay. For group framing, `groupFramingPaddingBox` gives the size of the padding boundary.
 
-### React Three Fiber
+  </TabsContent>
+  <TabsContent value="three">
+
+**Framing zones**
+
+Draw them with `DebugOverlay` from `@kvvasuu/klipp/dom`:
+
+```ts
+import { composerDebugZones } from '@kvvasuu/klipp';
+import { DebugOverlay } from '@kvvasuu/klipp/dom';
+
+const overlay = new DebugOverlay();
+overlay.connect(renderer.domElement.parentElement!);
+overlay.render(composerDebugZones(body.screenPosition, body.deadZone, body.hardLimit), body.screenPosition);
+```
+
+`composerDebugZones` turns a composer's settings into the same boxes the React components draw. Call `render` again whenever the zones change, and `disconnect()` to remove the overlay. For group framing, `groupFramingPaddingBox` gives the size of the padding boundary.
+
+
+**Camera frustums**
+
+A `CameraHelper` on a proxy camera that follows the virtual camera's `state`:
+
+```ts
+import { CameraHelper, PerspectiveCamera } from 'three';
+import { applyCameraState } from '@kvvasuu/klipp/three';
+
+const proxy = new PerspectiveCamera();
+const helper = new CameraHelper(proxy);
+scene.add(helper);
+
+// every frame, after klipp.update
+applyCameraState(proxy, securityCam.state, innerWidth, innerHeight);
+proxy.aspect = innerWidth / innerHeight;
+proxy.far = Math.min(proxy.far, 1); // draw only the first unit
+proxy.updateProjectionMatrix();
+proxy.updateMatrixWorld();
+helper.update();
+```
+
+  </TabsContent>
+  <TabsContent value="r3f">
+
+**Framing zones**
 
 Add the `debug` prop. The zones show while their camera is the winner:
 
@@ -44,9 +101,9 @@ Add the `debug` prop. The zones show while their camera is the winner:
 <Body.PositionComposer target={playerRef} deadZone={[0.4, 0.4]} hardLimit={[0.7, 0.7]} debug />
 ```
 
-## Camera frustums
+**Camera frustums**
 
-`<CameraFrustumHelper>` draws a camera's frustum in the scene, so you can see where an inactive camera is and what it's looking at. Place it inside the `<VirtualCamera>` you want to see.
+Place `<CameraFrustumHelper>` inside the `<VirtualCamera>` you want to see:
 
 ```tsx
 import { CameraFrustumHelper } from '@kvvasuu/klipp/react';
@@ -64,4 +121,7 @@ import { CameraFrustumHelper } from '@kvvasuu/klipp/react';
 | `maxDistance` | How far the frustum is drawn. | `1` |
 | `hideWhenLive` | Hide it while this camera is on screen. | `true` |
 
-`ref` gives you the `THREE.CameraHelper`. With the core, every camera's `state` holds what such a helper needs: `position`, `quaternion`, `fov`, `near` and `far`.
+`ref` gives you the `THREE.CameraHelper`.
+
+  </TabsContent>
+</Tabs>

@@ -6,25 +6,9 @@ nav: 10
 
 The camera director: it runs every [virtual camera](/api/virtual-camera), picks the winner, blends between shots, and puts the result on your camera.
 
-## Core
+`KlippCore` works with any renderer: put its `shot` on your camera after `update`. `Klipp` from `@kvvasuu/klipp/three` writes it to a three.js camera itself, and `<Klipp>` runs one inside React Three Fiber.
 
-`KlippCore` works with any renderer. Call `update` every frame and put `shot` on your camera:
-
-```ts
-import { KlippCore, BlendCurves } from '@kvvasuu/klipp';
-
-const klipp = new KlippCore({ defaultBlend: { curve: BlendCurves.easeInOut, time: 1 } });
-klipp.setSize(canvas.width, canvas.height);
-klipp.addCamera('main', { priority: 10 });
-
-function frame(dt: number) {
-  if (klipp.update(dt)) {
-    engine.camera.setTransform(klipp.shot.position, klipp.shot.quaternion);
-    engine.camera.setFov(klipp.shot.fov);
-    engine.render();
-  }
-}
-```
+## Members
 
 | Member | Description |
 | ------ | ----------- |
@@ -40,35 +24,7 @@ function frame(dt: number) {
 | `liveCameraId`, `isLive(name)` | The camera fully on screen, once the blend into it has finished. |
 | `isBlending` | Whether a blend is in progress. |
 
-New cameras start from `initialCameraState`, an option of `KlippCore`. Pass your camera's starting pose there.
-
-`KlippCore` is also an event target, see [Events](/api/events).
-
-## React Three Fiber
-
-`<Klipp>` is `KlippCore` for React Three Fiber: it writes the shot onto the r3f camera every frame. It has to be inside `<Canvas>`.
-
-```tsx
-import { Klipp } from '@kvvasuu/klipp/react';
-import { BlendCurves } from '@kvvasuu/klipp';
-
-<Canvas>
-  <Klipp defaultBlend={{ curve: BlendCurves.easeInOut, time: 1 }}>
-    <VirtualCamera name="main" priority={10}>...</VirtualCamera>
-  </Klipp>
-</Canvas>
-```
-
-| Prop | Description | Default |
-| ---- | ----------- | ------- |
-| `defaultBlend` | How to blend between cameras. See [Blending](/blending/introduction). | `{ curve: BlendCurves.easeInOut, time: 2 }` |
-| `customBlends` | Blends for specific camera pairs. See [Custom blends](/blending/introduction#custom-blends). | `[]` |
-| `camera` | The camera to drive. | the r3f default camera |
-| `mode` | `'enabled'`, `'standby'` or `'disabled'`. See below. | `'enabled'` |
-
-Virtual cameras start from the real camera's `fov`, `near`, `far`, position and rotation, so whatever you set on `<Canvas camera={...}>` is the starting point.
-
-[`useKlipp()`](/api/hooks#useklipp) gives you the `Klipp` behind `<Klipp>`, and [`<Klipp.Events>`](/api/events) listens to every transition.
+klipp is also an event target, see [Events](/api/events).
 
 ## `mode`
 
@@ -91,3 +47,84 @@ Use `'standby'` to hand the camera to something else for a while (an editor, a p
 | `viewOffset` | Shifts the view without moving the camera, as a fraction of half the viewport. `[0, 0]` is centered. |
 
 `shot` changes only once the first camera goes live, and stays put in `'standby'`. To react only when it changes, override `write`, see [Building on the core](/getting-started/building-on-the-core#your-own-integration).
+
+## Usage
+
+<Tabs defaultValue="core">
+  <TabsList>
+    <TabsTrigger value="core">Core</TabsTrigger>
+    <TabsTrigger value="three">three.js</TabsTrigger>
+    <TabsTrigger value="r3f">React Three Fiber</TabsTrigger>
+  </TabsList>
+  <TabsContent value="core">
+
+`KlippCore` works with any renderer. Call `update` every frame and put `shot` on your camera:
+
+```ts
+import { KlippCore, BlendCurves } from '@kvvasuu/klipp';
+
+const klipp = new KlippCore({ defaultBlend: { curve: BlendCurves.easeInOut, time: 1 } });
+klipp.setSize(canvas.width, canvas.height);
+klipp.addCamera('main', { priority: 10 });
+
+function frame(dt: number) {
+  if (klipp.update(dt)) {
+    engine.camera.setTransform(klipp.shot.position, klipp.shot.quaternion);
+    engine.camera.setFov(klipp.shot.fov);
+    engine.render();
+  }
+}
+```
+
+New cameras start from `initialCameraState`, an option of `KlippCore`. Pass your camera's starting pose there.
+
+  </TabsContent>
+  <TabsContent value="three">
+
+`Klipp` is `KlippCore` driving a three.js camera. `update` writes the shot to it:
+
+```ts
+import { BlendCurves } from '@kvvasuu/klipp';
+import { Klipp } from '@kvvasuu/klipp/three';
+
+const klipp = new Klipp(camera, { defaultBlend: { curve: BlendCurves.easeInOut, time: 1 } });
+klipp.setSize(innerWidth, innerHeight);
+klipp.addCamera('main', { priority: 10 });
+
+renderer.setAnimationLoop(() => {
+  klipp.update(dt);
+  renderer.render(scene, camera);
+});
+```
+
+New cameras start from the camera's `fov`, `near`, `far`, position and rotation at the time `Klipp` is created. Lens changes need a `PerspectiveCamera`. `camera.aspect` stays yours to update on resize, next to `setSize`.
+
+  </TabsContent>
+  <TabsContent value="r3f">
+
+`<Klipp>` creates a `Klipp` on the React Three Fiber camera and runs it every frame. It has to be inside `<Canvas>`.
+
+```tsx
+import { BlendCurves } from '@kvvasuu/klipp';
+import { Klipp } from '@kvvasuu/klipp/react';
+
+<Canvas>
+  <Klipp defaultBlend={{ curve: BlendCurves.easeInOut, time: 1 }}>
+    <VirtualCamera name="main" priority={10}>...</VirtualCamera>
+  </Klipp>
+</Canvas>
+```
+
+| Prop | Description | Default |
+| ---- | ----------- | ------- |
+| `defaultBlend` | How to blend between cameras. See [Blending](/blending/introduction). | `{ curve: BlendCurves.easeInOut, time: 2 }` |
+| `customBlends` | Blends for specific camera pairs. See [Custom blends](/blending/introduction#custom-blends). | `[]` |
+| `camera` | The camera to drive. | the r3f default camera |
+| `mode` | `'enabled'`, `'standby'` or `'disabled'`. See [`mode`](#mode). | `'enabled'` |
+
+Virtual cameras start from the real camera's `fov`, `near`, `far`, position and rotation, so whatever you set on `<Canvas camera={...}>` is the starting point. It keeps the viewport size in sync for you.
+
+[`useKlipp()`](/api/hooks#useklipp) gives you the `Klipp` behind `<Klipp>`, with the members above, and [`<Klipp.Events>`](/api/events) listens to every transition.
+
+  </TabsContent>
+</Tabs>

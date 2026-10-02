@@ -18,9 +18,26 @@ Every camera transition is reported as an event.
 
 A cut happens for the first camera ever shown, and for any blend with `time: 0`. A `time: 0` switch fires `blendCreated` too, but never `blendFinished`.
 
-## Core
+## Filtering per camera
 
-klipp hears every transition, and each camera hears its own:
+klipp hears every transition. A camera hears only the ones it is part of:
+
+| Event | Passed on when this camera is |
+| ----- | ----------------------------- |
+| `activated` | `incoming` |
+| `deactivated` | `outgoing` |
+| `blendCreated`, `cut` | `incoming` or `outgoing` |
+| `blendFinished` | `liveId` |
+
+## Usage
+
+<Tabs defaultValue="core">
+  <TabsList>
+    <TabsTrigger value="core">Core</TabsTrigger>
+    <TabsTrigger value="three">three.js</TabsTrigger>
+    <TabsTrigger value="r3f">React Three Fiber</TabsTrigger>
+  </TabsList>
+  <TabsContent value="core">
 
 ```ts
 klipp.addEventListener('activated', (e) => console.log(`${e.outgoing} -> ${e.incoming}`));
@@ -29,9 +46,20 @@ const follow = klipp.addCamera('follow', { priority: 10 });
 follow.addEventListener('deactivated', () => console.log('follow is off screen'));
 ```
 
-## React Three Fiber
+  </TabsContent>
+  <TabsContent value="three">
 
-`<Klipp.Events>` hears every transition. `<VirtualCamera.Events>` hears only the ones its camera is part of. Event names become props: `onActivated`, `onDeactivated`, `onBlendCreated`, `onBlendFinished` and `onCut`.
+```ts
+klipp.addEventListener('activated', (e) => console.log(`${e.outgoing} -> ${e.incoming}`));
+
+const follow = klipp.addCamera('follow', { priority: 10 });
+follow.addEventListener('deactivated', () => console.log('follow is off screen'));
+```
+
+  </TabsContent>
+  <TabsContent value="r3f">
+
+`<Klipp.Events>` hears every transition, and `<VirtualCamera.Events>` only its own camera's. Event names become props: `onActivated`, `onDeactivated`, `onBlendCreated`, `onBlendFinished` and `onCut`.
 
 ```tsx
 <Klipp>
@@ -44,15 +72,7 @@ follow.addEventListener('deactivated', () => console.log('follow is off screen')
 </Klipp>
 ```
 
-A `<VirtualCamera>`'s `ref` is the camera, with the same `addEventListener` as above.
+A `<VirtualCamera>`'s `ref` is the camera, and has `addEventListener` too.
 
-## Filtering per camera
-
-A camera's own events, and `<VirtualCamera.Events>`, only include transitions it is part of:
-
-| Event | Passed on when this camera is |
-| ----- | ----------------------------- |
-| `activated` | `incoming` |
-| `deactivated` | `outgoing` |
-| `blendCreated`, `cut` | `incoming` or `outgoing` |
-| `blendFinished` | `liveId` |
+  </TabsContent>
+</Tabs>

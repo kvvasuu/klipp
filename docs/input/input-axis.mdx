@@ -4,39 +4,7 @@ description: A single controllable value with limits, damping and recentering.
 nav: 62
 ---
 
-An `InputAxis` is one value the user controls, like `pan` or `tilt` on [`PanTilt`](/aim/pan-tilt). An [input controller](/input/input-controller) feeds it drags, but you can drive it from code as well.
-
-## Core
-
-The axes are fields of the piece:
-
-```ts
-aim.pan.applyDelta(5);
-aim.pan.value;
-```
-
-`InputAxis` also works on its own. Call `update(dt)` once per frame:
-
-```ts
-import { InputAxis } from '@kvvasuu/klipp';
-
-const zoom = new InputAxis({ value: 10, center: 10, range: [2, 20] });
-
-zoom.applyDelta(-1);
-zoom.update(dt);
-zoom.value;
-```
-
-## React Three Fiber
-
-The axes are on the piece's `ref`:
-
-```tsx
-const aim = useRef<PanTiltAim>(null);
-
-aim.current.pan.applyDelta(5); // turn by 5°
-aim.current.pan.value;         // read the current value
-```
+An `InputAxis` is one value the user controls, like `pan` or `tilt` on [`PanTilt`](/aim/pan-tilt). An [input controller](/input/input-controller) feeds it drags, but you can drive it from code as well. It also works on its own: call `update(dt)` once per frame.
 
 ## Settings
 
@@ -55,8 +23,74 @@ All of them can be changed at any time.
 
 ## Recentering
 
+Once the user lets go and `wait` seconds pass without input, the value eases back to `center` over `time` seconds. Any new input cancels it.
+
 ```ts
 axis.recentering = { enabled: true, wait: 1, time: 0.5 };
 ```
 
-Once the user lets go and `wait` seconds pass without input, the value eases back to `center` over `time` seconds. Any new input cancels it.
+## Usage
+
+<Tabs defaultValue="core">
+  <TabsList>
+    <TabsTrigger value="core">Core</TabsTrigger>
+    <TabsTrigger value="three">three.js</TabsTrigger>
+    <TabsTrigger value="r3f">React Three Fiber</TabsTrigger>
+  </TabsList>
+  <TabsContent value="core">
+
+The axes are fields of the piece:
+
+```ts
+aim.pan.applyDelta(5); // turn by 5°
+aim.pan.value;         // read the current value
+```
+
+**On its own**
+
+```ts
+import { InputAxis } from '@kvvasuu/klipp';
+
+const zoom = new InputAxis({ value: 10, center: 10, range: [2, 20] });
+
+zoom.applyDelta(-1);
+zoom.update(dt);
+zoom.value;
+```
+
+  </TabsContent>
+  <TabsContent value="three">
+
+The axes are fields of the piece:
+
+```ts
+aim.pan.applyDelta(5); // turn by 5°
+aim.pan.value;         // read the current value
+```
+
+**On its own**
+
+```ts
+import { InputAxis } from '@kvvasuu/klipp';
+
+const zoom = new InputAxis({ value: 10, center: 10, range: [2, 20] });
+
+zoom.applyDelta(-1);
+zoom.update(dt);
+zoom.value;
+```
+
+  </TabsContent>
+  <TabsContent value="r3f">
+
+The axes are on the piece's `ref`:
+
+```tsx
+const aim = useRef<PanTiltAim>(null);
+
+aim.current.pan.applyDelta(5); // turn by 5°
+aim.current.pan.value;         // read the current value
+```
+
+  </TabsContent>
+</Tabs>

@@ -8,26 +8,7 @@ Moves the camera, without rotating it, so the target stays at `screenPosition` a
 
 It's made for cameras that keep a fixed rotation, like top-down or side-scrolling games, so it's usually used without an Aim. The rotation then comes from the camera's [`initialState`](/api/virtual-camera#initialstate).
 
-## Core
-
-```ts
-import { PositionComposerBodyCore } from '@kvvasuu/klipp';
-
-player.extent.radius = 0.5; // so the zones react to its edge
-camera.body = new PositionComposerBodyCore(player, { cameraDistance: 12, deadZone: [0.3, 0.2], damping: 0.3 });
-```
-
-The target's size comes from `player.extent`: a `radius`, or a box `size` with `hasSize` set. `klipp.setSize` keeps `aspect` in sync with your viewport.
-
-## React Three Fiber
-
-```tsx
-<VirtualCamera name="platformer" priority={10}>
-  <Body.PositionComposer target={playerRef} cameraDistance={12} deadZone={[0.3, 0.2]} damping={0.3} />
-</VirtualCamera>
-```
-
-For meshes, the target's size is measured from its geometry. `ref` gives you the `PositionComposerBody`: if the shape changes (an animated skinned mesh, for example), call `recalculateSize()` to measure it again.
+The zones react to the target's edge, not just its center, so its size matters. `klipp.setSize` keeps the screen proportions in sync with your viewport.
 
 ## Settings
 
@@ -44,21 +25,13 @@ For meshes, the target's size is measured from its geometry. `ref` gives you the
 | `lookaheadTime` | Seconds to look ahead of a moving target. See below. | `0` |
 | `lookaheadSmoothing` | Seconds used to smooth the target's measured speed for lookahead. | `1` |
 | `lookaheadIgnoreY` | Only look ahead horizontally, handy for jumping characters. | `false` |
-| `radius` | React only. The target's radius, so zones react to its edge instead of its center. | |
-| `size` | React only. The target's box size, used instead of `radius`. | measured for meshes |
+| `radius` | three.js and React. The target's radius. On the core, set the target's `extent`. | |
+| `size` | three.js and React. The target's box size, used instead of `radius`. | measured for meshes |
 | `debug` | React only. Draws the zones on screen. See [Debugging](/debugging/introduction). | `false` |
 
 ## Lookahead
 
 With `lookaheadTime`, the camera frames where the target is going to be instead of where it is, so fast targets get room in front of them.
-
-```ts
-camera.body = new PositionComposerBodyCore(player, { lookaheadTime: 0.4, lookaheadIgnoreY: true });
-```
-
-```tsx
-<Body.PositionComposer target={playerRef} lookaheadTime={0.4} lookaheadIgnoreY />
-```
 
 ## Combining with an Aim
 
@@ -67,3 +40,65 @@ Avoid Aims that recenter the target every frame, like `HardLookAt`: they cancel 
 - no Aim, for a fixed rotation,
 - [`RotateWithFollowTarget`](/aim/rotate-with-follow-target),
 - [`RotationComposer`](/aim/rotation-composer) with the same `screenPosition`, and a non-zero `deadZone` on both.
+
+## Usage
+
+<Tabs defaultValue="core">
+  <TabsList>
+    <TabsTrigger value="core">Core</TabsTrigger>
+    <TabsTrigger value="three">three.js</TabsTrigger>
+    <TabsTrigger value="r3f">React Three Fiber</TabsTrigger>
+  </TabsList>
+  <TabsContent value="core">
+
+```ts
+import { PositionComposerBodyCore } from '@kvvasuu/klipp';
+
+player.extent.radius = 0.5; // so the zones react to its edge
+camera.body = new PositionComposerBodyCore(player, { cameraDistance: 12, deadZone: [0.3, 0.2], damping: 0.3 });
+```
+
+The target's size comes from `player.extent`: a `radius`, or a box `size` with `hasSize` set.
+
+**Lookahead**
+
+```ts
+camera.body = new PositionComposerBodyCore(player, { lookaheadTime: 0.4, lookaheadIgnoreY: true });
+```
+
+  </TabsContent>
+  <TabsContent value="three">
+
+```ts
+import { PositionComposerBody } from '@kvvasuu/klipp/three';
+
+camera.body = new PositionComposerBody(player, { cameraDistance: 12, deadZone: [0.3, 0.2], damping: 0.3 });
+```
+
+For meshes, the target's size is measured from its geometry. If the shape changes (an animated skinned mesh, for example), call `recalculateSize()` to measure it again.
+
+**Lookahead**
+
+```ts
+camera.body = new PositionComposerBody(player, { lookaheadTime: 0.4, lookaheadIgnoreY: true });
+```
+
+  </TabsContent>
+  <TabsContent value="r3f">
+
+```tsx
+<VirtualCamera name="platformer" priority={10}>
+  <Body.PositionComposer target={playerRef} cameraDistance={12} deadZone={[0.3, 0.2]} damping={0.3} />
+</VirtualCamera>
+```
+
+For meshes, the target's size is measured from its geometry. `ref` gives you the `PositionComposerBody`: if the shape changes (an animated skinned mesh, for example), call `recalculateSize()` to measure it again.
+
+**Lookahead**
+
+```tsx
+<Body.PositionComposer target={playerRef} lookaheadTime={0.4} lookaheadIgnoreY />
+```
+
+  </TabsContent>
+</Tabs>

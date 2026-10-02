@@ -4,7 +4,7 @@ description: Read klipp's state from your own components.
 nav: 12
 ---
 
-Hooks are React-only. With the core, read the same values from [`KlippCore`](/api/klipp#core).
+Hooks are React only. With the core or three.js, read the same values from [klipp](/api/klipp#members).
 
 ## `useIsActiveVirtualCamera`
 
@@ -31,7 +31,7 @@ const isLive = useIsLiveVirtualCamera();
 
 ## `useVirtualCamera`
 
-The camera behind the nearest `<VirtualCamera>`, with its pieces and raw `state`. Mostly needed for [custom pieces](/advanced/custom-components). It has the same members as a [core camera](/api/virtual-camera#core).
+The camera behind the nearest `<VirtualCamera>`, with its pieces and raw `state`. Mostly needed for [custom pieces](/advanced/custom-components). It has the same members as any [virtual camera](/api/virtual-camera#members).
 
 ```tsx
 const camera = useVirtualCamera();
@@ -40,7 +40,7 @@ camera.state; // the camera's raw state
 
 ## `useKlipp`
 
-The `Klipp` behind the nearest `<Klipp>`, which knows about every camera. It has the same members as [`KlippCore`](/api/klipp#core).
+The `Klipp` behind the nearest `<Klipp>`, which knows about every camera. It has the same [members](/api/klipp#members) as `KlippCore`.
 
 ```tsx
 const klipp = useKlipp();
