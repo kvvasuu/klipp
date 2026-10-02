@@ -203,6 +203,31 @@ export class KlippCore extends EventDispatcher<CameraTransitionEventMap> {
     }
   }
 
+  /**
+   * Call `start` while `camera` is on screen, and the function it returns once it leaves, for example to connect
+   * input. With `waitForBlend`, on screen begins once the blend into it has finished. Returns a function that stops.
+   */
+  whileOnScreen(camera: VirtualCameraCore, start: () => () => void, { waitForBlend = true } = {}): () => void {
+    let stop: (() => void) | null = null;
+    const check = () => {
+      const onScreen = this.isActive(camera.name) && (!waitForBlend || this.isLive(camera.name));
+      if (onScreen && !stop) stop = start();
+      else if (!onScreen && stop) {
+        stop();
+        stop = null;
+      }
+    };
+    const offActive = this.subscribeActiveId(check);
+    const offLive = this.subscribeLiveId(check);
+    check();
+    return () => {
+      offActive();
+      offLive();
+      stop?.();
+      stop = null;
+    };
+  }
+
   /** Run `update` every frame before the cameras. Returns a function that stops it. */
   registerUpdate(update: FrameUpdate): () => void {
     this.updates.add(update);
